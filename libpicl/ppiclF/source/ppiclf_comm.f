@@ -155,8 +155,11 @@
         BinMinLen(i) = MAX(ppiclf_filter(i),ppiclf_nndist)
         ! Need ppiclf_filter to make sure you have 1 layer
         ! of outer fluid cells
-        ! Need ppiclf_nndist/2 to ensure BinMinLen is never violated
-        BinBuffer(i) = MAX(ppiclf_filter(i)/2,ppiclf_nndist/2)
+        ! Need ppiclf_nndist/2 to ensure BinMinLen is never violated.
+        ! Use 0.51 rather than 0.5 so a single-particle bin domain
+        ! (2*BinBuffer) is strictly larger than BinMinLen; at exactly
+        ! 0.5, round-off can make FLOOR(binb_length/BinMinLen) = 0.
+        BinBuffer(i) = 0.51D0*BinMinLen(i)
         MaxBinsAchieved(i) = .FALSE.
       END DO
 

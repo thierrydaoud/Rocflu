@@ -609,10 +609,13 @@ DO i = 1,nCells
   DO l = 1,3
     ! Find element length in all dimensions
     CellLen(l) = ABS(MaxPoint(l)-MinPoint(l))
-    ! Find max lengths for grid cells in particle domain on this processor
-    IF( (pRegion%grid%cofg(1,i) >= xp_min) .AND. (pRegion%grid%cofg(1,i) <= xp_max) .AND. & 
-        (pRegion%grid%cofg(2,i) >= yp_min) .AND. (pRegion%grid%cofg(2,i) <= yp_max) .AND. & 
-        (pRegion%grid%cofg(3,i) >= zp_min) .AND. (pRegion%grid%cofg(3,i) <= zp_max)) THEN 
+    ! Find max lengths for grid cells in particle domain on this processor.
+    ! Use cell bounding-box overlap with the particle box, not centroid
+    ! inclusion: a narrow cloud (e.g. one particle) may contain no centroid,
+    ! which gave Max_CellLen = 0 and a zero filter width.
+    IF( (MaxPoint(1) >= xp_min) .AND. (MinPoint(1) <= xp_max) .AND. &
+        (MaxPoint(2) >= yp_min) .AND. (MinPoint(2) <= yp_max) .AND. &
+        (MaxPoint(3) >= zp_min) .AND. (MinPoint(3) <= zp_max)) THEN
       IF(CellLen(l) .GT. Max_CellLen(l)) Max_CellLen(l) = CellLen(l)
       ! For tets, make a rectangular box around it with maxCellLength equal in all dimensions
       IF(pGrid%cellGlob2Loc(1,i) == 1) Max_CellLen(l) = MAXVAL(Max_CellLen(:))

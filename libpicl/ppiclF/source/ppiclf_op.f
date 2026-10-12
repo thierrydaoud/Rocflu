@@ -294,23 +294,18 @@ c-----------------------------------------------------------------------
 ! 
 ! Vars:
 ! 
-      character*1 stringi(132)
-      character*1 stringo(132)
-      character*25 s25
-      integer*4 ilen, ierr, k, idata
-      integer*4 ppiclf_indx1
+      character*(*) stringi
+      integer*4 ilen, ierr, idata
       real*8 rdata
-      external ppiclf_indx1
 !
-      call ppiclf_blank(stringo,132)
-      call ppiclf_chcopy(stringo,stringi,132)
-      ilen = ppiclf_indx1(stringo,'$')
-      write(s25,25) rdata,idata
-   25 format(1x,1p1e14.6,i10)
-      call ppiclf_chcopy(stringo(ilen),s25,25)
+      ! Message ends at an optional '$' terminator, else at its length
+      ilen = INDEX(stringi,'$') - 1
+      if (ilen .lt. 0) ilen = LEN_TRIM(stringi)
 
-      if (ppiclf_nid.eq.0) write(6,1) (stringo(k),k=1,ilen+24)
-    1 format('PPICLF: ERROR ',132a1)
+      ! Print from the calling rank: errors are often raised on one rank
+      write(6,1) ppiclf_nid, stringi(1:ilen), rdata, idata
+    1 format('PPICLF: ERROR (rank ',i6,') ',a,1x,1p1e14.6,i10)
+      flush(6)
 
 c     call mpi_finalize (ierr)
       call mpi_abort(ppiclf_comm, 1, ierr)
@@ -328,27 +323,20 @@ c-----------------------------------------------------------------------
 ! Vars:
 !
 
-      character*1 stringi(132)
-      character*1 stringo(132)
-      character*25 s25
-      integer*4 ilen, idata, k, ierr
-      integer*4 ppiclf_indx1
+      character*(*) stringi
+      integer*4 ilen, idata, ierr
       real*8 rdata
-      external ppiclf_indx1
 #ifdef TEST
       RETURN
 #endif!
-      call ppiclf_blank(stringo,132)
-      call ppiclf_chcopy(stringo,stringi,132)
-      ilen = ppiclf_indx1(stringo,'$')
-      write(s25,25) rdata,idata
-   25 format(1x,1p1e14.6,i10)
-      call ppiclf_chcopy(stringo(ilen),s25,25)
+      ! Message ends at an optional '$' terminator, else at its length
+      ilen = INDEX(stringi,'$') - 1
+      if (ilen .lt. 0) ilen = LEN_TRIM(stringi)
 
       call mpi_barrier(ppiclf_comm,ierr)
 
-      if (ppiclf_nid.eq.0) write(6,1) (stringo(k),k=1,ilen+24)
-    1 format('PPICLF: ',132a1)
+      if (ppiclf_nid.eq.0) write(6,1) stringi(1:ilen), rdata, idata
+    1 format('PPICLF: ',a,1x,1p1e14.6,i10)
 
       call mpi_barrier(ppiclf_comm,ierr)
 
@@ -364,26 +352,20 @@ c-----------------------------------------------------------------------
 !
 ! Vars:
 !
-      character*1 stringi(132)
-      character*1 stringo(132)
-      character*10 s10
-      integer*4 ilen, idata, k, ierr
-      integer*4 ppiclf_indx1
-      external ppiclf_indx1
+      character*(*) stringi
+      integer*4 ilen, idata, ierr
 !
 #ifdef TEST
       RETURN
-#endif      call ppiclf_blank(stringo,132)
-      call ppiclf_chcopy(stringo,stringi,132)
-      ilen = ppiclf_indx1(stringo,'$')
-      write(s10,10) idata
-   10 format(1x,i9)
-      call ppiclf_chcopy(stringo(ilen),s10,10)
+#endif
+      ! Message ends at an optional '$' terminator, else at its length
+      ilen = INDEX(stringi,'$') - 1
+      if (ilen .lt. 0) ilen = LEN_TRIM(stringi)
 
       call mpi_barrier(ppiclf_comm,ierr)
 
-      if (ppiclf_nid.eq.0) write(6,1) (stringo(k),k=1,ilen+9)
-    1 format('PPICLF: ',132a1)
+      if (ppiclf_nid.eq.0) write(6,1) stringi(1:ilen), idata
+    1 format('PPICLF: ',a,1x,i9)
 
       call mpi_barrier(ppiclf_comm,ierr)
 
@@ -399,27 +381,21 @@ c-----------------------------------------------------------------------
 !
 ! Vars:
 !
-      character*1 stringi(132)
-      character*1 stringo(132)
-      character*15 s15
-      integer*4 ilen, k, ierr
-      integer*4 ppiclf_indx1
+      character*(*) stringi
+      integer*4 ilen, ierr
       real*8 rdata
-      external ppiclf_indx1
 !
 #ifdef TEST
       RETURN
-#endif      call ppiclf_blank(stringo,132)
-      call ppiclf_chcopy(stringo,stringi,132)
-      ilen = ppiclf_indx1(stringo,'$')
-      write(s15,15) rdata
-   15 format(1x,1p1e14.6)
-      call ppiclf_chcopy(stringo(ilen),s15,15)
+#endif
+      ! Message ends at an optional '$' terminator, else at its length
+      ilen = INDEX(stringi,'$') - 1
+      if (ilen .lt. 0) ilen = LEN_TRIM(stringi)
 
       call mpi_barrier(ppiclf_comm,ierr)
 
-      if (ppiclf_nid.eq.0) write(6,1) (stringo(k),k=1,ilen+14)
-    1 format('PPICLF: ',132a1)
+      if (ppiclf_nid.eq.0) write(6,1) stringi(1:ilen), rdata
+    1 format('PPICLF: ',a,1x,1p1e14.6)
 
       call mpi_barrier(ppiclf_comm,ierr)
 
@@ -435,22 +411,20 @@ c-----------------------------------------------------------------------
 !
 ! Vars:
 !
-      character*1 stringi(132)
-      character*1 stringo(132)
-      integer*4 ilen, k, ierr
-      integer*4 ppiclf_indx1
-      external ppiclf_indx1
+      character*(*) stringi
+      integer*4 ilen, ierr
 !
 #ifdef TEST
       RETURN
-#endif      call ppiclf_blank(stringo,132)
-      call ppiclf_chcopy(stringo,stringi,132)
-      ilen = ppiclf_indx1(stringo,'$')
+#endif
+      ! Message ends at an optional '$' terminator, else at its length
+      ilen = INDEX(stringi,'$') - 1
+      if (ilen .lt. 0) ilen = LEN_TRIM(stringi)
 
       call mpi_barrier(ppiclf_comm,ierr)
 
-      if (ppiclf_nid.eq.0) write(6,1) (stringo(k),k=1,ilen-1)
-    1 format('PPICLF: ',132a1)
+      if (ppiclf_nid.eq.0) write(6,1) stringi(1:ilen)
+    1 format('PPICLF: ',a)
 
       call mpi_barrier(ppiclf_comm,ierr)
 
