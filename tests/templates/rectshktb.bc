@@ -1,0 +1,63 @@
+# BC_INFLOW_VELTEMP
+PATCH       1 1
+NAME        Inflow
+TYPE        1 ! 0 -> supersonic inflow, need PRESS ; 1 -> subsonic inflow, no need PRESS
+PRESS          141869.8040079374623   ! Pressure behind shock; pjump=   1.715
+TEMP            348.2905651702251
+VELX            138.9205016483263
+VELY        0.0
+VELZ        0.0
+ORDER       2
+REFLECT     0
+#
+
+!# BC_SLIPW
+!PATCH      1 1
+!NAME       SolidWalls
+!#
+
+# BC_OUTFLOW
+PATCH      2 2 
+KIND       1
+NAME       Absorbing_Wall
+NSCBCK     0.0
+ORDER      1
+REFLECT    0
+THRUSTFLAG 0
+TYPE       0 
+#
+
+
+# BC_PERIODIC
+PATCH    3 3
+RELPATCH 4 4
+AXIS     2
+ANGLE    0.0
+NAME     Y-Periodic
+#
+
+# BC_PERIODIC
+PATCH    4 4
+RELPATCH 3 3
+AXIS     2
+ANGLE    0.0
+NAME     Y-Periodic
+#
+
+# BC_PERIODIC
+PATCH    5 5
+RELPATCH 6 6
+AXIS     3
+ANGLE    0.0
+NAME     Z-Periodic
+#
+
+# BC_PERIODIC
+PATCH    6 6
+RELPATCH 5 5
+AXIS     3
+ANGLE    0.0
+NAME     Z-Periodic
+#
+
+# END
