@@ -539,6 +539,22 @@ SUBROUTINE RFLU_AllocateMemorySolCv(pRegion)
      IF (global%error /= ERR_NONE) THEN
         CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'pRegion%mixt%piclFeedback')
      END IF ! global%error
+
+     ! Zero all PICL/pseudo-turbulence fields: several (e.g. piclKsg) are
+     ! read every step even when the model that sets them is off
+     pRegion%mixt%piclVF            = 0.0_RFREAL
+     pRegion%mixt%piclVFg           = 0.0_RFREAL
+     pRegion%mixt%piclgradRhog      = 0.0_RFREAL
+     pRegion%mixt%piclPhiRsg        = 0.0_RFREAL
+     pRegion%mixt%piclGradPhiRsg    = 0.0_RFREAL
+     pRegion%mixt%piclKsg           = 0.0_RFREAL
+     pRegion%mixt%piclPhiQsg        = 0.0_RFREAL
+     pRegion%mixt%piclGradPhiQsg    = 0.0_RFREAL
+     pRegion%mixt%piclgradTg        = 0.0_RFREAL
+     pRegion%mixt%DivPhiRsg         = 0.0_RFREAL
+     pRegion%mixt%FCell             = 0.0_RFREAL
+     pRegion%mixt%piclFeedback      = 0.0_RFREAL
+     pRegion%mixt%piclgradFeedback  = 0.0_RFREAL
 !   END IF
 #endif
 

@@ -352,6 +352,10 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
 ! Weights for cell and face gradients
 ! ==============================================================================
 
+! pRegion is only set above when printEndTime == 1; the decision depends on
+! input settings shared by all regions, so use the first region
+  pRegion => levels(1)%regions(1)
+
   IF ( RFLU_DecideNeedWeights(pRegion) .EQV. .TRUE. ) THEN
     DO iReg = 1,global%nRegionsLocal 
       pRegion => levels(1)%regions(iReg)

@@ -234,6 +234,7 @@ SUBROUTINE RFLU_CentralFirstPatch(pRegion,pPatch)
 
       DO ifl = 1,pPatch%nBFaces
         c1 = pPatch%bf2c(ifl)
+        ksg = pRegion%mixt%piclKsg(c1)
 
         nx = pPatch%fn(XCOORD,ifl)
         ny = pPatch%fn(YCOORD,ifl)

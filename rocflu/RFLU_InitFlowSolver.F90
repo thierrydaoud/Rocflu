@@ -1697,7 +1697,7 @@ END if !global%piclused
     CALL RFLU_SetVarsWrapper(pRegion,1,pRegion%grid%nCellsTot)   
       
     IF ( RFLU_NSCBC_DecideHaveNSCBC(pRegion) .EQV. .TRUE. ) THEN
-      !CALL RFLU_BXV_SetDependentVars(pRegion)
+      CALL RFLU_BXV_SetDependentVars(pRegion)
     END IF ! RFLU_NSCBC
   END DO ! iReg 
 ! Rahul - End BUG FIX

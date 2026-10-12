@@ -2302,7 +2302,7 @@ MODULE RFLU_ModReadWriteFlow
     WRITE(iFile,'(A)') sectionString
     WRITE(iFile,'(2(I16))') pGrid%nCellsTot,pRegion%mixtInput%nCv
     WRITE(iFile1,'(A)') sectionString
-    WRITE(iFile1,'(2(I16))') pGrid%nCellsTot,4 !pRegion%mixtInput%nCv
+    WRITE(iFile1,'(2(I16))') pGrid%nCellsTot,MIN(4,pRegion%mixtInput%nDv) !pRegion%mixtInput%nCv
 
 ! ==============================================================================
 !   Data
@@ -2322,7 +2322,7 @@ MODULE RFLU_ModReadWriteFlow
       WRITE(iFile,'(5(E23.16))') (pCv(iLoc,j),j=1,pGrid%nCellsTot)
     END DO ! iLoc
 
-    DO iLoc = 1,4
+    DO iLoc = 1,MIN(4,pRegion%mixtInput%nDv)
       WRITE(sectionString,'(A,I2)') '# ',iLoc
       WRITE(iFile1,'(A)') sectionString
       WRITE(iFile1,'(5(E23.16))') (pDv(iLoc,j),j=1,pGrid%nCellsTot)
