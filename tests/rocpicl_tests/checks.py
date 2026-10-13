@@ -157,6 +157,25 @@ def check_particles_moved(init, final, case):
     return [] if moved else ["particles never moved; the case tests nothing"]
 
 
+# Particle data is single precision (relative resolution ~6e-8).
+LINEAR_INTERP_RTOL = 1e-6
+
+
+def check_linear_interp(init, final, case):
+    """Gas density linear in x, y, z (INITFLOW IVAL1 = 1) must be interpolated
+    exactly at every particle: rhof = RVAL2*(1 + RVAL7*x + RVAL8*y + RVAL9*z)."""
+    rho0 = float(case.inp[("INITFLOW", "RVAL2")])
+    a, b, c = (float(case.inp[("INITFLOW", k)]) for k in ("RVAL7", "RVAL8", "RVAL9"))
+    errors = []
+    for pid, p in sorted(final["particles"].items()):
+        exact = rho0 * (1.0 + a * p["x"] + b * p["y"] + c * p["z"])
+        if abs(p["rpro02"] - exact) > LINEAR_INTERP_RTOL * exact:
+            errors.append("particle %s at (%.4g, %.4g, %.4g): rhof %.9g, exact %.9g (rel. error %.2e)"
+                          % (pid, p["x"], p["y"], p["z"], p["rpro02"], exact,
+                             abs(p["rpro02"] - exact) / exact))
+    return errors
+
+
 PHYSICS = {
     "quiescent": check_quiescent,
     "mass": check_mass,
@@ -165,4 +184,5 @@ PHYSICS = {
     "gas_energy": check_gas_energy,
     "particles_moved": check_particles_moved,
     "particles_heat_exchange": check_particles_heat_exchange,
+    "linear_interp": check_linear_interp,
 }

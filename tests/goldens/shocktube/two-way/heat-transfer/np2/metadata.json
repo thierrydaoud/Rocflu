@@ -1,11 +1,11 @@
 {
- "created": "2026-10-12T23:50:09",
+ "created": "2026-10-13T01:18:23",
  "host": "login10.ufhpc",
  "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocpicl_Dec23_release",
  "git": {
-  "commit": "e3ed37046a72b794f161bcb8d4201fcd9b230afb",
+  "commit": "89f96614376b321ec74adcac661c433ab1abe55c",
   "branch": "HEAD",
   "modified_sources": []
  },
- "modules": "ufrc:tmux/3.5:gcc/14.2.0:openmpi/5.0.7"
+ "modules": "gcc/14.2.0:openmpi/5.0.7"
 }

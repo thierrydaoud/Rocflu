@@ -53,6 +53,10 @@ RVAL3            138.9205016483263   ! u2
 RVAL4         141869.8040079374623   ! Post Shock P2( Ms=1.27, Ts= 400.00K)
 RVAL5              0.9700779339532   ! rho1
 RVAL6          82700.0000000000000   ! P1
+IVAL1          0                     ! 1: density d*(1+RVAL7*x+RVAL8*y+RVAL9*z), tests only
+RVAL7          0.0
+RVAL8          0.0
+RVAL9          0.0
 
 
 #

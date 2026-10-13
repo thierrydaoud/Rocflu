@@ -72,6 +72,7 @@ by particle.
 | `momentum`, `energy` | The gas loses what the particles gain (periodic box); energy includes particle kinetic and thermal energy |
 | `particles_heat_exchange` | Particles at rest in gas at another temperature exchange heat |
 | `quiescent` | Gas at rest stays at rest (fixed particles) |
+| `linear_interp` | Particles read a linear gas density exactly (`INITFLOW IVAL1 = 1`, density `RVAL2*(1 + RVAL7*x + RVAL8*y + RVAL9*z)` at rest) |
 | `same_as` | Particles match the same case on a different number of ranks |
 
 ## Known issues tracked by the suite
@@ -82,7 +83,10 @@ None at the moment. Fixed and now guarded:
   moving around fixed particles and made 1- and 2-rank runs differ by ~1%
   (`box/quiescent-cloud/np2`, `np4`, and the `same_as` check of
   `box/momentum-exchange/np2`, e3ed370);
-- resting particles skipping heat transfer (`box/resting-heat-exchange`, f0ae123).
+- resting particles skipping heat transfer (`box/resting-heat-exchange`, f0ae123);
+- inverse-distance interpolation, which was not exact for a linear field (errors up to
+  ~20% of the change across a cell, depending on where the particle sat), replaced by
+  weighted linear least squares (`box/linear-interp/np1`, `np2`, `np4`, 89f9661).
 
 ## Flow-file conventions
 

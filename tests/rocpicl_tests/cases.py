@@ -151,6 +151,25 @@ add(name="box/resting-heat-exchange/np1",
     particles=cloud(40, 2.0e-5),  # small: thermal time ~ dp^2, so T changes measurably
     checks=["particles_heat_exchange", "mass", "energy"])
 
+# -- Closed box: interpolation of a linear gas field --------------------------
+# Gas at rest at uniform pressure with density linear in x, y, z (a steady
+# state). Particles at rest anywhere at least half a cell from the walls
+# (inside the hull of cell centres) must see the exact density. The old
+# inverse-distance (1/d^3) interpolation was off by up to ~15% of the
+# density change across a cell, depending on where the particle sat in it.
+LINEAR_RHO = {("INITFLOW", "IVAL1"): 1, ("INITFLOW", "RVAL7"): "25.0",
+              ("INITFLOW", "RVAL8"): "-15.0", ("INITFLOW", "RVAL9"): "10.0",
+              ("PICL", "PERIODICX"): 0, ("PICL", "PERIODICY"): 0,
+              ("PICL", "PERIODICZ"): 0, ("PICL", "STATIONARY"): 1}
+for n in (1, 2, 4):
+    add(name="box/linear-interp/np%d" % n,
+        description="Gas density linear in x, y, z at rest in a slip-wall box; "
+                    "particles at rest must interpolate it exactly",
+        nranks=n, grid=BOX, bc="closed",
+        inp={**uniform_gas(0.0), **ONE_WAY, **LINEAR_RHO},
+        particles=cloud(40, 1.0e-6, lo=0.0006, hi=0.0074),
+        checks=["linear_interp", "mass"])
+
 # -- Gas only: conservation of the flow solver itself --------------------------
 JUMP = {("PICL", "USED"): 0, ("INITFLOW", "RVAL1"): "0.0043", ("INITFLOW", "RVAL3"): "0.0",
         ("INITFLOW", "RVAL5"): "0.97", ("INITFLOW", "RVAL6"): "82700.0"}
