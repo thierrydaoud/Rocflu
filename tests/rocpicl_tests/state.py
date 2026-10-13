@@ -52,6 +52,19 @@ def _picl_used(rundir):
     return False
 
 
+def _particle_cp(rundir):
+    """Particle specific heat (SPHT in the # MATERIAL section)."""
+    with open(os.path.join(rundir, CASENAME + ".inp")) as f:
+        in_mat = False
+        for line in f:
+            s = line.strip()
+            if s.startswith("#"):
+                in_mat = s[1:].split() == ["MATERIAL"]
+            elif in_mat and s.split()[:1] == ["SPHT"]:
+                return float(s.split()[1])
+    return 0.0
+
+
 def _particle_files(rundir):
     return sorted(glob.glob(os.path.join(rundir, "par[0-9]*.vtu")))
 
@@ -98,7 +111,8 @@ def snapshot(rundir, case, which=-1):
         raise RuntimeError("Gas dump t=%g and particle dump t=%g do not match" % (t_gas, t_par))
 
     return {"time": t_gas, "gas": gas, "particles": particles,
-            "totals": totals(gas, particles, case.grid.cell_volume, picl)}
+            "totals": totals(gas, particles, case.grid.cell_volume, picl,
+                             _particle_cp(rundir))}
 
 
 def bulk_state(g, i, picl):
@@ -115,7 +129,7 @@ def velocity(g, i, picl):
     return g["q2"][i] / g["q1"][i], g["q3"][i] / g["q1"][i], g["q4"][i] / g["q1"][i]
 
 
-def totals(gas, particles, cell_volume, picl):
+def totals(gas, particles, cell_volume, picl, cp_particle=0.0):
     """Domain integrals of gas mass, momentum, energy and particle momentum."""
     sums = [0.0] * 5
     for g in gas.values():
@@ -130,6 +144,10 @@ def totals(gas, particles, cell_volume, picl):
     out["par_ke"] = sum(
         0.5 * p["rpro22"] * p["rpro01"] * p["rpro04"]
         * (p["y04"] ** 2 + p["y05"] ** 2 + p["y06"] ** 2) for p in particles.values())
+    # Particle thermal energy m*cp*T (temperature is y07)
+    out["par_eth"] = sum(
+        p["rpro22"] * p["rpro01"] * p["rpro04"] * cp_particle * p["y07"]
+        for p in particles.values())
     for c, cv in zip("xyz", ("rhou", "rhov", "rhow")):
         out["mom" + c] = out["gas_" + cv] + out["par_mom" + c]
     return out

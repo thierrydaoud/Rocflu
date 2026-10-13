@@ -23,6 +23,10 @@ script. The solver runs through `srun`:
   with `--account`/`--partition` or `ROCPICL_TEST_ACCOUNT`/`ROCPICL_TEST_PARTITION`.
 - Inside an allocation (`salloc`), cases run as job steps.
 
+A case whose solver run fails is set up again and retried once; `srun` on a shared
+partition can fail when the Slurm controller is unresponsive. The retry and any Slurm
+messages are shown next to the case.
+
 Run directories go to `_work/runs/<case>` (git-ignored). They are deleted for cases
 that pass, unless you pass `--keep`.
 
@@ -65,7 +69,8 @@ by particle.
 |---|---|
 | `particles_moved` | Something happened, so the other checks aren't vacuous |
 | `mass`, `gas_energy` | Gas totals are conserved (closed or periodic box, no inflow) |
-| `momentum`, `energy` | The gas loses what the particles gain (periodic box) |
+| `momentum`, `energy` | The gas loses what the particles gain (periodic box); energy includes particle kinetic and thermal energy |
+| `particles_heat_exchange` | Particles at rest in gas at another temperature exchange heat |
 | `quiescent` | Gas at rest stays at rest (fixed particles) |
 | `same_as` | Particles match the same case on a different number of ranks |
 

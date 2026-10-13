@@ -133,13 +133,22 @@ def check_momentum(init, final, case):
 
 
 def check_energy(init, final, case):
-    """Gas total energy + particle kinetic energy (no heat transfer)."""
-    return _exchange(init, final, "gas_rhoE", "par_ke", "energy")
+    """Gas total energy + particle kinetic and thermal energy."""
+    for st in (init, final):
+        st["totals"]["par_energy"] = st["totals"]["par_ke"] + st["totals"].get("par_eth", 0.0)
+    return _exchange(init, final, "gas_rhoE", "par_energy", "energy")
 
 
 def check_gas_energy(init, final, case):
     """Gas total energy in a closed or periodic box without particles."""
     return _conserved(init, final, ["gas_rhoE"], GAS_CONSERVATION_RTOL, "energy not conserved:")
+
+
+def check_particles_heat_exchange(init, final, case):
+    """Particles at rest in gas at a different temperature exchange heat."""
+    t0 = {k: p["y07"] for k, p in init["particles"].items()}
+    changed = any(abs(p["y07"] - t0[k]) > 1e-6 * abs(t0[k]) for k, p in final["particles"].items())
+    return [] if changed else ["particle temperatures never changed; resting particles exchange no heat"]
 
 
 def check_particles_moved(init, final, case):
@@ -155,4 +164,5 @@ PHYSICS = {
     "energy": check_energy,
     "gas_energy": check_gas_energy,
     "particles_moved": check_particles_moved,
+    "particles_heat_exchange": check_particles_heat_exchange,
 }

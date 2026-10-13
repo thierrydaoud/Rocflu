@@ -141,6 +141,18 @@ add(name="box/quiescent-cloud/np2",
                 "drifts ~3e-8; suspected: cv initialised without the particle volume "
                 "fraction while pressure uses 1/(1-phi)")
 
+# -- Periodic box: particles at rest exchanging heat with gas at rest ----------
+# Particles start at 296.4 K (template TEMP), the gas at 101325 Pa and 1.2 kg/m^3
+# (294.2 K). Before 2026-10 particles slipping < 1 mm/s skipped every force,
+# heat transfer included, so their temperature never changed.
+add(name="box/resting-heat-exchange/np1",
+    description="Particles at rest in gas at rest at a different temperature; heat "
+                "must flow and total energy (gas + particle thermal) be conserved",
+    nranks=1, grid=BOX, bc="periodic",
+    inp={**uniform_gas(0.0), **TWO_WAY, ("PICL", "HEATTRANSFER"): 2},
+    particles=cloud(40, 2.0e-5),  # small: thermal time ~ dp^2, so T changes measurably
+    checks=["particles_heat_exchange", "mass", "energy"])
+
 # -- Gas only: conservation of the flow solver itself --------------------------
 JUMP = {("PICL", "USED"): 0, ("INITFLOW", "RVAL1"): "0.0043", ("INITFLOW", "RVAL3"): "0.0",
         ("INITFLOW", "RVAL5"): "0.97", ("INITFLOW", "RVAL6"): "82700.0"}

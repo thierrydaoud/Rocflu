@@ -60,9 +60,18 @@ def run_case(case, args):
     # physics: physics/cross-check failures (expected while known_issue is set)
     res = {"case": case, "errors": [], "physics": [], "final": None}
     try:
-        rcase.setup(case, rundir, args.exe)
-        rcase.run_solver(case, rundir, args.exe, {"account": args.account,
-                                                  "partition": args.partition})
+        # One retry from a clean set-up: a failed srun can leave partial
+        # dumps that a rerun in the same directory would restart from
+        for attempt in (1, 2):
+            rcase.setup(case, rundir, args.exe)
+            try:
+                rcase.run_solver(case, rundir, args.exe, {"account": args.account,
+                                                          "partition": args.partition})
+                break
+            except rcase.RunError as e:
+                if attempt == 2:
+                    raise
+                res["note"] = "retried after: %s" % e
         init = state.snapshot(rundir, case, 0)
         final = state.snapshot(rundir, case, -1)
         res["final"] = final
