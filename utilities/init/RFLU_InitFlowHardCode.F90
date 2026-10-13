@@ -302,7 +302,9 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
 
            print*,'TLJ RFLU_InitFlowHardCode : ',TRIM(global%casename)
            print*,'TLJ specUsed       : ',global%specUsed
+#ifdef SPEC
            print*,'TLJ nSpecies       : ',global%nSpecies 
+#endif
            print*,'TLJ Gas Model      : ',pRegion%mixtInput%gasModel
            print*,'TLJ RB value       : ',pMixtInput%prepRealVal26
            print*,'TLJ RB File        : ',TRIM(pMixtInput%rBurnFile)
@@ -854,7 +856,9 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
 
            print*,'TLJ RFLU_InitFlowHardCode : ',TRIM(global%casename)
            print*,'TLJ specUsed       : ',global%specUsed
+#ifdef SPEC
            print*,'TLJ nSpecies       : ',global%nSpecies 
+#endif
            print*,'TLJ Gas Model      : ',pRegion%mixtInput%gasModel
            print*,'TLJ RB value       : ',pMixtInput%prepRealVal26
            print*,'TLJ RB File        : ',TRIM(pMixtInput%rBurnFile)
@@ -1319,7 +1323,9 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
 
           print*,'TLJ RFLU_InitFlowHardCode : ',TRIM(global%casename)
           print*,'TLJ specUsed       : ',global%specUsed
+#ifdef SPEC
           print*,'TLJ nSpecies       : ',global%nSpecies 
+#endif
           print*,'TLJ Gas Model      : ',pRegion%mixtInput%gasModel
           print*,'TLJ RB value       : ',pMixtInput%prepRealVal26
           print*,'TLJ RB File        : ',TRIM(pMixtInput%rBurnFile)

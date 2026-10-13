@@ -2786,6 +2786,7 @@ SUBROUTINE RFLU_NSCBC_CompRhsOF(pRegion,pPatch)
     ! TLJ added from dupe_meso2
     ! Speed of sound for ideal gas computed above; here it
     !   is modified for JWL
+#ifdef SPEC
     IF (pRegion%mixtInput%gasModel == GAS_MODEL_MIXT_JWL) THEN
        ! Compute Y here
        iCvSpecProducts = SPEC_GetSpeciesIndex(global,pSpecInput, &
@@ -2794,6 +2795,7 @@ SUBROUTINE RFLU_NSCBC_CompRhsOF(pRegion,pPatch)
        ie = RFLU_JWL_E_PR(pRegion,p,r,YProducts)
        a = RFLU_JWL_C_ER(pRegion,ie,r,YProducts)
     END IF
+#endif
 
     lambda1 = un - a
     lambda2 = un

@@ -4,5 +4,6 @@ rm build_lib/*.f90
 rm build_lib/*.d   
 rm build_lib/*.o   
 make clean
-make RFLU=1 PICL=1 FOLDER=1 SPEC=1 -j16
+# Add SPEC=1 only for species transport or the JWL gas model (GASMODEL 7)
+make RFLU=1 PICL=1 FOLDER=1 -j16
 ls --color=auto

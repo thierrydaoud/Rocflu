@@ -22,5 +22,6 @@ rm build_util/*/*.f90
 rm build_util/*/*.d
 rm build_util/*/*.o
 
-make RFLU=1 PICL=1 SPEC=1 FOLDER=1 -j16
+# Add SPEC=1 only for species transport or the JWL gas model (GASMODEL 7)
+make RFLU=1 PICL=1 FOLDER=1 -j16
 ls --color=auto

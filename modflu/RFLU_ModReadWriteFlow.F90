@@ -2908,12 +2908,16 @@ MODULE RFLU_ModReadWriteFlow
     IF ( global%myProcid == MASTERPROC .AND. &
          global%verbLevel > VERBOSE_NONE ) THEN
       WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,'Writing PARAVIEW file...'
+#ifdef SPEC
       IF (global%nSpecies > 0) THEN
          WRITE(STDOUT,'(A,2x,2I4)') '  TLJ: iCvSpecAir, iCvSpecProducts = ', &
               iCvSpecAir, iCvSpecProducts
       ELSE
          WRITE(STDOUT,'(A,2x,2I4)') '  TLJ: Single-species Gas'
       END IF
+#else
+      WRITE(STDOUT,'(A,2x,2I4)') '  TLJ: Single-species Gas'
+#endif
     END IF ! global%verbLevel
     IF ( global%flowType == FLOW_UNSTEADY ) THEN
       CALL BuildFileNameUnsteadyVTK(global,FILEDEST_OUTDIR,'.vtu', &

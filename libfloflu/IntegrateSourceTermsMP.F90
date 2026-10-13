@@ -81,10 +81,10 @@ SUBROUTINE IntegrateSourceTermsMP(regions)
   USE ModParameters
 
 #ifdef RFLU
-!#ifdef SPEC
+#ifdef SPEC
   USE SPEC_RFLU_ModChemistry, ONLY: SPEC_RFLU_IntegrateChemSrcTerm
   USE ModInterfaces, ONLY: RFLU_SetVarsWrapper
-!#endif  
+#endif
 #endif
 
 ! ******************************************************************************

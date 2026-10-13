@@ -139,6 +139,10 @@ SUBROUTINE ReadInputFile(regions)
   CHARACTER(256) :: line
   INTEGER :: errorFlag
   TYPE(t_global), POINTER :: global
+#ifndef SPEC
+  CHARACTER(256) :: key
+  INTEGER :: specUsedVal
+#endif
 
 ! ******************************************************************************
 ! Start
@@ -224,10 +228,37 @@ SUBROUTINE ReadInputFile(regions)
       CASE ('# STATISTICS')
         CALL ReadStatisticSection(global)
 #endif
+#ifndef SPEC
+! Built without SPEC, species input would be silently ignored: stop instead
+      CASE ('# SPECIES')
+        DO
+          READ(IF_INPUT,'(A256)',ERR=10,END=86) line
+          line = ADJUSTL(line)
+          IF ( line(1:1) == '#' ) EXIT
+          READ(line,*,IOSTAT=errorFlag) key, specUsedVal
+          IF ( errorFlag == 0 .AND. TRIM(key) == 'USED' .AND. &
+               specUsedVal /= 0 ) THEN
+            CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
+              'SPECIES USED requires a build with SPEC=1')
+          END IF ! key
+        END DO ! <empty>
+#endif
     END SELECT ! TRIM(line)
   END DO ! <empty>
 
 86   CONTINUE
+
+#ifndef SPEC
+! Mixture gas models need the species module
+  IF ( regions(1)%mixtInput%gasModel == GAS_MODEL_MIXT_TCPERF .OR. &
+       regions(1)%mixtInput%gasModel == GAS_MODEL_MIXT_TPERF  .OR. &
+       regions(1)%mixtInput%gasModel == GAS_MODEL_MIXT_PSEUDO .OR. &
+       regions(1)%mixtInput%gasModel == GAS_MODEL_MIXT_GASLIQ .OR. &
+       regions(1)%mixtInput%gasModel == GAS_MODEL_MIXT_JWL ) THEN
+    CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
+      'This GASMODEL (mixture or JWL) requires a build with SPEC=1')
+  END IF ! gasModel
+#endif
 
 ! ******************************************************************************
 ! Close file
