@@ -901,6 +901,17 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                     p = pMixtInput%prepRealVal6
                     global%ppiclf_p0 = pMixtInput%prepRealVal6
                  END IF ! x
+
+                 ! IVAL1 = 1 (rectshktb): density varies linearly,
+                 ! d*(1 + RVAL7*x + RVAL8*y + RVAL9*z), at uniform pressure.
+                 ! At rest this is steady; used to test that particle
+                 ! interpolation reproduces a linear field exactly.
+                 IF ( (TRIM(global%casename)=="rectshktb") .AND. &
+                      (pMixtInput%prepIntVal1 == 1) ) THEN
+                    d = d*(1.0_RFREAL + pMixtInput%prepRealVal7*x &
+                                      + pMixtInput%prepRealVal8*y &
+                                      + pMixtInput%prepRealVal9*z)
+                 END IF
                  mw = pGv(GV_MIXT_MOL,indMol*icg)
                  cp = pGv(GV_MIXT_CP ,indCp *icg)
                  gc = MixtPerf_R_M(mw)

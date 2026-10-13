@@ -715,6 +715,8 @@
      >          centeri(3), exchCellMultiplier
       LOGICAL   partl, ErrorFound
       EXTERNAL  ppiclf_vlmin, ppiclf_vlmax
+      INTEGER*4 nSent, sentTo(27), m
+      LOGICAL   dupl
 !
 ! Code Start:
 !
@@ -734,8 +736,10 @@
          centeri(l) = ppiclf_fluid_grid(l,ie)
          !indicies 4:6
          EleSizei(l) =  exchCellMultiplier*ppiclf_fluid_grid(3+l,ie)
+         ! Small bins: map at least the 1.8 cell length support of
+         ! the least-squares interpolation (ppiclf_solve_InterpLS)
          IF(EleSizei(l) .GT. ppiclf_bins_dx(l)/2) THEN
-           EleSizei(l) =  1.499D0*ppiclf_fluid_grid(3+l,ie)
+           EleSizei(l) =  1.899D0*ppiclf_fluid_grid(3+l,ie)
          END IF
         END DO !l 
 
@@ -766,6 +770,7 @@
         iyHigh=2
         izLow =2
         izHigh=2
+        nSent = 0
 
         ! These series of if statements check if bin mapping changes
         ! when adding/subtracting multiple of fluid cell length defined
@@ -832,6 +837,16 @@
               ! Calculates processor rank
               nrank  = ii + ppiclf_n_bins(1)*jj + 
      >                     ppiclf_n_bins(1)*ppiclf_n_bins(2)*kk
+
+              ! Send each cell once per bin: with two bins in a
+              ! periodic direction, both neighbours wrap to the same bin
+              dupl = .FALSE.
+              DO m = 1,nSent
+                IF (sentTo(m) .EQ. nrank) dupl = .TRUE.
+              END DO
+              IF (dupl) CYCLE
+              nSent = nSent + 1
+              sentTo(nSent) = nrank
               ppiclf_nCells_FV2PICL = ppiclf_nCells_FV2PICL + 1
               IF(ppiclf_nCells_FV2PICL .GT. PPICLF_LEE) THEN
                 PRINT*, '***ERROR*** PPICLF_LEE',PPICLF_LEE, 'in', 

@@ -1210,12 +1210,10 @@ c----------------------------------------------------------------------
       ! cells that map to ppiclf domain.
       CALL ppiclf_solve_InterpTupleTransfer
 
-      ! Maps up to 27 closest cell centers to particle
-      ! Includes: CellID, total dist, x dist, y dist, z dist
+      ! Maps up to 27 closest cell centers to particle (projection
+      ! stencil) and interpolates rprop data to the particles
+      ! (ppiclf_solve_InterpLS)
       CALL ppiclf_solve_SBParticleToCellMap
-
-      ! Interpolates rprop data for ppiclf domain cells in this bin
-      CALL ppiclf_solve_Interpolate
 
       PPICLF_INT_ICNT = 0
 
@@ -1353,9 +1351,10 @@ c----------------------------------------------------------------------
      >      ,ppiclf_int_fld,nrr               ! Real data
      >      ,nkey,2)                          ! Sorting order
 
-      ! Find distance check for interpolation.
-      ! This is 1.5*MaxCellLength to ensure that at least
-      ! 27 neighboring cells are mapped.
+      ! Find distance check for interpolation (subbin size).
+      ! This is 1.8*MaxCellLength, the support radius of the
+      ! least-squares interpolation weights. The 27-cell projection
+      ! stencil keeps its 1.5*MaxCellLength box (dchk/1.2).
       Max_CellLen(1) = 0.0D0
       Max_CellLen(2) = 0.0D0
       Max_CellLen(3) = 0.0D0
@@ -1368,9 +1367,7 @@ c----------------------------------------------------------------------
       END DO !ie
 
       DO l = 1,3
-        ! Multiply by 1.5 so particle near face will
-        ! find center one cell over in farthest direction
-        ppiclf_interp_dchk(l) = Max_CellLen(l)*1.5D0
+        ppiclf_interp_dchk(l) = Max_CellLen(l)*1.8D0
       END DO
 
       RETURN
@@ -1414,6 +1411,14 @@ c----------------------------------------------------------------------
      >           firstSB(3), lastSB(3)  
       REAL*8    bin_Min(3), x_range(3), size_SBin(3)
       LOGICAL   remove
+      ! Least-squares interpolation stencil: cells whose support
+      ! (1.8 cell lengths per direction) contains the particle.
+      ! At most 4 per direction on a uniform hex mesh.
+      INTEGER*4 LSMAX
+      PARAMETER (LSMAX = 125)
+      INTEGER*4 nLS, lsID(LSMAX), m
+      REAL*8    lsDX(3,LSMAX), lsR(3,LSMAX), lsD2(LSMAX), dx(3)
+      LOGICAL   inSupp, dupl
       !***************************************************************
 
       IF(ppiclf_npart .LT. 1) RETURN
@@ -1428,8 +1433,9 @@ c----------------------------------------------------------------------
         binblength(l) = ppiclf_binb(2*l) - ppiclf_binb((2*l)-1)
         bin_Min(l) = ppiclf_bin_pos(1,l) - ppiclf_interp_dchk(l)
         n_SBin(l) = FLOOR((ppiclf_bins_dx(l) + 2*ppiclf_interp_dchk(l))
-     >                                     / ppiclf_interp_dchk(l)) + 1 
-        dSQchk(l) = (ppiclf_interp_dchk(l))**2
+     >                                     / ppiclf_interp_dchk(l)) + 1
+        ! 27-cell projection stencil box: 1.5*MaxCellLength
+        dSQchk(l) = (ppiclf_interp_dchk(l)/1.2D0)**2
         ! SB at bin min boundary
         firstSB(l) = FLOOR((ppiclf_bin_pos(1,l) - bin_Min(l))
      >               / ppiclf_interp_dchk(l))
@@ -1537,6 +1543,7 @@ c----------------------------------------------------------------------
       partCount = 0
       DO ip=1,ppiclf_npart !Loop all particles in this bin
         nnearest = 0 ! number of nearest elements
+        nLS = 0
         DO ie = 1,28
           CellID_nearest(ie) = -1 ! index of nearest elements
           dSQ(ie) = 1E20 ! distance to center of nearest element
@@ -1559,22 +1566,73 @@ c----------------------------------------------------------------------
               IF(loopSB .GT. (-1) .AND. loopSB .LT. tot_SBin) THEN
                 DO i_count = 1,SBin_Counter(loopSB)
                   ie = SBin_Map(loopSB,i_count) 
-                  ! get distance from particle to center
+                  ! get offset from particle to center (nearest
+                  ! periodic image)
                   dSQi    = 0.0
                   dSQl    = 0.0
                   farAway = .FALSE.
+                  inSupp  = .TRUE.
                   DO l=1,3
+                    dl = ppiclf_picl_grid(l,ie) - xp(l)
                     IF(ppiclf_linperiodic(l) .AND.
      >                                      ppiclf_EqualDomain(l)) THEN
-                      dSQl = MIN((ppiclf_picl_grid(l,ie) - xp(l))**2, 
-     >                       (binblength(l)-ABS(ppiclf_picl_grid(l,ie)
-     >                        - xp(l)))**2)
-                    ELSE
-                      dSQl = (ppiclf_picl_grid(l,ie) - xp(l))**2
+                      IF(ABS(dl) .GT. binblength(l)-ABS(dl))
+     >                  dl = dl - SIGN(binblength(l),dl)
                     END IF
+                    dx(l) = dl
+                    dSQl = dl**2
                     dSQi = dSQi + dSQl
                     IF (dSQl .GT. dSQchk(l)) farAway = .TRUE.
+                    IF (ABS(dl) .GE. 1.8D0*ppiclf_picl_grid(3+l,ie))
+     >                inSupp = .FALSE.
                   END DO !l
+                  ! Add to the least-squares stencil, once per cell
+                  ! (a cell can sit in two subbins with periodicity,
+                  ! or be received twice for a two-bin periodic box)
+                  IF (inSupp) THEN
+                    dupl = .FALSE.
+                    DO m = 1,nLS
+                      IF (lsID(m) .EQ. ie) dupl = .TRUE.
+                      IF (ABS(lsDX(1,m)-dx(1)) .LT. 1.0D-9*lsR(1,m)
+     >              .AND. ABS(lsDX(2,m)-dx(2)) .LT. 1.0D-9*lsR(2,m)
+     >              .AND. ABS(lsDX(3,m)-dx(3)) .LT. 1.0D-9*lsR(3,m))
+     >                  dupl = .TRUE.
+                    END DO
+                    IF (.NOT. dupl) THEN
+                      nLS = nLS + 1
+                      IF (nLS .GT. LSMAX) CALL ppiclf_exittr(
+     >                  'Too many cells in interpolation stencil$',
+     >                  0.0D0,nLS)
+                      ! Keep the stencil sorted by distance (then
+                      ! offset), so the sums do not depend on the
+                      ! order cells arrive in (domain decomposition)
+                      m = nLS
+                      DO WHILE (m .GT. 1)
+                        IF (lsD2(m-1) .LT. dSQi) EXIT
+                        IF (lsD2(m-1) .EQ. dSQi) THEN
+                          IF (lsDX(1,m-1) .LT. dx(1)) EXIT
+                          IF (lsDX(1,m-1) .EQ. dx(1) .AND.
+     >                        lsDX(2,m-1) .LT. dx(2)) EXIT
+                          IF (lsDX(1,m-1) .EQ. dx(1) .AND.
+     >                        lsDX(2,m-1) .EQ. dx(2) .AND.
+     >                        lsDX(3,m-1) .LT. dx(3)) EXIT
+                        END IF
+                        lsID(m) = lsID(m-1)
+                        lsD2(m) = lsD2(m-1)
+                        DO l=1,3
+                          lsDX(l,m) = lsDX(l,m-1)
+                          lsR(l,m)  = lsR(l,m-1)
+                        END DO
+                        m = m - 1
+                      END DO
+                      lsID(m) = ie
+                      lsD2(m) = dSQi
+                      DO l=1,3
+                        lsDX(l,m) = dx(l)
+                        lsR(l,m)  = 1.8D0*ppiclf_picl_grid(3+l,ie)
+                      END DO
+                    END IF
+                  END IF
                   ! skip to next fluid cell if greater than 1.5*max cell
                   ! distance in respective x,y,z direction.
                   IF (farAWAY) CYCLE !i_count
@@ -1655,8 +1713,21 @@ c----------------------------------------------------------------------
           DO i = 1,nnearest
             ppiclf_Part2Cell_map(partCount,i) = CellID_nearest(i) ! Cell ID
             ! Particle center to cell center distance
-            ppiclf_Part2Cell_dist(partCount,i) = SQRT(dSQ(i)) 
+            ppiclf_Part2Cell_dist(partCount,i) = SQRT(dSQ(i))
           END DO !i
+          ! A particle outside the mesh may have no cell support
+          ! containing it: use the nearest cell value.
+          IF (nLS .EQ. 0) THEN
+            nLS = 1
+            lsID(1) = CellID_nearest(1)
+            DO l=1,3
+              lsDX(l,1) = 0.0D0
+              lsR(l,1)  = 1.0D0
+            END DO
+          END IF
+          ! Interpolate fluid fields to the particle (index ip, before
+          ! removed particles are compacted)
+          CALL ppiclf_solve_InterpLS(ip,nLS,lsID,lsDX,lsR)
         END IF !nnearest
       END DO !ip
 
@@ -1788,46 +1859,152 @@ c----------------------------------------------------------------------
 !
 !-----------------------------------------------------------------------
 !
-      SUBROUTINE ppiclf_solve_Interpolate
-
+      SUBROUTINE ppiclf_solve_InterpLS(ip,n,id,dx,rs)
+!
+! Interpolates the fluid fields to particle ip by a weighted linear
+! least-squares fit f ~ a + b.(x - xp) over the n stencil cells.
+! Cell c has weight prod_l (1 - (dx_l/rs_l)^2)^6, which vanishes at
+! its support radius rs_l = 1.8 cell lengths, so cells enter and leave
+! the stencil with zero weight and the interpolated value is
+! continuous in xp. The fit is exact for linear fields. Directions
+! where the stencil has no spread (one-cell-thick quasi-2D meshes) are
+! dropped from the fit. Each value is clamped to the stencil min/max.
+!
       IMPLICIT NONE
-
+!
       INCLUDE "PPICLF"
+!
+! Input:
+!
+      INTEGER*4 ip, n, id(n)
+      REAL*8    dx(3,n), rs(3,n)
+!
+! Internal:
+!
+      INTEGER*4 i, j, k, l, c, r, nc, ipiv, col(4)
+      REAL*8    w(n), s(3,n), phi(n), A(4,5), hs(3), wsum, sm(3),
+     >          var(3), ak(4), q, val, fmin, fmax, f, tmp, amax
+!
+      ! Scale offsets by the largest support radius (conditioning)
+      DO l = 1,3
+        hs(l) = 0.0D0
+        DO k = 1,n
+          hs(l) = MAX(hs(l),rs(l,k))
+        END DO
+      END DO
 
-      ! Local Variables
-      INTEGER*4 i, j, k, ip, nnearest,cellID 
-      REAL*8    wsum, eps, dist, a(27), w(27)  
+      wsum = 0.0D0
+      DO l = 1,3
+        sm(l) = 0.0D0
+      END DO
+      DO k = 1,n
+        w(k) = 1.0D0
+        DO l = 1,3
+          q = dx(l,k)/rs(l,k)
+          w(k) = w(k)*(1.0D0 - q*q)**6
+          s(l,k) = dx(l,k)/hs(l)
+          sm(l) = sm(l) + w(k)*s(l,k)
+        END DO
+        wsum = wsum + w(k)
+      END DO
 
-      IF(ppiclf_npart .LT. 1) RETURN
+      ! Keep the constant and every direction with weighted spread
+      nc = 1
+      col(1) = 0
+      DO l = 1,3
+        sm(l) = sm(l)/wsum
+        var(l) = 0.0D0
+        DO k = 1,n
+          var(l) = var(l) + w(k)*(s(l,k) - sm(l))**2
+        END DO
+        var(l) = var(l)/wsum
+        IF (var(l) .GT. 1.0D-8) THEN
+          nc = nc + 1
+          col(nc) = l
+        END IF
+      END DO
 
-      eps = 1.0D-60 ! Machine epsilon to avoid dividing by zero
-      DO ip = 1,ppiclf_npart
-        nnearest = ppiclf_nPart2Cell(ip)
-        w = 0.0D0
-        wsum = 0.0D0
-        DO k = 1,nnearest
-          ! Interpolation Weighting: 1/(distance^3)
-          dist = ppiclf_Part2Cell_dist(ip,k)**3 + eps
-          w(k) = 1.0d0 / dist
-          wsum = w(k) + wsum
-        END DO ! k
-        DO i = 1,PPICLF_INT_ICNT
-          j = PPICLF_INT_MAP(i)
-          ppiclf_rprop(j, ip) = 0.0D0
-          ! Inverse Distance Interpolation
-          DO k = 1,nnearest
-            cellID = ppiclf_Part2Cell_map(ip,k) 
-            a(k) = ppiclf_int_fld(i,cellID)
-            ppiclf_rprop(j, ip) = ppiclf_rprop(j, ip) + w(k)*a(k)/wsum
-          END DO ! k
-          IF (isnan(ppiclf_rprop(j,ip))) THEN
-            PRINT *, 'INTERP NAN: Particle, processor id, nnearest', ip,
-     >                                   ppiclf_nid,nnearest
-            PRINT*, 'Index:',j, 'Value:',ppiclf_rprop(j,ip)
-            CALL ppiclf_exittr('rprop NaN in Interpolate',0.D0,0)
+      ! Normal equations M g = e1, M = sum_k w_k a_k a_k^T
+      DO r = 1,nc
+        DO c = 1,nc+1
+          A(r,c) = 0.0D0
+        END DO
+      END DO
+      A(1,nc+1) = 1.0D0
+      DO k = 1,n
+        ak(1) = 1.0D0
+        DO c = 2,nc
+          ak(c) = s(col(c),k)
+        END DO
+        DO r = 1,nc
+          DO c = 1,nc
+            A(r,c) = A(r,c) + w(k)*ak(r)*ak(c)
+          END DO
+        END DO
+      END DO
+
+      ! Gaussian elimination with partial pivoting
+      DO c = 1,nc
+        ipiv = c
+        amax = ABS(A(c,c))
+        DO r = c+1,nc
+          IF (ABS(A(r,c)) .GT. amax) THEN
+            ipiv = r
+            amax = ABS(A(r,c))
           END IF
-        END DO ! i
-      END DO ! ip
+        END DO
+        IF (amax .LE. 1.0D-14*wsum) CALL ppiclf_exittr(
+     >    'Singular least-squares interpolation matrix$',0.0D0,ip)
+        IF (ipiv .NE. c) THEN
+          DO j = c,nc+1
+            tmp = A(c,j)
+            A(c,j) = A(ipiv,j)
+            A(ipiv,j) = tmp
+          END DO
+        END IF
+        DO r = c+1,nc
+          tmp = A(r,c)/A(c,c)
+          DO j = c,nc+1
+            A(r,j) = A(r,j) - tmp*A(c,j)
+          END DO
+        END DO
+      END DO
+      DO r = nc,1,-1
+        tmp = A(r,nc+1)
+        DO c = r+1,nc
+          tmp = tmp - A(r,c)*A(c,nc+1)
+        END DO
+        A(r,nc+1) = tmp/A(r,r)
+      END DO
+
+      ! Interpolation weights phi_k = w_k a_k^T g (sum to one)
+      DO k = 1,n
+        tmp = A(1,nc+1)
+        DO c = 2,nc
+          tmp = tmp + A(c,nc+1)*s(col(c),k)
+        END DO
+        phi(k) = w(k)*tmp
+      END DO
+
+      DO i = 1,PPICLF_INT_ICNT
+        j = PPICLF_INT_MAP(i)
+        val  = 0.0D0
+        fmin = ppiclf_int_fld(i,id(1))
+        fmax = fmin
+        DO k = 1,n
+          f = ppiclf_int_fld(i,id(k))
+          val = val + phi(k)*f
+          fmin = MIN(fmin,f)
+          fmax = MAX(fmax,f)
+        END DO ! k
+        IF (isnan(val)) THEN
+          PRINT *, 'INTERP NAN: Particle, processor id, ncells', ip,
+     >                                   ppiclf_nid,n
+          PRINT*, 'Index:',j, 'Value:',val
+          CALL ppiclf_exittr('rprop NaN in Interpolate$',0.D0,0)
+        END IF
+        ppiclf_rprop(j, ip) = MIN(fmax,MAX(fmin,val))
+      END DO ! i
 
       RETURN
       END
