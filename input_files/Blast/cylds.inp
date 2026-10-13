@@ -96,7 +96,7 @@ SPHT     1                  ! Specific heat (not used with ppiclf)
 # PICL
 USED             1      ! 0 = not used; 1 = used
 STATIONARY       0      ! 1 = particles do not move; negative = unit test cases
-QSFORCE          2      ! 0 = none; 1 = Parmar; 2 = Osnes
+QSFORCE          3      ! 0 = none; 1 = Gidaspow; 2 = Parmar; 3 = Osnes
 AMFORCE          2      ! 0 = none; 1 = Parmar; 2 = Briney
 PGFORCE          1      ! 0 = none; 1 = on
 COLLISIONS 	     4      ! 0 = none; 1 = Fn; 2: +(Ft+Tc); 3: +(Th+Tr); 4: +(Fl+Tu)

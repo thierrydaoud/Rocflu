@@ -18,7 +18,7 @@
 !         calculate drag forces; feedback force can also
 !         be turned on
 !
-!   qs_flag = 2  ! none = 0; Parmar = 1; Osnes = 2
+!   qs_flag = 3  ! none = 0; Gidaspow = 1; Parmar = 2; Osnes = 3
 !   am_flag = 1  ! Parmar = 1; Briney = 2
 !   pg_flag = 1
 !   collisional_flag = 1 ! two way coupled = 0 ; four-way = 1
@@ -452,16 +452,21 @@
 !
 ! Step 2: Force component quasi-steady
 !
-         if (qs_flag==1) then 
-           call ppiclf_user_QS_Parmar(i,beta,cd)
-         else if (qs_flag==2) then 
-           call ppiclf_user_QS_Osnes (i,beta,cd)
-         else if (qs_flag==3) then 
-           call ppiclf_user_QS_ModifiedParmar(i,beta,cd)
-         else if (qs_flag==4) then 
-           call ppiclf_user_QS_Gidaspow(i,beta,cd)
+         ! Same numbering as MFC (particle_params%qs_force). Before
+         ! 2026-10, 1 = Parmar, 2 = Osnes, 3 = Modified Parmar
+         ! (removed) and 4 = Gidaspow; 4 now stops with an error.
+         if (qs_flag==0) then
+           beta = 0.0d0
+         else if (qs_flag==1) then
+           call ppiclf_user_QS_Gidaspow(i,beta)
+         else if (qs_flag==2) then
+           call ppiclf_user_QS_Parmar(i,beta)
+         else if (qs_flag==3) then
+           call ppiclf_user_QS_Osnes (i,beta)
          else
-           print*, "***PPICLF: Error in QS Model Selection!"   
+           print*, "***PPICLF: Error in QS Model Selection!",
+     >             " QSFORCE must be 0 (none), 1 (Gidaspow),",
+     >             " 2 (Parmar) or 3 (Osnes)"
            call ppiclf_exittr('Wrong QS Model Choice$', 0.0, 0)
          endif
 
