@@ -748,13 +748,17 @@
         ryval = centeri(2)
         rzval = centeri(3)
       
-        ! Exits if fluid cell center is outside of any bin boundaries 
-        IF (rxval .GT. ppiclf_binb(2)) CYCLE
-        IF (rxval .LT. ppiclf_binb(1)) CYCLE
-        IF (ryval .GT. ppiclf_binb(4)) CYCLE
-        IF (ryval .LT. ppiclf_binb(3)) CYCLE
-        IF (rzval .GT. ppiclf_binb(6)) CYCLE
-        IF (rzval .LT. ppiclf_binb(5)) CYCLE
+        ! Exits if fluid cell center is farther than EleSizei outside
+        ! the bin boundaries. Cells just outside are still needed: the
+        ! bin domain extends only ~1 cell past the outermost particles,
+        ! but their projection reaches 1.5 cells and interpolation 1.8.
+        ! The shifted positions below map these cells to the edge bins.
+        IF (rxval .GT. ppiclf_binb(2) + EleSizei(1)) CYCLE
+        IF (rxval .LT. ppiclf_binb(1) - EleSizei(1)) CYCLE
+        IF (ryval .GT. ppiclf_binb(4) + EleSizei(2)) CYCLE
+        IF (ryval .LT. ppiclf_binb(3) - EleSizei(2)) CYCLE
+        IF (rzval .GT. ppiclf_binb(6) + EleSizei(3)) CYCLE
+        IF (rzval .LT. ppiclf_binb(5) - EleSizei(3)) CYCLE
  
         ! Determines what bin the fluid cell is nominally mapped to
         ii    = FLOOR((rxval-ppiclf_binb(1))/ppiclf_bins_dx(1)) 
