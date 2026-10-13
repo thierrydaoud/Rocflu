@@ -105,6 +105,9 @@ FORCES = {
     "viscous-unsteady": {("PICL", "VISCOUSUNSTEADY"): 1},
     "heat-transfer": {("PICL", "HEATTRANSFER"): 3},
     "qs-fluctuations": {("PICL", "QSFLUCT"): 2},
+    # Quasi-steady models other than the default Osnes (QSFORCE 3, MFC numbering)
+    "qs-parmar": {("PICL", "QSFORCE"): 2},
+    "qs-gidaspow": {("PICL", "QSFORCE"): 1},
 }
 for force, opts in FORCES.items():
     add(name="shocktube/two-way/%s/np2" % force,
