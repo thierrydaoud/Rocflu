@@ -297,27 +297,13 @@
          rmachp = vmag/asndf
          rhop   = ppiclf_rprop(PPICLF_R_JRHOP,i)
 
-         ! TLJ - 04/03/2025; Do not calculate forces if vmag = 0
-         !       Otherwise the particles might move before the 
-         !       shock arrives
-!         if (vmag <= 1.d-8) cycle
+         ! Every force is evaluated at any slip, as in MFC. Only the
+         ! quasi-steady drag (Step 2) is skipped at zero slip, where its
+         ! correlations are singular and the force is zero. Previously
+         ! particles with vmag <= 1e-3 skipped all forces, ydot, the
+         ! feedback and the neighbor search, so resting particles kept
+         ! stale values, never collided and never exchanged heat.
 
-         ! 08/08/2025 - Thierry  - 1.d-8 is very small
-         if (vmag <= 1.d-3) cycle
-         !***
-         ! Avery - This is planar-shock curtain specific.  Shouldn't be in main code
-         !***
- 
-         ! Thierry - at initial times when rmachp and vmag are very
-         ! small, we would get very large CD (>100)
-         ! This leads to NaN projected force when PseudoTurbulence is 
-         ! enabled. One fix I'm trying is to cycle when rmachp and vmag
-         ! are small
-
-         ! Thierry - seeing if that fixes the issue of very large CD
-         ! initially 
-         !if(vmag .lt. 1.0 .or. rmachp .lt. 1.d-3) cycle
- 
          ! TLJ - redefined rprop(PPICLF_R_JSPT,i) to be the particle
          !   velocity magnitude for plotting purposes - 01/03/2025
  
@@ -327,7 +313,8 @@
      >       ppiclf_y(PPICLF_JVY,i)**2 +
      >       ppiclf_y(PPICLF_JVZ,i)**2)
 
-         rep = max(0.1d0,rep)
+         ! No floor on rep: the models that use it have finite limits
+         ! as Re -> 0 (the QS models compute their own Re)
 
          ! Redefine volume fractions
          ! Need to make sure phi_p + phi_f = 1
@@ -455,7 +442,8 @@
          ! Same numbering as MFC (particle_params%qs_force). Before
          ! 2026-10, 1 = Parmar, 2 = Osnes, 3 = Modified Parmar
          ! (removed) and 4 = Gidaspow; 4 now stops with an error.
-         if (qs_flag==0) then
+         ! Zero at zero slip, where the correlations are singular
+         if (qs_flag==0 .or. vmag <= 0.0d0) then
            beta = 0.0d0
          else if (qs_flag==1) then
            call ppiclf_user_QS_Gidaspow(i,beta)

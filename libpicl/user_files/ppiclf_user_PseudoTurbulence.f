@@ -166,26 +166,30 @@
 
       tF_inv = (24.0*rphip*chi/dp) * sqrt(theta/rpi)
 
-! avec : unit vector in main direction
-      avec = [vx,vy,vz]/vmag
+! avec : unit vector in main direction (undefined at zero slip, where
+! the slip-driven pseudo-turbulence vanishes)
+      CD_average = 0.0d0
+      if (vmag > 0.0d0) then
+        avec = [vx,vy,vz]/vmag
 
-      ! CD_prime has unit of Force
-      CD_prime = ppiclf_rprop(PPICLF_R_FLUCTFX,i)*avec(1) +
-     >           ppiclf_rprop(PPICLF_R_FLUCTFY,i)*avec(2) +
-     >           ppiclf_rprop(PPICLF_R_FLUCTFZ,i)*avec(3)
+        ! CD_prime has unit of Force
+        CD_prime = ppiclf_rprop(PPICLF_R_FLUCTFX,i)*avec(1) +
+     >             ppiclf_rprop(PPICLF_R_FLUCTFY,i)*avec(2) +
+     >             ppiclf_rprop(PPICLF_R_FLUCTFZ,i)*avec(3)
 
-      ! CD_average has unit of Force, is zero at early time steps
-      CD_average = fqsx*avec(1) +
-     >             fqsy*avec(2) +
-     >             fqsz*avec(3)
+        ! CD_average has unit of Force, is zero at early time steps
+        CD_average = fqsx*avec(1) +
+     >               fqsy*avec(2) +
+     >               fqsz*avec(3)
+      endif
 
-      ! avoiding singularity
-      if(CD_average .lt. 1.d-8) then 
+      ! avoiding singularity (also zero slip)
+      if(CD_average .lt. 1.d-8) then
         xi_par  = 0.0d0
         xi_perp = 0.0d0
         xi_T    = 0.0d0
         Rsg     = 0.0d0
-        T_par   = 0.0d0
+        Tsg     = 0.0d0
         alpha_PT = 0.0d0
         return
       endif

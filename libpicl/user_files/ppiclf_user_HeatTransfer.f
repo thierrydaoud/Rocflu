@@ -211,14 +211,17 @@
 ! Internal:
 !
       integer*4 i
-      real*8 Nuss
+      real*8 Nuss, Ma_Re
 !
 ! Code:
 !
       ! define Nusselt number Nu = Nu(Pr,Re,M)
-      Nuss = 2.0d0*exp(-rmachp)/(1.0d0+17.0d0*rmachp/rep)
+      ! M/Re = mu/(rho*c*dp) does not depend on the slip, so use it
+      ! directly: rmachp/rep is 0/0 at zero slip
+      Ma_Re = rmu/(rhof*asndf*dp)
+      Nuss = 2.0d0*exp(-rmachp)/(1.0d0+17.0d0*Ma_Re)
      >     + 0.495d0*(rpr**OneThird)*(rep**0.55d0)*
-     >       ((1.0d0+0.5d0*exp(-17.0d0*rmachp/rep))/1.5d0)
+     >       ((1.0d0+0.5d0*exp(-17.0d0*Ma_Re))/1.5d0)
 
       return
       end
