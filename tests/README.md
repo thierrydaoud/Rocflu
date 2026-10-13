@@ -76,14 +76,13 @@ by particle.
 
 ## Known issues tracked by the suite
 
-- `box/momentum-exchange/np2`: particles differ from the 1-rank run by up to ~1% in the
-  interpolated pressure gradient and ~0.04% in transverse velocities (the shock tube
-  agrees to 2e-6). Conservation itself passes.
-- `box/quiescent-cloud`: gas starts moving (~5e-5 m/s) around fixed particles, and bulk
-  mass drifts ~3e-8.
-
-Fixed and now guarded: non-conservative periodic patches (`box/gas-jump/periodic`,
-commit 11dc640).
+None at the moment. Fixed and now guarded:
+- non-conservative periodic patches (`box/gas-jump/periodic`, 11dc640);
+- stale gas state in virtual cells at region borders with particles, which set the gas
+  moving around fixed particles and made 1- and 2-rank runs differ by ~1%
+  (`box/quiescent-cloud/np2`, `np4`, and the `same_as` check of
+  `box/momentum-exchange/np2`, e3ed370);
+- resting particles skipping heat transfer (`box/resting-heat-exchange`, f0ae123).
 
 ## Flow-file conventions
 

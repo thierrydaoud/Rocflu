@@ -123,23 +123,21 @@ for n in (1, 2):
         nranks=n, grid=BOX, bc="periodic",
         inp={**uniform_gas(50.0), **TWO_WAY}, particles=cloud(40, 2.0e-5),
         checks=["particles_moved", "mass", "momentum", "energy"],
-        same_as=None if n == 1 else "box/momentum-exchange/np1",
-        known_issue=None if n == 1 else
-            "Particles differ from np1 by up to ~1% in the interpolated pressure "
-            "gradient (rpro10-12) and ~0.04% in transverse velocities")
+        same_as=None if n == 1 else "box/momentum-exchange/np1")
 
 # -- Periodic box: fixed particles in gas at rest -----------------------------
-add(name="box/quiescent-cloud/np2",
-    description="Fixed, unevenly spaced particles in gas at rest at uniform pressure; "
-                "the gas must stay at rest",
-    nranks=2, grid=BOX, bc="periodic",
-    inp={**uniform_gas(0.0), **TWO_WAY, ("PICL", "STATIONARY"): 1,
-         ("PICL", "PGFORCE"): 1},
-    particles=cloud(30, 3.0e-4, lo=0.0021, hi=0.0045),
-    checks=["quiescent", "mass"],
-    known_issue="Gas starts moving (~5e-5 m/s) around fixed particles and bulk mass "
-                "drifts ~3e-8; suspected: cv initialised without the particle volume "
-                "fraction while pressure uses 1/(1-phi)")
+# Virtual cells at region borders used to keep the gas-phase state after the
+# start-up conversion to phi_g-weighted variables, so the first stage leaked
+# mass and set the gas moving (~5e-5 m/s), on 2+ ranks only.
+for n in (2, 4):
+    add(name="box/quiescent-cloud/np%d" % n,
+        description="Fixed, unevenly spaced particles in gas at rest at uniform "
+                    "pressure; the gas must stay at rest",
+        nranks=n, grid=BOX, bc="periodic",
+        inp={**uniform_gas(0.0), **TWO_WAY, ("PICL", "STATIONARY"): 1,
+             ("PICL", "PGFORCE"): 1},
+        particles=cloud(30, 3.0e-4, lo=0.0021, hi=0.0045),
+        checks=["quiescent", "mass"])
 
 # -- Periodic box: particles at rest exchanging heat with gas at rest ----------
 # Particles start at 296.4 K (template TEMP), the gas at 101325 Pa and 1.2 kg/m^3
