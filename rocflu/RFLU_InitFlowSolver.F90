@@ -1687,6 +1687,26 @@ IF ( global%piclUsed) THEN
       CALL RFLU_MPI_ClearRequestWrapper(pRegion)
     END DO ! iReg
 
+! Virtual cells: PICL_TEMP_InitSolver converted cv to phi_g-weighted
+! conserved variables in actual cells only, so copy them again
+    DO iReg = 1,global%nRegionsLocal
+      pRegion => pLevel%regions(iReg)
+      CALL RFLU_MPI_ISendWrapper(pRegion)
+    END DO ! iReg
+
+    CALL RFLU_MPI_CopyWrapper(pLevel%regions)
+
+    DO iReg = 1,global%nRegionsLocal
+      pRegion => pLevel%regions(iReg)
+      CALL RFLU_MPI_RecvWrapper(pRegion)
+      CALL RFLU_RELP_TransformWrapper(pRegion)
+    END DO ! iReg
+
+    DO iReg = 1,global%nRegionsLocal
+      pRegion => pLevel%regions(iReg)
+      CALL RFLU_MPI_ClearRequestWrapper(pRegion)
+    END DO ! iReg
+
 END if !global%piclused
 #endif
 

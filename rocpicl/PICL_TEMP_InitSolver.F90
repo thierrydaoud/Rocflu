@@ -772,8 +772,12 @@ END IF
 !    (phig*r,phig*r*u,phig*r*v,phig*r*w,phig*r*E), where phig is the gas
 !    phase volume fraction and can only be computed after the particles
 !    are read in.
+! Only actual cells: piclVF of virtual cells is not known yet (it is
+! exchanged afterwards in RFLU_InitFlowSolver, together with cv). Converting
+! virtual cells with piclVF = 0 left them at the gas-phase state, so the
+! two sides of a region border disagreed during the first RK stage.
 
-DO icg = 1,pGrid%nCellsTot
+DO icg = 1,pGrid%nCells
     vFrac = 1.0_RFREAL - pRegion%mixt%piclVF(icg)
     pRegion%mixt%cv(CV_MIXT_DENS,icg) = vFrac*pRegion%mixt%cv(CV_MIXT_DENS,icg)
     pRegion%mixt%cv(CV_MIXT_XMOM,icg) = vFrac*pRegion%mixt%cv(CV_MIXT_XMOM,icg)
