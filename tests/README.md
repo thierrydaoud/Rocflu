@@ -71,15 +71,25 @@ by particle.
 
 ## Known issues tracked by the suite
 
-- **`box/gas-jump/periodic`:** Rocflu periodic patches aren't conservative. Mass and
-  energy drift by about 4e-5 in 100 µs with no particles. The same jump in a closed box
-  conserves to about 1e-11.
-- **`box/momentum-exchange`:** the gas takes up only about 83% of the momentum the
-  particles gain, independent of dt. Also, 1-rank and 2-rank runs differ by about 1% in
-  the interpolated pressure gradients.
-- **`box/quiescent-cloud`:** the gas starts moving (about 4e-5 m/s) around fixed
-  particles. The conserved variables are initialised without the particle volume
-  fraction, but pressure is computed with `1/(1-phi)`.
+- `box/momentum-exchange/np2`: particles differ from the 1-rank run by up to ~1% in the
+  interpolated pressure gradient and ~0.04% in transverse velocities (the shock tube
+  agrees to 2e-6). Conservation itself passes.
+- `box/quiescent-cloud`: gas starts moving (~5e-5 m/s) around fixed particles, and bulk
+  mass drifts ~3e-8.
+
+Fixed and now guarded: non-conservative periodic patches (`box/gas-jump/periodic`,
+commit 11dc640).
+
+## Flow-file conventions
+
+What the five arrays of `SOL_*/<case>.mixt.cva_*` hold depends on whether particles are
+on (`RFLU_TimeStepping` converts real cells just before each dump):
+
+- PICL off: conserved bulk state `rho, rho*u, rho*v, rho*w, rho*E`
+- PICL on: gas-phase primitive state `rho_g, u, v, w, E`, with `rho_g = rho/(1-phi)`
+
+Goldens store the arrays as written. Conservation totals convert to bulk quantities,
+taking `phi` from the "Particle Volume Fraction" field in `PARAVIEW_*/<case>_<t>_<reg>.vtu`.
 
 ## Adding a case
 

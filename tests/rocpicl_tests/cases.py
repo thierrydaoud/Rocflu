@@ -121,9 +121,9 @@ for n in (1, 2):
         inp={**uniform_gas(50.0), **TWO_WAY}, particles=cloud(40, 2.0e-5),
         checks=["particles_moved", "mass", "momentum", "energy"],
         same_as=None if n == 1 else "box/momentum-exchange/np1",
-        known_issue="Gas takes up ~83% of the particle momentum gain, independent of dt; "
-                    "periodic BCs are not conservative (see box/gas-jump/periodic); "
-                    "np1 vs np2 interpolated gradients differ by ~1%")
+        known_issue=None if n == 1 else
+            "Particles differ from np1 by up to ~1% in the interpolated pressure "
+            "gradient (rpro10-12) and ~0.04% in transverse velocities")
 
 # -- Periodic box: fixed particles in gas at rest -----------------------------
 add(name="box/quiescent-cloud/np2",
@@ -134,8 +134,9 @@ add(name="box/quiescent-cloud/np2",
          ("PICL", "PGFORCE"): 1},
     particles=cloud(30, 3.0e-4, lo=0.0021, hi=0.0045),
     checks=["quiescent", "mass"],
-    known_issue="Gas starts moving (~4e-5 m/s): cv is initialised without the particle "
-                "volume fraction, but pressure is computed with 1/(1-phi)")
+    known_issue="Gas starts moving (~5e-5 m/s) around fixed particles and bulk mass "
+                "drifts ~3e-8; suspected: cv initialised without the particle volume "
+                "fraction while pressure uses 1/(1-phi)")
 
 # -- Gas only: conservation of the flow solver itself --------------------------
 JUMP = {("PICL", "USED"): 0, ("INITFLOW", "RVAL1"): "0.0043", ("INITFLOW", "RVAL3"): "0.0",
@@ -145,12 +146,14 @@ add(name="box/gas-jump/closed/np2",
                 "mass and energy must be conserved to round-off",
     nranks=2, grid=BOX, bc="closed", inp={**uniform_gas(0.0), **JUMP},
     checks=["mass", "gas_energy"])
-add(name="box/gas-jump/periodic/np1",
-    description="Same jump in a fully periodic box",
-    nranks=1, grid=BOX, bc="periodic", inp={**uniform_gas(0.0), **JUMP},
-    checks=["mass", "gas_energy"],
-    known_issue="Rocflu periodic patches are not conservative: mass and energy drift ~4e-5 "
-                "in 100 us with no particles (closed box: <1e-11)")
+# Periodic virtual cells used to compute their own gradients, so the two sides
+# of a periodic face disagreed (mass/energy drift ~4e-5 in 100 us; 11dc640)
+for n in (1, 2):
+    add(name="box/gas-jump/periodic/np%d" % n,
+        description="Same jump in a fully periodic box; second-order fluxes across "
+                    "periodic faces must conserve",
+        nranks=n, grid=BOX, bc="periodic", inp={**uniform_gas(0.0), **JUMP},
+        checks=["mass", "gas_energy"])
 
 
 def by_name():

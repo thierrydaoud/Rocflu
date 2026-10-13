@@ -70,10 +70,13 @@ def compare_particles_only(new, ref, label):
 
 def check_quiescent(init, final, case):
     """Gas at rest must stay at rest (max |u| below 1e-6 m/s)."""
+    from .state import velocity
+    picl = all("phi" in g for g in final["gas"].values())
     worst = 0.0
     for g in final["gas"].values():
-        for r, ru, rv, rw in zip(g["rho"], g["rhou"], g["rhov"], g["rhow"]):
-            worst = max(worst, math.sqrt(ru * ru + rv * rv + rw * rw) / r)
+        for i in range(len(g["q1"])):
+            u, v, w = velocity(g, i, picl)
+            worst = max(worst, math.sqrt(u * u + v * v + w * w))
     return [] if worst < 1e-6 else ["gas velocity %.3e m/s in a quiescent case" % worst]
 
 

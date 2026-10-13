@@ -172,7 +172,11 @@ def setup(case, rundir, exe_dir):
         ("rfluinit", ["-c", CASENAME, "-v", "1"]),
     ]
     for exe, args in steps:
-        if _run([os.path.join(exe_dir, exe)] + args, rundir, exe + ".log"):
+        rc = _run([os.path.join(exe_dir, exe)] + args, rundir, exe + ".log")
+        # Rocflu utilities can stop on ErrorStop with exit code 0
+        with open(os.path.join(rundir, exe + ".log"), errors="replace") as f:
+            failed = any(line.lstrip().startswith("ERROR") for line in f)
+        if rc or failed:
             raise RunError("%s failed (see %s.log)" % (exe, exe))
 
 

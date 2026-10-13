@@ -45,6 +45,25 @@ def read_particle_vtu(path):
     return time, fields
 
 
+def read_vtu_cell_field(path, name):
+    """One CellData array from a Rocflu ParaView region file (.vtu).
+
+    Arrays are base64 'binary' with a UInt32 byte-count header, uncompressed.
+    """
+    import base64
+    with open(path, "rb") as f:
+        text = f.read().decode("latin-1")
+    m = re.search(r'<DataArray type="(\w+)" Name="%s"[^>]*format="binary">\s*([^<]*)<'
+                  % re.escape(name), text)
+    if m is None:
+        raise KeyError("%s not in %s" % (name, path))
+    fmt = {"Float32": "f", "Float64": "d"}[m.group(1)]
+    raw = base64.b64decode(m.group(2).strip())
+    nbytes = struct.unpack_from("<I", raw, 0)[0]
+    n = nbytes // struct.calcsize(fmt)
+    return list(struct.unpack_from("<%d%s" % (n, fmt), raw, 4))
+
+
 def latest_particle_vtu(rundir):
     files = sorted(glob.glob(os.path.join(rundir, "par[0-9]*.vtu")))
     return files[-1] if files else None

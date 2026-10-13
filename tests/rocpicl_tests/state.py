@@ -6,7 +6,7 @@ import os
 import re
 
 from .case import CASENAME
-from .outputs import particle_ids, read_flow_ascii, read_particle_vtu
+from .outputs import particle_ids, read_flow_ascii, read_particle_vtu, read_vtu_cell_field
 
 # Particle fields kept in goldens: full state vector plus the interpolated
 # gas quantities. Other rprop entries are scratch and not always set.
@@ -17,7 +17,12 @@ PARTICLE_FIELDS = (
     + ["rpro%02d" % j for j in range(6, 13)]       # ux uy uz cs dpdx dpdy dpdz
     + ["rpro22"]                                   # superparticle loading
 )
-CV_NAMES = ["rho", "rhou", "rhov", "rhow", "rhoE"]
+# What the five arrays of a Rocflu ASCII flow file hold depends on whether
+# particles are on (RFLU_TimeStepping converts real cells just before writing):
+#   PICL off: conserved bulk state      rho,  rho*u, rho*v, rho*w, rho*E
+#   PICL on:  gas-phase primitive state rho_g, u, v, w, E   with rho_g = rho/(1-phi)
+# Goldens store the arrays as written; totals are converted to bulk quantities.
+FLOW_NAMES = ["q1", "q2", "q3", "q4", "q5"]
 
 
 def _real_cells(rundir, region):
@@ -28,9 +33,23 @@ def _real_cells(rundir, region):
 
 
 def _dumps(rundir):
-    """Sorted list of (time, SOL dir)."""
-    sols = glob.glob(os.path.join(rundir, "SOL_*"))
+    """Sorted list of (time, SOL dir), skipping directories without flow files
+    (the solver can create the directory of a final dump it never writes)."""
+    sols = [p for p in glob.glob(os.path.join(rundir, "SOL_*"))
+            if glob.glob(os.path.join(p, "%s.mixt.cva_*" % CASENAME))]
     return sorted((float(os.path.basename(p)[4:]), p) for p in sols)
+
+
+def _picl_used(rundir):
+    with open(os.path.join(rundir, CASENAME + ".inp")) as f:
+        in_picl = False
+        for line in f:
+            s = line.strip()
+            if s.startswith("#"):
+                in_picl = s[1:].split() == ["PICL"]
+            elif in_picl and s.split()[:1] == ["USED"]:
+                return int(s.split()[1]) != 0
+    return False
 
 
 def _particle_files(rundir):
@@ -47,6 +66,7 @@ def snapshot(rundir, case, which=-1):
     pfiles = _particle_files(rundir)
     _, soldir = dumps[which]
 
+    picl = _picl_used(rundir)
     gas = {}
     t_gas = None
     for path in sorted(glob.glob(os.path.join(soldir, "%s.mixt.cva_*" % CASENAME))):
@@ -54,7 +74,16 @@ def snapshot(rundir, case, which=-1):
         # Full-precision time from the file; the directory name has 6 digits
         t_gas, arrays = read_flow_ascii(path)
         n = _real_cells(rundir, region)
-        gas[region] = {name: arr[:n] for name, arr in zip(CV_NAMES, arrays)}
+        gas[region] = {name: arr[:n] for name, arr in zip(FLOW_NAMES, arrays)}
+        if picl:
+            # Gas volume fraction comes from the ParaView file of the same dump
+            suffix = os.path.basename(soldir)[4:]
+            vtu = os.path.join(rundir, "PARAVIEW_" + suffix,
+                               "%s_%s_%05d.vtu" % (CASENAME, suffix, region))
+            phi = read_vtu_cell_field(vtu, "Particle Volume Fraction")
+            if len(phi) != n:
+                raise RuntimeError("%s has %d cells, expected %d" % (vtu, len(phi), n))
+            gas[region]["phi"] = phi
 
     particles = {}
     t_par = None
@@ -69,14 +98,32 @@ def snapshot(rundir, case, which=-1):
         raise RuntimeError("Gas dump t=%g and particle dump t=%g do not match" % (t_gas, t_par))
 
     return {"time": t_gas, "gas": gas, "particles": particles,
-            "totals": totals(gas, particles, case.grid.cell_volume)}
+            "totals": totals(gas, particles, case.grid.cell_volume, picl)}
 
 
-def totals(gas, particles, cell_volume):
+def bulk_state(g, i, picl):
+    """Bulk (mixture-volume) density, momentum and energy of cell i."""
+    if picl:
+        rho = (1.0 - g["phi"][i]) * g["q1"][i]
+        return rho, rho * g["q2"][i], rho * g["q3"][i], rho * g["q4"][i], rho * g["q5"][i]
+    return g["q1"][i], g["q2"][i], g["q3"][i], g["q4"][i], g["q5"][i]
+
+
+def velocity(g, i, picl):
+    if picl:
+        return g["q2"][i], g["q3"][i], g["q4"][i]
+    return g["q2"][i] / g["q1"][i], g["q3"][i] / g["q1"][i], g["q4"][i] / g["q1"][i]
+
+
+def totals(gas, particles, cell_volume, picl):
     """Domain integrals of gas mass, momentum, energy and particle momentum."""
-    out = {}
-    for name in CV_NAMES:
-        out["gas_" + name] = sum(sum(g[name]) for g in gas.values()) * cell_volume
+    sums = [0.0] * 5
+    for g in gas.values():
+        for i in range(len(g["q1"])):
+            for k, val in enumerate(bulk_state(g, i, picl)):
+                sums[k] += val
+    out = {name: val * cell_volume for name, val in
+           zip(("gas_rho", "gas_rhou", "gas_rhov", "gas_rhow", "gas_rhoE"), sums)}
     for c, v in zip("xyz", ("y04", "y05", "y06")):
         out["par_mom" + c] = sum(
             p["rpro22"] * p["rpro01"] * p["rpro04"] * p[v] for p in particles.values())
