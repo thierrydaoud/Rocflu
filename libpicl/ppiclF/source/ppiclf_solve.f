@@ -1385,7 +1385,7 @@ c----------------------------------------------------------------------
       ! Local Variables
       INTEGER*4 i, j, k, l, ix, iy, iz, ip, ie, iee, nxyz, nnearest, 
      >          CellID_nearest(28), partCount
-      REAL*8    dSQl, dSQi, dSQ(28), xp(3), dl, 
+      REAL*8    dSQl, dSQi, dSQ(28), xp(3), dl, dNSQi, dNSQ(28),
      >          CellCenter(3,28), w(27), binblength(3),  
      >          Max_CellLen(3), Max_CellLenSQ(3), dSQchk(3)
       LOGICAL   added, farAway, alreadyMapped
@@ -1547,6 +1547,7 @@ c----------------------------------------------------------------------
         DO ie = 1,28
           CellID_nearest(ie) = -1 ! index of nearest elements
           dSQ(ie) = 1E20 ! distance to center of nearest element
+          dNSQ(ie) = 1E20
         END DO !ie
         ! particle centers in all directions
         xp(1) = ppiclf_y(PPICLF_JX, ip)
@@ -1570,6 +1571,7 @@ c----------------------------------------------------------------------
                   ! periodic image)
                   dSQi    = 0.0
                   dSQl    = 0.0
+                  dNSQi   = 0.0D0
                   farAway = .FALSE.
                   inSupp  = .TRUE.
                   DO l=1,3
@@ -1582,6 +1584,8 @@ c----------------------------------------------------------------------
                     dx(l) = dl
                     dSQl = dl**2
                     dSQi = dSQi + dSQl
+                    ! Offset in units of the cell length (projection)
+                    dNSQi = dNSQi + dSQl/ppiclf_picl_grid(3+l,ie)**2
                     IF (dSQl .GT. dSQchk(l)) farAway = .TRUE.
                     IF (ABS(dl) .GE. 1.8D0*ppiclf_picl_grid(3+l,ie))
      >                inSupp = .FALSE.
@@ -1647,11 +1651,13 @@ c----------------------------------------------------------------------
                     j = 27 - i + 1
                     IF (dSQi .LT. dSQ(j)) THEN
                       dSQ(j+1) = dSQ(j)
+                      dNSQ(j+1) = dNSQ(j)
                       CellID_nearest(j+1) = CellID_nearest(j)
                       DO l=1,3
                         CellCenter(l, j+1) = CellCenter(l, j)
                       END DO
                       dSQ(j) = dSQi
+                      dNSQ(j) = dNSQi
                       CellID_nearest(j) = ie
                       DO l=1,3
                         CellCenter(l,j) = ppiclf_picl_grid(l,ie)
@@ -1712,8 +1718,9 @@ c----------------------------------------------------------------------
           ppiclf_nPart2Cell(partCount) = nnearest
           DO i = 1,nnearest
             ppiclf_Part2Cell_map(partCount,i) = CellID_nearest(i) ! Cell ID
-            ! Particle center to cell center distance
-            ppiclf_Part2Cell_dist(partCount,i) = SQRT(dSQ(i))
+            ! Squared particle to cell center offset, scaled by the
+            ! cell length in each direction
+            ppiclf_Part2Cell_dist(partCount,i) = dNSQ(i)
           END DO !i
           ! A particle outside the mesh may have no cell support
           ! containing it: use the nearest cell value.
@@ -1751,7 +1758,7 @@ c----------------------------------------------------------------------
       ! Local Variables
       INTEGER*4 i, j, k, l, ix, iy, iz, ip, ie, iee, nxyz, nnearest, 
      >          CellID_nearest(28), partCount
-      REAL*8    dSQl, dSQi, dSQ(28), xp(3), dSQchk(3), 
+      REAL*8    dSQl, dSQi, dSQ(28), xp(3), dSQchk(3), dNSQi, dNSQ(28),
      >          CellCenter(3,28), w(27),binblength(3),  
      >          Max_CellLen(3),Max_CellLenSQ(3)
       LOGICAL   added, farAway
@@ -1781,11 +1788,13 @@ c----------------------------------------------------------------------
         DO ie = 1,28
           CellID_nearest(ie) = -1 ! index of nearest elements
           dSQ(ie) = 1D20 ! distance to center of nearest element
+          dNSQ(ie) = 1D20
         ENDDO !ie
         DO ie = 1,ppiclf_nCells_Interp
           ! get distance from particle to center
           dSQl     = 0.0D0
           dSQi     = 0.0D0
+          dNSQi    = 0.0D0
           farAway = .FALSE.
           DO l=1,3
             IF(ppiclf_linperiodic(l) .AND. ppiclf_EqualDomain(l)) THEN
@@ -1795,6 +1804,8 @@ c----------------------------------------------------------------------
               dSQl = (ppiclf_picl_grid(l,ie) - xp(l))**2
             END IF
             dSQi = dSQi + dSQl
+            ! Offset in units of the cell length (projection)
+            dNSQi = dNSQi + dSQl/ppiclf_picl_grid(3+l,ie)**2
             IF (dSQl .GT. dSQchk(l)) farAway = .TRUE.
           END DO !l
 
@@ -1810,11 +1821,13 @@ c----------------------------------------------------------------------
             j = 27 - i + 1
             IF (dSQi .LT. dSQ(j)) THEN
               dSQ(j+1) = dSQ(j)
+              dNSQ(j+1) = dNSQ(j)
               CellID_nearest(j+1) = CellID_nearest(j)
               DO l=1,3
                 CellCenter(l, j+1) = CellCenter(l, j)
               END DO
               dSQ(j) = dSQi
+              dNSQ(j) = dNSQi
               CellID_nearest(j) = ie
               DO l=1,3
                 CellCenter(l,j) = ppiclf_picl_grid(l,ie)
@@ -1842,8 +1855,9 @@ c----------------------------------------------------------------------
           IF(nnearest .GT. 27) PRINT*,'nn > 27!',partCount
           DO i = 1,nnearest
             ppiclf_Part2Cell_map(partCount,i) = CellID_nearest(i) ! Cell ID
-            ! Particle center to cell center distance
-            ppiclf_Part2Cell_dist(partCount,i) = SQRT(dSQ(i)) 
+            ! Squared particle to cell center offset, scaled by the
+            ! cell length in each direction
+            ppiclf_Part2Cell_dist(partCount,i) = dNSQ(i)
            END DO
         END IF 
       END DO !ip
@@ -2079,13 +2093,12 @@ c----------------------------------------------------------------------
       INTEGER*4 i, j, ip, ie, nCellProj, CellID, nl, nii, njj,
      >          nrr, nkey(2), iee
       REAL*8    CellVol, GaussianConst, dist, w(27), wsum,
-     >          x_norm, y_norm, z_norm, PI, eps
+     >          x_norm, y_norm, z_norm, PI
       LOGICAL   partl 
  
       PI = 4*ATAN(1.0D0)
       GaussianConst = 2.305D0 ! Distribution over 2 cell widths
       ppiclf_pro_fld_picl = 0.0d0
-      eps = 1.0D-60
       DO ip=1,ppiclf_npart
         ! Update volume fraction for feedback - important for 1st RK
         ! step at time = 0.0
@@ -2093,13 +2106,15 @@ c----------------------------------------------------------------------
      >  ppiclf_rprop(PPICLF_R_JVOLP,ip) * ppiclf_rprop(PPICLF_R_JSPL,ip)
         nCellProj = ppiclf_nPart2Cell(ip)
         wsum = 0.0D0
-        ! Loop to find individual cell weightings
+        ! Loop to find individual cell weightings. As in MFC, the
+        ! offset in each direction is scaled by the receiving cell's
+        ! length in that direction, so elongated cells spread the
+        ! particle along their long side too.
         DO i = 1,nCellProj
-          CellID = ppiclf_Part2Cell_map(ip,i) 
-          dist = ppiclf_Part2Cell_dist(ip,i) + eps
+          CellID = ppiclf_Part2Cell_map(ip,i)
+          dist = ppiclf_Part2Cell_dist(ip,i)
           CellVol = ppiclf_picl_grid(7,CellID)
-          w(i) = ABS(CellVol*EXP(-GaussianConst*(dist**2)
-     >              / (CellVol**(2.0D0/3.0D0))))
+          w(i) = ABS(CellVol*EXP(-GaussianConst*dist))
           wsum = wsum + w(i)
         END DO !i
 #ifdef TEST

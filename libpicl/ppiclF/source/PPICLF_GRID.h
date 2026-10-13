@@ -4,6 +4,8 @@ C Grid
       REAL*8  PPICLF_XDRANGE(2,3)
       COMMON /PPICLF_GRID_RANGE_R/ PPICLF_XDRANGE
 
+C PPICLF_PART2CELL_DIST(ip,i): squared particle-to-cell-center offset,
+C each direction scaled by that cell's length, sum_l (dx_l/L_l)**2
       COMMON /PPICLF_GRID_FLD_R/ PPICLF_PRO_FLD,
      >       PPICLF_PRO_FLD_PICL,PPICLF_INT_FLD_INPUT,
      >       PPICLF_INT_FLD,PPICLF_FLUID_GRID,
