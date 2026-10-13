@@ -176,6 +176,42 @@ def check_linear_interp(init, final, case):
     return errors
 
 
+# Gaussian projection on hex cells (MFC kernel, exp(-2.305*sum (dx_l/L_l)^2)
+# over the 3x3x3 neighbours): the deposit's centroid is within ~0.04 cell of
+# the particle and its spread is ~0.41-0.46 cell in every direction. The old
+# kernel, sized by V^(1/3), gave 0.08-0.17 along the long side of 2:1:1 cells
+# and 0.57 across it.
+PROJ_CENTROID_TOL = 0.06
+PROJ_SPREAD_RANGE = (0.35, 0.50)
+
+
+def check_projection_shape(init, final, case):
+    """One particle's volume fraction, in cell lengths per direction: its
+    centroid must sit on the particle and its spread match the cell size."""
+    (_, p), = final["particles"].items()
+    xp = (p["x"], p["y"], p["z"])
+    g = case.grid
+    cell = (g.lx / g.nx, g.ly / g.ny, g.lz / g.nz)
+    w, xs = [], []
+    for region, gas in final["gas"].items():
+        for phi, xc in zip(gas["phi"], final["_centroids"][region]):
+            w.append(phi)
+            xs.append(xc)
+    total = sum(w)
+    errors = []
+    for l, axis in enumerate("xyz"):
+        c = sum(wi * x[l] for wi, x in zip(w, xs)) / total
+        s = math.sqrt(sum(wi * (x[l] - c) ** 2 for wi, x in zip(w, xs)) / total)
+        err, spread = (c - xp[l]) / cell[l], s / cell[l]
+        if abs(err) > PROJ_CENTROID_TOL:
+            errors.append("%s: volume-fraction centroid off the particle by %.3f cells"
+                          % (axis, err))
+        if not PROJ_SPREAD_RANGE[0] <= spread <= PROJ_SPREAD_RANGE[1]:
+            errors.append("%s: volume-fraction spread %.3f cells, expected %.2f-%.2f"
+                          % ((axis, spread) + PROJ_SPREAD_RANGE))
+    return errors
+
+
 PHYSICS = {
     "quiescent": check_quiescent,
     "mass": check_mass,
@@ -185,4 +221,5 @@ PHYSICS = {
     "particles_moved": check_particles_moved,
     "particles_heat_exchange": check_particles_heat_exchange,
     "linear_interp": check_linear_interp,
+    "projection_shape": check_projection_shape,
 }

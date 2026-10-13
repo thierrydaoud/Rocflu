@@ -181,7 +181,10 @@ def setup(case, rundir, exe_dir):
 
 
 def srun_prefix(nranks, timeout_min, slurm):
-    """srun inside an existing allocation, or as its own job otherwise."""
+    """srun inside an existing allocation, or as its own job otherwise.
+    Small cases (nranks <= slurm["local_ranks"]) run with mpirun on this node."""
+    if nranks <= slurm.get("local_ranks", 0):
+        return ["mpirun", "-np", str(nranks), "--bind-to", "none"]
     cmd = ["srun", "-n", str(nranks), "--mpi=pmix"]
     if not os.environ.get("SLURM_JOB_ID"):
         cmd += ["-A", slurm["account"], "-p", slurm["partition"],

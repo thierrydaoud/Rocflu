@@ -170,6 +170,24 @@ for n in (1, 2, 4):
         particles=cloud(40, 1.0e-6, lo=0.0006, hi=0.0074),
         checks=["linear_interp", "mass"])
 
+# -- Closed box of 2:1:1 cells: shape of the projected volume fraction --------
+# One particle at rest, at least two cells from every wall. The old kernel
+# sized each cell's Gaussian by V^(1/3), so on elongated cells the particle
+# hardly spread along the long side (0.17 of a cell here) and spread too far
+# across it (0.57). Scaling by each direction's cell length, as MFC does,
+# gives ~0.44 everywhere.
+ELONGATED = Grid(lx=0.016, ly=0.008, lz=0.008, x0=0.0, y0=0.0, z0=0.0, nx=8, ny=8, nz=8)
+for n in (1, 2):
+    add(name="box/elongated-projection/np%d" % n,
+        description="One particle at rest in 2:1:1 cells; its volume fraction must be "
+                    "centred on it and spread ~0.44 cell lengths in every direction",
+        nranks=n, grid=ELONGATED, bc="closed",
+        inp={**uniform_gas(0.0), **ONE_WAY, ("PICL", "PERIODICX"): 0,
+             ("PICL", "PERIODICY"): 0, ("PICL", "PERIODICZ"): 0,
+             ("PICL", "STATIONARY"): 1},
+        particles=[(0.0066, 0.0044, 0.0037, 1.0e-4)],
+        checks=["projection_shape", "mass"])
+
 # -- Gas only: conservation of the flow solver itself --------------------------
 JUMP = {("PICL", "USED"): 0, ("INITFLOW", "RVAL1"): "0.0043", ("INITFLOW", "RVAL3"): "0.0",
         ("INITFLOW", "RVAL5"): "0.97", ("INITFLOW", "RVAL6"): "82700.0"}

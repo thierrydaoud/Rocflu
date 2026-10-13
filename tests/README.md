@@ -22,6 +22,10 @@ script. The solver runs through `srun`:
 - From a login node, each case is its own short job (`-A bala1s -p hpg-dev`). Override
   with `--account`/`--partition` or `ROCPICL_TEST_ACCOUNT`/`ROCPICL_TEST_PARTITION`.
 - Inside an allocation (`salloc`), cases run as job steps.
+- `--local-ranks N` runs cases with at most N ranks with `mpirun --bind-to none` where
+  you launch the script (e.g. `-j 6 --local-ranks 4` on a login node, at most 16 cores;
+  the whole suite takes ~5 min). Without `--bind-to none`, concurrent cases all pin
+  to the first cores and run ~10x slower.
 
 A case whose solver run fails is set up again and retried once; `srun` on a shared
 partition can fail when the Slurm controller is unresponsive. The retry and any Slurm
@@ -73,6 +77,7 @@ by particle.
 | `particles_heat_exchange` | Particles at rest in gas at another temperature exchange heat |
 | `quiescent` | Gas at rest stays at rest (fixed particles) |
 | `linear_interp` | Particles read a linear gas density exactly (`INITFLOW IVAL1 = 1`, density `RVAL2*(1 + RVAL7*x + RVAL8*y + RVAL9*z)` at rest) |
+| `projection_shape` | One particle's volume fraction is centred on it (within 0.06 cell) and spread 0.35-0.50 cell lengths in each direction |
 | `same_as` | Particles match the same case on a different number of ranks |
 
 ## Known issues tracked by the suite
@@ -86,7 +91,11 @@ None at the moment. Fixed and now guarded:
 - resting particles skipping heat transfer (`box/resting-heat-exchange`, f0ae123);
 - inverse-distance interpolation, which was not exact for a linear field (errors up to
   ~20% of the change across a cell, depending on where the particle sat), replaced by
-  weighted linear least squares (`box/linear-interp/np1`, `np2`, `np4`, 89f9661).
+  weighted linear least squares (`box/linear-interp/np1`, `np2`, `np4`, 89f9661);
+- projection kernel sized by V^(1/3), which hardly spread particles along the long side
+  of elongated cells (414ce7f), and cells just outside the bin domain left out of the
+  stencil of particles at the edge of a cloud, so one particle projected onto 8 cells
+  instead of 27 (affad85) (`box/elongated-projection/np1`, `np2`).
 
 ## Flow-file conventions
 

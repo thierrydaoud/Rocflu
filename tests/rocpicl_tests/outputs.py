@@ -46,22 +46,36 @@ def read_particle_vtu(path):
 
 
 def read_vtu_cell_field(path, name):
-    """One CellData array from a Rocflu ParaView region file (.vtu).
+    """One DataArray (e.g. a CellData field) from a Rocflu ParaView region file (.vtu).
 
     Arrays are base64 'binary' with a UInt32 byte-count header, uncompressed.
+    Multi-component arrays come back flat.
     """
     import base64
     with open(path, "rb") as f:
         text = f.read().decode("latin-1")
-    m = re.search(r'<DataArray type="(\w+)" Name="%s"[^>]*format="binary">\s*([^<]*)<'
+    m = re.search(r'<DataArray type="(\w+)"[^>]* Name="%s"[^>]*format="binary">\s*([^<]*)<'
                   % re.escape(name), text)
     if m is None:
         raise KeyError("%s not in %s" % (name, path))
-    fmt = {"Float32": "f", "Float64": "d"}[m.group(1)]
+    fmt = {"Float32": "f", "Float64": "d", "Int32": "i"}[m.group(1)]
     raw = base64.b64decode(m.group(2).strip())
     nbytes = struct.unpack_from("<I", raw, 0)[0]
     n = nbytes // struct.calcsize(fmt)
     return list(struct.unpack_from("<%d%s" % (n, fmt), raw, 4))
+
+
+def read_vtu_cell_centroids(path):
+    """Cell centroids (mean of vertices) from a Rocflu ParaView region file."""
+    pts = read_vtu_cell_field(path, "Points")
+    conn = read_vtu_cell_field(path, "connectivity")
+    offsets = read_vtu_cell_field(path, "offsets")
+    out, start = [], 0
+    for end in offsets:
+        ids = conn[start:end]
+        out.append([sum(pts[3 * i + l] for i in ids) / len(ids) for l in range(3)])
+        start = end
+    return out
 
 
 def latest_particle_vtu(rundir):

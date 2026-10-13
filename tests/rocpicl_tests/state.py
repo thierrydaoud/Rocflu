@@ -6,7 +6,8 @@ import os
 import re
 
 from .case import CASENAME
-from .outputs import particle_ids, read_flow_ascii, read_particle_vtu, read_vtu_cell_field
+from .outputs import (particle_ids, read_flow_ascii, read_particle_vtu, read_vtu_cell_centroids,
+                      read_vtu_cell_field)
 
 # Particle fields kept in goldens: full state vector plus the interpolated
 # gas quantities. Other rprop entries are scratch and not always set.
@@ -81,6 +82,7 @@ def snapshot(rundir, case, which=-1):
 
     picl = _picl_used(rundir)
     gas = {}
+    centroids = {}  # only for checks that need geometry; not written to goldens
     t_gas = None
     for path in sorted(glob.glob(os.path.join(soldir, "%s.mixt.cva_*" % CASENAME))):
         region = int(os.path.basename(path).split("_")[1])
@@ -97,6 +99,8 @@ def snapshot(rundir, case, which=-1):
             if len(phi) != n:
                 raise RuntimeError("%s has %d cells, expected %d" % (vtu, len(phi), n))
             gas[region]["phi"] = phi
+            if "projection_shape" in case.checks:
+                centroids[region] = read_vtu_cell_centroids(vtu)
 
     particles = {}
     t_par = None
@@ -110,9 +114,12 @@ def snapshot(rundir, case, which=-1):
     if t_par is not None and abs(t_par - t_gas) > 1e-5 * max(abs(t_gas), 1e-30):
         raise RuntimeError("Gas dump t=%g and particle dump t=%g do not match" % (t_gas, t_par))
 
-    return {"time": t_gas, "gas": gas, "particles": particles,
+    snap = {"time": t_gas, "gas": gas, "particles": particles,
             "totals": totals(gas, particles, case.grid.cell_volume, picl,
                              _particle_cp(rundir))}
+    if centroids:
+        snap["_centroids"] = centroids
+    return snap
 
 
 def bulk_state(g, i, picl):

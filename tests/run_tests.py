@@ -66,7 +66,8 @@ def run_case(case, args):
             rcase.setup(case, rundir, args.exe)
             try:
                 rcase.run_solver(case, rundir, args.exe, {"account": args.account,
-                                                          "partition": args.partition})
+                                                          "partition": args.partition,
+                                                          "local_ranks": args.local_ranks})
                 break
             except rcase.RunError as e:
                 if attempt == 2:
@@ -117,7 +118,8 @@ def write_golden(case, final, args):
     d = golden_dir(case)
     os.makedirs(d, exist_ok=True)
     with open(os.path.join(d, "golden.json"), "w") as f:
-        json.dump({"uuid": case.uuid, "spec": case.spec(), "state": final}, f, indent=0)
+        state_out = {k: v for k, v in final.items() if not k.startswith("_")}
+        json.dump({"uuid": case.uuid, "spec": case.spec(), "state": state_out}, f, indent=0)
     meta = {
         "created": datetime.datetime.now().isoformat(timespec="seconds"),
         "host": platform.node(),
@@ -153,6 +155,8 @@ def main():
     p.add_argument("-j", "--jobs", type=int, default=8, help="cases run concurrently")
     p.add_argument("--account", default=os.environ.get("ROCPICL_TEST_ACCOUNT", "bala1s"))
     p.add_argument("--partition", default=os.environ.get("ROCPICL_TEST_PARTITION", "hpg-dev"))
+    p.add_argument("--local-ranks", type=int, default=0,
+                   help="run cases with at most this many ranks with mpirun on this node")
     p.add_argument("--keep", action="store_true", help="keep run directories of passing cases")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
