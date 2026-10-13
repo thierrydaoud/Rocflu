@@ -80,7 +80,8 @@ MODULE RFLU_ModRelatedPatches
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: RFLU_RELP_TransformVector, & 
+  PUBLIC :: RFLU_RELP_TransformGradWrapper, &
+            RFLU_RELP_TransformVector, & 
             RFLU_RELP_TransformWrapper
             
     
@@ -354,6 +355,137 @@ MODULE RFLU_ModRelatedPatches
 
 
 
+
+
+! ******************************************************************************
+!
+! Purpose: Transform mixture cell gradients copied into virtual cells of
+!   rotationally periodic and symmetry patches.
+!
+! Description: Counterpart of RFLU_RELP_TransformWrapper for the gradients
+!   copied by RFLU_MPI_ExchangeGradCells. With T the rotation (periodic) or
+!   reflection (symmetry) applied to the momentum of virtual cells, scalar
+!   gradients transform as T*g and the velocity-gradient tensor
+!   G(i,j) = du_i/dx_j as T*G*T^T. Linear periodicity (zero angle) needs
+!   nothing.
+!
+! Input:
+!   pRegion     Pointer to region
+!
+! Output: None.
+!
+! ******************************************************************************
+
+  SUBROUTINE RFLU_RELP_TransformGradWrapper(pRegion)
+
+    IMPLICIT NONE
+
+    TYPE(t_region), POINTER :: pRegion
+
+    INTEGER :: icg,icl,iPatch
+    REAL(RFREAL) :: ct,ex,ey,ez,nx,ny,nz,st,theta
+    REAL(RFREAL) :: g(3),gt(3)
+    REAL(RFREAL) :: tm(3,3),vg(3,3)
+    REAL(RFREAL), DIMENSION(:,:,:), POINTER :: pGc
+    TYPE(t_global), POINTER :: global
+    TYPE(t_grid), POINTER :: pGrid
+    TYPE(t_patch), POINTER :: pPatch
+
+    global => pRegion%global
+
+    CALL RegisterFunction(global,'RFLU_RELP_TransformGradWrapper',__FILE__)
+
+    pGrid => pRegion%grid
+    pGc   => pRegion%mixt%gradCell
+
+    DO iPatch = 1,pGrid%nPatches
+      pPatch => pRegion%patches(iPatch)
+
+      IF ( pPatch%nBCellsVirt == 0 ) CYCLE
+
+! ==============================================================================
+!     Transformation matrix (same as applied to momentum)
+! ==============================================================================
+
+      SELECT CASE ( pPatch%bcType )
+        CASE ( BC_PERIODIC )
+          theta = pPatch%angleRelated
+          IF ( theta == 0.0_RFREAL ) CYCLE
+
+          ex = 0.0_RFREAL
+          ey = 0.0_RFREAL
+          ez = 0.0_RFREAL
+          SELECT CASE ( pPatch%axisRelated )
+            CASE ( 1 )
+              ex = 1.0_RFREAL
+            CASE ( 2 )
+              ey = 1.0_RFREAL
+            CASE ( 3 )
+              ez = 1.0_RFREAL
+            CASE DEFAULT
+              CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
+          END SELECT ! pPatch%axisRelated
+
+          ct = COS(theta)
+          st = SIN(theta)
+
+          ! Same rotation as RFLU_RELP_PeriodicWrapper
+          tm(1,1) = ct + (1.0_RFREAL-ct)*ex*ex
+          tm(1,2) =      (1.0_RFREAL-ct)*ex*ey - st*ez
+          tm(1,3) =      (1.0_RFREAL-ct)*ex*ez + st*ey
+          tm(2,1) =      (1.0_RFREAL-ct)*ey*ex + st*ez
+          tm(2,2) = ct + (1.0_RFREAL-ct)*ey*ey
+          tm(2,3) =      (1.0_RFREAL-ct)*ey*ez - st*ex
+          tm(3,1) =      (1.0_RFREAL-ct)*ez*ex - st*ey
+          tm(3,2) =      (1.0_RFREAL-ct)*ez*ey + st*ex
+          tm(3,3) = ct + (1.0_RFREAL-ct)*ez*ez
+        CASE ( BC_SYMMETRY )
+          ! Reflection I - 2*n*n^T, as in ReflectVector
+          nx = pPatch%pn(XCOORD)
+          ny = pPatch%pn(YCOORD)
+          nz = pPatch%pn(ZCOORD)
+
+          tm(1,1) = 1.0_RFREAL - 2.0_RFREAL*nx*nx
+          tm(1,2) =            - 2.0_RFREAL*nx*ny
+          tm(1,3) =            - 2.0_RFREAL*nx*nz
+          tm(2,1) = tm(1,2)
+          tm(2,2) = 1.0_RFREAL - 2.0_RFREAL*ny*ny
+          tm(2,3) =            - 2.0_RFREAL*ny*nz
+          tm(3,1) = tm(1,3)
+          tm(3,2) = tm(2,3)
+          tm(3,3) = 1.0_RFREAL - 2.0_RFREAL*nz*nz
+        CASE DEFAULT
+          CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
+      END SELECT ! pPatch%bcType
+
+! ==============================================================================
+!     Apply to gradients of virtual cells of this patch
+! ==============================================================================
+
+      DO icl = 1,pPatch%nBCellsVirt
+        icg = pPatch%bvc(icl)
+
+        ! Scalar gradients (no density slot in the implicit-solver layout)
+        IF ( LBOUND(pGc,2) <= GRC_MIXT_DENS ) THEN
+          g  = pGc(XCOORD:ZCOORD,GRC_MIXT_DENS,icg)
+          gt = MATMUL(tm,g)
+          pGc(XCOORD:ZCOORD,GRC_MIXT_DENS,icg) = gt
+        END IF ! LBOUND
+
+        g  = pGc(XCOORD:ZCOORD,GRC_MIXT_PRES,icg)
+        gt = MATMUL(tm,g)
+        pGc(XCOORD:ZCOORD,GRC_MIXT_PRES,icg) = gt
+
+        ! Velocity-gradient tensor, vg(i,j) = du_i/dx_j
+        vg = TRANSPOSE(pGc(XCOORD:ZCOORD,GRC_MIXT_XVEL:GRC_MIXT_ZVEL,icg))
+        vg = MATMUL(tm,MATMUL(vg,TRANSPOSE(tm)))
+        pGc(XCOORD:ZCOORD,GRC_MIXT_XVEL:GRC_MIXT_ZVEL,icg) = TRANSPOSE(vg)
+      END DO ! icl
+    END DO ! iPatch
+
+    CALL DeregisterFunction(global)
+
+  END SUBROUTINE RFLU_RELP_TransformGradWrapper
 
 
 ! ******************************************************************************

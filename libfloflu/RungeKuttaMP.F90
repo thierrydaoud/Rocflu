@@ -91,7 +91,8 @@ SUBROUTINE RungeKuttaMP( regions )
   USE RFLU_ModMPI
   USE RFLU_ModNSCBC
   USE RFLU_ModGFM
-  USE RFLU_ModRelatedPatches, ONLY: RFLU_RELP_TransformWrapper
+  USE RFLU_ModRelatedPatches, ONLY: RFLU_RELP_TransformGradWrapper, &
+                                    RFLU_RELP_TransformWrapper
   USE RFLU_ModTime, ONLY: RFLU_SetTimeRK
 
   USE ModInterfaces, ONLY: AfterUpdateMP, &
@@ -221,6 +222,28 @@ SUBROUTINE RungeKuttaMP( regions )
 ! ----- compute cell-gradients for higher-order scheme ------------------------
 
         CALL CellGradientsMP( regions(iReg) )
+
+    ENDDO    ! iReg
+
+! ----- copy gradients of actual cells to the virtual cells mirroring them ----
+! Virtual-cell gradients from local stencils differ from those of the cells
+! they copy (periodic patches), so the two sides of a face computed different
+! fluxes and mass/energy were not conserved. Needs all regions' gradients.
+
+    IF ( regions(1)%mixtInput%spaceOrder > 1 ) THEN
+      CALL RFLU_MPI_ExchangeGradCells(regions)
+
+      DO iRegLocal=1,global%nRegionsLocal
+        pRegion => regions(iRegLocal)
+        CALL RFLU_RELP_TransformGradWrapper(pRegion)
+      END DO ! iRegLocal
+    END IF ! spaceOrder
+
+    DO iRegLocal=1,global%nRegionsLocal
+      iReg = iRegLocal
+
+        pRegion => regions(iReg)
+        flowModel = regions(iReg)%mixtInput%flowModel
 
 ! ----- compute viscous fluxes ------------------------------------------------
 
