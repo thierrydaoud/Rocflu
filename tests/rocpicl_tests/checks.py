@@ -212,6 +212,55 @@ def check_projection_shape(init, final, case):
     return errors
 
 
+# Particle velocities are single precision; positions are ~4e-3 m in single
+# precision (resolution ~5e-10 m), against a pair separation of ~1e-4 m.
+PAIR_VEL_RTOL = 1e-5
+PAIR_POS_ATOL = 2e-9
+
+
+def check_collision_pairs(init, final, case):
+    """Particles come in pairs (ids 2k-1, 2k) with the same offset, at rest and
+    overlapping. Collisions alone must push every pair apart exactly like the
+    first pair, conserving the pair's momentum, whether the partner is real,
+    a ghost from another rank, or a periodic image."""
+    g = case.grid
+    length = (g.lx, g.ly, g.lz)
+    p = {int(k): v for k, v in final["particles"].items()}
+    pairs = []
+    for k in range(1, len(p) // 2 + 1):
+        a, b = p[2 * k - 1], p[2 * k]
+        d = []
+        for l, axis in enumerate("xyz"):  # separation, unwrapped across periodic faces
+            dl = b[axis] - a[axis]
+            d.append(dl - length[l] * round(dl / length[l]))
+        va = [a["y%02d" % j] for j in (4, 5, 6)]
+        vb = [b["y%02d" % j] for j in (4, 5, 6)]
+        pairs.append((k, d, va, vb, a["rpro03"]))
+
+    errors = []
+    vscale = max(abs(v) for _, _, va, vb, _ in pairs for v in va + vb)
+    if vscale == 0.0:
+        return ["no pair moved; collisions never acted"]
+    _, d1, va1, vb1, _ = pairs[0]
+    for k, d, va, vb, dp in pairs:
+        mom = max(abs(x + y) for x, y in zip(va, vb))
+        if mom > PAIR_VEL_RTOL * vscale:
+            errors.append("pair %d: momentum not conserved, |va + vb| = %.3e m/s (%.2e of max |v|)"
+                          % (k, mom, mom / vscale))
+        dist = math.sqrt(sum(x * x for x in d))
+        if dist <= dp or sum(x * (y - z) for x, y, z in zip(d, vb, va)) <= 0.0:
+            errors.append("pair %d: still in contact or approaching (distance %.4g dp)"
+                          % (k, dist / dp))
+        if k == 1:
+            continue
+        dv = max(abs(x - y) for x, y in zip(va + vb, va1 + vb1))
+        dd = max(abs(x - y) for x, y in zip(d, d1))
+        if dv > PAIR_VEL_RTOL * vscale or dd > PAIR_POS_ATOL:
+            errors.append("pair %d moved differently from pair 1: velocity differs by %.2e of "
+                          "max |v|, separation by %.3e m" % (k, dv / vscale, dd))
+    return errors
+
+
 PHYSICS = {
     "quiescent": check_quiescent,
     "mass": check_mass,
@@ -222,4 +271,5 @@ PHYSICS = {
     "particles_heat_exchange": check_particles_heat_exchange,
     "linear_interp": check_linear_interp,
     "projection_shape": check_projection_shape,
+    "collision_pairs": check_collision_pairs,
 }

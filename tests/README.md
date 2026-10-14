@@ -78,6 +78,7 @@ by particle.
 | `quiescent` | Gas at rest stays at rest (fixed particles) |
 | `linear_interp` | Particles read a linear gas density exactly (`INITFLOW IVAL1 = 1`, density `RVAL2*(1 + RVAL7*x + RVAL8*y + RVAL9*z)` at rest) |
 | `projection_shape` | One particle's volume fraction is centred on it (within 0.06 cell) and spread 0.35-0.50 cell lengths in each direction |
+| `collision_pairs` | Overlapping pairs pushed apart by collisions alone conserve each pair's momentum, separate, and all move like the first pair, whether the partner is real, a ghost from another rank, or a periodic image |
 | `same_as` | Particles match the same case on a different number of ranks |
 
 ## Known issues tracked by the suite
@@ -96,6 +97,13 @@ None at the moment. Fixed and now guarded:
   of elongated cells (414ce7f), and cells just outside the bin domain left out of the
   stencil of particles at the edge of a cloud, so one particle projected onto 8 cells
   instead of 27 (affad85) (`box/elongated-projection/np1`, `np2`).
+
+Guards with no known bug behind them:
+- ghost particles (`box/ghost-collisions/np1`, `np2`, `np4`). Ghosts must carry the
+  partner's velocity, not only its position and properties: a build whose ghosts lose
+  `y(4:LRS)` fails `collision_pairs` on every rank count (periodic pairs separate 10% too
+  fast) and `same_as` on 2 and 4 ranks. ppiclF splits bins in z on 2 ranks and in y and z
+  on 4 ranks; the x direction only uses periodic ghosts.
 
 ## Flow-file conventions
 

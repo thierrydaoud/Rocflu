@@ -188,6 +188,53 @@ for n in (1, 2):
         particles=[(0.0066, 0.0044, 0.0037, 1.0e-4)],
         checks=["projection_shape", "mass"])
 
+# -- Periodic box: particle collisions through ghost particles ----------------
+# Pairs of equal particles start at rest, overlapping by 5% of a diameter, with
+# every force off except collisions. The contact spring pushes each pair apart;
+# its damping uses the partner's velocity. Every pair has the same offset, so
+# all pairs must move identically, whether the partner is a real particle, a
+# ghost on another rank, or a periodic image. On 1 rank the bin covers the whole
+# box: the reference pair and the pairs at the 4 mm planes are real-real, and the
+# pairs across the periodic faces use periodic ghosts. On 2 and 4 ranks the bin
+# faces sit at 2, 4 or 6 mm, and the pairs across them use ghosts from another rank.
+GHOST_DP = 1.0e-4
+GHOST_OFFSET = (85.0e-6, 35.0e-6, 25.0e-6)  # |d| = 95.3 um < dp
+GHOST_PAIR_CENTRES = [  # mm
+    (3.0, 5.0, 3.0),     # reference: away from every bin face
+    (4.0, 1.5, 5.5),     # across x = 4 mm
+    (1.5, 4.0, 6.5),     # across y = 4 mm
+    (6.5, 6.5, 4.0),     # across z = 4 mm
+    (4.0, 4.0, 4.0),     # across all three: edge and corner ghosts
+    (0.0, 6.5, 1.5),     # across the periodic x faces
+    (5.5, 0.0, 6.5),     # across the periodic y faces
+    (1.5, 5.5, 0.0),     # across the periodic z faces
+    (0.0, 0.0, 0.0),     # across the periodic corner
+]
+
+
+def collision_pairs():
+    pts = []
+    for c in GHOST_PAIR_CENTRES:
+        for sign in (-0.5, 0.5):
+            pts.append(tuple(round((c[l] * 1e-3 + sign * GHOST_OFFSET[l]) % BOX.lx, 9)
+                             for l in range(3)) + (GHOST_DP,))
+    return pts
+
+
+COLLISIONS_ONLY = {("PICL", "QSFORCE"): 0, ("PICL", "COLLISIONS"): 1,
+                   ("TIMESTEP", "MAXTIME"): "2.05E-05", ("TIMESTEP", "RUNTIME"): "2.05E-05",
+                   ("TIMESTEP", "WRITIME"): "1.0E-05", ("TIMESTEP", "PRNTIME"): "1.0E-05"}
+for n in (1, 2, 4):
+    add(name="box/ghost-collisions/np%d" % n,
+        description="Overlapping pairs pushed apart by collisions only, across bin "
+                    "faces, rank borders and periodic faces; every pair must move "
+                    "like the reference pair and conserve its momentum",
+        nranks=n, grid=BOX, bc="periodic",
+        inp={**uniform_gas(0.0), **ONE_WAY, **COLLISIONS_ONLY},
+        particles=collision_pairs(),
+        checks=["particles_moved", "collision_pairs"],
+        same_as=None if n == 1 else "box/ghost-collisions/np1")
+
 # -- Gas only: conservation of the flow solver itself --------------------------
 JUMP = {("PICL", "USED"): 0, ("INITFLOW", "RVAL1"): "0.0043", ("INITFLOW", "RVAL3"): "0.0",
         ("INITFLOW", "RVAL5"): "0.97", ("INITFLOW", "RVAL6"): "82700.0"}
