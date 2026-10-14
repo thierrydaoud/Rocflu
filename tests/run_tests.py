@@ -141,7 +141,8 @@ def cross_checks(results):
         ref = by_name[ref_name]
         if ref["final"] is None:
             continue
-        errs = checks.compare_particles_only(r["final"], ref["final"], ref_name)
+        errs = checks.compare_particles_only(r["final"], ref["final"], ref_name,
+                                             r["case"].same_as_fields)
         r["physics"] += ["differs from %s: %s" % (ref_name, e) for e in errs]
 
 

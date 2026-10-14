@@ -277,6 +277,65 @@ for n in (1, 2, 4):
         checks=["particles_moved", "binary_collisions"],
         same_as=None if n == 1 else "box/binary-collisions/np1")
 
+# -- Closed box: particle-wall collisions --------------------------------------
+# The six slip walls are particle walls (PARTWALL 1 in the .bc file). Each
+# particle starts 1 us from touching a wall and has collisions as its only
+# force: faces at 1-300 m/s, a hit right on the diagonal that splits a quad
+# face into two triangles, a box edge, a box corner and a 45-degree hit.
+# Fast hits push the centre past the wall (soft contact lasting KSP time
+# steps); the wall must push it back. Before 2026-10 particle walls existed
+# only through filein.vtk, a particle on a shared triangle edge was pushed
+# by both triangles, and one whose centre crossed a wall was pushed through.
+WALL_T_HIT = 1.0e-6
+WALL_SHOTS = [  # start point (mm, None = set from the speed), direction, speed
+    ((None, 2.3, 5.6), (-1, 0, 0), 1.0),     # x- face, Hertz regime
+    ((None, 6.3, 1.4), (-1, 0, 0), 10.0),    # x- face
+    ((2.4, None, 6.6), (0, -1, 0), 100.0),   # y- face, centre crosses the wall
+    ((4.6, 5.4, None), (0, 0, -1), 300.0),   # z- face on a quad diagonal
+    ((None, 1.6, None), (1, 0, 1), 10.0),    # x+/z+ box edge
+    ((None, None, None), (1, -1, -1), 10.0), # x+/y-/z- box corner
+    ((5.6, 2.6, None), (1, 0, 1), 10.0),     # z+ face at 45 degrees
+]
+
+
+def wall_shots(dp=1.0e-4):
+    """Particles touching the wall(s) they move towards after WALL_T_HIT."""
+    r = 0.5 * dp
+    pts = []
+    for start, d, v in WALL_SHOTS:
+        n = sum(c * c for c in d) ** 0.5
+        u = [c / n for c in d]
+        # a free coordinate is given; a wall coordinate is set from the speed
+        walls = [k for k in range(3) if start[k] is None]
+        xyz = []
+        for k in range(3):
+            if k in walls:
+                gap = r + abs(u[k]) * v * WALL_T_HIT
+                xyz.append(gap if d[k] < 0 else BOX.lx - gap)
+            else:
+                xyz.append(start[k] * 1e-3)
+        pts.append(tuple(round(c, 9) for c in xyz) + (dp,) + tuple(c * v for c in u))
+    return pts
+
+
+for n in (1, 2, 4):
+    add(name="box/walls/np%d" % n,
+        description="Particles hitting the slip walls of a closed box (PARTWALL 1): faces, "
+                    "a quad diagonal, an edge and a corner, 1-300 m/s; each rebounds with "
+                    "the input restitution and ends inside the box",
+        nranks=n, grid=BOX, bc="partwall",
+        inp={**uniform_gas(0.0), **ONE_WAY, **COLLISIONS_ONLY, ("PICL", "COLLISIONS"): 2,
+             ("PICL", "PERIODICX"): 0, ("PICL", "PERIODICY"): 0, ("PICL", "PERIODICZ"): 0,
+             ("TIMESTEP", "MAXTIME"): "8.05E-06", ("TIMESTEP", "RUNTIME"): "8.05E-06",
+             ("TIMESTEP", "WRITIME"): "4.0E-06", ("TIMESTEP", "PRNTIME"): "4.0E-06"},
+        particles=wall_shots(),
+        checks=["particles_moved", "wall_collisions"],
+        same_as=None if n == 1 else "box/walls/np1",
+        # The gas in this closed box differs slightly between decompositions
+        # (~0.2% of a 4e-4 m/s flow driven by the particles' volume fraction
+        # with FEEDBACK 0), so the gas seen by the particles (rprop) does too
+        same_as_fields=("y",))
+
 # -- Gas only: conservation of the flow solver itself --------------------------
 JUMP = {("PICL", "USED"): 0, ("INITFLOW", "RVAL1"): "0.0043", ("INITFLOW", "RVAL3"): "0.0",
         ("INITFLOW", "RVAL5"): "0.97", ("INITFLOW", "RVAL6"): "82700.0"}

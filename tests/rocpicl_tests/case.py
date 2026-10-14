@@ -46,6 +46,7 @@ class Case:
     # "shocktube": inflow x-, outflow x+, periodic y,z (templates/rectshktb.bc)
     # "periodic":  periodic in x, y and z
     # "closed":    slip walls on all six faces
+    # "partwall":  slip walls on all six faces, particle walls too (PARTWALL 1)
     bc: str = "shocktube"
     # {("SECTION", "KEY"): value} applied to templates/rectshktb.inp
     inp: Dict[Tuple[str, str], object] = field(default_factory=dict)
@@ -56,6 +57,9 @@ class Case:
     checks: List[str] = field(default_factory=list)
     # Name of another case whose final state must match this one
     same_as: Optional[str] = None
+    # Particle fields compared with same_as (prefixes, e.g. ("y",) for the
+    # particle state only); None compares every field
+    same_as_fields: Optional[Tuple[str, ...]] = None
     # Known code problem that makes the physics/cross checks fail. The case
     # reports XFAIL while they fail (golden still guards against changes) and
     # XPASS once they pass, so the marker can be removed.
@@ -120,6 +124,9 @@ def bc_text(kind):
         return text + "# END\n"
     if kind == "closed":
         return "# BC_SLIPW\nPATCH      1 6\nNAME       SlipWalls\n#\n\n# END\n"
+    if kind == "partwall":
+        return ("# BC_SLIPW\nPATCH      1 6\nNAME       SlipWalls\nPARTWALL   1\n#\n\n"
+                "# END\n")
     raise ValueError("Unknown bc layout: " + kind)
 
 

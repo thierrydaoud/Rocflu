@@ -56,6 +56,7 @@ Cases are defined in `rocpicl_tests/cases.py`. Each one specifies:
   - `shocktube`: `templates/rectshktb.bc`, with inflow at x−, outflow at x+, and periodic y and z;
   - `periodic`: periodic on all six faces;
   - `closed`: slip walls on all six faces;
+  - `partwall`: slip walls on all six faces that are also particle walls (`PARTWALL 1`);
 - a particle list, written to `points.dat` (`AL x y z dp`, optionally followed by an
   initial velocity `u v w`; particles without one start at rest);
 - a rank count.
@@ -81,7 +82,8 @@ by particle.
 | `projection_shape` | One particle's volume fraction is centred on it (within 0.06 cell) and spread 0.35-0.50 cell lengths in each direction |
 | `collision_pairs` | Overlapping pairs pushed apart by collisions alone conserve each pair's momentum, separate, and all move like the first pair, whether the partner is real, a ghost from another rank, or a periodic image |
 | `binary_collisions` | Colliding pairs (ids 2k−1, 2k) conserve momentum (1e-5) and angular momentum about their centre of mass (0.5%), and separate; head-on pairs rebound with the input `EREST` (within 1%) |
-| `same_as` | Particles match the same case on a different number of ranks |
+| `wall_collisions` | Every particle that reaches a wall of the box rebounds from it and ends inside the box, clear of the wall; one that hits a single wall rebounds with the input `EREST` (within 0.035) |
+| `same_as` | Particles match the same case on a different number of ranks (all particle fields, or only those named by the case's `same_as_fields`) |
 
 ## Known issues tracked by the suite
 
@@ -105,6 +107,13 @@ None at the moment. Fixed and now guarded:
   were twice as stiff as `KSP` intends (`box/binary-collisions/np1`, `np2`, `np4`,
   3afd23a). With the old stiffness the case fails momentum on both unequal pairs and
   restitution on three pairs.
+- particle walls (`box/walls/np1`, `np2`, `np4`, 2ff0cd8): before, walls came only from
+  `filein.vtk`, a particle over the edge between two wall triangles was pushed twice, a
+  fast particle was pushed through the wall, and a particle whose centre was outside the
+  domain was dropped or crashed the run. The old code crashes on this case (the 300 m/s
+  particle leaves the domain). `same_as` compares only the particle state (`y`): the gas
+  in this closed box differs slightly between decompositions, so the gas seen by the
+  particles does too (see `docs/PseudoTurb_fixes.md`, Still open).
 
 Guards with no known bug behind them:
 - ghost particles (`box/ghost-collisions/np1`, `np2`, `np4`). Ghosts must carry the

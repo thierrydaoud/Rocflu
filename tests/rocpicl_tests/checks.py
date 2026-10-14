@@ -16,8 +16,14 @@ def _close(a, b, rtol, scale):
     return abs(a - b) <= rtol * max(abs(b), scale)
 
 
-def compare_states(new, ref, label="golden"):
-    """Return a list of failure messages (empty if new matches ref)."""
+# Spin components are compared on the scale of the largest one, so a
+# component that is only round-off (a head-on hit) is not judged on its own
+SPIN = ("y08", "y09", "y10")
+
+
+def compare_states(new, ref, label="golden", fields=None):
+    """Return a list of failure messages (empty if new matches ref).
+    fields: only particle fields starting with one of these prefixes."""
     errors = []
     if not _close(new["time"], ref["time"], 1e-9, 0.0):
         errors.append("time %.10g != %s %.10g" % (new["time"], label, ref["time"]))
@@ -26,9 +32,12 @@ def compare_states(new, ref, label="golden"):
         errors.append("particle ids differ from %s" % label)
     else:
         refp = {str(k): v for k, v in ref["particles"].items()}
-        fields = sorted({f for p in refp.values() for f in p})
-        for f in fields:
-            scale = max(abs(p[f]) for p in refp.values()) or 1.0
+        names = sorted({f for p in refp.values() for f in p})
+        if fields:
+            names = [f for f in names if f.startswith(tuple(fields))]
+        for f in names:
+            group = SPIN if f in SPIN else (f,)
+            scale = max(abs(p.get(g, 0.0)) for p in refp.values() for g in group) or 1.0
             worst = None
             for pid, p in new["particles"].items():
                 a, b = p[f], refp[str(pid)][f]
@@ -59,9 +68,9 @@ def compare_states(new, ref, label="golden"):
     return errors
 
 
-def compare_particles_only(new, ref, label):
+def compare_particles_only(new, ref, label, fields=None):
     """Decomposition-independence: particles must agree, gas regions differ."""
-    return compare_states(dict(new, gas={}), dict(ref, gas={}), label)
+    return compare_states(dict(new, gas={}), dict(ref, gas={}), label, fields)
 
 
 # ---------------------------------------------------------------------------
@@ -340,6 +349,48 @@ def check_binary_collisions(init, final, case):
     return errors
 
 
+WALL_E_TOL = 0.035
+
+
+def check_wall_collisions(init, final, case):
+    """Every particle that reaches a wall of the box rebounds from it and ends
+    inside the box, clear of the wall. A particle that hits a single wall
+    rebounds with normal restitution within WALL_E_TOL of the input; at an
+    edge or corner each wall's friction (COLLISIONS >= 2) also slows the
+    motion towards the other walls, so only the rebound is checked there."""
+    g = case.grid
+    lo = (g.x0, g.y0, g.z0)
+    hi = (g.x0 + g.lx, g.y0 + g.ly, g.z0 + g.lz)
+    erest = float(case.inp.get(("PICL", "EREST"), 0.7))
+    t_end = float(case.inp[("TIMESTEP", "MAXTIME")])
+    p1 = final["particles"]
+    errors = []
+    for pid, p in sorted(init["particles"].items(), key=lambda kv: int(kv[0])):
+        r = 0.5 * p["rpro03"]
+        q = p1.get(pid)
+        if q is None:
+            errors.append("particle %s lost" % pid)
+            continue
+        hits = []
+        for k, ax in enumerate("xyz"):
+            v0 = p["y%02d" % (4 + k)]
+            gap0 = (hi[k] - p[ax]) if v0 > 0 else (p[ax] - lo[k])
+            if v0 != 0.0 and gap0 - r <= abs(v0) * t_end:
+                hits.append(k)
+        for k in hits:
+            ax = "xyz"[k]
+            v0 = p["y%02d" % (4 + k)]
+            e = -q["y%02d" % (4 + k)] / v0
+            if e <= 0.0 or (len(hits) == 1 and abs(e - erest) > WALL_E_TOL):
+                errors.append("particle %s, %s wall: restitution %.4f, input %.3f"
+                              % (pid, ax, e, erest))
+            gap1 = (hi[k] - q[ax]) if v0 > 0 else (q[ax] - lo[k])
+            if gap1 < (1.0 - 1e-3) * r:
+                errors.append("particle %s ends %.3g radii from the %s wall (outside if < 0)"
+                              % (pid, gap1 / r, ax))
+    return errors
+
+
 PHYSICS = {
     "quiescent": check_quiescent,
     "mass": check_mass,
@@ -352,4 +403,5 @@ PHYSICS = {
     "projection_shape": check_projection_shape,
     "collision_pairs": check_collision_pairs,
     "binary_collisions": check_binary_collisions,
+    "wall_collisions": check_wall_collisions,
 }
