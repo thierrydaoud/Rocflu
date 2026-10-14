@@ -132,6 +132,10 @@ INTEGER :: errorFlag,icg
    REAL(RFREAL), DIMENSION(3) :: tpw1,tpw2,tpw3         
    REAL(RFREAL) :: xin, wout, pi
    REAL(RFREAL) :: rmass
+   ! points.dat line and optional initial velocity
+   CHARACTER(512) :: pointsLine
+   REAL(RFREAL) :: velp(3)
+   INTEGER :: velErr
 
    INTEGER :: seed(33), isize, CellVertices
 
@@ -348,8 +352,16 @@ IF(global%restartFromScratch) THEN
    xp_max = -17400000.0
    yp_max = -17400000.0
    zp_max = -17400000.0
+   ! Each line: material x y z dp [u v w]. The velocity is optional;
+   ! particles without one start at rest.
    DO i_global=1,npart
-      READ(iFile,*) matName, (y(ii,i),ii=PPICLF_JX,PPICLF_JZ),dp !points.dat not formated
+      READ(iFile,'(A)') pointsLine
+      READ(pointsLine,*,IOSTAT=velErr) matName, &
+           (y(ii,i),ii=PPICLF_JX,PPICLF_JZ),dp,velp
+      IF (velErr /= 0) THEN
+         velp = 0.0_RFREAL
+         READ(pointsLine,*) matName,(y(ii,i),ii=PPICLF_JX,PPICLF_JZ),dp
+      END IF
 
       ! These are global max/min's since in 1:npart loop
       dp_max = max(dp_max,dp)
@@ -362,9 +374,9 @@ IF(global%restartFromScratch) THEN
   
       ! if in range for this processor set all the other properties and increment i
       IF((i_global .GT. i_global_min) .AND. (i_global .LE. i_global_max)) THEN
-         y(PPICLF_JVX,i) = 0.0D0
-         y(PPICLF_JVY,i) = 0.0D0
-         y(PPICLF_JVZ,i) = 0.0D0
+         y(PPICLF_JVX,i) = velp(1)
+         y(PPICLF_JVY,i) = velp(2)
+         y(PPICLF_JVZ,i) = velp(3)
          y(PPICLF_JT, i) = global%piclTemp
          y(PPICLF_JOX,i) = 0.0D0
          y(PPICLF_JOY,i) = 0.0D0
