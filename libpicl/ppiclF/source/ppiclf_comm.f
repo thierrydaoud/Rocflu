@@ -1085,6 +1085,9 @@
               nrank = iig + ppiclf_n_bins(1)*jjg 
      >               + ppiclf_n_bins(1)*ppiclf_n_bins(2)*kkg
               !ghostsMade = ghostsMade + 1
+              IF(ppiclf_npart_gp .GE. PPICLF_LPART_GP)
+     >          CALL ppiclf_exittr('Too many ghosts to send; '//
+     >          'increase PPICLF_LPART_GP$',0.0d0,ppiclf_npart)
               ppiclf_npart_gp = ppiclf_npart_gp + 1
               ! Copy particle ID info
               ppiclf_iprop_gp(1,ppiclf_npart_gp) = ppiclf_iprop(1,ip)
@@ -1179,6 +1182,14 @@
      >             ,partl,0                         ! Logical Comm
      >             ,ppiclf_rprop_gp,PPICLF_LRP_GP   ! Real Comm
      >             ,iprop_proc_index)               ! Receiver processor index
+
+      ! gslib drops ghosts beyond PPICLF_LPART_GP and returns the full
+      ! count, so a count above it means ghosts were lost
+      IF(ppiclf_npart_gp .GT. PPICLF_LPART_GP) THEN
+        PRINT*,'Ghosts received:',ppiclf_npart_gp,' rank:',ppiclf_nid
+        CALL ppiclf_exittr('Too many ghosts received; '//
+     >    'increase PPICLF_LPART_GP$',0.0d0,ppiclf_npart_gp)
+      END IF
 
       RETURN
       END

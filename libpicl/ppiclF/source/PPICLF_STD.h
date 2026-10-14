@@ -30,8 +30,12 @@
 #define PPICLF_LIP 11
 #endif
 
-#ifndef PPICLF_LPARET_GP
-#define PPICLF_LPART_GP 8*PPICLF_LPART
+! Ghost particles per rank, sent plus received. A particle sends up to
+! 7 ghosts, or up to 26 when its bin is narrower than twice the neighbour
+! width. CreateGhost and MoveGhost stop the run if this is exceeded;
+! raise it in PPICLF_USER.h.
+#ifndef PPICLF_LPART_GP
+#define PPICLF_LPART_GP (8*PPICLF_LPART)
 #endif
 
 #ifndef PPICLF_INTERP
@@ -54,8 +58,10 @@
 #define PPICLF_LRP_PRO 1
 #endif
 
+! Ghosts carry y and rprop, which is all the neighbour search reads.
+! Projection does not use ghosts (it goes through the overlap grid).
 #ifndef PPICLF_LRP_GP
-#define PPICLF_LRP_GP PPICLF_LRS+PPICLF_LRP+PPICLF_LRP_PRO
+#define PPICLF_LRP_GP (PPICLF_LRS+PPICLF_LRP)
 #endif
 
 #ifndef PPICLF_LIP_GP
