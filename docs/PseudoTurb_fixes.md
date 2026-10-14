@@ -3,12 +3,13 @@
 The goal of this branch is to validate the subgrid pseudo-turbulence (PT) model. Before
 the PT results can be trusted, the particle–gas coupling has to be correct: interpolating
 the gas to the particles, projecting the particles back onto the mesh, the drag and heat
-closures, and conservation across MPI ranks and periodic boundaries. This page lists what
+closures, particle collisions with each other and with walls, and conservation across MPI
+ranks and periodic boundaries. This page lists what
 was wrong, how each problem was fixed, and how the fix was checked. The PT model itself
 (the "k_sg gets too high" issue) is not addressed yet; see [Still open](#still-open).
 
 All changes are covered by the regression suite in [`tests/`](../tests/README.md):
-26 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks.
+35 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks.
 
 ## Summary
 
@@ -23,6 +24,10 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Conservation | Fluxes on periodic and symmetry patches were not conservative | Exchange and transform gradients in virtual cells | 11dc640 |
 | Robustness | Uninitialized reads gave NaN on 2+ ranks; a single particle gave a filter width of 0 | Initialize; filter width from cell–box overlap | b10c5f1, 48f64b7 |
 | Build | Required `SPEC=1` | Builds without it; stops if species are requested | aa3c0b6 |
+| Collisions | The contact stiffness used particle i's own mass, so an unequal pair felt unequal forces: an 8:1 pair at 20 m/s ended with its total momentum reversed | Stiffness from the pair's effective mass (MFC soft-sphere model) | 3afd23a, 78eb711 |
+| Particle walls | Walls existed only through `filein.vtk`; a particle over the edge between two wall triangles was pushed by both (e = 0.60 instead of 0.70); a fast particle went through the wall and the run crashed | Walls from the fluid wall patches (`PARTWALL 1`), contacts computed like pair contacts, a fluid side that pushes back | 2ff0cd8 |
+| Ghost particles | Overflowing the ghost arrays wrote past their end | Guards stop the run; ghost arrays 30% smaller | f7a3980, 0bb2e4b |
+| Neighbour search | Dense subbin tables (~30 GB requested for 50,000 particles in one bin) | Compact lists, byte-identical results | 82d4ca4 |
 
 ## Interpolation: weighted linear least squares
 
@@ -89,6 +94,171 @@ M ≥ 1e-6 floor in Loth's terms, which MFC also has. The modified Parmar model 
 > **Input decks:** `QSFORCE` now follows MFC: 0 none, 1 Gidaspow, 2 Parmar, 3 Osnes.
 > 4 stops with an error. Decks that used `QSFORCE 2` for Osnes must change to `3`.
 
+## Particle collisions
+
+Collisions use a soft-sphere model: overlapping particles push each other apart with a
+spring and a dashpot. The spring stiffness is the softer of two values:
+
+- **k₁ = m_eff (π² + ln² e) / (KSP·dt)²**. With this stiffness a contact lasts exactly
+  KSP time steps and rebounds with restitution e = `EREST` (the linear model in MFC's
+  `m_collisions`). dt is the current time step, so the contact time follows dt.
+- **k₂ = (4/3) E\* √(R\*) √δ**, the Hertz stiffness at overlap δ, with E = 1 GPa and
+  ν = 0.35 for every particle.
+
+The dashpot is set from the chosen stiffness so that a linear contact rebounds with e.
+
+### Contact stiffness from the pair's effective mass (3afd23a)
+
+k₁ used particle i's own mass instead of the pair's effective mass m₁m₂/(m₁+m₂). With
+unequal masses each particle of a pair used a different stiffness (and could pick a
+different branch of min(k₁, k₂)), so the two contact forces were not equal and opposite.
+An 8:1 pair at 2 m/s kept 33% of its momentum; at 20 m/s its total momentum reversed. For
+equal masses k₁ was twice the intended value, and contacts lasted about 0.72·KSP steps
+instead of KSP.
+
+The test case `box/binary-collisions` (np 1, 2, 4) collides four pairs across a bin face,
+a rank border and the periodic faces. Particles start with an initial velocity, which
+`points.dat` now accepts as `material x y z dp u v w` (786ecb1).
+
+![Binary collisions](figures/anim_binary_collisions.gif)
+
+Each panel follows one pair around its centre of mass, drawn to scale. The line on each
+particle turns with its spin. Below each panel, the normal relative velocity divided by
+the approach speed rebounds to e = 0.697 for the head-on pairs (EREST = 0.7). Momentum is
+conserved to 1e-5 and angular momentum about the centre of mass to 0.5%, including in
+the oblique pair (panel 4), where friction sets both particles spinning.
+
+### Ghost particles and the neighbour search (f7a3980, 0bb2e4b, 82d4ca4)
+
+A particle near a bin face is sent to the neighbouring bins as a ghost, so that pairs
+across bins, ranks and periodic faces are found. The ghost algorithm was compared with
+Sam's ppiclF: ghosts carry the whole state vector, velocity included. A test build whose
+ghosts dropped the velocity fails the new case `box/ghost-collisions` on 1, 2 and 4
+ranks; the current code passes it. The subbin neighbour search was compared with a brute-
+force search over all real and ghost particles (scratch build) and found every pair on
+1, 2, 4 and 8 ranks.
+
+Two robustness fixes came with this:
+- Sending or receiving more ghosts than `PPICLF_LPART_GP` wrote past the end of the ghost
+  arrays. The run now stops with a message. Ghosts no longer carry the projection values,
+  which shrinks the ghost arrays by 30% (about 520 to 360 MB per rank at LPART = 80000).
+- The subbin contents were dense tables of (subbins × particles), about 30 GB requested
+  for 50,000 particles in a 2 cm bin. They are now compact lists, with byte-identical
+  results.
+
+## Particle–wall collisions (2ff0cd8)
+
+### Turning walls on
+
+A slip-wall or no-slip-wall section of the `.bc` file with `PARTWALL 1` makes that patch
+a particle wall:
+
+```
+# BC_SLIPW
+PATCH     1 2
+NAME      SlipWall
+PARTWALL  1     ! particles collide with these patches (default 0)
+#
+```
+
+Patches without the key, and periodic patches, are not particle walls, so periodic runs
+are unchanged. At start-up every rank gets every face of these patches, with
+quadrilaterals split into two triangles. Their normals come from Rocflu and point into
+the fluid. `filein.vtk` is still read when it is present in the run directory; its
+triangles have no known fluid side (the winding of the cone file, for example, points
+half of them each way), so they act as before from whichever side a particle is on.
+
+### What changed
+
+- **Same force law as pairs.** The pair contact force is now one routine
+  (`ppiclf_user_ContactForce`) used by pairs and walls. The wall is a partner of infinite
+  mass and radius at rest: m_eff = m, R\* = r, same E, ν, EREST, KSP, friction and rolling
+  torque. Pair results are byte-identical to before. The old wall branch had its own Hertz
+  constant (√2 too soft for a wall of the same material), no ln² e term in k₁, no
+  friction, and started the contact 0.05·dp before the particle touched the wall.
+- **Closest point on each triangle.** The old search projected the particle onto each
+  triangle's plane and accepted the triangle if the projection was inside it (with 10%
+  slack). Near the edge between two triangles both accepted it, and the particle was
+  pushed twice. The contact now uses the closest point on each triangle (face, edge or
+  vertex). Repeated contacts are dropped, so a flat wall made of many triangles acts as
+  one surface, and edges and corners between walls are handled.
+- **A fluid side.** A patch wall pushes a particle back towards the fluid even when the
+  particle's centre has crossed the wall. The old wall turned its normal towards whichever
+  side the centre was on, so once the centre crossed, the wall pushed it out of the domain.
+  This assumes that the solid behind a `PARTWALL` patch is at least `NEIGHBORWIDTH` thick
+  (at least 4 diameters), which holds for the boundary of the fluid domain.
+- **Search.** Wall triangles are filed into the collision subbins of each rank, so a
+  particle only checks the triangles near it. The old code checked every wall for every
+  particle.
+- **Particles just outside the domain.** ppiclF cut its bins back to the fluid domain's
+  extent in every direction. A particle whose centre was briefly outside the domain was in
+  no bin: it was dropped on 2+ ranks, and on 1 rank the subbin index went below 0 and the
+  run crashed. Bins are now only cut back in periodic directions.
+
+### Results
+
+The probe below fires particles (dp = 100 µm, COLLISIONS 1, EREST 0.7, KSP 10) at the
+walls of a closed 8 mm box with gas at rest. The gas CFL sets dt ≈ 1.9e-7 s, so a contact
+governed by k₁ lasts about 1.9 µs. The old code reads the walls from a `filein.vtk` of the
+box (two triangles per face); the new code uses the box's slip walls with `PARTWALL 1`.
+
+![Particle-wall probe, old vs new](figures/fig_walls.png)
+
+- **(a)** The new code rebounds with e = 0.697 on faces, on the diagonal between two
+  triangles, at a box edge and in a corner, the same value as a head-on pair. At 1 m/s
+  the Hertz stiffness is the softer one and e = 0.724. The old code gave 0.60 on the
+  diagonal and 0.67 in the corner, where triangles pushed twice.
+- **(b)** At 100 m/s the centre reaches the wall plane (penetration 1.0 r). At 300 and
+  1000 m/s the old wall let the particle through and the run crashed; the new wall pushes
+  it back from 3.1 r and 10 r behind the wall, with the same e.
+
+![Particle-wall animation, old vs new](figures/anim_walls.gif)
+
+Each panel looks along the wall. The vertical axis is the distance of the particle's
+centre from the wall in radii: the particle touches at 1 and its centre has crossed the
+wall below 0. Old (orange) and new (blue) particles are drawn to scale side by side, and
+the strip below shows the velocity away from the wall over the approach speed. One
+frame is one time step.
+
+**How deep particles go.** With the k₁ stiffness the deepest penetration is about
+v·KSP·dt/π, whatever the material: about 3.7 r for a 100 µm particle at 300 m/s with
+KSP 10 and dt = 1.9e-7 s. The new wall recovers such particles, but the contact is not
+resolved in any physical sense. Keeping v·KSP·dt/π well below the radius needs a smaller
+KSP or a smaller time step. Rocflu's time step does not take particle speeds into account.
+
+The test case `box/walls` (np 1, 2, 4) runs eight such shots with COLLISIONS 2 (friction
+and spin). Each particle that hits one wall must rebound with e within 0.035 of EREST,
+every particle must end inside the box, and 2 and 4 ranks must match 1 rank. The old code
+fails it: the 300 m/s particle leaves the domain and the run crashes. At an edge or a
+corner each wall's friction also slows the motion towards the other walls (e ≈ 0.55 at
+the edge, 0.47 in the corner with μ = 0.4), so there the test only checks the rebound.
+
+## Notes for the discussion with the MFC team
+
+- **The normal force turns attractive at the end of a contact.** The normal force is
+  −k δ − η v_n. While the particles separate, v_n changes sign, and near the end of the
+  contact the dashpot term exceeds the spring term. The animation of the binary
+  collisions shows a pull of 1–2% of the rebound speed. MFC's `m_collisions` has the same
+  form. The usual fix allows only repulsive normal forces (clip at 0, as in LIGGGHTS).
+  Clipping removes some damping, so the actual e comes out above EREST unless η is
+  recalibrated (linear spring–dashpot, Schwager & Pöschel 2007):
+
+  | EREST | e with clipping |
+  |---|---|
+  | 0.5 | 0.550 |
+  | 0.7 | 0.718 |
+  | 0.9 | 0.902 |
+
+  The friction and rolling torques use |F_n|, so they also act during the attractive
+  phase. The code keeps the unclipped force for now, as in MFC.
+- **min(k₁, k₂).** MFC uses only the linear spring–dashpot (k₁). ppiclF takes the softer
+  of k₁ and the Hertz stiffness. In the Hertz branch e depends on the impact speed (0.725
+  for an equal pair at 2 m/s).
+- **Material constants.** E = 1 GPa and ν = 0.35 are fixed in the code for every particle
+  and wall. Aluminium is about 70 GPa.
+- **Resolution.** KSP·dt sets the contact time, so fast impacts penetrate by
+  v·KSP·dt/π (see above). A time-step limit from the particle speeds would bound it.
+
 ## MPI and periodic boundaries
 
 These fixes have no figure. Each is checked by a regression case that compares 1, 2 and
@@ -114,6 +284,16 @@ Next physics step:
   (Capecelatro & Desjardins).
 
 Known limitations:
+- **Particle walls from `filein.vtk` have no fluid side.** A particle whose centre crosses
+  one is pushed out of the domain (at dt = 1.9e-7 s, a 100 µm particle at 100 m/s). To be
+  discussed: orient the triangles from a point known to be in the fluid, or use the fluid
+  wall patches (`PARTWALL 1`) where the walls are the domain boundary.
+- In the closed box of `box/walls` the gas seen by the particles differs between 1 and 2
+  ranks by about 0.2% of a 4e-4 m/s flow (driven by φ with `FEEDBACK 0`). The particles
+  agree; the gas difference is not explained yet.
+- Ghost particles are created and sent in every RK stage, even when nothing uses them.
+- The quasi-steady fluctuation mean (`QSFLUCT`) only sees neighbours within
+  `NEIGHBORWIDTH`, not the filter width it is meant to average over.
 - Feedback lags one RK stage, because particles are projected before `ppiclf_user_SetYdot`.
   It conserves, but the coupling is first order in time.
 - Restart from a PICL dump is not verified: the files hold ρ/(1−φ), and the particle VTU
@@ -127,3 +307,9 @@ Each figure compares the commit before a fix with the commit after it. The run a
 scripts (`sweeps.py`, `make_plots.py`, `qs_driver.F`) are kept locally under the
 git-ignored `tests/_work/plots/`. They need a built tree of each old commit
 (aa3c0b6, 6d00ca4, 1a954d7, eb59a6c) as well as the current one.
+
+The collision figures use the same folder: `animate_collisions.py` animates a run of
+`box/binary-collisions` written every 0.1 µs; `walls.py` sets up and runs the wall probe
+(`WALLS=vtk` or `WALLS=patch`, `SHOTS=` a subset) with any built tree, and
+`animate_walls.py` and `wall_summary.py` draw the animation and the summary figure from
+the old (3afd23a) and new (2ff0cd8) probe runs.
