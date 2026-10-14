@@ -7,8 +7,4 @@ C Wall support
       INTEGER*4  PPICLF_NWALL
       COMMON /PPICLF_WALL_N/ PPICLF_NWALL
 
-C 1: the wall normal points into the fluid (one-sided wall); 0: unknown
-      INTEGER*4 PPICLF_WALL_SIDE(PPICLF_LWALL)
-      COMMON /PPICLF_WALL_I/ PPICLF_WALL_SIDE
-
 

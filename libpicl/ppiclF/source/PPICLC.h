@@ -17,7 +17,6 @@ extern"C" {
 
     // ppiclf_io.f
     void ppiclc_io_ReadParticleVTU       (char   *filein );
-    void ppiclc_io_ReadWallVTK           (char   *filein );
 
     // ppiclf_solve.f
     void ppiclc_solve_InitNeighborBin    (double *width  );

@@ -3,13 +3,10 @@
 ! Particle-wall contacts.
 !
 ! Walls are triangles (ppiclf_wall_c: vertices, ppiclf_wall_n: unit
-! normal and area). They come from filein.vtk (ppiclf_io_ReadWallVTK)
-! or from Rocflu wall patches marked PARTWALL 1 in the .bc file.
-! A wall with ppiclf_wall_side = 1 knows its fluid side (the normal
-! points into the fluid) and only pushes particles towards it, so a
-! particle whose centre has crossed the wall is pushed back. A wall
-! with ppiclf_wall_side = 0 (filein.vtk, whose triangle winding is
-! arbitrary) pushes particles away from whichever side they are on.
+! normal pointing into the fluid, and area): the faces of the Rocflu
+! wall patches marked PARTWALL 1 in the .bc file. A wall only pushes
+! particles towards the fluid, so a particle whose centre has crossed
+! the wall is pushed back.
 !
 ! Each RK stage the walls are filed into this rank's collision
 ! subbins (ppiclf_solve_WallSubbins), and ppiclf_solve_WallContacts
@@ -28,11 +25,10 @@
       INTEGER*4, ALLOCATABLE :: wsb_start(:), wsb_list(:)
       END MODULE ppiclf_wallbin
 !-----------------------------------------------------------------------
-      SUBROUTINE ppiclf_solve_AddWall(xp1,xp2,xp3,rnf,iside)
+      SUBROUTINE ppiclf_solve_AddWall(xp1,xp2,xp3,rnf)
 !
-! Add triangle (xp1,xp2,xp3). iside = 1: rnf points into the fluid
-! and the stored normal is oriented the same way; iside = 0: the
-! normal follows the vertex order and rnf is not used.
+! Add triangle (xp1,xp2,xp3). rnf points into the fluid; the stored
+! normal is oriented the same way.
 !
       IMPLICIT NONE
 !
@@ -41,7 +37,6 @@
 ! Input:
 !
       REAL*8 xp1(3), xp2(3), xp3(3), rnf(3)
-      INTEGER*4 iside
 !
 ! Internal:
 !
@@ -70,13 +65,10 @@
       DO l = 1,3
          rn(l) = rn(l)/rmag
       END DO
-      IF (iside .EQ. 1) THEN
-         IF (rn(1)*rnf(1) + rn(2)*rnf(2) + rn(3)*rnf(3) .LT. 0.0d0)
-     >   THEN
-            DO l = 1,3
-               rn(l) = -rn(l)
-            END DO
-         END IF
+      IF (rn(1)*rnf(1) + rn(2)*rnf(2) + rn(3)*rnf(3) .LT. 0.0d0) THEN
+         DO l = 1,3
+            rn(l) = -rn(l)
+         END DO
       END IF
 
       DO l = 1,3
@@ -86,7 +78,6 @@
          ppiclf_wall_n(l  ,ppiclf_nwall) = rn(l)
       END DO
       ppiclf_wall_n(4,ppiclf_nwall) = 0.5d0*rmag
-      ppiclf_wall_side(ppiclf_nwall) = iside
 
       RETURN
       END
@@ -291,12 +282,12 @@
 ! contact lying on the plane of a kept inside contact (the shared
 ! edge of two triangles) or at the same point as a kept one.
 !
-! A particle whose centre has crossed a one-sided wall stays in
+! A particle whose centre has crossed a wall stays in
 ! contact with it, and is pushed back, as long as the triangle is in
 ! its subbin's list (about ppiclf_nndist, at least 4 diameters,
 ! behind the wall). This happens when the impact is fast compared
 ! with the contact time ksp*dt: the overlap is about v*ksp*dt/pi.
-! One-sided walls therefore assume that the solid behind them is at
+! The walls therefore assume that the solid behind them is at
 ! least ppiclf_nndist thick, which holds for the boundary of the
 ! fluid domain.
 !
@@ -346,18 +337,10 @@
          s = (p(1)-a(1))*rnf(1) + (p(2)-a(2))*rnf(2)
      >     + (p(3)-a(3))*rnf(3)
 
-         IF (ppiclf_wall_side(w) .EQ. 0 .AND. s .LT. 0.0d0) THEN
-            ! Two-sided wall: the side the particle is on is the fluid
-            DO l = 1,3
-               rnf(l) = -rnf(l)
-            END DO
-            s = -s
-         END IF
-
          ! A closest point on an edge or vertex that is the centre's
          ! own projection on the plane (centre right above or below
-         ! the triangle's boundary) is an inside contact: behind a
-         ! one-sided wall the edge/vertex branch would skip it
+         ! the triangle's boundary) is an inside contact: behind the
+         ! wall the edge/vertex branch would skip it
          IF (ireg .NE. 0) THEN
             d = 0.0d0
             DO l = 1,3

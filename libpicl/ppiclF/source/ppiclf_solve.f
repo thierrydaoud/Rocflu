@@ -499,39 +499,6 @@
 
       RETURN
       END
-!-----------------------------------------------------------------------
-       SUBROUTINE ppiclf_solve_InitWall(xp1,xp2,xp3)
-!
-! Add a wall triangle without a known fluid side (filein.vtk).
-! See ppiclf_wall.f.
-!
-      IMPLICIT NONE
-!
-      INCLUDE "PPICLF"
-! 
-! Input: 
-! 
-      REAL*8 xp1(*)
-      REAL*8 xp2(*)
-      REAL*8 xp3(*)
-!
-! Internal:
-!
-      REAL*8 rdum(3)
-!
-      if (.not.PPICLF_LCOMM)
-     >CALL ppiclf_exittr('InitMPI must be before InitWall$',0.d0,0)
-      if (.not.PPICLF_LINIT)
-     >CALL ppiclf_exittr('InitParticle must be before InitWall$'
-     >                  ,0.d0,0)
-
-      rdum(1) = 0.0d0
-      rdum(2) = 0.0d0
-      rdum(3) = 0.0d0
-      CALL ppiclf_solve_AddWall(xp1,xp2,xp3,rdum,0)
-
-      RETURN
-      END
 c----------------------------------------------------------------------
 #ifdef PPICLC
       SUBROUTINE ppiclf_solve_WriteVTU(time)

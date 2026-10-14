@@ -15,8 +15,8 @@
 #define PPICLF_LRP3 10*PPICLF_VU
 !#define PPICLF_LRP3 0
 
-! maximum number of wall triangles (filein.vtk and PARTWALL patches;
-! a quadrilateral face is two triangles)
+! maximum number of particle-wall triangles (faces of the PARTWALL
+! patches; a quadrilateral face is two triangles)
 #define PPICLF_LWALL 50000
 
 ! y, y1, ydot, ydotc: PPICLF_LRS

@@ -135,7 +135,7 @@ INTEGER :: errorFlag,icg
    ! Particle walls from PARTWALL patches
    TYPE(t_patch), POINTER :: pPatch
    INTEGER :: iPatch, ifc, iv, nv, iTri, nTriLoc, nTriTot, nProcs
-   INTEGER, DIMENSION(:), ALLOCATABLE :: triCounts, triDispls
+   INTEGER, DIMENSION(:), ALLOCATABLE :: triCounts, triDispls, partWallPatch
    REAL(RFREAL), DIMENSION(:,:), ALLOCATABLE :: triLoc, triAll
    REAL(RFREAL) :: xv(3,4)
    REAL(RFREAL) :: rmass
@@ -716,10 +716,13 @@ CALL ppiclf_comm_InitOverlapGrid(nCells,rocGrid)
 !CALL MPI_Barrier(global%mpiComm,errorFlag)
 CALL ppiclf_solve_InitSolve
 
+! Particle walls used to be read from filein.vtk. They now come only from
+! the fluid wall patches, so stop rather than silently run without walls.
 INQUIRE(FILE='filein.vtk', EXIST=wall_exists)
-IF(wall_exists) THEN
-  CALL ppiclf_io_ReadWallVTK('filein.vtk')
-  WRITE(*,*) 'Particle boundary wall read-in.'
+IF ( wall_exists ) THEN
+  CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
+    'filein.vtk is no longer read: set PARTWALL 1 on the wall patches '// &
+    'in the .bc file and remove filein.vtk')
 END IF
 
 ! Particle walls from the Rocflu wall patches marked PARTWALL 1 in the .bc
@@ -780,12 +783,35 @@ CALL MPI_Allgatherv(triLoc,12*nTriLoc,MPI_RFREAL,triAll,triCounts, &
                     triDispls,MPI_RFREAL,global%mpiComm,errorFlag)
 DO k = 1,nTriTot
   CALL ppiclf_solve_AddWall(triAll(1:3,k),triAll(4:6,k),triAll(7:9,k), &
-                            triAll(10:12,k),1)
+                            triAll(10:12,k))
 END DO
-IF ( global%myProcid == MASTERPROC .AND. nTriTot > 0 ) THEN
-  WRITE(*,*) 'Particle walls from PARTWALL patches: ',nTriTot,' triangles'
+
+! Report which global patches are particle walls
+ALLOCATE(partWallPatch(global%nPatches))
+partWallPatch = 0
+DO iPatch = 1,pGrid%nPatches
+  pPatch => pRegion%patches(iPatch)
+  IF ( pPatch%partWallFlag ) partWallPatch(pPatch%iPatchGlobal) = 1
+END DO
+CALL MPI_Allreduce(MPI_IN_PLACE,partWallPatch,global%nPatches,MPI_INTEGER, &
+                   MPI_MAX,global%mpiComm,errorFlag)
+IF ( global%myProcid == MASTERPROC ) THEN
+  IF ( nTriTot > 0 ) THEN
+    WRITE(*,'(A,I8,A)') ' Particle walls: ',nTriTot, &
+      ' triangles from the patches with PARTWALL 1'
+    WRITE(*,'(A)',ADVANCE='NO') '   patches:'
+    DO k = 1,global%nPatches
+      IF ( partWallPatch(k) == 1 ) WRITE(*,'(I5)',ADVANCE='NO') k
+    END DO
+    WRITE(*,*)
+    IF ( global%piclCollisionFlag == 0 ) THEN
+      WRITE(*,*) '*** WARNING *** particle walls have no effect with COLLISIONS 0'
+    END IF
+  ELSE
+    WRITE(*,*) 'Particle walls: none (no wall patch has PARTWALL 1)'
+  END IF
 END IF
-DEALLOCATE(triLoc,triAll,triCounts,triDispls)
+DEALLOCATE(triLoc,triAll,triCounts,triDispls,partWallPatch)
 
 ! 03/24/2025 - Thierry - store the RocfluMP Flow Model chosen (Euler or NS)
 !                        this is used in ppiclF for calculating the pressure gradient
