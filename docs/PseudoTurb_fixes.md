@@ -25,9 +25,9 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Robustness | Uninitialized reads gave NaN on 2+ ranks; a single particle gave a filter width of 0 | Initialize; filter width from cell–box overlap | b10c5f1, 48f64b7 |
 | Build | Required `SPEC=1` | Builds without it; stops if species are requested | aa3c0b6 |
 | Collisions | The contact stiffness used particle i's own mass, so an unequal pair felt unequal forces: an 8:1 pair at 20 m/s ended with its total momentum reversed | Stiffness from the pair's effective mass (MFC soft-sphere model) | 3afd23a, 78eb711 |
-| Particle walls | Walls existed only through `filein.vtk`; a particle over the edge between two wall triangles was pushed by both (e = 0.60 instead of 0.70); a fast particle went through the wall and the run crashed | Walls from the fluid wall patches (`PARTWALL 1`), contacts computed like pair contacts, a fluid side that pushes back | 2ff0cd8 |
+| Particle walls | Walls existed only through `filein.vtk`; a particle over the edge between two wall triangles was pushed by both (e = 0.60 instead of 0.70); a fast particle went through the wall and the run crashed | Walls from the fluid wall patches (`PARTWALL 1`), contacts computed like pair contacts, a fluid side that pushes back; `filein.vtk` removed | 2ff0cd8 |
 | Ghost particles | Overflowing the ghost arrays wrote past their end | Guards stop the run; ghost arrays 30% smaller | f7a3980, 0bb2e4b |
-| Neighbour search | Dense subbin tables (~30 GB requested for 50,000 particles in one bin) | Compact lists, byte-identical results | 82d4ca4 |
+| Neighbour search | Dense subbin tables: ~28 GB requested for 50,000 particles in one 2 cm bin | Compact lists: ~1.2 MB for the same bin (about 24,000 times less), byte-identical results | 82d4ca4 |
 
 ## Interpolation: weighted linear least squares
 
@@ -142,9 +142,13 @@ Two robustness fixes came with this:
 - Sending or receiving more ghosts than `PPICLF_LPART_GP` wrote past the end of the ghost
   arrays. The run now stops with a message. Ghosts no longer carry the projection values,
   which shrinks the ghost arrays by 30% (about 520 to 360 MB per rank at LPART = 80000).
-- The subbin contents were dense tables of (subbins × particles), about 30 GB requested
-  for 50,000 particles in a 2 cm bin. They are now compact lists, with byte-identical
-  results.
+- The subbin contents were dense tables of (subbins × particles) 4-byte integers. A 2 cm
+  bin with 0.4 mm subbins has 140,608 subbins, so 50,000 particles requested about 28 GB
+  per call. They are now compact lists: one start index per subbin plus three integers
+  per particle, about 1.2 MB for the same bin (12 bytes more per ghost), about 24,000
+  times less. The interpolation stencil search had the same kind of table over cells, which
+  grew with the square of the cells per bin; it uses the same lists now. Results are
+  byte-identical.
 
 ## Particle–wall collisions (2ff0cd8)
 
@@ -164,9 +168,14 @@ PARTWALL  1     ! particles collide with these patches (default 0)
 Patches without the key, and periodic patches, are not particle walls, so periodic runs
 are unchanged. At start-up every rank gets every face of these patches, with
 quadrilaterals split into two triangles. Their normals come from Rocflu and point into
-the fluid. `filein.vtk` is still read when it is present in the run directory; its
-triangles have no known fluid side (the winding of the cone file, for example, points
-half of them each way), so they act as before from whichever side a particle is on.
+the fluid. At start-up the code prints how many triangles came from which patches, and
+warns if `COLLISIONS` is 0 (the walls then have no effect).
+
+`filein.vtk` is no longer read, and a run that finds one in its directory stops with a
+message. Its triangles had no known fluid side (in the cone file, for example, half of
+them point each way), it had to be kept consistent with the mesh by hand, and walls that
+the gas sees are exactly the fluid mesh walls. A deck that used it needs `PARTWALL 1` on
+its wall patches instead.
 
 ### What changed
 
@@ -284,10 +293,8 @@ Next physics step:
   (Capecelatro & Desjardins).
 
 Known limitations:
-- **Particle walls from `filein.vtk` have no fluid side.** A particle whose centre crosses
-  one is pushed out of the domain (at dt = 1.9e-7 s, a 100 µm particle at 100 m/s). To be
-  discussed: orient the triangles from a point known to be in the fluid, or use the fluid
-  wall patches (`PARTWALL 1`) where the walls are the domain boundary.
+- Walls that only the particles see (a screen or an obstacle that is not in the fluid
+  mesh) are not supported since `filein.vtk` was removed.
 - In the closed box of `box/walls` the gas seen by the particles differs between 1 and 2
   ranks by about 0.2% of a 4e-4 m/s flow (driven by φ with `FEEDBACK 0`). The particles
   agree; the gas difference is not explained yet.
