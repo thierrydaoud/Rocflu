@@ -179,10 +179,18 @@
          eps = 0.0d0
          if (rdiff .lt. rthresh+eps) then
 
+            ! Effective mass of the pair, the same seen from i and j
+            rm1 = rpropi(PPICLF_R_JRHOP)*rpropi(PPICLF_R_JVOLP)
+            rm2 = rpropj(PPICLF_R_JRHOP)*rpropj(PPICLF_R_JVOLP)
+            rmult = (rm1*rm2)/(rm1+rm2)
+
             ! Compute spring stiffness constant dynamically.
-            ! The number of collision timesteps (ksp) is set by the user
-            ! k1 = k_{n,limit}
-            ksp1 = rmass*rpi*rpi/((ksp*ppiclf_dt)**2)
+            ! k1 = k_{n,limit}: a linear spring-dashpot contact with this
+            ! stiffness lasts exactly ksp time steps with restitution
+            ! erest (the soft-sphere model in MFC's m_collisions). The
+            ! softer of k1 and the Hertzian k2 is used, so ksp is the
+            ! minimum number of steps per contact.
+            ksp1 = rmult*(pi2 + log(erest)**2)/((ksp*ppiclf_dt)**2)
             ! k2 = k_{hertzian}
             E1  = 1.0d9  ! Assumed value for Young's modulus
             E2  = 1.0d9  ! Assumed value for Young's modulus
@@ -198,10 +206,6 @@
             ! kn = min(k1,k2)
             ksp_min = min(ksp1,ksp2)
 
-            rm1 = rpropi(PPICLF_R_JRHOP)*rpropi(PPICLF_R_JVOLP)
-            rm2 = rpropj(PPICLF_R_JRHOP)*rpropj(PPICLF_R_JVOLP)
-         
-            rmult = (rm1*rm2)/(rm1+rm2)
             eta_n = -2.0d0*sqrt(ksp_min)*log(erest)
      >              /sqrt(log(erest)**2+pi2)
      >              *sqrt(rmult)
