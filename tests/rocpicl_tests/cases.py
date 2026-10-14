@@ -235,6 +235,48 @@ for n in (1, 2, 4):
         checks=["particles_moved", "collision_pairs"],
         same_as=None if n == 1 else "box/ghost-collisions/np1")
 
+# -- Periodic box: binary collisions with known outcomes ---------------------
+# Four pairs approach each other (initial velocities in points.dat) with
+# collisions as the only force (COLLISIONS 2: normal, tangential friction and
+# spin). Each pair collides across a different boundary: a z bin face (2+
+# ranks), a y bin face (4 ranks), the periodic x faces and the periodic y
+# faces. Before 2026-10 the spring stiffness used particle i's own mass, so
+# unequal pairs did not conserve momentum (an 8:1 pair at 20 m/s ended with
+# its total momentum reversed).
+
+
+def collision_pair(centre_mm, axis, dp1, dp2, speed, offset=0.0):
+    """Two particles approaching along `axis` at +/-speed, 10 us from contact,
+    with an impact offset (fraction of the mean diameter) along the next axis."""
+    r = 0.5 * (dp1 + dp2)
+    half = 0.5 * (r + 20e-6 * speed)
+    side = (axis + 1) % 3
+    pts = []
+    for sign, dp in ((-1, dp1), (1, dp2)):
+        xyz = [c * 1e-3 for c in centre_mm]
+        xyz[axis] += sign * half
+        xyz[side] += sign * 0.5 * offset * r
+        vel = [0.0, 0.0, 0.0]
+        vel[axis] = -sign * speed
+        pts.append(tuple(round(v % BOX.lx, 9) for v in xyz) + (dp,) + tuple(vel))
+    return pts
+
+
+BINARY_COLLISIONS = (
+    collision_pair((1.5, 1.5, 4.0), 2, 1.0e-4, 1.0e-4, 10.0)           # equal, z bin face
+    + collision_pair((6.5, 4.0, 1.5), 1, 1.0e-4, 5.0e-5, 10.0)         # 8:1, y bin face
+    + collision_pair((0.0, 6.5, 6.5), 0, 1.0e-4, 5.0e-5, 1.0)          # 8:1, periodic x
+    + collision_pair((3.5, 0.0, 5.5), 1, 1.0e-4, 1.0e-4, 1.0, 0.5))    # oblique, periodic y
+for n in (1, 2, 4):
+    add(name="box/binary-collisions/np%d" % n,
+        description="Four colliding pairs (equal and 8:1, head-on and oblique) across bin "
+                    "faces and periodic faces; momentum, angular momentum and restitution",
+        nranks=n, grid=BOX, bc="periodic",
+        inp={**uniform_gas(0.0), **ONE_WAY, **COLLISIONS_ONLY, ("PICL", "COLLISIONS"): 2},
+        particles=BINARY_COLLISIONS,
+        checks=["particles_moved", "binary_collisions"],
+        same_as=None if n == 1 else "box/binary-collisions/np1")
+
 # -- Gas only: conservation of the flow solver itself --------------------------
 JUMP = {("PICL", "USED"): 0, ("INITFLOW", "RVAL1"): "0.0043", ("INITFLOW", "RVAL3"): "0.0",
         ("INITFLOW", "RVAL5"): "0.97", ("INITFLOW", "RVAL6"): "82700.0"}

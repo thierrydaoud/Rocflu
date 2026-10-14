@@ -261,6 +261,85 @@ def check_collision_pairs(init, final, case):
     return errors
 
 
+# Binary collisions (pairs of ids 2k-1, 2k). Momentum is exact to single
+# precision. Angular momentum about the pair's centre of mass changes by
+# ~0.1% in an oblique contact: the friction torque acts at r_i from each
+# centre, not at the overlapped contact point. Head-on pairs must rebound
+# with the input restitution coefficient; with KSP = 10 steps per contact
+# the measured e is within 0.5% (0.697 for EREST 0.7).
+COLL_MOM_RTOL = 1e-5
+COLL_ANGMOM_RTOL = 5e-3
+COLL_E_RTOL = 1e-2
+
+
+def _min_image(d, length):
+    return d - length * round(d / length)
+
+
+def check_binary_collisions(init, final, case):
+    """Each pair conserves momentum and angular momentum and separates; a
+    head-on pair rebounds with the input coefficient of restitution."""
+    g = case.grid
+    length = (g.lx, g.ly, g.lz)
+    erest = float(case.inp.get(("PICL", "EREST"), 0.7))
+    p0 = {int(k): v for k, v in init["particles"].items()}
+    p1 = {int(k): v for k, v in final["particles"].items()}
+    errors = []
+    for k in range(1, len(p0) // 2 + 1):
+        a, b = 2 * k - 1, 2 * k
+        m = {i: p0[i]["rpro01"] * p0[i]["rpro04"] for i in (a, b)}
+        inertia = {i: m[i] * p0[i]["rpro03"] ** 2 / 10.0 for i in (a, b)}
+
+        def vel(p, i):
+            return [p[i]["y%02d" % j] for j in (4, 5, 6)]
+
+        def sep(p):
+            return [_min_image(p[b][ax] - p[a][ax], length[l]) for l, ax in enumerate("xyz")]
+
+        def momentum(p):
+            return [m[a] * va + m[b] * vb for va, vb in zip(vel(p, a), vel(p, b))]
+
+        def ang_mom(p):
+            # about the centre of mass: reduced-mass orbital term plus spins
+            d = sep(p)
+            dv = [vb - va for va, vb in zip(vel(p, a), vel(p, b))]
+            mu = m[a] * m[b] / (m[a] + m[b])
+            orb = [mu * (d[1] * dv[2] - d[2] * dv[1]), mu * (d[2] * dv[0] - d[0] * dv[2]),
+                   mu * (d[0] * dv[1] - d[1] * dv[0])]
+            return [o + sum(inertia[i] * p[i]["y%02d" % (8 + l)] for i in (a, b))
+                    for l, o in enumerate(orb)]
+
+        scale = sum(m[i] * sum(v * v for v in vel(p0, i)) ** 0.5 for i in (a, b))
+        dmom = max(abs(x - y) for x, y in zip(momentum(p1), momentum(p0)))
+        if dmom > COLL_MOM_RTOL * scale:
+            errors.append("pair %d: momentum changed by %.2e of sum |m v|" % (k, dmom / scale))
+
+        d0, d1 = sep(p0), sep(p1)
+        dist0 = math.sqrt(sum(x * x for x in d0))
+        n0 = [x / dist0 for x in d0]
+        dv0 = [vb - va for va, vb in zip(vel(p0, a), vel(p0, b))]
+        dv1 = [vb - va for va, vb in zip(vel(p1, a), vel(p1, b))]
+        lscale = (m[a] * m[b] / (m[a] + m[b])) * dist0 * math.sqrt(sum(x * x for x in dv0))
+        dl = max(abs(x - y) for x, y in zip(ang_mom(p1), ang_mom(p0)))
+        if dl > COLL_ANGMOM_RTOL * lscale:
+            errors.append("pair %d: angular momentum changed by %.2e of mu*d*|dv|" % (k, dl / lscale))
+
+        dist1 = math.sqrt(sum(x * x for x in d1))
+        dp_mean = 0.5 * (p0[a]["rpro03"] + p0[b]["rpro03"])
+        vn1 = sum(x * y for x, y in zip(dv1, d1)) / dist1
+        if dist1 <= dp_mean or vn1 <= 0.0:
+            errors.append("pair %d: never collided or still in contact (distance %.3g dp, "
+                          "normal speed %.3g m/s)" % (k, dist1 / dp_mean, vn1))
+            continue
+        vn0 = sum(x * y for x, y in zip(dv0, n0))
+        head_on = math.sqrt(max(0.0, sum(x * x for x in dv0) - vn0 * vn0)) < 1e-6 * abs(vn0)
+        if head_on:
+            e = vn1 / -vn0
+            if abs(e - erest) > COLL_E_RTOL * erest:
+                errors.append("pair %d: restitution %.5f, input %.3f" % (k, e, erest))
+    return errors
+
+
 PHYSICS = {
     "quiescent": check_quiescent,
     "mass": check_mass,
@@ -272,4 +351,5 @@ PHYSICS = {
     "linear_interp": check_linear_interp,
     "projection_shape": check_projection_shape,
     "collision_pairs": check_collision_pairs,
+    "binary_collisions": check_binary_collisions,
 }

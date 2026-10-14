@@ -56,7 +56,8 @@ Cases are defined in `rocpicl_tests/cases.py`. Each one specifies:
   - `shocktube`: `templates/rectshktb.bc`, with inflow at x−, outflow at x+, and periodic y and z;
   - `periodic`: periodic on all six faces;
   - `closed`: slip walls on all six faces;
-- a particle list, written to `points.dat`;
+- a particle list, written to `points.dat` (`AL x y z dp`, optionally followed by an
+  initial velocity `u v w`; particles without one start at rest);
 - a rank count.
 
 Particles never start on a cell face, so round-off can't decide which cell or rank owns
@@ -79,6 +80,7 @@ by particle.
 | `linear_interp` | Particles read a linear gas density exactly (`INITFLOW IVAL1 = 1`, density `RVAL2*(1 + RVAL7*x + RVAL8*y + RVAL9*z)` at rest) |
 | `projection_shape` | One particle's volume fraction is centred on it (within 0.06 cell) and spread 0.35-0.50 cell lengths in each direction |
 | `collision_pairs` | Overlapping pairs pushed apart by collisions alone conserve each pair's momentum, separate, and all move like the first pair, whether the partner is real, a ghost from another rank, or a periodic image |
+| `binary_collisions` | Colliding pairs (ids 2k−1, 2k) conserve momentum (1e-5) and angular momentum about their centre of mass (0.5%), and separate; head-on pairs rebound with the input `EREST` (within 1%) |
 | `same_as` | Particles match the same case on a different number of ranks |
 
 ## Known issues tracked by the suite
@@ -97,6 +99,12 @@ None at the moment. Fixed and now guarded:
   of elongated cells (414ce7f), and cells just outside the bin domain left out of the
   stencil of particles at the edge of a cloud, so one particle projected onto 8 cells
   instead of 27 (affad85) (`box/elongated-projection/np1`, `np2`).
+
+- collision stiffness from particle i's own mass, so unequal pairs did not conserve
+  momentum (an 8:1 pair at 20 m/s ended with its momentum reversed) and equal pairs
+  were twice as stiff as `KSP` intends (`box/binary-collisions/np1`, `np2`, `np4`,
+  3afd23a). With the old stiffness the case fails momentum on both unequal pairs and
+  restitution on three pairs.
 
 Guards with no known bug behind them:
 - ghost particles (`box/ghost-collisions/np1`, `np2`, `np4`). Ghosts must carry the

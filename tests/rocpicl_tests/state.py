@@ -13,7 +13,7 @@ from .outputs import (particle_ids, read_flow_ascii, read_particle_vtu, read_vtu
 # gas quantities. Other rprop entries are scratch and not always set.
 PARTICLE_FIELDS = (
     ["x", "y", "z"]
-    + ["y%02d" % j for j in range(4, 8)]           # velocity, temperature
+    + ["y%02d" % j for j in range(4, 11)]          # velocity, temperature, spin
     + ["rpro%02d" % j for j in (1, 2, 3, 4, 5)]    # rhop, rhof, dp, volp, phip
     + ["rpro%02d" % j for j in range(6, 13)]       # ux uy uz cs dpdx dpdy dpdz
     + ["rpro22"]                                   # superparticle loading
