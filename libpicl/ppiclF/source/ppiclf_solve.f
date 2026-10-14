@@ -393,7 +393,7 @@
       RETURN
       END
 !-----------------------------------------------------------------------
-      SUBROUTINE ppiclf_solve_NearestNeighborSB(i,SBt,SBc,SBm,SBn,iB)
+      SUBROUTINE ppiclf_solve_NearestNeighborSB(i,SBt,SBs,SBl,SBn,iB)
 !
       IMPLICIT NONE
 !
@@ -402,8 +402,8 @@
 ! Input:
 !
       INTEGER*4 i, SBt, SBn(3), iB(3)  
-      INTEGER*4 SBc(0:(SBt-1)),
-     >  SBm(0:(SBt-1),(ppiclf_npart+ppiclf_npart_gp))
+      ! Particles of subbin s: SBl(SBs(s):SBs(s+1)-1); ghosts negative
+      INTEGER*4 SBs(0:SBt), SBl(*)
 ! 
 ! Internal: 
 ! 
@@ -439,8 +439,8 @@
           loopSB = tempSB + (-2+iSB) + (-2+jSB)*SBn(1) 
      >             + (-2+kSB)*SBn(1)*SBn(2)
           IF (loopSB .GT. -1 .AND. loopSB .LT. SBt) THEN
-            DO k = 1,SBc(loopSB) 
-              j = SBm(loopSB,k)
+            DO k = SBs(loopSB),SBs(loopSB+1)-1
+              j = SBl(k)
               IF (j .GT. 0) THEN ! Real particle
                 IF (j .EQ. i) CYCLE ! Same particle
                 xdistSQ = (ppiclf_cp_map(1,i)-ppiclf_cp_map(1,j))**2
@@ -1390,22 +1390,20 @@ c----------------------------------------------------------------------
      >          Max_CellLen(3), Max_CellLenSQ(3), dSQchk(3)
       LOGICAL   added, farAway, alreadyMapped
  
-      INTEGER*4  SBin_map( 0 : (
+      ! Cells of subbin s: SBin_list(SBin_start(s):SBin_start(s+1)-1),
+      ! in the order they were mapped. A cell sits in up to 8 subbins
+      ! (2 per direction with periodicity). Entries are collected first
+      ! (entSB, entID), then sorted by subbin keeping their order.
+      INTEGER*4  SBin_start( 0 : (
      > (FLOOR((ppiclf_bins_dx(1) + 2*ppiclf_interp_dchk(1))
      >                       /ppiclf_interp_dchk(1)) + 1) *
      > (FLOOR((ppiclf_bins_dx(2) + 2*ppiclf_interp_dchk(2))
      >                       /ppiclf_interp_dchk(2)) + 1) *
      > (FLOOR((ppiclf_bins_dx(3) + 2*ppiclf_interp_dchk(3))
-     >                       /ppiclf_interp_dchk(3)) + 1) - 1)
-     > ,ppiclf_nCells_Interp)
-
-      INTEGER*4  SBin_counter( 0 : (
-     > (FLOOR((ppiclf_bins_dx(1) + 2*ppiclf_interp_dchk(1))
-     >                       /ppiclf_interp_dchk(1)) + 1) *
-     > (FLOOR((ppiclf_bins_dx(2) + 2*ppiclf_interp_dchk(2))
-     >                       /ppiclf_interp_dchk(2)) + 1) *
-     > (FLOOR((ppiclf_bins_dx(3) + 2*ppiclf_interp_dchk(3))
-     >                       /ppiclf_interp_dchk(3)) + 1) - 1))
+     >                       /ppiclf_interp_dchk(3)) + 1) ))
+      INTEGER*4  SBin_list(8*ppiclf_nCells_Interp),
+     >           entSB(8*ppiclf_nCells_Interp),
+     >           entID(8*ppiclf_nCells_Interp), nent
        INTEGER*4 n_SBin(3), tot_SBin, i_SBin(3), iTemp_SBin(3),
      >           temp_SBin, iSB, jSB, kSB, loopSB, i_count,
      >           firstSB(3), lastSB(3)  
@@ -1444,7 +1442,7 @@ c----------------------------------------------------------------------
      >               / ppiclf_interp_dchk(l))
       END DO
  
-      SBin_Counter = 0
+      nent = 0
       tot_SBin = n_SBin(1)*n_SBin(2)*n_SBin(3)
      
       ! Loop through all elements to map to subbins.
@@ -1531,15 +1529,15 @@ c----------------------------------------------------------------------
               ! Finally, add the cell to a subbin 
               temp_SBin = iTemp_SBin(1) + iTemp_SBin(2)*n_SBin(1) +
      >                    iTemp_SBin(3)*n_SBin(1)*n_SBin(2)
-              SBin_Counter(temp_SBin) = SBin_Counter(temp_SBin) + 1
-              IF(SBin_Counter(temp_SBin) .GT. ppiclf_nCells_Interp)
-     >          PRINT*, 'counter more than interp cells. SB:',
-     >          temp_SBin, SBin_Counter(temp_SBin), ppiclf_nCells_Interp
-              SBin_Map(temp_SBin,SBin_Counter(temp_SBin)) = ie
+              nent = nent + 1
+              entSB(nent) = temp_SBin
+              entID(nent) = ie
             END DO !k
           END DO !j 
         END DO !i
       END DO !ie
+      CALL ppiclf_solve_SortSubbins(nent,entSB,entID,tot_SBin,
+     >                              SBin_start,SBin_list)
       partCount = 0
       DO ip=1,ppiclf_npart !Loop all particles in this bin
         nnearest = 0 ! number of nearest elements
@@ -1565,8 +1563,8 @@ c----------------------------------------------------------------------
               loopSB = temp_SBin + (-2+iSB) + (-2+jSB)*n_SBin(1)
      >                 + (-2 + kSB)*n_SBin(1)*n_SBin(2)  
               IF(loopSB .GT. (-1) .AND. loopSB .LT. tot_SBin) THEN
-                DO i_count = 1,SBin_Counter(loopSB)
-                  ie = SBin_Map(loopSB,i_count) 
+                DO i_count = SBin_start(loopSB),SBin_start(loopSB+1)-1
+                  ie = SBin_list(i_count) 
                   ! get offset from particle to center (nearest
                   ! periodic image)
                   dSQi    = 0.0
@@ -2795,3 +2793,45 @@ c----------------------------------------------------------------------
 !
 !      RETURN
 !      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_solve_SortSubbins(nent,entSB,entID,nSB,
+     >                                    SBstart,SBlist)
+!
+! Stable counting sort of nent (subbin, id) entries. On return the ids
+! of subbin s are SBlist(SBstart(s):SBstart(s+1)-1), in entry order.
+!
+      IMPLICIT NONE
+!
+! Input:
+!
+      INTEGER*4 nent, nSB, entSB(nent), entID(nent)
+!
+! Output:
+!
+      INTEGER*4 SBstart(0:nSB), SBlist(*)
+!
+! Internal:
+!
+      INTEGER*4 e, sb, next(0:nSB-1)
+!
+      DO sb = 0,nSB
+        SBstart(sb) = 0
+      END DO
+      DO e = 1,nent
+        SBstart(entSB(e)+1) = SBstart(entSB(e)+1) + 1
+      END DO
+      SBstart(0) = 1
+      DO sb = 1,nSB
+        SBstart(sb) = SBstart(sb) + SBstart(sb-1)
+      END DO
+      DO sb = 0,nSB-1
+        next(sb) = SBstart(sb)
+      END DO
+      DO e = 1,nent
+        sb = entSB(e)
+        SBlist(next(sb)) = entID(e)
+        next(sb) = next(sb) + 1
+      END DO
+
+      RETURN
+      END

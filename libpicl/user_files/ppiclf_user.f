@@ -115,20 +115,16 @@
 
       ! Avery added 10/10/2024 for subbin nearest neighbor search
       
-      INTEGER*4 SBin_map( 0 : (
+      ! Subbin s holds SBin_list(SBin_start(s):SBin_start(s+1)-1),
+      ! ghosts as negative indices; filled by ppiclf_user_subbinMap
+      INTEGER*4 SBin_start( 0 : (
      > (FLOOR((ppiclf_bins_dx(1)+2*ppiclf_nndist)/ppiclf_nndist) 
      >        + 1) *
      > (FLOOR((ppiclf_bins_dx(2)+2*ppiclf_nndist)/ppiclf_nndist)
      >        + 1) *
      > (FLOOR((ppiclf_bins_dx(3)+2*ppiclf_nndist)/ppiclf_nndist) 
-     >       + 1) - 1), (ppiclf_npart+ppiclf_npart_gp))
-      INTEGER*4  SBin_counter( 0 : (
-     > (FLOOR((ppiclf_bins_dx(1)+2*ppiclf_nndist)/ppiclf_nndist) 
-     >        + 1) *
-     > (FLOOR((ppiclf_bins_dx(2)+2*ppiclf_nndist)/ppiclf_nndist)
-     >        + 1) *
-     > (FLOOR((ppiclf_bins_dx(3)+2*ppiclf_nndist)/ppiclf_nndist) 
-     >       + 1) - 1))
+     >       + 1) ))
+      INTEGER*4 SBin_list(ppiclf_npart+ppiclf_npart_gp)
       INTEGER*4 i_Bin(3), n_SBin(3), tot_SBin
 
 
@@ -140,10 +136,10 @@
       ! subroutine.  The full subroutine is called to ensure that
       ! the array initialization is correct.
       CALL ppiclf_user_subbinMap(i_Bin, n_SBin, tot_SBin 
-     >                           ,SBin_counter ,SBin_map)
+     >                           ,SBin_start ,SBin_list)
       DO i = 1,ppiclf_npart
         CALL ppiclf_solve_NearestNeighborSB(
-     >         i,tot_SBin,SBin_counter,SBin_map,n_SBin,i_Bin)
+     >         i,tot_SBin,SBin_start,SBin_list,n_SBin,i_Bin)
       END DO
       RETURN
 #endif
@@ -231,7 +227,7 @@
      >                  .or.(qs_fluct_flag>=1)
      >                .or.(pseudoTurb_flag .gt. 0)) then
         call ppiclf_user_subbinMap(i_Bin, n_SBin, tot_SBin 
-     >                               ,SBin_counter ,SBin_map)
+     >                               ,SBin_start ,SBin_list)
       endif ! Collisions, QS Fluct, Briney AM, or pseudoTurb flags on
 !
 !-----------------------------------------------------------------------
@@ -428,7 +424,7 @@
          ! AVERY - always use subbins
          IF ( 1 .EQ. 1 ) THEN !sbNearest_flag .EQ. 1) THEN
             CALL ppiclf_solve_NearestNeighborSB(
-     >           i,tot_SBin,SBin_counter,SBin_map,n_SBin,i_Bin)
+     >           i,tot_SBin,SBin_start,SBin_list,n_SBin,i_Bin)
 !         ELSE
 !             CALL ppiclf_solve_NearestNeighbor(i)
          END IF

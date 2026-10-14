@@ -8,7 +8,7 @@
 !-----------------------------------------------------------------------
 !
       SUBROUTINE ppiclf_user_subbinMap(i_Bin, n_SBin, tot_SBin,
-     >                                  SBin_counter, SBin_map)
+     >                                  SBin_start, SBin_list)
 !
       IMPLICIT NONE
 !
@@ -16,20 +16,17 @@
 !
 ! Input:
 !
-      INTEGER*4  SBin_map( 0 : (
+      ! On return, particles of subbin s are
+      ! SBin_list(SBin_start(s):SBin_start(s+1)-1): real particles in
+      ! index order, then ghosts as negative indices
+      INTEGER*4  SBin_start( 0 : (
      > (FLOOR((ppiclf_bins_dx(1)+2*ppiclf_nndist)/ppiclf_nndist) 
      >        + 1) *
      > (FLOOR((ppiclf_bins_dx(2)+2*ppiclf_nndist)/ppiclf_nndist)
      >        + 1) *
      > (FLOOR((ppiclf_bins_dx(3)+2*ppiclf_nndist)/ppiclf_nndist) 
-     >       + 1) - 1), (ppiclf_npart+ppiclf_npart_gp))
-      INTEGER*4  SBin_counter( 0 : (
-     > (FLOOR((ppiclf_bins_dx(1)+2*ppiclf_nndist)/ppiclf_nndist) 
-     >        + 1) *
-     > (FLOOR((ppiclf_bins_dx(2)+2*ppiclf_nndist)/ppiclf_nndist)
-     >        + 1) *
-     > (FLOOR((ppiclf_bins_dx(3)+2*ppiclf_nndist)/ppiclf_nndist) 
-     >       + 1) - 1))
+     >       + 1) ))
+      INTEGER*4  SBin_list(ppiclf_npart+ppiclf_npart_gp)
       INTEGER*4  i_Bin(3), n_SBin(3), tot_SBin
      >          
 !
@@ -37,6 +34,8 @@
 !
       REAL*8    xp(3), bin_xMin(3)
       INTEGER*4 temp_SBin, i_SBin(3),ibinTemp, i, j, k, l 
+      INTEGER*4 nent, entSB(ppiclf_npart+ppiclf_npart_gp),
+     >          entID(ppiclf_npart+ppiclf_npart_gp)
 
 !
 ! Code:
@@ -63,8 +62,7 @@
         IF (ppiclf_ndim .EQ. 3) THEN
           tot_SBin = tot_SBin*n_SBin(3)
         END IF
-        ! Assign Subbin counters to 0
-        SBin_counter = 0
+        nent = 0
 
         ! Map each real particle to a subbin
         DO i = 1 , ppiclf_npart
@@ -86,8 +84,9 @@
            END DO
            temp_SBin = i_SBin(1) + n_SBin(1)*i_SBin(2) +
      >                n_SBin(1)*n_SBin(2)*i_SBin(3)
-           SBin_counter(temp_SBin) = SBin_counter(temp_SBin) + 1
-           SBin_map(temp_SBin,SBin_counter(temp_SBin)) = i
+           nent = nent + 1
+           entSB(nent) = temp_SBin
+           entID(nent) = i
         END DO ! real particle loop
 
 
@@ -121,11 +120,15 @@
             END DO
             temp_SBin = i_SBin(1) + n_SBin(1)*i_SBin(2) +
      >                 n_SBin(1)*n_SBin(2)*i_SBin(3)
-            SBin_counter(temp_SBin) = SBin_counter(temp_SBin) + 1
+            nent = nent + 1
+            entSB(nent) = temp_SBin
             ! negative in subbin map means it is ghost particle
-            SBin_map(temp_SBin,SBin_counter(temp_SBin)) = -i
+            entID(nent) = -i
           END IF 
         END DO ! gp loop
+
+        CALL ppiclf_solve_SortSubbins(nent,entSB,entID,tot_SBin,
+     >                                SBin_start,SBin_list)
 
       RETURN
       END 
