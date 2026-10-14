@@ -184,34 +184,13 @@
             rm2 = rpropj(PPICLF_R_JRHOP)*rpropj(PPICLF_R_JVOLP)
             rmult = (rm1*rm2)/(rm1+rm2)
 
-            ! Compute spring stiffness constant dynamically.
-            ! k1 = k_{n,limit}: a linear spring-dashpot contact with this
-            ! stiffness lasts exactly ksp time steps with restitution
-            ! erest (the soft-sphere model in MFC's m_collisions). The
-            ! softer of k1 and the Hertzian k2 is used, so ksp is the
-            ! minimum number of steps per contact.
-            ksp1 = rmult*(pi2 + log(erest)**2)/((ksp*ppiclf_dt)**2)
-            ! k2 = k_{hertzian}
-            E1  = 1.0d9  ! Assumed value for Young's modulus
-            E2  = 1.0d9  ! Assumed value for Young's modulus
-            nu1 = 0.35d0 ! Assumed value for Poisson's ratio
-            nu2 = 0.35d0 ! Assumed value for Poisson's ratio
-            Estar = (1.0d0-nu1*nu1)/E1 + (1.0d0-nu2*nu2)/E2
-            Estar = 1.0d0/Estar
+            ! Effective (Hertz) radius and rolling radius of the pair
             r1 = 0.5d0*rpropi(PPICLF_R_JDP)
             r2 = 0.5d0*rpropj(PPICLF_R_JDP)
             Rstar = r1*r2/(r1+r2)
-            ksp2 = (4.0d0/3.0d0)*Estar*sqrt(Rstar)
-            ksp2 = ksp2*sqrt(abs(rdiff-rthresh))
-            ! kn = min(k1,k2)
-            ksp_min = min(ksp1,ksp2)
-
-            eta_n = -2.0d0*sqrt(ksp_min)*log(erest)
-     >              /sqrt(log(erest)**2+pi2)
-     >              *sqrt(rmult)
-
-!            print*,'COLLS: ',i,j,ksp1,ksp2,ksp_min,
-!     >              eta_n,rdiff-rthresh,vmag
+            dp1 = rpropi(PPICLF_R_JDP)
+            dp2 = rpropj(PPICLF_R_JDP)
+            r12 = 0.5d0*(dp1*dp2)/(dp1+dp2)
 
             ! Compute unit normal vector along line of contact 
             !   pointing from particle i to particle j
@@ -219,9 +198,8 @@
             rn_12x = rxdiff*rbot
             rn_12y = rydiff*rbot
             rn_12z = rzdiff*rbot
-            rn_mag = rdiff
          
-            ! Relative velocity in normal direction
+            ! Relative velocity
             u12x = yi(PPICLF_JVX)-yj(PPICLF_JVX)
             u12y = yi(PPICLF_JVY)-yj(PPICLF_JVY)
             u12z = yi(PPICLF_JVZ)-yj(PPICLF_JVZ)
@@ -239,100 +217,18 @@
                u12z = u12z + (A12x*rn_12y - A12y*rn_12x)
             endif
 
-            ! Compute (u_ij \cdot n_ij)
-            rv12_mag = u12x*rn_12x
-     >               + u12y*rn_12y
-     >               + u12z*rn_12z
-         
-            ! Compute delta_12 and normal parameters
+            ! Relative angular velocity (rolling torque)
+            omgrx = yi(PPICLF_JOX) - yj(PPICLF_JOX)
+            omgry = yi(PPICLF_JOY) - yj(PPICLF_JOY)
+            omgrz = yi(PPICLF_JOZ) - yj(PPICLF_JOZ)
+
             rdelta12 = rthresh - rdiff
-            rksp_max  = ksp_min*rdelta12
-            rv12_mage = rv12_mag*eta_n
-            rnmag     = -rksp_max - rv12_mage
-
-            ! Normal collision force Fn = -rnmag*n_{ij}
-            ! Scalar magnitude |Fn| = abs(rnmag)
-            Fn_mag = abs(rnmag)
-
-            ! Compute tangential unit vector
-            unx = rv12_mag*rn_12x
-            uny = rv12_mag*rn_12y
-            unz = rv12_mag*rn_12z
-            utx = u12x - unx
-            uty = u12y - uny
-            utz = u12z - unz
-            ut_mag = sqrt(utx*utx + uty*uty + utz*utz)
-            ut_mag = max(ut_mag,1.0d-8)
-            rt_12x = utx/ut_mag
-            rt_12y = uty/ut_mag
-            rt_12z = utz/ut_mag
-
-            ! Compute tangential collision force
-            Ftmin = 0.0d0
-            if (collisional_flag>=2) then ! Tangential component
-               if (ut_mag > 0) then
-                  mu_c  = 0.4d0  ! Dimensionless; Coulomb
-                  eta_t = eta_n  ! Set to normal; damping
-                  Ftmin  = -min(mu_c*Fn_mag,eta_t*ut_mag)  
-               endif
-            endif
-
-            ! Compute contributions to angular velocities
-            tcx = 0.0d0; tcy = 0.0d0; tcz = 0.0d0;
-            trx = 0.0d0; try = 0.0d0; trz = 0.0d0;
-
-            if (collisional_flag>=2) then
-
-               ! Tangential force and Collision torque contributions
-               Ftx = Ftmin*rt_12x
-               Fty = Ftmin*rt_12y
-               Ftz = Ftmin*rt_12z
-               rad1 = 0.5d0*rpropi(PPICLF_R_JDP)
-               tcx = rad1*(rn_12y*Ftz - rn_12z*Fty)
-               tcy = rad1*(rn_12z*Ftx - rn_12x*Ftz)
-               tcz = rad1*(rn_12x*Fty - rn_12y*Ftx)
-
-               if (collisional_flag>=3) then
-                  ! Add Rolling torque contribution
-                  thetar = 0.06  ! Needs to be calibrated
-                  dp1 = rpropi(PPICLF_R_JDP)
-                  dp2 = rpropj(PPICLF_R_JDP)
-                  r12 = 0.5d0*(dp1*dp2)/(dp1+dp2)
-                  omgrx = yi(PPICLF_JOX) - yj(PPICLF_JOX)
-                  omgry = yi(PPICLF_JOY) - yj(PPICLF_JOY)
-                  omgrz = yi(PPICLF_JOZ) - yj(PPICLF_JOZ)
-                  omgr_mag = sqrt(omgrx*omgrx+omgry*omgry+omgrz*omgrz)
-                  omgr_mag = max(omgr_mag,1.d-8)
-                  trx = -thetar*Fn_mag*r12*omgrx/omgr_mag
-                  try = -thetar*Fn_mag*r12*omgry/omgr_mag
-                  trz = -thetar*Fn_mag*r12*omgrz/omgr_mag
-               endif
-            endif
-
-
-            ! Now update that part of the RHS of equations 
-            !   that involve nearest neighbors
-
-            ! Particle velocities
-            ppiclf_ydotc(PPICLF_JVX,i) = ppiclf_ydotc(PPICLF_JVX,i)
-     >                                 + rnmag*rn_12x
-     >                                 + Ftmin*rt_12x
-            ppiclf_ydotc(PPICLF_JVY,i) = ppiclf_ydotc(PPICLF_JVY,i)
-     >                                 + rnmag*rn_12y
-     >                                 + Ftmin*rt_12y
-            ppiclf_ydotc(PPICLF_JVZ,i) = ppiclf_ydotc(PPICLF_JVZ,i)
-     >                                 + rnmag*rn_12z
-     >                                 + Ftmin*rt_12z
-
-            ! Particle angular velocities
-            ppiclf_ydotc(PPICLF_JOX,i) = ppiclf_ydotc(PPICLF_JOX,i)
-     >                                 + tcx + trx
-            ppiclf_ydotc(PPICLF_JOY,i) = ppiclf_ydotc(PPICLF_JOY,i)
-     >                                 + tcy + try
-            ppiclf_ydotc(PPICLF_JOZ,i) = ppiclf_ydotc(PPICLF_JOZ,i)
-     >                                 + tcz + trz
+            call ppiclf_user_ContactForce(i,rn_12x,rn_12y,rn_12z,
+     >           rdelta12,u12x,u12y,u12z,rmult,Rstar,r1,r12,
+     >           omgrx,omgry,omgrz)
 
          end if ! rdiff lt rthresh
+
 
 !-----------------------------------------------------------------------
 !
@@ -399,79 +295,221 @@
             icpmean = icpmean + 1
          end if
          end if
+      endif
 
+
+      return
+      end
 
 !-----------------------------------------------------------------------
 !
-      ! boundaries
-      elseif (j .eq. 0) then
+! Contact between particle i and a wall triangle, found by
+!     ppiclf_solve_WallContacts. The wall is a partner of infinite
+!     mass and radius at rest, made of the particle's material, so
+!     the force law is the pair law with m_eff = m_i and R* = r_i.
+!
+! rn     : unit normal from the particle centre into the wall
+! rdelta : overlap (radius minus the centre's distance to the wall
+!          on the fluid side; larger than the radius when the
+!          centre has crossed the wall)
+!
+!-----------------------------------------------------------------------
+!
+      subroutine ppiclf_user_EvalWallContact(i,yi,rpropi,rn,rdelta)
+!
+      implicit none
+!
+      include "PPICLF"
+!
+! Input:
+!
+      integer*4 i
+      real*8 yi    (PPICLF_LRS)    
+      real*8 rpropi(PPICLF_LRP)
+      real*8 rn(3), rdelta
+!
+! Internal:
+!
+      real*8 rm1, rad1, u12x, u12y, u12z, A12x, A12y, A12z
+!
+! Code:
+!
+      rm1  = rpropi(PPICLF_R_JRHOP)*rpropi(PPICLF_R_JVOLP)
+      rad1 = 0.5d0*rpropi(PPICLF_R_JDP)
 
-         !rksp_wall = ksp
-         !rksp_wall = 1000
+      ! Velocity of the contact point relative to the wall
+      u12x = yi(PPICLF_JVX)
+      u12y = yi(PPICLF_JVY)
+      u12z = yi(PPICLF_JVZ)
 
-         ! give a bit larger collision threshold for walls
-         rextra   = 0.05d0 !
-         ! add sploading and radius factor 
-         rthresh  = (0.5d0+rextra)*rpropi(PPICLF_R_JDP)
-         
-         rxdiff = yj(PPICLF_JX) - yi(PPICLF_JX)
-         rydiff = yj(PPICLF_JY) - yi(PPICLF_JY)
-         rzdiff = yj(PPICLF_JZ) - yi(PPICLF_JZ)
-         
-         rdiff = rxdiff**2 + rydiff**2 + rzdiff**2
-         rdiff = sqrt(rdiff)
-         
-         if (rdiff .gt. rthresh) return
+      if (collisional_flag>=2) then
+         A12x = rad1*yi(PPICLF_JOX)
+         A12y = rad1*yi(PPICLF_JOY)
+         A12z = rad1*yi(PPICLF_JOZ)
 
-         rm1 = rpropi(PPICLF_R_JRHOP)*rpropi(PPICLF_R_JVOLP)
-
-         ! Compute spring stiffness constant dynamically, 
-         !   which overrides the user defined value
-         ! Need to make sure this formula is valid for a wall
-         ! k1 = k_{n,limit}
-         ksp1 = rm1*rpi*rpi/((ksp*ppiclf_dt)**2)
-         ! k2 = k_{hertzian}
-         E1  = 1.0d9  ! Assumed value for Young's modulus
-         nu1 = 0.35d0 ! Assumed value for Poisson's ratio
-         Estar = E1/(1.0d0-nu1*nu1)
-         r1 = 0.5d0*rpropi(PPICLF_R_JDP)
-         r2 = r1
-         Rstar = r1*r2/(r1+r2)
-         ksp2 = (2.0d0/3.0d0)*Estar*sqrt(Rstar)
-         ksp2 = ksp2*sqrt(abs(rdiff-rthresh))
-         ! kn = min(k1,k2)
-         rksp_wall = min(ksp1,ksp2)
-         
-         rmult = sqrt(rm1)
-         eta_n = 2.0d0*sqrt(rksp_wall)*log(erest)
-     >           /sqrt(log(erest)**2+pi2)*rmult
-         
-         rbot = 1.0d0/rdiff
-         rn_12x = rxdiff*rbot
-         rn_12y = rydiff*rbot
-         rn_12z = rzdiff*rbot
-        
-         rdelta12 = rthresh - rdiff
-         
-         rv12_mag = -yi(PPICLF_JVX)*rn_12x
-     >              -yi(PPICLF_JVY)*rn_12y
-     >              -yi(PPICLF_JVZ)*rn_12z
-
-         rv12_mage = rv12_mag*eta_n
-         rksp_max  = rksp_wall*rdelta12
-         rnmag     = -rksp_max - rv12_mage
-
-         
-         ppiclf_ydotc(PPICLF_JVX,i) = ppiclf_ydotc(PPICLF_JVX,i)
-     >                              + rnmag*rn_12x
-         ppiclf_ydotc(PPICLF_JVY,i) = ppiclf_ydotc(PPICLF_JVY,i)
-     >                              + rnmag*rn_12y
-         ppiclf_ydotc(PPICLF_JVZ,i) = ppiclf_ydotc(PPICLF_JVZ,i)
-     >                              + rnmag*rn_12z
-        
-         !write(*,*) "Wall NEAR",i,ppiclf_ydotc(PPICLF_JVY,i)  
+         u12x = u12x + (A12y*rn(3) - A12z*rn(2))
+         u12y = u12y + (A12z*rn(1) - A12x*rn(3))
+         u12z = u12z + (A12x*rn(2) - A12y*rn(1))
       endif
 
+      call ppiclf_user_ContactForce(i,rn(1),rn(2),rn(3),
+     >     rdelta,u12x,u12y,u12z,rm1,rad1,rad1,rad1,
+     >     yi(PPICLF_JOX),yi(PPICLF_JOY),yi(PPICLF_JOZ))
+
+      return
+      end
+!-----------------------------------------------------------------------
+!
+! Soft-sphere contact force on particle i, added to ppiclf_ydotc.
+!     Used for particle pairs and particle-wall contacts.
+!
+! rn_12  : unit normal from particle i towards the partner
+! rdelta12: overlap
+! u12    : velocity of i relative to the partner at the contact
+!          (translation, plus rotation for collisional_flag >= 2)
+! rmult  : effective mass;  Rstar: effective radius (Hertz)
+! rad1   : lever arm of the contact force about the centre of i
+! r12    : rolling radius;  omgr: angular velocity of i relative to
+!          the partner (rolling torque, collisional_flag >= 3)
+!
+!-----------------------------------------------------------------------
+!
+      subroutine ppiclf_user_ContactForce(i,rn_12x,rn_12y,rn_12z,
+     >     rdelta12,u12x,u12y,u12z,rmult,Rstar,rad1,r12,
+     >     omgrx,omgry,omgrz)
+!
+      implicit none
+!
+      include "PPICLF"
+!
+! Input:
+!
+      integer*4 i
+      real*8 rn_12x, rn_12y, rn_12z, rdelta12, u12x, u12y, u12z,
+     >       rmult, Rstar, rad1, r12, omgrx, omgry, omgrz
+!
+! Internal:
+!
+      real*8 pi2, ksp1, ksp2, ksp_min, eta_n, E1, E2, nu1, nu2, Estar,
+     >       rv12_mag, rksp_max, rv12_mage, rnmag, Fn_mag,
+     >       unx, uny, unz, utx, uty, utz, ut_mag,
+     >       rt_12x, rt_12y, rt_12z, Ftmin, mu_c, eta_t,
+     >       tcx, tcy, tcz, trx, try, trz, thetar, omgr_mag,
+     >       Ftx, Fty, Ftz
+!
+! Code:
+!
+      pi2  = rpi*rpi
+
+      ! Compute spring stiffness constant dynamically.
+      ! k1 = k_{n,limit}: a linear spring-dashpot contact with this
+      ! stiffness lasts exactly ksp time steps with restitution
+      ! erest (the soft-sphere model in MFC's m_collisions). The
+      ! softer of k1 and the Hertzian k2 is used, so ksp is the
+      ! minimum number of steps per contact.
+      ksp1 = rmult*(pi2 + log(erest)**2)/((ksp*ppiclf_dt)**2)
+      ! k2 = k_{hertzian}
+      E1  = 1.0d9  ! Assumed value for Young's modulus
+      E2  = 1.0d9  ! Assumed value for Young's modulus
+      nu1 = 0.35d0 ! Assumed value for Poisson's ratio
+      nu2 = 0.35d0 ! Assumed value for Poisson's ratio
+      Estar = (1.0d0-nu1*nu1)/E1 + (1.0d0-nu2*nu2)/E2
+      Estar = 1.0d0/Estar
+      ksp2 = (4.0d0/3.0d0)*Estar*sqrt(Rstar)
+      ksp2 = ksp2*sqrt(rdelta12)
+      ! kn = min(k1,k2)
+      ksp_min = min(ksp1,ksp2)
+
+      eta_n = -2.0d0*sqrt(ksp_min)*log(erest)
+     >        /sqrt(log(erest)**2+pi2)
+     >        *sqrt(rmult)
+
+      ! Compute (u_ij \cdot n_ij)
+      rv12_mag = u12x*rn_12x
+     >         + u12y*rn_12y
+     >         + u12z*rn_12z
+         
+      ! Normal force: spring and dashpot. While the pair separates
+      ! the dashpot term can exceed the spring term near the end of
+      ! the contact, so the force turns slightly attractive (kept,
+      ! as in MFC; see docs/PseudoTurb_fixes.md).
+      rksp_max  = ksp_min*rdelta12
+      rv12_mage = rv12_mag*eta_n
+      rnmag     = -rksp_max - rv12_mage
+
+      ! Normal collision force Fn = -rnmag*n_{ij}
+      ! Scalar magnitude |Fn| = abs(rnmag)
+      Fn_mag = abs(rnmag)
+
+      ! Compute tangential unit vector
+      unx = rv12_mag*rn_12x
+      uny = rv12_mag*rn_12y
+      unz = rv12_mag*rn_12z
+      utx = u12x - unx
+      uty = u12y - uny
+      utz = u12z - unz
+      ut_mag = sqrt(utx*utx + uty*uty + utz*utz)
+      ut_mag = max(ut_mag,1.0d-8)
+      rt_12x = utx/ut_mag
+      rt_12y = uty/ut_mag
+      rt_12z = utz/ut_mag
+
+      ! Compute tangential collision force
+      Ftmin = 0.0d0
+      if (collisional_flag>=2) then ! Tangential component
+         if (ut_mag > 0) then
+            mu_c  = 0.4d0  ! Dimensionless; Coulomb
+            eta_t = eta_n  ! Set to normal; damping
+            Ftmin  = -min(mu_c*Fn_mag,eta_t*ut_mag)  
+         endif
+      endif
+
+      ! Compute contributions to angular velocities
+      tcx = 0.0d0; tcy = 0.0d0; tcz = 0.0d0;
+      trx = 0.0d0; try = 0.0d0; trz = 0.0d0;
+
+      if (collisional_flag>=2) then
+
+         ! Tangential force and Collision torque contributions
+         Ftx = Ftmin*rt_12x
+         Fty = Ftmin*rt_12y
+         Ftz = Ftmin*rt_12z
+         tcx = rad1*(rn_12y*Ftz - rn_12z*Fty)
+         tcy = rad1*(rn_12z*Ftx - rn_12x*Ftz)
+         tcz = rad1*(rn_12x*Fty - rn_12y*Ftx)
+
+         if (collisional_flag>=3) then
+            ! Add Rolling torque contribution
+            thetar = 0.06  ! Needs to be calibrated
+            omgr_mag = sqrt(omgrx*omgrx+omgry*omgry+omgrz*omgrz)
+            omgr_mag = max(omgr_mag,1.d-8)
+            trx = -thetar*Fn_mag*r12*omgrx/omgr_mag
+            try = -thetar*Fn_mag*r12*omgry/omgr_mag
+            trz = -thetar*Fn_mag*r12*omgrz/omgr_mag
+         endif
+      endif
+
+      ! Now update that part of the RHS of equations 
+      !   that involve nearest neighbors
+
+      ! Particle velocities
+      ppiclf_ydotc(PPICLF_JVX,i) = ppiclf_ydotc(PPICLF_JVX,i)
+     >                           + rnmag*rn_12x
+     >                           + Ftmin*rt_12x
+      ppiclf_ydotc(PPICLF_JVY,i) = ppiclf_ydotc(PPICLF_JVY,i)
+     >                           + rnmag*rn_12y
+     >                           + Ftmin*rt_12y
+      ppiclf_ydotc(PPICLF_JVZ,i) = ppiclf_ydotc(PPICLF_JVZ,i)
+     >                           + rnmag*rn_12z
+     >                           + Ftmin*rt_12z
+
+      ! Particle angular velocities
+      ppiclf_ydotc(PPICLF_JOX,i) = ppiclf_ydotc(PPICLF_JOX,i)
+     >                           + tcx + trx
+      ppiclf_ydotc(PPICLF_JOY,i) = ppiclf_ydotc(PPICLF_JOY,i)
+     >                           + tcy + try
+      ppiclf_ydotc(PPICLF_JOZ,i) = ppiclf_ydotc(PPICLF_JOZ,i)
+     >                           + tcz + trz
 
       return
       end

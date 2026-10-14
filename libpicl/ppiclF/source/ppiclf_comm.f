@@ -250,18 +250,26 @@
       ppiclf_EqualDomain(2) = .FALSE.
       ppiclf_EqualDomain(3) = .FALSE.
 
+      ! In a non-periodic direction a particle can be just outside the
+      ! fluid domain (its centre pushed past a wall during a soft
+      ! contact), so the bins are only snapped outwards there: cutting
+      ! them back to the domain would leave the particle in no bin.
       DO i = 1,3
         ! Check bin min domain
         periodicDistCheck = MAX(ppiclf_nndist,ppiclf_filter(i))
-        IF(ppiclf_binb(i*2-1) - periodicDistCheck .LE. 
+        IF(ppiclf_binb(i*2-1) - periodicDistCheck .LE.
      >                          ppiclf_xdrange(1,i)) THEN
-          ppiclf_binb(i*2-1) = ppiclf_xdrange(1,i)
+          IF(ppiclf_linperiodic(i) .OR.
+     >       ppiclf_binb(i*2-1) .GT. ppiclf_xdrange(1,i))
+     >      ppiclf_binb(i*2-1) = ppiclf_xdrange(1,i)
           ppiclf_EqualDomain(i) = .TRUE.
         END IF
         ! Check bin max domain
-        IF(ppiclf_binb(i*2)+periodicDistCheck .GE. 
+        IF(ppiclf_binb(i*2)+periodicDistCheck .GE.
      >                          ppiclf_xdrange(2,i)) THEN
-          ppiclf_binb(i*2) = ppiclf_xdrange(2,i)
+          IF(ppiclf_linperiodic(i) .OR.
+     >       ppiclf_binb(i*2) .LT. ppiclf_xdrange(2,i))
+     >      ppiclf_binb(i*2) = ppiclf_xdrange(2,i)
         ELSE
           ppiclf_EqualDomain(i) = .FALSE.
         END IF

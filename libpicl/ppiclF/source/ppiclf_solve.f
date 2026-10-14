@@ -496,123 +496,20 @@
         END DO !kSB
       END DO !jSB
       END DO !iSB
-      istride = ppiclf_ndim
-      do j=1,ppiclf_nwall
-
-         rnx  = ppiclf_wall_n(1,j)
-         rny  = ppiclf_wall_n(2,j)
-         rnz  = 0.0d0
-         area = ppiclf_wall_n(3,j)
-         rpx1 = ppiclf_cp_map(1,i)
-         rpy1 = ppiclf_cp_map(2,i)
-         rpz1 = 0.0d0
-         rpx2 = ppiclf_wall_c(1,j)
-         rpy2 = ppiclf_wall_c(2,j)
-         rpz2 = 0.0d0
-         rpx2 = rpx2 - rpx1
-         rpy2 = rpy2 - rpy1
-         rnz  = ppiclf_wall_n(3,j)
-         area = ppiclf_wall_n(4,j)
-         rpz1 = ppiclf_cp_map(3,i)
-         rpz2 = ppiclf_wall_c(3,j)
-         rpz2 = rpz2 - rpz1
-    
-         rflip = rnx*rpx2 + rny*rpy2 + rnz*rpz2
-         IF(rflip .GT. 0.0d0) THEN
-            rnx = -1.0d0*rnx
-            rny = -1.0d0*rny
-            rnz = -1.0d0*rnz
-         END IF
-
-
-         a_sum = 0.0d0
-         kmax = 3
-         DO k=1,kmax 
-            kp = k+1
-            IF(kp .GT. kmax) kp = kp-kmax ! cycle
-            
-            kk   = istride*(k-1)
-            kkp  = istride*(kp-1)
-            rpx1 = ppiclf_wall_c(kk+1,j)
-            rpy1 = ppiclf_wall_c(kk+2,j)
-            rpz1 = 0.0d0
-            rpx2 = ppiclf_wall_c(kkp+1,j)
-            rpy2 = ppiclf_wall_c(kkp+2,j)
-            rpz2 = 0.0d0
-
-            rpz1 = ppiclf_wall_c(kk+3,j)
-            rpz2 = ppiclf_wall_c(kkp+3,j)
-
-            rd   = -(rnx*rpx1 + rny*rpy1 + rnz*rpz1)
-
-            rdist = abs(rnx*ppiclf_cp_map(1,i)+rny*ppiclf_cp_map(2,i)
-     >                 +rnz*ppiclf_cp_map(3,i)+rd)
-            rdist = rdist/sqrt(rnx**2 + rny**2 + rnz**2)
-
-            ! give a little extra room for walls (2x)
-            IF(rdist .GT. 2.0d0*ppiclf_nndist) GOTO 1519
-
-            ydum(1) = ppiclf_cp_map(1,i) - rdist*rnx
-            ydum(2) = ppiclf_cp_map(2,i) - rdist*rny
-            ydum(3) = 0.0d0
-
-            A(1) = ydum(1)
-            A(2) = ydum(2)
-            A(3) = 0.0d0
-
-            B(1) = rpx1
-            B(2) = rpy1
-            B(3) = 0.0d0
-
-            C(1) = rpx2
-            C(2) = rpy2
-            C(3) = 0.0d0
-
-            AB(1) = B(1) - A(1)
-            AB(2) = B(2) - A(2)
-            AB(3) = 0.0d0
-
-            AC(1) = C(1) - A(1)
-            AC(2) = C(2) - A(2)
-            AC(3) = 0.0d0
-
-            ydum(3) = ppiclf_cp_map(3,i) - rdist*rnz
-            A(3) = ydum(3)
-            B(3) = rpz1
-            C(3) = rpz2
-            AB(3) = B(3) - A(3)
-            AC(3) = C(3) - A(3)
-
-            AB_DOT_AC = AB(1)*AC(1) + AB(2)*AC(2) + AB(3)*AC(3)
-            AB_MAG = sqrt(AB(1)**2 + AB(2)**2 + AB(3)**2)
-            AC_MAG = sqrt(AC(1)**2 + AC(2)**2 + AC(3)**2)
-            theta  = acos(AB_DOT_AC/(AB_MAG*AC_MAG))
-            tri_area = 0.5d0*AB_MAG*AC_MAG*sin(theta)
-            a_sum = a_sum + tri_area
-         END DO
-
-         rthresh = 1.10d0 ! keep it from slipping through crack on edges
-         IF(a_sum .GT. rthresh*area) CYCLE
-
-         jp = 0
-         CALL ppiclf_user_EvalNearestNeighbor(i,jp,ppiclf_cp_map(1,i)
-     >                                 ,ppiclf_cp_map(1+PPICLF_LRS,i)
-     >                                 ,ydum
-     >                                 ,rpropdum)
-
- 1519 continue
-      ENDdo
 
       RETURN
       END
 !-----------------------------------------------------------------------
        SUBROUTINE ppiclf_solve_InitWall(xp1,xp2,xp3)
 !
+! Add a wall triangle without a known fluid side (filein.vtk).
+! See ppiclf_wall.f.
+!
       IMPLICIT NONE
 !
       INCLUDE "PPICLF"
 ! 
-! Input:
+! Input: 
 ! 
       REAL*8 xp1(*)
       REAL*8 xp2(*)
@@ -620,12 +517,7 @@
 !
 ! Internal:
 !
-      REAL*8 rpx1, rpy1, rpz1, rpx2, rpy2, rpz2,
-     >       a_sum, theta, tri_area, 
-     >       ab_dot_ac, ab_mag, ac_mag, rise, run, rmag, 
-     >       rpx3, rpy3, rpz3
-      INTEGER*4 istride, k, kmax, kp, kkp, kk
-      REAL*8 A(3),B(3),C(3),AB(3),AC(3)
+      REAL*8 rdum(3)
 !
       if (.not.PPICLF_LCOMM)
      >CALL ppiclf_exittr('InitMPI must be before InitWall$',0.d0,0)
@@ -633,151 +525,10 @@
      >CALL ppiclf_exittr('InitParticle must be before InitWall$'
      >                  ,0.d0,0)
 
-      ppiclf_nwall = ppiclf_nwall + 1 
-
-      if (ppiclf_nwall .gt. PPICLF_LWALL)
-     >CALL ppiclf_exittr('Increase LWALL in user file$'
-     >                  ,0.d0,ppiclf_nwall)
-
-      istride = ppiclf_ndim
-      a_sum = 0.0d0
-      kmax = 2
-      if (ppiclf_ndim .EQ. 3) kmax = 3
-
-      if (ppiclf_ndim .EQ. 3) then
-         ppiclf_wall_c(1,ppiclf_nwall) = xp1(1)
-         ppiclf_wall_c(2,ppiclf_nwall) = xp1(2)
-         ppiclf_wall_c(3,ppiclf_nwall) = xp1(3)
-         ppiclf_wall_c(4,ppiclf_nwall) = xp2(1)
-         ppiclf_wall_c(5,ppiclf_nwall) = xp2(2)
-         ppiclf_wall_c(6,ppiclf_nwall) = xp2(3)
-         ppiclf_wall_c(7,ppiclf_nwall) = xp3(1)
-         ppiclf_wall_c(8,ppiclf_nwall) = xp3(2)
-         ppiclf_wall_c(9,ppiclf_nwall) = xp3(3)
-
-         A(1) = (xp1(1) + xp2(1) + xp3(1))/3.0d0
-         A(2) = (xp1(2) + xp2(2) + xp3(2))/3.0d0
-         A(3) = (xp1(3) + xp2(3) + xp3(3))/3.0d0
-      elseif (ppiclf_ndim .EQ. 2) then
-         ppiclf_wall_c(1,ppiclf_nwall) = xp1(1)
-         ppiclf_wall_c(2,ppiclf_nwall) = xp1(2)
-         ppiclf_wall_c(3,ppiclf_nwall) = xp2(1)
-         ppiclf_wall_c(4,ppiclf_nwall) = xp2(2)
-
-         A(1) = (xp1(1) + xp2(1))/2.0d0
-         A(2) = (xp1(2) + xp2(2))/2.0d0
-         A(3) = 0.0d0
-      ENDif
-
-      ! compute area:
-      do k=1,kmax 
-         kp = k+1
-         if (kp .gt. kmax) kp = kp-kmax ! cycle
-         
-         kk   = istride*(k-1)
-         kkp  = istride*(kp-1)
-         rpx1 = ppiclf_wall_c(kk+1,ppiclf_nwall)
-         rpy1 = ppiclf_wall_c(kk+2,ppiclf_nwall)
-         rpz1 = 0.0d0
-         rpx2 = ppiclf_wall_c(kkp+1,ppiclf_nwall)
-         rpy2 = ppiclf_wall_c(kkp+2,ppiclf_nwall)
-         rpz2 = 0.0d0
-
-         B(1) = rpx1
-         B(2) = rpy1
-         B(3) = 0.0d0
-        
-         C(1) = rpx2
-         C(2) = rpy2
-         C(3) = 0.0d0
-        
-         AB(1) = B(1) - A(1)
-         AB(2) = B(2) - A(2)
-         AB(3) = 0.0d0
-        
-         AC(1) = C(1) - A(1)
-         AC(2) = C(2) - A(2)
-         AC(3) = 0.0d0
-
-         if (ppiclf_ndim .EQ. 3) then
-             rpz1 = ppiclf_wall_c(kk+3,ppiclf_nwall)
-             rpz2 = ppiclf_wall_c(kkp+3,ppiclf_nwall)
-             B(3) = rpz1
-             C(3) = rpz2
-             AB(3) = B(3) - A(3)
-             AC(3) = C(3) - A(3)
-        
-             AB_DOT_AC = AB(1)*AC(1) + AB(2)*AC(2) + AB(3)*AC(3)
-             AB_MAG = sqrt(AB(1)**2 + AB(2)**2 + AB(3)**2)
-             AC_MAG = sqrt(AC(1)**2 + AC(2)**2 + AC(3)**2)
-             theta  = acos(AB_DOT_AC/(AB_MAG*AC_MAG))
-             tri_area = 0.5d0*AB_MAG*AC_MAG*sin(theta)
-         elseif (ppiclf_ndim .EQ. 2) then
-             AB_MAG = sqrt(AB(1)**2 + AB(2)**2)
-             tri_area = AB_MAG
-         ENDif
-         a_sum = a_sum + tri_area
-      ENDdo
-      
-      ppiclf_wall_n(ppiclf_ndim+1,ppiclf_nwall) = a_sum
-
-      ! wall normal:
-      if (ppiclf_ndim .EQ. 2) then
-
-         rise = xp2(2) - xp1(2)
-         run  = xp2(1) - xp1(1)
-
-         rmag = sqrt(rise**2 + run**2)
-         rise = rise/rmag
-         run  = run/rmag
-         
-         ppiclf_wall_n(1,ppiclf_nwall) = rise
-         ppiclf_wall_n(2,ppiclf_nwall) = -run
-
-      elseif (ppiclf_ndim .EQ. 3) then
-
-         k  = 1
-         kk = istride*(k-1)
-         rpx1 = ppiclf_wall_c(kk+1,ppiclf_nwall)
-         rpy1 = ppiclf_wall_c(kk+2,ppiclf_nwall)
-         rpz1 = ppiclf_wall_c(kk+3,ppiclf_nwall)
-         
-         k  = 2
-         kk = istride*(k-1)
-         rpx2 = ppiclf_wall_c(kk+1,ppiclf_nwall)
-         rpy2 = ppiclf_wall_c(kk+2,ppiclf_nwall)
-         rpz2 = ppiclf_wall_c(kk+3,ppiclf_nwall)
-         
-         k  = 3
-         kk = istride*(k-1)
-         rpx3 = ppiclf_wall_c(kk+1,ppiclf_nwall)
-         rpy3 = ppiclf_wall_c(kk+2,ppiclf_nwall)
-         rpz3 = ppiclf_wall_c(kk+3,ppiclf_nwall)
-    
-         A(1) = rpx2 - rpx1
-         A(2) = rpy2 - rpy1
-         A(3) = rpz2 - rpz1
-
-         B(1) = rpx3 - rpx2
-         B(2) = rpy3 - rpy2
-         B(3) = rpz3 - rpz2
-
-         ppiclf_wall_n(1,ppiclf_nwall) = A(2)*B(3) - A(3)*B(2)
-         ppiclf_wall_n(2,ppiclf_nwall) = A(3)*B(1) - A(1)*B(3)
-         ppiclf_wall_n(3,ppiclf_nwall) = A(1)*B(2) - A(2)*B(1)
-
-         rmag = sqrt(ppiclf_wall_n(1,ppiclf_nwall)**2 +
-     >               ppiclf_wall_n(2,ppiclf_nwall)**2 +
-     >               ppiclf_wall_n(3,ppiclf_nwall)**2)
-
-         ppiclf_wall_n(1,ppiclf_nwall) = ppiclf_wall_n(1,ppiclf_nwall)
-     >                                  /rmag
-         ppiclf_wall_n(2,ppiclf_nwall) = ppiclf_wall_n(2,ppiclf_nwall)
-     >                                  /rmag
-         ppiclf_wall_n(3,ppiclf_nwall) = ppiclf_wall_n(3,ppiclf_nwall)
-     >                                  /rmag
-
-      END IF
+      rdum(1) = 0.0d0
+      rdum(2) = 0.0d0
+      rdum(3) = 0.0d0
+      CALL ppiclf_solve_AddWall(xp1,xp2,xp3,rdum,0)
 
       RETURN
       END

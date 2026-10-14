@@ -296,6 +296,7 @@
       call ppiclf_bcast(ppiclf_nwall, isize)
       call ppiclf_bcast(ppiclf_wall_c,9*PPICLF_LWALL*irsize)
       call ppiclf_bcast(ppiclf_wall_n,4*PPICLF_LWALL*irsize)
+      call ppiclf_bcast(ppiclf_wall_side,PPICLF_LWALL*isize)
 
       call ppiclf_printsi('  End ReadWallVTK$',nwalls)
 

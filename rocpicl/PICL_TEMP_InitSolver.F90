@@ -84,6 +84,7 @@ SUBROUTINE PICL_TEMP_InitSolver( pRegion)
   USE ModMPI      
   USE ModGrid, ONLY: t_grid
   USE ModMixture, ONLY: t_mixt
+  USE ModBndPatch, ONLY: t_patch
 
 !PICL
   USE ModRandom, ONLY: Rand1Uniform,Rand1Normal
@@ -131,6 +132,12 @@ INTEGER :: errorFlag,icg
    REAL(RFREAL), DIMENSION(:), ALLOCATABLE :: volp,SPL 
    REAL(RFREAL), DIMENSION(3) :: tpw1,tpw2,tpw3         
    REAL(RFREAL) :: xin, wout, pi
+   ! Particle walls from PARTWALL patches
+   TYPE(t_patch), POINTER :: pPatch
+   INTEGER :: iPatch, ifc, iv, nv, iTri, nTriLoc, nTriTot, nProcs
+   INTEGER, DIMENSION(:), ALLOCATABLE :: triCounts, triDispls
+   REAL(RFREAL), DIMENSION(:,:), ALLOCATABLE :: triLoc, triAll
+   REAL(RFREAL) :: xv(3,4)
    REAL(RFREAL) :: rmass
    ! points.dat line and optional initial velocity
    CHARACTER(512) :: pointsLine
@@ -713,9 +720,72 @@ INQUIRE(FILE='filein.vtk', EXIST=wall_exists)
 IF(wall_exists) THEN
   CALL ppiclf_io_ReadWallVTK('filein.vtk')
   WRITE(*,*) 'Particle boundary wall read-in.'
-ELSE IF (global%myProcid == MASTERPROC) THEN
-  WRITE(*,*) '***WARNING: Could not find filein.vtk***'
 END IF
+
+! Particle walls from the Rocflu wall patches marked PARTWALL 1 in the .bc
+! file. Every rank gets every face (ppiclF bins do not follow the Rocflu
+! regions); quadrilaterals are split in two. The normal -fn points into the
+! fluid, so these walls push particles back even after their centre has
+! crossed the wall (see libpicl/ppiclF/source/ppiclf_wall.f).
+nTriLoc = 0
+DO iPatch = 1,pGrid%nPatches
+  pPatch => pRegion%patches(iPatch)
+  IF ( .NOT. pPatch%partWallFlag ) CYCLE
+  DO ifc = 1,pPatch%nBFaces
+    IF ( pPatch%bf2v(4,ifc) == VERT_NONE ) THEN
+      nTriLoc = nTriLoc + 1
+    ELSE
+      nTriLoc = nTriLoc + 2
+    END IF
+  END DO
+END DO
+
+ALLOCATE(triLoc(12,MAX(nTriLoc,1)))
+iTri = 0
+DO iPatch = 1,pGrid%nPatches
+  pPatch => pRegion%patches(iPatch)
+  IF ( .NOT. pPatch%partWallFlag ) CYCLE
+  DO ifc = 1,pPatch%nBFaces
+    nv = 4
+    IF ( pPatch%bf2v(4,ifc) == VERT_NONE ) nv = 3
+    DO iv = 1,nv
+      xv(1:3,iv) = pGrid%xyz(XCOORD:ZCOORD,pPatch%bv(pPatch%bf2v(iv,ifc)))
+    END DO
+    iTri = iTri + 1
+    triLoc(1:3,iTri)   = xv(1:3,1)
+    triLoc(4:6,iTri)   = xv(1:3,2)
+    triLoc(7:9,iTri)   = xv(1:3,3)
+    triLoc(10:12,iTri) = -pPatch%fn(XCOORD:ZCOORD,ifc)
+    IF ( nv == 4 ) THEN
+      iTri = iTri + 1
+      triLoc(1:3,iTri)   = xv(1:3,1)
+      triLoc(4:6,iTri)   = xv(1:3,3)
+      triLoc(7:9,iTri)   = xv(1:3,4)
+      triLoc(10:12,iTri) = -pPatch%fn(XCOORD:ZCOORD,ifc)
+    END IF
+  END DO
+END DO
+
+CALL MPI_Comm_size(global%mpiComm,nProcs,errorFlag)
+ALLOCATE(triCounts(nProcs),triDispls(nProcs))
+CALL MPI_Allgather(12*nTriLoc,1,MPI_INTEGER,triCounts,1,MPI_INTEGER, &
+                   global%mpiComm,errorFlag)
+triDispls(1) = 0
+DO k = 2,nProcs
+  triDispls(k) = triDispls(k-1) + triCounts(k-1)
+END DO
+nTriTot = (triDispls(nProcs) + triCounts(nProcs))/12
+ALLOCATE(triAll(12,MAX(nTriTot,1)))
+CALL MPI_Allgatherv(triLoc,12*nTriLoc,MPI_RFREAL,triAll,triCounts, &
+                    triDispls,MPI_RFREAL,global%mpiComm,errorFlag)
+DO k = 1,nTriTot
+  CALL ppiclf_solve_AddWall(triAll(1:3,k),triAll(4:6,k),triAll(7:9,k), &
+                            triAll(10:12,k),1)
+END DO
+IF ( global%myProcid == MASTERPROC .AND. nTriTot > 0 ) THEN
+  WRITE(*,*) 'Particle walls from PARTWALL patches: ',nTriTot,' triangles'
+END IF
+DEALLOCATE(triLoc,triAll,triCounts,triDispls)
 
 ! 03/24/2025 - Thierry - store the RocfluMP Flow Model chosen (Euler or NS)
 !                        this is used in ppiclF for calculating the pressure gradient

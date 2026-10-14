@@ -1775,7 +1775,7 @@ MODULE RFLU_ModReadBcInputFile
 !   Local variables
 ! ==============================================================================
 
-    INTEGER, PARAMETER :: NVALS_MAX = 10
+    INTEGER, PARAMETER :: NVALS_MAX = 11
     LOGICAL, DIMENSION(NVALS_MAX) :: defined
     CHARACTER(10) :: keys(NVALS_MAX)
     CHARACTER(256) :: iFileName
@@ -1811,6 +1811,7 @@ MODULE RFLU_ModReadBcInputFile
     keys(8) = 'KIND'
     keys(9) = 'THRUSTFLAG'
     keys(10)= 'ORDER'
+    keys(11)= 'PARTWALL'
 
     CALL ReadPatchSection(global,IF_INPUT,nVals,keys,vals,iPatchBeg,iPatchEnd, &
                           distrib,iFileName,bcName,defined)
@@ -1897,6 +1898,16 @@ MODULE RFLU_ModReadBcInputFile
         ELSE
           pPatch%thrustFlag = .FALSE.
         END IF ! defined(9)
+
+! ------------------------------------------------------------------------------
+!       Particle wall: ppiclF particles collide with this patch (PARTWALL 1)
+! ------------------------------------------------------------------------------
+
+        IF ( defined(11) .EQV. .TRUE. ) THEN
+          pPatch%partWallFlag = ( NINT(vals(11)) == 1 )
+        ELSE
+          pPatch%partWallFlag = .FALSE.
+        END IF ! defined(11)
 
 ! ------------------------------------------------------------------------------
 !       Set patch spatial order
@@ -2111,7 +2122,7 @@ MODULE RFLU_ModReadBcInputFile
 !   Local variables
 ! ==============================================================================
 
-    INTEGER, PARAMETER :: NVALS_MAX = 10
+    INTEGER, PARAMETER :: NVALS_MAX = 11
     LOGICAL, DIMENSION(NVALS_MAX) :: defined
     CHARACTER(10) :: keys(NVALS_MAX)
     CHARACTER(256) :: iFileName
@@ -2147,6 +2158,7 @@ MODULE RFLU_ModReadBcInputFile
     keys(8) = 'KIND'
     keys(9) = 'THRUSTFLAG'
     keys(10)= 'ORDER'
+    keys(11)= 'PARTWALL'
 
     CALL ReadPatchSection(global,IF_INPUT,nVals,keys,vals,iPatchBeg,iPatchEnd, &
                           distrib,iFileName,bcName,defined)
@@ -2213,6 +2225,16 @@ MODULE RFLU_ModReadBcInputFile
         ELSE
           pPatch%thrustFlag = .FALSE.
         END IF ! defined(9)
+
+! ------------------------------------------------------------------------------
+!       Particle wall: ppiclF particles collide with this patch (PARTWALL 1)
+! ------------------------------------------------------------------------------
+
+        IF ( defined(11) .EQV. .TRUE. ) THEN
+          pPatch%partWallFlag = ( NINT(vals(11)) == 1 )
+        ELSE
+          pPatch%partWallFlag = .FALSE.
+        END IF ! defined(11)
 
 ! ------------------------------------------------------------------------------
 !       Set patch spatial order
@@ -2941,7 +2963,7 @@ MODULE RFLU_ModReadBcInputFile
 !   Local variables
 ! ==============================================================================
 
-    INTEGER, PARAMETER :: NVALS_MAX = 9
+    INTEGER, PARAMETER :: NVALS_MAX = 10
 
     LOGICAL, DIMENSION(NVALS_MAX) :: defined
     CHARACTER(10) :: keys(NVALS_MAX)
@@ -2976,6 +2998,7 @@ MODULE RFLU_ModReadBcInputFile
     keys(7) = 'KIND'
     keys(8) = 'THRUSTFLAG'
     keys(9) = 'ORDER'
+    keys(10)= 'PARTWALL'
 
     CALL ReadPatchSection(global,IF_INPUT,nVals,keys,vals,iPatchBeg,iPatchEnd, &
                           distrib,iFileName,bcName,defined)
@@ -3046,6 +3069,16 @@ MODULE RFLU_ModReadBcInputFile
         ELSE
           pPatch%thrustFlag = .FALSE.
         END IF ! defined(8)
+
+! ------------------------------------------------------------------------------
+!       Particle wall: ppiclF particles collide with this patch (PARTWALL 1)
+! ------------------------------------------------------------------------------
+
+        IF ( defined(10) .EQV. .TRUE. ) THEN
+          pPatch%partWallFlag = ( NINT(vals(10)) == 1 )
+        ELSE
+          pPatch%partWallFlag = .FALSE.
+        END IF ! defined(10)
 
 ! ------------------------------------------------------------------------------
 !       Set patch spatial order

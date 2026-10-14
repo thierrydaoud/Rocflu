@@ -228,6 +228,9 @@
      >                .or.(pseudoTurb_flag .gt. 0)) then
         call ppiclf_user_subbinMap(i_Bin, n_SBin, tot_SBin 
      >                               ,SBin_start ,SBin_list)
+        if (collisional_flag>=1 .and. ppiclf_nwall>0
+     >      .and. ppiclf_npart>0)
+     >     call ppiclf_solve_WallSubbins(i_Bin, n_SBin, tot_SBin)
       endif ! Collisions, QS Fluct, Briney AM, or pseudoTurb flags on
 !
 !-----------------------------------------------------------------------
@@ -425,6 +428,8 @@
          IF ( 1 .EQ. 1 ) THEN !sbNearest_flag .EQ. 1) THEN
             CALL ppiclf_solve_NearestNeighborSB(
      >           i,tot_SBin,SBin_start,SBin_list,n_SBin,i_Bin)
+            IF (collisional_flag>=1 .AND. ppiclf_nwall>0)
+     >         CALL ppiclf_solve_WallContacts(i)
 !         ELSE
 !             CALL ppiclf_solve_NearestNeighbor(i)
          END IF

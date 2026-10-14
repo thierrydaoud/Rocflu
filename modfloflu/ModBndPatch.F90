@@ -119,6 +119,8 @@ MODULE ModBndPatch
     CHARACTER(CHRLEN) :: bcName 
     LOGICAL :: flatFlag,movePatch,plotFlag,plotStatsFlag,renumFlag,smoothGrid, &
                thrustFlag,transformFlag
+    ! ppiclF particles collide with this patch (PARTWALL 1 in the .bc file)
+    LOGICAL :: partWallFlag = .FALSE.
     LOGICAL, DIMENSION(:), POINTER :: nbMap
     INTEGER :: axisRelated,cReconst,iBorder,iPatchGlobal,iPatchLocal, &
                iPatchRelated,moveBcType,movePatchDir,spaceOrder

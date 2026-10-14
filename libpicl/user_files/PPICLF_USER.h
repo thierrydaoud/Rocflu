@@ -15,8 +15,9 @@
 #define PPICLF_LRP3 10*PPICLF_VU
 !#define PPICLF_LRP3 0
 
-! maximum number of triangular patch boundaries
-#define PPICLF_LWALL 2000
+! maximum number of wall triangles (filein.vtk and PARTWALL patches;
+! a quadrilateral face is two triangles)
+#define PPICLF_LWALL 50000
 
 ! y, y1, ydot, ydotc: PPICLF_LRS
 #define PPICLF_JX 1

@@ -43,6 +43,7 @@ SRC = $(SOURCE_ROOT_USER)/ppiclf_user.f     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_op.f       \
       $(SOURCE_ROOT_PPICLF)/ppiclf_io.f       \
       $(SOURCE_ROOT_PPICLF)/ppiclf_solve.f    \
+      $(SOURCE_ROOT_PPICLF)/ppiclf_wall.f     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_mxm.f      
 OBJ = $(SOURCE_ROOT_USER)/ppiclf_user.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_subbinMap.o       \
@@ -65,6 +66,7 @@ OBJ = $(SOURCE_ROOT_USER)/ppiclf_user.o     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_op.o       \
       $(SOURCE_ROOT_PPICLF)/ppiclf_io.o       \
       $(SOURCE_ROOT_PPICLF)/ppiclf_solve.o    \
+      $(SOURCE_ROOT_PPICLF)/ppiclf_wall.o     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_mxm.o
 PRE = $(SOURCE_ROOT_PPICLF)/PPICLF_SOLN.h     \
       $(SOURCE_ROOT_PPICLF)/PPICLF_GRID.h     \
