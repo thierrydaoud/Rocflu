@@ -169,9 +169,6 @@ SUBROUTINE RFLU_ComputeGradBFaces_1D(pRegion,pPatch,iBegVar,iEndVar, &
 
   CALL RegisterFunction(global,'RFLU_ComputeGradBFaces_1D',__FILE__ )
 
-#ifdef ROCPROF
-  CALL FPROFILER_BEGINS("RFLU::ComputeGradBFaces_1D")
-#endif
 
   IF ( (iEndVar  - iBegVar) /= (iEndGrad - iBegGrad) ) THEN 
     CALL ErrorStop(global,ERR_GRAD_MISMATCH,__LINE__)
@@ -328,9 +325,6 @@ SUBROUTINE RFLU_ComputeGradBFaces_1D(pRegion,pPatch,iBegVar,iEndVar, &
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-  CALL FPROFILER_ENDS("RFLU::ComputeGradBFaces_1D")
-#endif
 
   CALL DeregisterFunction(global)
 

@@ -181,25 +181,6 @@ SUBROUTINE RFLU_ReadStat( region )
 
 ! turbulence NSTAT and ID
 
-#ifdef TURB
-  IF (global%turbNStat > 0) THEN
-    READ(IF_STAT,err=10,end=10) nTavgVar,turbVarId(1,:)
-    turbVarId(2,:) = mod(turbVarId(1,:),10)
-    turbVarId(1,:) = (turbVarId(1,:)-turbVarId(2,:))/10
-
-    IF (nTavgVar /= global%turbNStat) THEN
-      CALL ErrorStop(global,ERR_STATS_RESTART,__LINE__)
-    ENDIF
-
-    DO ind=1,2
-      DO l=1,global%turbNStat
-        IF (turbVarId(ind,l)  /= global%turbStatId(ind,l)) THEN
-          CALL ErrorStop(global,ERR_STATS_RESTART,__LINE__)
-        ENDIF
-      ENDDO
-    ENDDO
-  ENDIF
-#endif
 
 ! read time averaged variables ----------------------------------------------
 
@@ -214,13 +195,6 @@ SUBROUTINE RFLU_ReadStat( region )
     READ(IF_STAT,err=10,end=10) ((mixttav(l,ijk), ijk=ijkbeg,ijkend), &
                                   l=1,global%mixtNStat)
   ENDIF
-#ifdef TURB
-  IF (global%turbNStat > 0) THEN
-    turbtav => region%turb%tav
-    READ(IF_STAT,err=10,end=10) ((turbtav(l,ijk), ijk=ijkbeg,ijkend), &
-                                  l=1,global%turbNStat)
-  ENDIF
-#endif
 
 
 ! close file ----------------------------------------------------------------

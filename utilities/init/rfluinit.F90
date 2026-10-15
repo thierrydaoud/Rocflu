@@ -106,10 +106,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
   USE RFLU_ModRegionMapping
   USE RFLU_ModRenumberings
 
-#ifdef GENX
-  USE RFLU_ModGENXAdmin
-  USE RFLU_ModGENXIO
-#endif
 
   USE ModInterfaces, ONLY: RFLU_AllocMemSolWrapper, & 
                            RFLU_BuildDataStruct, &   
@@ -139,9 +135,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
                            RFLU_WriteVersionString, &
                            ScaleRotateVector
                            
-#ifdef GENX
-  USE ModInterfaces, ONLY: RFLU_SetGasVars
-#endif                  
 
 #ifdef PLAG
   USE ModInterfacesLagrangian, ONLY: PLAG_InitPatchData, &
@@ -176,9 +169,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
 
   IMPLICIT NONE
 
-#ifdef GENX
-  INCLUDE 'roccomf90.h'
-#endif
   
 ! ******************************************************************************
 ! Definitions and declarations
@@ -196,13 +186,7 @@ SUBROUTINE rfluinit(caseString,verbLevel)
 ! ==============================================================================
 
   CHARACTER(CHRLEN) :: casename
-#ifdef GENX
-  CHARACTER(CHRLEN) :: surfWinNameInput,volWinNameInput
-#endif
   INTEGER :: errorFlag,iLev,iReg,iRegLow,iRegUpp
-#ifdef GENX
-  INTEGER :: handleObtain
-#endif
   TYPE(t_region), POINTER :: pRegion,pRegionSerial
   TYPE(t_global), POINTER :: global
   TYPE(t_level), POINTER :: levels(:)
@@ -232,15 +216,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
 
   CALL RFLU_SetModuleType(global,MODULE_TYPE_INIT)
 
-#ifdef GENX
-! ******************************************************************************
-! Read GENX control file, store communicator and hardcode window name
-! ****************************************************************************** 
-
-  CALL RFLU_GENX_ReadCtrlFile(global)
-  CALL RFLU_GENX_StoreCommunicator(global,MPI_COMM_WORLD)
-  CALL RFLU_GENX_HardCodeWindowName(global)
-#endif
 
 ! ******************************************************************************
 ! Print header and write version string
@@ -266,42 +241,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
   CALL RFLU_ApplyRegionMapping(global,levels)
   CALL RFLU_DestroyRegionMapping(global,MAPTYPE_REG)  
 
-#ifdef GENX
-! ******************************************************************************
-! Initialize Roccom and load Rocin and Rocout
-! ******************************************************************************
-
-  CALL COM_init
-! TEMPORARY
-!  CALL COM_set_verbose(10)
-! END TEMPORARY
-
-  surfWinNameInput = 'RocfluInputSurf'
-  volWinNameInput  = 'RocfluInputVol TEMP'
-
-  global%winNameIn  = TRIM(global%winName)//'-IN'
-  global%winNameOut = TRIM(global%winName)//'-OUT'
-
-  CALL Rocin_load_module(TRIM(global%winNameIn))
-  CALL Rocout_load_module(TRIM(global%winNameOut))
-  
-  handleObtain = COM_get_function_handle(TRIM(global%winNameIn)// &
-                                         '.obtain_attribute')
-  CALL RFLU_GENX_StoreNamesHandles(global,surfWinNameInput,volWinNameInput, & 
-                                   handleObtain)
-  
-! ******************************************************************************
-! Create windows and attributes 
-! ******************************************************************************
-  
-  pRegionSerial => levels(1)%regions(0)
-
-  CALL RFLU_GENX_CreateWindows(pRegionSerial) 
-  CALL RFLU_GENX_CreateAttrGridSurf(pRegionSerial)
-  CALL RFLU_GENX_CreateAttrFlow(pRegionSerial)    
-  CALL RFLU_GENX_CreateAttrGSpeeds(pRegionSerial)
-  CALL RFLU_GENX_CreateAttrInterf(pRegionSerial)
-#endif
 
 ! Subbu - Need to read random seed after reading from input file
 ! Therefore reading has been pushed below 
@@ -438,10 +377,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
           CALL RFLU_PrintFlowInfoWrapper(pRegion)    
         END IF ! global%verbLevel       
 
-#ifdef GENX
-        CALL RFLU_GENX_SetConnSize(pRegion)
-        CALL RFLU_GENX_RegisterDataFlow(pRegion)               
-#endif
         CALL RFLU_WriteFlowWrapper(pRegion)
 
         IF ( global%solverType == SOLV_IMPLICIT_HM ) THEN
@@ -520,11 +455,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
             CALL RFLU_PrintFlowInfoWrapper(pRegion)    
           END IF ! global%verbLevel  
 
-#ifdef GENX
-          CALL RFLU_GENX_RegisterDataFlow(pRegion)
-          CALL RFLU_SetGasVars(pRegion,1,pRegion%grid%nCellsTot)               
-          CALL RFLU_SetDependentVars(pRegion,1,pRegion%grid%nCellsTot)
-#endif
           CALL RFLU_WriteFlowWrapper(pRegion)
 
           IF ( global%solverType == SOLV_IMPLICIT_HM ) THEN
@@ -557,14 +487,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
           CALL RFLU_ReadBCInputFileWrapper(pRegion)    
         END IF ! pRegion%grid%nPatches       
 
-#ifdef GENX
-        CALL RFLU_GENX_ReadWindow(pRegion,GENX_WINDOW_TYPE_SURF)
-        CALL RFLU_GENX_ReadWindow(pRegion,GENX_WINDOW_TYPE_VOL)
-        CALL RFLU_GENX_GetDimensionsDerived(pRegion)
-        CALL RFLU_GENX_CreateGridSurf(pRegion) 
-        CALL RFLU_GENX_RegisterGridSurf(pRegion) 
-        CALL RFLU_GENX_RegisterGridVol(pRegion)    
-#endif
 
         CALL RFLU_ReadGridWrapper(pRegion)
 
@@ -572,9 +494,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
           CALL RFLU_PrintGridInfo(pRegion)
         END IF ! global%verbLevel 
 
-#ifdef GENX
-        CALL RFLU_GENX_DestroyGridSurf(pRegion) 
-#endif
 
         CALL RFLU_CreateCellMapping(pRegion)
         CALL RFLU_ReadLoc2GlobCellMapping(pRegion)
@@ -622,10 +541,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
           CALL RFLU_PrintFlowInfoWrapper(pRegion)    
         END IF ! global%verbLevel       
 
-#ifdef GENX
-        CALL RFLU_GENX_RegisterDataFlow(pRegion)              
-        CALL RFLU_SetDependentVars(pRegion,1,pRegion%grid%nCellsTot)
-#endif
         CALL RFLU_WriteFlowWrapper(pRegion)       
 
         IF ( global%solverType == SOLV_IMPLICIT_HM ) THEN
@@ -732,10 +647,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
             CALL RFLU_PrintFlowInfoWrapper(pRegion)    
           END IF ! global%verbLevel  
 
-#ifdef GENX
-          CALL RFLU_GENX_RegisterDataFlow(pRegion)               
-          CALL RFLU_SetDependentVars(pRegion,1,pRegion%grid%nCellsTot)
-#endif
           CALL RFLU_WriteFlowWrapper(pRegion)
 
           IF ( global%solverType == SOLV_IMPLICIT_HM ) THEN
@@ -816,10 +727,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
           CALL RFLU_PrintFlowInfoWrapper(pRegion)    
         END IF ! global%verbLevel  
 
-#ifdef GENX
-        CALL RFLU_GENX_RegisterDataFlow(pRegion)               
-        CALL RFLU_SetDependentVars(pRegion,1,pRegion%grid%nCellsTot)
-#endif
         CALL RFLU_WriteFlowWrapper(pRegion)
       
         IF ( global%solverType == SOLV_IMPLICIT_HM ) THEN
@@ -1105,20 +1012,9 @@ SUBROUTINE rfluinit(caseString,verbLevel)
         CALL RFLU_ReadBCInputFileWrapper(pRegion)    
       END IF ! pRegion%grid%nPatches                   
 
-#ifdef GENX
-      CALL RFLU_GENX_ReadWindow(pRegion,GENX_WINDOW_TYPE_SURF)
-      CALL RFLU_GENX_ReadWindow(pRegion,GENX_WINDOW_TYPE_VOL)
-      CALL RFLU_GENX_GetDimensionsDerived(pRegion)
-      CALL RFLU_GENX_CreateGridSurf(pRegion) 
-      CALL RFLU_GENX_RegisterGridSurf(pRegion) 
-      CALL RFLU_GENX_RegisterGridVol(pRegion)    
-#endif
 
       CALL RFLU_ReadGridWrapper(pRegion)
 
-#ifdef GENX
-      CALL RFLU_GENX_DestroyGridSurf(pRegion) 
-#endif
 
       CALL RFLU_CreateCellMapping(pRegion)
       CALL RFLU_ReadLoc2GlobCellMapping(pRegion)
@@ -1132,9 +1028,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
       CALL RFLU_RenumberBFaceLists(pRegion)
 
       CALL RFLU_AllocateMemoryGSpeeds(pRegion)
-#ifdef GENX
-      CALL RFLU_GENX_RegisterDataGSpeeds(pRegion) 
-#endif
       CALL RFLU_WriteGridSpeedsWrapper(pRegion)
 
       CALL RFLU_DeallocateMemoryGSpeeds(pRegion) 
@@ -1144,10 +1037,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
       CALL RFLU_DestroyCellMapping(pRegion) 
       CALL RFLU_DestroyGrid(pRegion)  
 
-#ifdef GENX
-      CALL COM_delete_window(TRIM(global%volWinNameInput))
-      CALL COM_delete_window(TRIM(global%surfWinNameInput))
-#endif
     END IF ! RFLU_DecideNeedGridSpeeds 
   END DO ! iReg  
           

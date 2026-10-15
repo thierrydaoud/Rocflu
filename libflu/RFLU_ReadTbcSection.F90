@@ -284,14 +284,6 @@ SUBROUTINE RFLU_ReadTbcSection(pRegion,tbcType)
           CALL ErrorStop(global,ERR_BC_VARNAME,__LINE__,'INJECT')
       END SELECT
 
-#ifdef TURB
-! ==============================================================================
-!   Turbulence BCs: ftype = FTYPE_TURB
-! ==============================================================================
-
-! TO DO
-! END TO DO
-#endif
 
 #ifdef SPEC
 ! ==============================================================================
@@ -374,14 +366,6 @@ SUBROUTINE RFLU_ReadTbcSection(pRegion,tbcType)
       END IF ! bcvar
 #endif
 
-#ifdef RADI
-! ==============================================================================
-!   Radiation BCs: ftype = FTYPE_RADI
-! ==============================================================================
-
-! TO DO
-! END TO DO
-#endif
 
     CASE DEFAULT
       CALL ErrorStop(global,ERR_UNKNOWN_BC,__LINE__)

@@ -72,9 +72,6 @@ MODULE ModGenx
   USE ModDataStruct, ONLY: t_level
   IMPLICIT NONE
 
-#ifdef GENX
-  INCLUDE 'rocmanf90.h'
-#endif
 
   TYPE t_globalGenx
     LOGICAL :: isDummy

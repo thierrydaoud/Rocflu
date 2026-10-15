@@ -1120,10 +1120,6 @@ MODULE RFLU_ModReadWriteGrid
 
   SUBROUTINE RFLU_ReadGridWrapper(pRegion)
   
-#ifdef GENX
-    USE RFLU_ModGENXIO, ONLY: RFLU_GENX_DecideReadFile, & 
-                              RFLU_GENX_GetGrid
-#endif  
   
     IMPLICIT NONE
   
@@ -1155,9 +1151,6 @@ MODULE RFLU_ModReadWriteGrid
 !   Read grid files
 ! ******************************************************************************
   
-#ifdef GENX
-    IF ( RFLU_GENX_DecideReadFile(global) .EQV. .FALSE. ) THEN 
-#endif
       IF ( global%gridFormat == FORMAT_ASCII ) THEN
         CALL RFLU_ReadGridASCII(pRegion)
 !      ELSE IF ( global%gridFormat == FORMAT_BINARY ) THEN
@@ -1170,11 +1163,6 @@ MODULE RFLU_ModReadWriteGrid
       ELSE
         CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
       END IF ! global%gridFormat
-#ifdef GENX
-    ELSE 
-      CALL RFLU_GENX_GetGrid(pRegion) 
-    END IF ! RFLU_GENX_DecideReadFile         
-#endif
     
 ! ******************************************************************************
 !   End
@@ -1752,10 +1740,6 @@ MODULE RFLU_ModReadWriteGrid
 
   SUBROUTINE RFLU_WriteGridWrapper(pRegion)
 
-#ifdef GENX
-    USE RFLU_ModGENXIO, ONLY: RFLU_GENX_DecideWriteFile, & 
-                              RFLU_GENX_PutGrid
-#endif
 
     IMPLICIT NONE
   
@@ -1787,9 +1771,6 @@ MODULE RFLU_ModReadWriteGrid
 !   Read solution files
 ! ******************************************************************************
      
-#ifdef GENX
-    IF ( RFLU_GENX_DecideWriteFile(global) .EQV. .FALSE. ) THEN     
-#endif
       IF ( global%gridFormat == FORMAT_ASCII ) THEN
         CALL RFLU_WriteGridASCII(pRegion)
 !      ELSE IF ( global%gridFormat == FORMAT_BINARY ) THEN
@@ -1802,11 +1783,6 @@ MODULE RFLU_ModReadWriteGrid
       ELSE
         CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
       END IF ! global%gridFormat
-#ifdef GENX
-    ELSE 
-      CALL RFLU_GENX_PutGrid(pRegion) 
-    END IF ! RFLU_GENX_DecideReadFile         
-#endif    
     
 ! ******************************************************************************
 !   End

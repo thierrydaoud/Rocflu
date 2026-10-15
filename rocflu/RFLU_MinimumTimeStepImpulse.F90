@@ -210,13 +210,11 @@ SUBROUTINE RFLU_MinimumTimeStepImpulse(regions)
     CALL ErrorStop(global,ERR_DEALLOCATE,__LINE__,'globalValsReal')
   END IF ! global%error  
 
-#ifndef GENX
 ! ******************************************************************************
 ! Store minimum time step as system time step for coupled simulations
 ! ******************************************************************************
 
   global%dTimeSystem = global%dtMinImpulse
-#endif
 
 ! ******************************************************************************
 ! If smallest time step is smaller than user-specified time step and smaller 

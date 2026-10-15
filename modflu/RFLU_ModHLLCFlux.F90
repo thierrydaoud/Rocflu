@@ -643,9 +643,6 @@ SUBROUTINE RFLU_HLLC_ComputeFlux1_MTCP(pRegion)
 
   CALL RegisterFunction(global,'RFLU_HLLC_ComputeFlux1_MTCP',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::HLLC_ComputeFlux1_MTCP")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -901,9 +898,6 @@ SUBROUTINE RFLU_HLLC_ComputeFlux1_MTCP(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::HLLC_ComputeFlux1_MTCP")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -975,9 +969,6 @@ SUBROUTINE RFLU_HLLC_ComputeFlux1_TCP(pRegion)
 
   CALL RegisterFunction(global,'RFLU_HLLC_ComputeFlux1_TCP',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::HLLC_ComputeFlux1_TCP")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -1178,9 +1169,6 @@ SUBROUTINE RFLU_HLLC_ComputeFlux1_TCP(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::HLLC_ComputeFlux1_TCP")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -1780,9 +1768,6 @@ SUBROUTINE RFLU_HLLC_ComputeFlux2_MTCP(pRegion)
 
   CALL RegisterFunction(global,'RFLU_HLLC_ComputeFlux2_MTCP',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::HLLC_ComputeFlux2_MTCP")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -2123,9 +2108,6 @@ SUBROUTINE RFLU_HLLC_ComputeFlux2_MTCP(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::HLLC_ComputeFlux2_MTCP")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -2202,9 +2184,6 @@ SUBROUTINE RFLU_HLLC_ComputeFlux2_TCP(pRegion)
 
   CALL RegisterFunction(global,'RFLU_HLLC_ComputeFlux2_TCP',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::HLLC_ComputeFlux2_TCP")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -2464,9 +2443,6 @@ SUBROUTINE RFLU_HLLC_ComputeFlux2_TCP(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::HLLC_ComputeFlux2_TCP")
-#endif
 
   CALL DeregisterFunction(global)
 

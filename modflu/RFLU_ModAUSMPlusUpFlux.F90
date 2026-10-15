@@ -938,9 +938,6 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux1(pRegion)
 
   CALL RegisterFunction(global,'RFLU_AUSMPlusUp_ComputeFlux1',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::AUSMPlusUp_ComputeFlux1")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -1357,9 +1354,6 @@ END IF ! 1==2
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::AUSMPlusUp_ComputeFlux1")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -1431,9 +1425,6 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux1_MJWL(pRegion)
 
   CALL RegisterFunction(global,'RFLU_AUSMPlusUp_ComputeFlux1_MJWL',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::AUSMPlusUp_ComputeFlux1_MJWL")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -1620,9 +1611,6 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux1_MJWL(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::AUSMPlusUp_ComputeFlux1_MJWL")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -1717,9 +1705,6 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux2_MJWL(pRegion)
 
   CALL RegisterFunction(global,'RFLU_AUSMPlusUp_ComputeFlux2_MJWL',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::AUSMPlusUp_ComputeFlux2_MJWL")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -2072,9 +2057,6 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux2_MJWL(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::AUSMPlusUp_ComputeFlux2_MJWL")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -2165,9 +2147,6 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux2_MPSD(pRegion)
 
   CALL RegisterFunction(global,'RFLU_AUSMPlusUp_ComputeFlux2_MPSD',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::AUSMPlusUp_ComputeFlux2_MPSD")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -2536,9 +2515,6 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux2_MPSD(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::AUSMPlusUp_ComputeFlux2_MPSD")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -2631,9 +2607,6 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux2_MTCP(pRegion)
 
   CALL RegisterFunction(global,'RFLU_AUSMPlusUp_ComputeFlux2_MTCP',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::AUSMPlusUp_ComputeFlux2_MTCP")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -3219,9 +3192,6 @@ END IF ! 1==2
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::AUSMPlusUp_ComputeFlux2_MTCP")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -3313,9 +3283,6 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux2_TCP(pRegion)
     CALL ErrorStop(global,ERR_GASMODEL_INVALID,__LINE__)  
   END IF ! pRegion%mixtInput%gasModel
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::AUSMPlusUp_ComputeFlux2_TCP")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -3623,9 +3590,6 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux2_TCP(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::AUSMPlusUp_ComputeFlux2_TCP")
-#endif
 
   CALL DeregisterFunction(global)
 

@@ -253,9 +253,6 @@ MODULE RFLU_ModMPI
 
     CALL RegisterFunction(global,'RFLU_MPI_ClearRequestWrapper',__FILE__)
 
-#ifdef ROCPROF 
-    CALL FPROFILER_BEGINS("RFLU::ClearRequestWrapper")
-#endif
 
 ! ******************************************************************************
 !   Set pointers
@@ -300,9 +297,6 @@ MODULE RFLU_ModMPI
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-    CALL FPROFILER_ENDS("RFLU::ClearRequestWrapper")
-#endif
 
     CALL DeregisterFunction(global)
   
@@ -594,9 +588,6 @@ MODULE RFLU_ModMPI
 
     CALL RegisterFunction(global,'RFLU_MPI_CopyWrapper',__FILE__)
 
-#ifdef ROCPROF 
-    CALL FPROFILER_BEGINS("RFLU::CopyWrapper")
-#endif
 
 ! ******************************************************************************
 !   Set pointers
@@ -658,9 +649,6 @@ MODULE RFLU_ModMPI
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-    CALL FPROFILER_ENDS("RFLU::CopyWrapper")
-#endif
 
     CALL DeregisterFunction(global)
   
@@ -2163,9 +2151,6 @@ MODULE RFLU_ModMPI
 
     CALL RegisterFunction(global,'RFLU_MPI_HM_CopyWrapper',__FILE__)
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::HM_CopyWrapper")
-#endif
 
 ! ******************************************************************************
 !   Set pointers
@@ -2236,9 +2221,6 @@ MODULE RFLU_ModMPI
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::HM_CopyWrapper")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -2299,9 +2281,6 @@ MODULE RFLU_ModMPI
 
     CALL RegisterFunction(global,'RFLU_MPI_HM_ISendWrapper',__FILE__)
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::HM_ISendWrapper")
-#endif
 
 ! ******************************************************************************
 !   Set pointers
@@ -2368,9 +2347,6 @@ MODULE RFLU_ModMPI
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::HM_ISendWrapper")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -2431,9 +2407,6 @@ MODULE RFLU_ModMPI
 
     CALL RegisterFunction(global,'RFLU_MPI_HM_RecvWrapper',__FILE__)
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::HM_RecvWrapper")
-#endif
 
 ! ******************************************************************************
 !   Set pointers
@@ -2495,9 +2468,6 @@ MODULE RFLU_ModMPI
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::HM_RecvWrapper")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -2650,9 +2620,6 @@ MODULE RFLU_ModMPI
 
     CALL RegisterFunction(global,'RFLU_MPI_ISendWrapper',__FILE__)
 
-#ifdef ROCPROF 
-    CALL FPROFILER_BEGINS("RFLU::ISendWrapper")
-#endif
 
 ! ******************************************************************************
 !   Set pointers
@@ -2699,9 +2666,6 @@ MODULE RFLU_ModMPI
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-    CALL FPROFILER_ENDS("RFLU::ISendWrapper")
-#endif
 
     CALL DeregisterFunction(global)
   
@@ -3037,9 +3001,6 @@ MODULE RFLU_ModMPI
 
     CALL RegisterFunction(global,'RFLU_MPI_RecvWrapper',__FILE__)
 
-#ifdef ROCPROF 
-    CALL FPROFILER_BEGINS("RFLU::RecvWrapper")
-#endif
 
 ! ******************************************************************************
 !   Set pointers
@@ -3084,9 +3045,6 @@ MODULE RFLU_ModMPI
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-    CALL FPROFILER_ENDS("RFLU::RecvWrapper")
-#endif
 
     CALL DeregisterFunction(global)
   

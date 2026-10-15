@@ -70,17 +70,9 @@
 !
 ! ******************************************************************************
 
-#ifdef GENX
-SUBROUTINE RFLU_InitFlowSolver(globalGenx,initialTime,communicator,genxHandle, &
-                               surfWinNameInput,volWinNameInput,handleObtain)
-#else
 SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
-#endif
 
   USE ModDataTypes
-#ifdef GENX
-  USE ModGenx, ONLY: t_globalGenx
-#endif  
   USE ModBndPatch, ONLY: t_patch
   USE ModDataStruct, ONLY: t_level,t_region
   USE ModMixture, ONLY: t_mixt_input  
@@ -143,12 +135,6 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
   USE RFLU_ModVertexLists
   USE RFLU_ModWeights
     
-#ifdef GENX
-  USE RFLU_ModGENXAdmin
-  USE RFLU_ModGENXIO, ONLY: RFLU_GENX_GetDataInterf, & 
-                            RFLU_GENX_GetDimensionsDerived, &
-                            RFLU_GENX_GetGlobalData
-#endif  
     
 #ifdef PETSC
   USE RFLU_ModPETScAdmin
@@ -217,36 +203,20 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
                            RFLU_WriteVersionString, &
                            WriteTotalMass
                                                 
-#ifdef GENX
-  USE ModInterfaces, ONLY: RFLU_CheckCouplingInput, &
-                           RFLU_GetBoundaryValues, &
-                           RFLU_PutBoundaryValues
-  USE RFLU_ModGENXTools, ONLY: RFLU_GENX_InitBFLAG
-#endif
 #ifdef STATS
   USE ModStatsRoutines, ONLY: StatMapping, InitStatistics
 #endif
   
   IMPLICIT NONE
 
-#ifdef GENX
-  INCLUDE 'roccomf90.h'
-#endif
 
 ! ******************************************************************************
 ! Arguments
 ! ******************************************************************************
 
-#ifdef GENX
-  CHARACTER(*), INTENT(IN) :: surfWinNameInput,volWinNameInput
-  INTEGER, INTENT(IN) :: communicator,genxHandle,handleObtain
-  DOUBLE PRECISION, INTENT(IN) :: initialTime
-  TYPE(t_globalGenx), POINTER :: globalGenx
-#else
   CHARACTER(CHRLEN), INTENT(IN) :: casename
   INTEGER, INTENT(IN) :: verbLevel
   TYPE(t_global), POINTER :: global
-#endif
   TYPE(t_level), POINTER :: levels(:)  
   
 ! ******************************************************************************
@@ -264,11 +234,6 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
   TYPE(t_patch), POINTER :: pPatch
   TYPE(t_region), POINTER :: pRegion
 
-#ifdef GENX
-  INTEGER :: verbLevel
-  CHARACTER(CHRLEN) :: casename
-  TYPE(t_global), POINTER :: global  
-#endif 
 
   ! Subbu - Vars cyldet case
    REAL(RFREAL) :: nr,nTol,nx,ny,nz,rad,the,theLow,theUpp,Tol,z
@@ -292,37 +257,6 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 ! Set global pointer and initialize global type, register function
 ! ****************************************************************************** 
  
-#ifdef GENX
-  global => globalGenx%global 
-     
-  CALL RFLU_InitGlobal(" ",VERBOSE_LOW,communicator,global)
-  CALL RFLU_GENX_ReadCtrlFile(global)
-  CALL RFLU_GENX_StoreCommunicator(global,communicator)
-
-! ******************************************************************************
-! Initialize MPI - ROCSTAR
-! ****************************************************************************** 
-
-  CALL MPI_Comm_size(global%mpiComm,global%nProcAlloc,errorFlag)
-  global%error = errorFlag
-  IF ( global%error /= ERR_NONE ) THEN 
-    CALL ErrorStop(global,ERR_MPI_OUTPUT,__LINE__)
-  END IF ! global%error
-    
-  CALL MPI_Comm_rank(global%mpiComm,global%myProcid,errorFlag)  
-  global%error = errorFlag
-  IF ( global%error /= ERR_NONE ) THEN 
-    CALL ErrorStop(global,ERR_MPI_OUTPUT,__LINE__)
-  END IF ! global%error
-
-  CALL RFLU_GENX_StoreNamesHandles(global,surfWinNameInput,volWinNameInput, & 
-                                   handleObtain)
-
-  CALL COM_set_verbose(global%verbLevelCOM)
-
-  global%timeStamp   = initialTime
-  global%currentTime = initialTime
-#else
   CALL RFLU_InitGlobal(casename,verbLevel,MPI_COMM_WORLD,global)
 
 ! ******************************************************************************
@@ -347,7 +281,6 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
     CALL ErrorStop(global,ERR_MPI_OUTPUT,__LINE__)
   END IF ! global%error
 
-#endif
 
 #ifdef PICL
   call ppiclf_comm_InitMPI(global%mpiComm,global%myProcid,global%nProcAlloc)
@@ -358,16 +291,6 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 
   CALL RegisterFunction(global,'RFLU_InitFlowSolver',__FILE__)
 
-#ifndef GENX
-#ifdef ROCPROF
-! ******************************************************************************
-! Initialize Rocprof. NOTE done here so everything can be profiled and also bcos
-! RFLU_SetVars is called here.
-! ****************************************************************************** 
-
-  CALL Rocprof_Init("Rocflu",global%myProcid)
-#endif
-#endif
 
 ! ******************************************************************************
 ! Print header and check for stop file 
@@ -408,29 +331,8 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
   CALL RFLU_ApplyRegionMapping(global,levels)
   CALL RFLU_DestroyRegionMapping(global,MAPTYPE_REG)
     
-#ifdef GENX    
-  globalGenx%levels => levels
-  pLevel => globalGenx%levels(1) ! single-level grids for now      
-#else
   pLevel => levels(1) ! single-level grids for now   
-#endif
 
-#ifdef GENX
-! ******************************************************************************
-! Create windows and new attributes. NOTE must only be done once for every 
-! process.
-! ******************************************************************************
-  
-  pRegion => pLevel%regions(1)
-  CALL RFLU_GENX_CreateWindows(pRegion,communicator)
-  CALL RFLU_GENX_CreateAttrWrapper(pRegion)
-  
-! ******************************************************************************
-! Load modules
-! ******************************************************************************
-
-  CALL Rocmop_load_module(TRIM(global%winName)//'-MOP')  
-#endif           
            
 ! ******************************************************************************
 ! Read user input
@@ -449,9 +351,7 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 ! will overwrite global%currentTime.
 ! ******************************************************************************
   
-#ifndef GENX
   CALL RFLU_ReadRestartInfo(global)
-#endif
   CALL RFLU_SetRestartTimeFlag(global)
   
 ! ******************************************************************************
@@ -506,22 +406,6 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
   END DO ! iReg
   CALL MPI_Barrier(global%mpiComm,errorFlag)
 
-#ifdef GENX
-! ******************************************************************************
-! Create surface and and register volume and surface grid. NOTE must be done 
-! after having read comm lists because of pconn.
-! ******************************************************************************
-
-  DO iReg = 1,global%nRegionsLocal
-    pRegion => pLevel%regions(iReg)
-
-    CALL RFLU_GENX_GetDimensionsDerived(pRegion)
-    CALL RFLU_GENX_CreateGridSurf(pRegion)    
-    CALL RFLU_GENX_CreatePConn(pRegion)
-    CALL RFLU_GENX_RegisterGridVol(pRegion)
-    CALL RFLU_GENX_RegisterGridSurf(pRegion)
-  END DO ! iReg  
-#endif
   
 ! ******************************************************************************
 ! Read grid file
@@ -556,9 +440,6 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 ! Populate Time Zooming Parameter
 !*******************************************************************************
    
-#ifdef GENX
-  CALL RFLU_GENX_GetGlobalData(global)
-#endif
 
 ! ******************************************************************************
 ! Build data stucture, part 1
@@ -746,19 +627,6 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
   ENDIF
 #endif
 
-#ifdef GENX
-! ******************************************************************************
-! Register data with Roccom for interaction in GENX. NOTE must be done after 
-! memory allocation.
-! ******************************************************************************
-
-  DO iReg = 1,global%nRegionsLocal
-    pRegion => pLevel%regions(iReg)
-    
-    CALL RFLU_GENX_RegisterDataWrapper(pRegion)
-    CALL RFLU_GENX_CreateWindowsDone(pRegion)
-  END DO ! iReg  
-#endif  
 
 ! ******************************************************************************
 ! Compute geometry
@@ -1292,16 +1160,6 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
     CALL RFLU_HYPRE_CreateObjects(pLevel%regions)
   END IF ! global%solverType
 
-#ifdef GENX
-! ******************************************************************************
-! Get interface data
-! ******************************************************************************
-  
-  DO iReg = 1,global%nRegionsLocal
-    pRegion => pLevel%regions(iReg)     
-    CALL RFLU_GENX_GetDataInterf(pRegion)
-  END DO ! iReg  
-#endif
 
 ! ******************************************************************************
 ! Read boundary condition data (only relevant if distribution specified)
@@ -1722,41 +1580,6 @@ END if !global%piclused
   END DO ! iReg 
 ! Rahul - End BUG FIX
  
-#ifdef GENX
-! ******************************************************************************
-! Initialize Rocman
-! ******************************************************************************
-
-  DO iReg = 1,global%nRegionsLocal
-    pRegion => pLevel%regions(iReg)        
-    CALL RFLU_GENX_InitRocman(pRegion,genxHandle)     
-  END DO ! iReg
-
-! ******************************************************************************
-! Check that have coupled boundaries defined, must be done after field flags
-! are created
-! ******************************************************************************
-
-! TEMPORARY - Breaks intermittently, without this you need to make sure that
-!             your input files are correct; there is no checking...
-!  CALL RFLU_CheckCouplingInput(pLevel%regions)
-! END TEMPORARY
-
-! ******************************************************************************
-! Put initial data into GENX buffers. NOTE no longer get data to fill incoming
-! buffers to make sure restarts are always the same regardless of the time. 
-! Incoming buffers are filled at beginning of time-stepping routine
-! ******************************************************************************
-
-  DO iReg = 1,global%nRegionsLocal
-     pRegion => pLevel%regions(iReg)
-     IF ( global%currentTime /= 0.0_RFREAL ) THEN
-        CALL RFLU_GENX_InitBFLAG(pRegion)
-        CALL RFLU_GetBoundaryValues(pLevel%regions(iReg))
-     END IF
-     CALL RFLU_PutBoundaryValues(pLevel%regions(iReg))
-  ENDDO ! iReg
-#endif
 
 ! ******************************************************************************
 ! Set options for grid motion, must be done after boundary normals are built 
@@ -1793,11 +1616,9 @@ END if !global%piclused
 
   CALL RFLU_OpenConverFile(global)
   
-#ifndef GENX  
   IF ( moveGrid .EQV. .TRUE. ) THEN 
     CALL RFLU_OpenTotalMassFile(global)
   END IF ! moveGrid
-#endif
 
   IF ( global%nProbes > 0 ) THEN 
     DO iReg = 1,global%nRegionsLocal
@@ -1821,7 +1642,6 @@ END if !global%piclused
 ! CALL RFLU_OpenIntegFile(global)
 !end BBR
 
-#ifndef GENX
 ! ******************************************************************************
 ! Compute integral values and write to file
 ! ******************************************************************************
@@ -1833,7 +1653,6 @@ END if !global%piclused
     CALL RFLU_ComputeIntegralValues(pLevel%regions) 
     CALL WriteTotalMass(pLevel%regions)
   END IF ! moveGrid
-#endif  
 
 #ifdef PETSC
 ! ******************************************************************************

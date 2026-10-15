@@ -1239,38 +1239,6 @@ MODULE RFLU_ModReadBcInputFile
 !       Check whether coupling flag defined
 ! ------------------------------------------------------------------------------
 
-#ifdef GENX
-        IF ( defined(3) .EQV. .TRUE. ) THEN
-          IF ( NINT(vals(3)) == BC_BURNING ) THEN
-            pPatch%bcCoupled       = NINT(vals(3))
-            pPatch%mixt%distrib = BCDAT_DISTRIB ! MUST have distribution
-          ELSE IF ( NINT(vals(3)) == BC_NOT_BURNING ) THEN 
-            global%warnCounter = global%warnCounter + 1
-
-            WRITE(STDOUT,'(A,3X,A,1X,A,I3,A)') SOLVER_NAME,'*** WARNING ***', &
-                  'Invalid coupling input for patch ',iPatch, &
-                  '. Overriding coupling input.'
-  
-            pPatch%bcCoupled       = BC_BURNING
-            pPatch%mixt%distrib = BCDAT_DISTRIB ! MUST have distribution
-          ELSE IF ( NINT(vals(3)) == BC_NOT_COUPLED ) THEN 
-            pPatch%bcCoupled       = NINT(vals(3))    
-            pPatch%mixt%distrib = distrib
-          ELSE 
-            global%warnCounter = global%warnCounter + 1
-
-            WRITE(STDOUT,'(A,3X,A,1X,A,I3,A)') SOLVER_NAME,'*** WARNING ***', &
-                  'Invalid coupling input for patch ',iPatch, &
-                  '. Overriding coupling input.'
-                  
-            pPatch%bcCoupled       = BC_NOT_COUPLED 
-            pPatch%mixt%distrib = distrib    
-          END IF ! NINT(vals)
-        ELSE
-          pPatch%bcCoupled       = BC_NOT_COUPLED
-          pPatch%mixt%distrib = distrib
-        END IF ! defined
-#else   
         IF ( defined(3) .EQV. .TRUE. ) THEN
           IF ( NINT(vals(3)) /= BC_NOT_COUPLED ) THEN
             global%warnCounter = global%warnCounter + 1
@@ -1289,33 +1257,7 @@ MODULE RFLU_ModReadBcInputFile
           pPatch%bcCoupled       = BC_NOT_COUPLED
           pPatch%mixt%distrib = BCDAT_CONSTANT
        END IF ! defined(3)			
-#endif
 
-#ifdef GENX
-! ------------------------------------------------------------------------------
-!       Check whether bFlagInit defined
-! ------------------------------------------------------------------------------
-
-        IF ( defined(4) .EQV. .TRUE. ) THEN
-          pPatch%bFlagInit = vals(4)
-
-          IF ( pPatch%bFlagInit < 0 .OR. pPatch%bFlagInit > 1 ) THEN
-            global%warnCounter = global%warnCounter + 1
-
-            WRITE(STDOUT,'(A,3X,A,1X,A,I3,A)') SOLVER_NAME,'*** WARNING ***', &
-                  'Invalid burning flag input for patch ',iPatch, &
-                  '. Overriding burning flag input.'
-            pPatch%bFlagInit = 1
-          END IF ! pPatch%bFlagInit
-        ELSE
-          global%warnCounter = global%warnCounter + 1
-
-          WRITE(STDOUT,'(A,3X,A,1X,A,I3,A)') SOLVER_NAME,'*** WARNING ***', &
-                'Missing burning flag input for patch ',iPatch, &
-                '. Setting burning flag input.'
-          pPatch%bFlagInit = 1
-        END IF ! defined
-#endif
  
 ! ------------------------------------------------------------------------------
 !       Check that all flags were set
@@ -1927,38 +1869,6 @@ MODULE RFLU_ModReadBcInputFile
 !       Check whether coupling flag defined
 ! ------------------------------------------------------------------------------
 
-#ifdef GENX
-        IF ( defined(2) .EQV. .TRUE. ) THEN
-          IF ( NINT(vals(2)) == BC_NOT_BURNING ) THEN
-            pPatch%bcCoupled       = NINT(vals(2))
-            pPatch%mixt%distrib = BCDAT_DISTRIB ! MUST have distribution
-          ELSE IF ( NINT(vals(2)) == BC_BURNING ) THEN 
-            global%warnCounter = global%warnCounter + 1
-
-            WRITE(STDOUT,'(A,3X,A,1X,A,I3,A)') SOLVER_NAME,'*** WARNING ***', &
-                  'Invalid coupling input for patch ',iPatch, &
-                  '. Overriding user input.'
-                  
-            pPatch%bcCoupled       = BC_NOT_BURNING
-            pPatch%mixt%distrib = BCDAT_DISTRIB ! MUST have distribution	    	    
-          ELSE IF ( NINT(vals(2)) == BC_NOT_COUPLED ) THEN
-            pPatch%bcCoupled       = NINT(vals(2))
-            pPatch%mixt%distrib = distrib
-          ELSE 
-            global%warnCounter = global%warnCounter + 1
-
-            WRITE(STDOUT,'(A,3X,A,1X,A,I3,A)') SOLVER_NAME,'*** WARNING ***', &
-                  'Invalid coupling input for patch ',iPatch, &
-                  '. Overriding user input.'
-
-            pPatch%bcCoupled       = BC_NOT_COUPLED
-            pPatch%mixt%distrib = distrib
-          END IF ! NINT(vals)
-        ELSE
-          pPatch%bcCoupled       = BC_NOT_COUPLED
-          pPatch%mixt%distrib = distrib
-        END IF ! defined
-#else
         IF ( defined(2) .EQV. .TRUE. ) THEN
           IF ( NINT(vals(2)) /= BC_NOT_COUPLED ) THEN
             global%warnCounter = global%warnCounter + 1
@@ -1977,7 +1887,6 @@ MODULE RFLU_ModReadBcInputFile
           pPatch%bcCoupled       = BC_NOT_COUPLED
           pPatch%mixt%distrib = BCDAT_CONSTANT
         END IF ! defined(2)
-#endif
 
 ! ------------------------------------------------------------------------------
 !       Set patch motion variable
@@ -2254,38 +2163,6 @@ MODULE RFLU_ModReadBcInputFile
 !       Check whether coupling flag defined
 ! ------------------------------------------------------------------------------
 
-#ifdef GENX
-        IF ( defined(2) .EQV. .TRUE. ) THEN
-          IF ( NINT(vals(2)) == BC_NOT_BURNING ) THEN
-            pPatch%bcCoupled       = NINT(vals(2))
-            pPatch%mixt%distrib = BCDAT_DISTRIB ! MUST have distribution
-          ELSE IF ( NINT(vals(2)) == BC_BURNING ) THEN 
-            global%warnCounter = global%warnCounter + 1
-
-            WRITE(STDOUT,'(A,3X,A,1X,A,I3,A)') SOLVER_NAME,'*** WARNING ***', &
-                  'Invalid coupling input for patch ',iPatch, &
-                  '. Overriding user input.'
-                  
-            pPatch%bcCoupled       = BC_NOT_BURNING
-            pPatch%mixt%distrib = BCDAT_DISTRIB ! MUST have distribution	    	    
-          ELSE IF ( NINT(vals(2)) == BC_NOT_COUPLED ) THEN
-            pPatch%bcCoupled       = NINT(vals(2))
-            pPatch%mixt%distrib = distrib
-           ELSE 
-            global%warnCounter = global%warnCounter + 1
-
-            WRITE(STDOUT,'(A,3X,A,1X,A,I3,A)') SOLVER_NAME,'*** WARNING ***', &
-                  'Invalid coupling input for patch ',iPatch, &
-                  '. Overriding user input.'
-
-            pPatch%bcCoupled       = BC_NOT_COUPLED
-            pPatch%mixt%distrib = distrib
-          END IF ! NINT(vals)
-        ELSE
-          pPatch%bcCoupled       = BC_NOT_COUPLED
-          pPatch%mixt%distrib = distrib
-        END IF ! defined
-#else
         IF ( defined(2) .EQV. .TRUE. ) THEN
           IF ( NINT(vals(2)) /= BC_NOT_COUPLED ) THEN
             global%warnCounter = global%warnCounter + 1
@@ -2304,7 +2181,6 @@ MODULE RFLU_ModReadBcInputFile
           pPatch%bcCoupled       = BC_NOT_COUPLED
           pPatch%mixt%distrib = BCDAT_CONSTANT
         END IF ! defined(2)
-#endif
 
 ! ------------------------------------------------------------------------------
 !       Check that necessary variables defined
@@ -3098,33 +2974,6 @@ MODULE RFLU_ModReadBcInputFile
 !       Check whether coupling flag defined
 ! ------------------------------------------------------------------------------
 
-#ifdef GENX
-        IF ( defined(1) .EQV. .TRUE. ) THEN
-          IF ( NINT(vals(1)) == BC_NOT_BURNING ) THEN 
-            pPatch%bcCoupled = NINT(vals(1))
-          ELSE IF ( NINT(vals(1)) == BC_BURNING ) THEN 
-            global%warnCounter = global%warnCounter + 1
-
-            WRITE(STDOUT,'(A,3X,A,1X,A,I3,A)') SOLVER_NAME,'*** WARNING ***', &
-                  'Invalid coupling input for patch ',iPatch, &
-                  '. Overriding user input.'
-                  
-            pPatch%bcCoupled = BC_NOT_BURNING     
-          ELSE IF ( NINT(vals(1)) == BC_NOT_COUPLED ) THEN 
-            pPatch%bcCoupled = NINT(vals(1))
-          ELSE 
-            global%warnCounter = global%warnCounter + 1
-
-            WRITE(STDOUT,'(A,3X,A,1X,A,I3,A)') SOLVER_NAME,'*** WARNING ***', &
-                  'Invalid coupling input for patch ',iPatch, &
-                  '. Overriding user input.'
-                  
-            pPatch%bcCoupled = BC_NOT_COUPLED     
-          END IF ! NINT(vals(1))
-        ELSE
-          pPatch%bcCoupled = BC_NOT_COUPLED
-        END IF ! defined
-#else
         IF ( defined(1) .EQV. .TRUE. ) THEN
           IF ( NINT(vals(1)) /= BC_NOT_COUPLED ) THEN
             global%warnCounter = global%warnCounter + 1
@@ -3140,7 +2989,6 @@ MODULE RFLU_ModReadBcInputFile
         ELSE
           pPatch%bcCoupled = BC_NOT_COUPLED
         END IF ! defined(1)
-#endif
 
 ! ------------------------------------------------------------------------------
 !       Set patch motion variable

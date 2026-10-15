@@ -84,9 +84,6 @@ SUBROUTINE RFLU_AllocateMemoryWrapper(pRegion)
   USE ModPartLag, ONLY: t_plag
 #endif
 
-#ifdef GENX
-  USE RFLU_ModGENXAdmin, ONLY: RFLU_GENX_CreateDataInterf
-#endif
 
   USE ModInterfaces, ONLY: RFLU_AllocateMemory
 
@@ -107,9 +104,6 @@ SUBROUTINE RFLU_AllocateMemoryWrapper(pRegion)
                                   SPEC_RFLU_AllocateMemoryEEv
 #endif
 
-#ifdef TURB
-  USE ModInterfacesTurbulence, ONLY: TURB_AllocateMemory
-#endif
 
   IMPLICIT NONE
 
@@ -159,9 +153,6 @@ SUBROUTINE RFLU_AllocateMemoryWrapper(pRegion)
 
   CALL RFLU_AllocateMemory(pRegion)
   
-#ifdef GENX
-  CALL RFLU_GENX_CreateDataInterf(pRegion)  
-#endif
 
 #ifdef PLAG
 ! ==============================================================================
@@ -178,15 +169,6 @@ SUBROUTINE RFLU_AllocateMemoryWrapper(pRegion)
   END IF ! plagUsed
 #endif
 
-#ifdef RADI
-! ==============================================================================
-! Radiation
-! ==============================================================================
-
-  IF ( pRegion%mixtInput%radiUsed .EQV. .TRUE. ) THEN
-    CALL RADI_AllocateMemory(pRegion)
-  END IF ! pRegion%mixtInput%radiUsed
-#endif
 
 #ifdef SPEC
 ! ==============================================================================
@@ -199,17 +181,6 @@ SUBROUTINE RFLU_AllocateMemoryWrapper(pRegion)
   END IF ! pRegion%mixtInput%specUsed
 #endif
 
-#ifdef TURB
-! ==============================================================================
-! Turbulence
-! ==============================================================================
-
-  print*,'TLJ Calling TURB_allocatememory'
-  IF ( (pRegion%mixtInput%flowModel == FLOW_NAVST) .AND. &
-       (pRegion%mixtInput%turbModel /= TURB_MODEL_NONE) ) THEN
-    CALL TURB_AllocateMemory(pRegion)
-  END IF ! pRegion%mixtInput%flowModel
-#endif
 
 #ifdef PERI
   print*,'TLJ Calling PERI_allocatememory'

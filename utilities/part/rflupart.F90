@@ -107,10 +107,6 @@ SUBROUTINE rflupart(caseString,verbLevel)
   USE RFLU_ModSymmetryPeriodic
   USE RFLU_ModVertexLists
 
-#ifdef GENX
-  USE RFLU_ModGENXAdmin
-  USE RFLU_ModGENXIO
-#endif
 
   USE ModInterfaces, ONLY: RFLU_BuildDataStruct, &   
                            RFLU_CreateGrid, &
@@ -132,9 +128,6 @@ SUBROUTINE rflupart(caseString,verbLevel)
                            
   IMPLICIT NONE
 
-#ifdef GENX
-  INCLUDE 'roccomf90.h'
-#endif
 
 ! ******************************************************************************
 ! Definitions and declarations
@@ -172,13 +165,7 @@ SUBROUTINE rflupart(caseString,verbLevel)
 ! ==============================================================================
 
   CHARACTER(CHRLEN) :: casename
-#ifdef GENX
-  CHARACTER(CHRLEN) :: surfWinNameInput,volWinNameInput
-#endif
   INTEGER :: errorFlag,iLev,iReg
-#ifdef GENX
-  INTEGER :: handleObtain
-#endif
   TYPE(t_region), POINTER :: pRegion,pRegionSerial
   TYPE(t_global), POINTER :: global
   TYPE(t_level), POINTER :: levels(:)
@@ -231,15 +218,6 @@ SUBROUTINE rflupart(caseString,verbLevel)
     global%myProcid = world_rank
 
   END IF
-#ifdef GENX
-! ******************************************************************************
-! Read GENX control file, store communicator and hardcode window name
-! ****************************************************************************** 
-
-  CALL RFLU_GENX_ReadCtrlFile(global)
-  CALL RFLU_GENX_StoreCommunicator(global,MPI_COMM_WORLD)
-  CALL RFLU_GENX_HardCodeWindowName(global)
-#endif
 
 ! ******************************************************************************
 ! Print header and write version string
@@ -265,40 +243,6 @@ SUBROUTINE rflupart(caseString,verbLevel)
   CALL RFLU_ApplyRegionMapping(global,levels)
   CALL RFLU_DestroyRegionMapping(global,MAPTYPE_REG)  
 
-#ifdef GENX
-! ******************************************************************************
-! Initialize Roccom and load Rocin and Rocout
-! ******************************************************************************
-
-  CALL COM_init
-! TEMPORARY
-!  CALL COM_set_verbose(10)
-! END TEMPORARY
-
-  surfWinNameInput = 'RocfluInputSurf'
-  volWinNameInput  = 'RocfluInputVol TEMP'
-
-  global%winNameIn  = TRIM(global%winName)//'-IN'
-  global%winNameOut = TRIM(global%winName)//'-OUT'
-
-  CALL Rocin_load_module(TRIM(global%winNameIn))
-  CALL Rocout_load_module(TRIM(global%winNameOut))
-  
-  handleObtain = COM_get_function_handle(TRIM(global%winNameIn)// &
-                                         '.obtain_attribute')
-  CALL RFLU_GENX_StoreNamesHandles(global,surfWinNameInput,volWinNameInput, & 
-                                   handleObtain)
-
-! ******************************************************************************
-! Create windows and attributes 
-! ******************************************************************************
-  
-  pRegionSerial => levels(1)%regions(0)
-
-  CALL RFLU_GENX_CreateWindows(pRegionSerial) 
-  CALL RFLU_GENX_CreateAttrGridSurf(pRegionSerial)
-  CALL RFLU_GENX_CreateAttrGSpeeds(pRegionSerial)     
-#endif
 
 ! ******************************************************************************
 ! Initialize random number generator. NOTE needed in order to write sensible 
@@ -462,15 +406,7 @@ SUBROUTINE rflupart(caseString,verbLevel)
   CALL RFLU_WriteLoc2GlobCellMapping(pRegionSerial)
 
   IF ( (global%nRegionsLocal == 1) .OR. (global%plagUsed .EQV. .TRUE.) ) THEN 
-#ifdef GENX
-    CALL RFLU_GENX_CreateGridSurf(pRegionSerial) 
-    CALL RFLU_GENX_RegisterGrid(pRegionSerial)  
-    CALL RFLU_GENX_BuildGridSurf(pRegionSerial) 
-#endif
     CALL RFLU_WriteGridWrapper(pRegionSerial)
-#ifdef GENX
-    CALL RFLU_GENX_DestroyGridSurf(pRegionSerial) 
-#endif
   END IF ! global%nRegionsLocal
 
 ! ******************************************************************************
@@ -637,22 +573,9 @@ SUBROUTINE rflupart(caseString,verbLevel)
       CALL RFLU_WriteDimensions(pRegion)
       CALL RFLU_WriteLoc2GlobCellMapping(pRegion)
 
-#ifdef GENX
-      CALL RFLU_CreateBVertexLists(pRegion)
-      CALL RFLU_BuildBVertexLists(pRegion)
-
-      CALL RFLU_GENX_CreateGridSurf(pRegion) 
-      CALL RFLU_GENX_RegisterGridSurf(pRegion)  
-      CALL RFLU_GENX_RegisterGridVol(pRegion)
-      CALL RFLU_GENX_BuildGridSurf(pRegion) 
-#endif
 
       CALL RFLU_WriteGridWrapper(pRegion)
 
-#ifdef GENX
-      CALL RFLU_GENX_DestroyGridSurf(pRegion) 
-      CALL RFLU_DestroyBVertexLists(pRegion)
-#endif
       
       CALL RFLU_RNMB_WritePxx2SxxMaps(pRegion)
       
@@ -716,14 +639,6 @@ SUBROUTINE rflupart(caseString,verbLevel)
         CALL RFLU_ReadBCInputFileWrapper(pRegion)    
       END IF ! pRegion%grid%nPatches       
 
-#ifdef GENX
-      CALL RFLU_GENX_ReadWindow(pRegion,GENX_WINDOW_TYPE_SURF)
-      CALL RFLU_GENX_ReadWindow(pRegion,GENX_WINDOW_TYPE_VOL)
-      CALL RFLU_GENX_GetDimensionsDerived(pRegion)
-      CALL RFLU_GENX_CreateGridSurf(pRegion) 
-      CALL RFLU_GENX_RegisterGridSurf(pRegion) 
-      CALL RFLU_GENX_RegisterGridVol(pRegion)    
-#endif
 
       CALL RFLU_ReadGridWrapper(pRegion)
      
@@ -843,18 +758,6 @@ SUBROUTINE rflupart(caseString,verbLevel)
         CALL RFLU_SYPE_DestroyP2VCList(pRegion)                 
       END IF ! RFLU_SYPE_HaveSyPePatches
 
-#ifdef GENX
-      CALL RFLU_CreateBVertexLists(pRegion)
-      CALL RFLU_BuildBVertexLists(pRegion)
-
-      CALL RFLU_GENX_CreatePConn(pRegion)
-      CALL RFLU_GENX_BuildPConn(pRegion)
-
-      CALL RFLU_GENX_RegisterGridSurf(pRegion)
-      CALL RFLU_GENX_RegisterGridVol(pRegion)
-
-      CALL RFLU_WriteGridWrapper(pRegion)
-#endif
      
       CALL RFLU_DestroyCellMapping(pRegion)
      
@@ -865,12 +768,6 @@ SUBROUTINE rflupart(caseString,verbLevel)
       CALL RFLU_RNMB_DestroySC2PCMap(pRegion)
       CALL RFLU_RNMB_DestroySV2PVMap(pRegion)      
    
-#ifdef GENX
-      CALL RFLU_GENX_DestroyPConn(pRegion)
-      CALL RFLU_GENX_DestroyGridSurf(pRegion)
- 
-      CALL RFLU_DestroyBVertexLists(pRegion)
-#endif
       CALL RFLU_DestroyGrid(pRegion)
     END DO ! iReg
 !CALL MPI_BARRIER(MPI_COMM_WORLD,ERROR_M)

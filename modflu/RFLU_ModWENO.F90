@@ -159,9 +159,6 @@ MODULE RFLU_ModWENO
 
     CALL RegisterFunction(global,'RFLU_WENOGradCells_2D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::WENOGradCells_2D")
-#endif
 
 ! ******************************************************************************    
 !   Set pointers and variables
@@ -269,9 +266,6 @@ MODULE RFLU_ModWENO
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::WENOGradCells_2D")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -337,9 +331,6 @@ MODULE RFLU_ModWENO
 
     CALL RegisterFunction(global,'RFLU_WENOGradCells_3D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::WENOGradCells_3D")
-#endif
 
 ! ******************************************************************************    
 !   Set pointers and variables
@@ -455,9 +446,6 @@ MODULE RFLU_ModWENO
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::WENOGradCells_3D")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -602,9 +590,6 @@ MODULE RFLU_ModWENO
 
     CALL RegisterFunction(global,'RFLU_WENOGradCellsXYZ_1D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::WENOGradCellsXYZ_1D")
-#endif
 
 ! ******************************************************************************    
 !   Set pointers and variables
@@ -748,9 +733,6 @@ MODULE RFLU_ModWENO
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::WENOGradCellsXYZ_1D")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -816,9 +798,6 @@ MODULE RFLU_ModWENO
 
     CALL RegisterFunction(global,'RFLU_WENOGradCellsXYZ_2D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::WENOGradCellsXYZ_2D")
-#endif
 
 ! ******************************************************************************    
 !   Set pointers and variables
@@ -949,9 +928,6 @@ MODULE RFLU_ModWENO
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::WENOGradCellsXYZ_2D")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -1019,9 +995,6 @@ MODULE RFLU_ModWENO
 
     CALL RegisterFunction(global,'RFLU_WENOGradCellsXYZ_3D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::WENOGradCellsXYZ_3D")
-#endif
 
 ! ******************************************************************************    
 !   Set pointers and variables
@@ -1166,9 +1139,6 @@ MODULE RFLU_ModWENO
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::WENOGradCellsXYZ_3D")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -1239,9 +1209,6 @@ MODULE RFLU_ModWENO
 
     CALL RegisterFunction(global,'RFLU_WENOGradCellsXYZFast_2D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::WENOGradCellsXYZFast_2D")
-#endif
 
 ! ******************************************************************************    
 !   Set pointers and variables
@@ -1365,9 +1332,6 @@ MODULE RFLU_ModWENO
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::WENOGradCellsXYZFast_2D")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -1438,9 +1402,6 @@ MODULE RFLU_ModWENO
 
     CALL RegisterFunction(global,'RFLU_WENOGradCellsXYZFast_3D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::WENOGradCellsXYZFast_3D")
-#endif
 
 ! ******************************************************************************    
 !   Set pointers and variables
@@ -1579,9 +1540,6 @@ MODULE RFLU_ModWENO
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::WENOGradCellsXYZFast_3D")
-#endif
 
     CALL DeregisterFunction(global)
 

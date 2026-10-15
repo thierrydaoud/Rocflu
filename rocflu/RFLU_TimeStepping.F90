@@ -147,9 +147,6 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
                            WriteProbe, &
                            WriteTotalMass
 
-#ifdef GENX
-  USE ModInterfaces, ONLY: RFLU_PutBoundaryValues
-#endif
 #ifdef STATS
   USE ModInterfaces, ONLY: RFLU_WriteStat
   USE ModStatsRoutines, ONLY: GetStatistics
@@ -169,9 +166,6 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 
   IMPLICIT NONE
 
-#ifdef GENX
-#include "roccomf90.h"
-#endif
 
 ! ******************************************************************************
 ! Declarations and definitions
@@ -238,9 +232,6 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
   safew_l = 0; safew = 0;
   ! BBR - end
 
-#ifdef GENX
-  global%timeSinceRestart = 0.0_RFREAL
-#endif
 
 ! ==============================================================================
 ! No multigrid here
@@ -471,22 +462,6 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 
       IF ( global%flowType == FLOW_UNSTEADY ) THEN         
          CALL RFLU_MinimumTimeStep(regions)
-#ifdef GENX
-        IF ( global%dtMin < global%dtImposed .AND. &
-             global%dtMin < global%dtMinLimit ) THEN
-          dtlimcount = dtlimcount + 1
-          IF ( dtlimcount > 2) THEN
-            dtlimcount = 0
-            stophandle   = COM_get_function_handle('Rocman.interrupt')
-            IF(stophandle <= 0) THEN
-              WRITE(*,*) 'Could not get Rocman.stop function handle.'
-            ELSE
-              CALL COM_call_function(stophandle,2,3,'Rocflu dt < limit, &
-                                     requesting remesh')
-            ENDIF
-          ENDIF
-        ENDIF
-#endif
         IF ( global%timeSinceRestart + global%dtMin > dTimeSystem ) THEN 
            global%dtMin = dTimeSystem - global%timeSinceRestart
            finished     = .TRUE.                     
@@ -819,12 +794,10 @@ END IF
       !END IF ! casename
       !BBR - end   
    
-#ifndef GENX      
       IF ( moveGrid .EQV. .TRUE. ) THEN
         CALL RFLU_ComputeIntegralValues(regions) 
         CALL WriteTotalMass(regions)
       END IF ! moveGrid
-#endif    
       
 #ifndef PROPONLY
       DO iReg = 1,global%nRegionsLocal
@@ -896,7 +869,6 @@ END IF
       END IF ! doProbe
     END IF ! global
 
-#ifndef GENX
 ! ==============================================================================
 !   Store flow field (and grid if moving). Write restart info file after 
 !   flow (and grid) files so that should those not be written due to reaching
@@ -1068,20 +1040,12 @@ END IF
     END IF ! iReg
 #endif
 #endif
-#endif
 
 ! ==============================================================================
 !   If run finished, update GENX buffers and exit
 ! ==============================================================================
 
     IF ( finished .EQV. .TRUE. ) THEN 
-#ifdef GENX
-       DO iReg = 1,global%nRegionsLocal
-         CALL RFLU_PutBoundaryValues(regions(iReg))
-       END DO ! iReg
-       
-       global%timeStamp = global%currentTime       
-#endif    
       EXIT
     END IF ! finished
 

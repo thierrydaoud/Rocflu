@@ -80,17 +80,10 @@ SUBROUTINE RFLU_GetDeformationWrapper(regions)
   USE ModMPI
   USE ModParameters
 
-#ifdef GENX
-  USE ModInterfaces, ONLY: RFLU_GetDeformation
-#else
   USE ModInterfaces, ONLY: RFLU_USER_GetDeformation
-#endif
 
   IMPLICIT NONE
 
-#ifdef GENX
-  INCLUDE 'roccomf90.h'
-#endif
 
 ! *****************************************************************************
 ! Declarations and definitions
@@ -110,9 +103,6 @@ SUBROUTINE RFLU_GetDeformationWrapper(regions)
   INTEGER :: iReg
   TYPE(t_global), POINTER :: global
 
-#ifdef GENX
-  DOUBLE PRECISION :: dAlpha
-#endif
 
 ! *****************************************************************************
 ! Start
@@ -128,18 +118,9 @@ SUBROUTINE RFLU_GetDeformationWrapper(regions)
 ! Get deformation
 ! *****************************************************************************
   
-#ifdef GENX 
-  dAlpha = global%dtMin/global%dTimeSystem
-  CALL COM_call_function(global%genxHandleGm,1,dAlpha)
-  
-  DO iReg = 1,global%nRegionsLocal
-    CALL RFLU_GetDeformation(regions(iReg))
-  END DO ! iReg  
-#else
   DO iReg = 1,global%nRegionsLocal
     CALL RFLU_USER_GetDeformation(regions(iReg))
   END DO ! iReg
-#endif     
 
 ! *****************************************************************************
 ! End

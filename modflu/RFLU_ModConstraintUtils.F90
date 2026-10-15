@@ -293,15 +293,7 @@ INTEGER FUNCTION RFLU_GetConstrType(pRegion,pPatch,var,ifl)
           IF ( minj > 0.0_RFREAL ) THEN
             RFLU_GetConstrType = CONSTR_TYPE_DIRICHLET 
           ELSE
-#ifndef GENX       
             RFLU_GetConstrType = CONSTR_TYPE_NONE
-#else
-            IF ( pRegion%mixtInput%flowModel == FLOW_EULER ) THEN 
-              RFLU_GetConstrType = CONSTR_TYPE_NONE 
-            ELSE 
-              RFLU_GetConstrType = CONSTR_TYPE_DIRICHLET
-            END IF ! pRegion%mixtInput%flowModel
-#endif      
           END IF ! minj                    
         CASE DEFAULT ! defensive coding
           RFLU_GetConstrType = CONSTR_TYPE_NONE
@@ -401,9 +393,6 @@ FUNCTION RFLU_GetConstrValue(pRegion,pPatch,var,ifl)
   INTEGER :: iSpec
 #endif
   REAL(RFREAL) :: cp,eqTol,fs,fsu,hflux,Hl,minj,mm,nx,ny,nz,pl,rl,tinj,ul,vl,wl
-#ifdef GENX
-  REAL(RFREAL) :: tb
-#endif
   TYPE(t_global), POINTER :: global
 
 ! ******************************************************************************
@@ -687,7 +676,6 @@ FUNCTION RFLU_GetConstrValue(pRegion,pPatch,var,ifl)
         
           minj = pPatch%mixt%vals(BCDAT_INJECT_MFRATE,dist*ifl)           
 
-#ifndef GENX    
           IF ( minj > 0.0_RFREAL ) THEN
             tinj = pPatch%mixt%vals(BCDAT_INJECT_TEMP,dist*ifl)
              
@@ -695,15 +683,6 @@ FUNCTION RFLU_GetConstrValue(pRegion,pPatch,var,ifl)
           ELSE ! defensive coding
             CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
           END IF ! minj
-#else
-          IF ( pRegion%mixtInput%flowModel == FLOW_EULER ) THEN 
-            CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
-	  ELSE
-	    tb = pPatch%mixt%vals(BCDAT_INJECT_TEMP,dist*ifl)
-	    
-	    RFLU_GetConstrValue = tinj
-	  END IF ! pRegion%mixtInput%flowModel
-#endif	  	  
         CASE DEFAULT ! defensive coding
           CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
       END SELECT ! pPatch%bcType   

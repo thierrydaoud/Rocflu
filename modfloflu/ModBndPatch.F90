@@ -144,14 +144,6 @@ MODULE ModBndPatch
     REAL(RFREAL), DIMENSION(:,:), POINTER :: cvMixt
     REAL(RFREAL), DIMENSION(:,:), POINTER :: cf,cmom,forceCoeffs,forceVacCoeffs,momentCoeffs    
     REAL(RFREAL), DIMENSION(:), POINTER :: massCoeffs
-#ifdef GENX
-    INTEGER :: bFlagInit
-    INTEGER, DIMENSION(:), POINTER :: bFlag,bcFlag,cnstrType,patchNo    
-    REAL(RFREAL), DIMENSION(:), POINTER :: mdotAlp,pf,qc,qr,rhofAlp,tbAlp, & 
-                                           tempf,tflmAlp  
-    REAL(RFREAL), DIMENSION(:,:), POINTER :: duAlp,nfAlp,rhofvfAlp,tracf, & 
-                                             xyz
-#endif
 #ifndef NO_TECPLOT
     REAL(RFREAL), DIMENSION(:,:), POINTER :: varFaceTEC,varVertTEC
 #endif   

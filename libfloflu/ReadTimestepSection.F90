@@ -150,23 +150,13 @@ SUBROUTINE ReadTimestepSection( global )
   IF (defined( 8)) global%writeIter     = MAX(1,INT(ABS(vals(8))+0.5_RFREAL))
   IF (defined( 9)) global%printIter     = MAX(1,INT(ABS(vals(9))+0.5_RFREAL))
 
-#ifndef GENX
   IF (defined(10)) global%timeStamp     = ABS(vals(10))
-#else
-  IF (defined(10)) global%timeStampPrep = ABS(vals(10))
-#endif
 
-#ifndef GENX
   IF ( defined(10) .EQV. .TRUE. ) THEN
     global%currentTime = global%timeStamp
   ELSE 
     global%currentTime = 0.0_RFREAL
   END IF ! defined
-#else
-  IF ( defined(10) .EQV. .FALSE. ) THEN 
-    global%timeStampPrep = 0.0_RFREAL
-  END IF ! defined
-#endif
 
   IF ( defined(11) .EQV. .TRUE. ) THEN 
     global%currentIter = INT(ABS(vals(11))+0.5_RFREAL)

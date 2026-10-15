@@ -185,7 +185,6 @@ SUBROUTINE PLAG_RFLU_ReadSolutionASCII(pRegion)
    
   READ(iFile,'(E23.16)') currentTime 
 
-#ifndef GENX  
   IF ( global%flowType == FLOW_UNSTEADY ) THEN
     IF ( global%currentTime < 0.0_RFREAL ) THEN
       global%currentTime = currentTime
@@ -197,7 +196,6 @@ SUBROUTINE PLAG_RFLU_ReadSolutionASCII(pRegion)
       END IF ! global%currentTime 
     END IF ! global%currentTime
   END IF ! global%flowType  
-#endif  
 
 ! ==============================================================================
 ! Dimensions

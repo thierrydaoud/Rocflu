@@ -104,9 +104,6 @@ SUBROUTINE RFLU_DeallocateMemoryWrapper(pRegion)
                                   SPEC_RFLU_DeallocateMemoryEEv
 #endif
 
-#ifdef TURB
-  USE ModInterfacesTurbulence, ONLY: TURB_RFLU_DeallocateMemory
-#endif
 
   IMPLICIT NONE
 
@@ -175,13 +172,6 @@ SUBROUTINE RFLU_DeallocateMemoryWrapper(pRegion)
   END IF ! plagUsed
 #endif
 
-#ifdef RADI
-! ==============================================================================
-! Radiation
-! ==============================================================================
-
-  CALL RADI_DeallocateMemory(pRegion)
-#endif
 
 #ifdef SPEC
 ! ==============================================================================
@@ -194,16 +184,6 @@ SUBROUTINE RFLU_DeallocateMemoryWrapper(pRegion)
   END IF ! global%specUsed
 #endif
 
-#ifdef TURB
-! ==============================================================================
-! Turbulence
-! ==============================================================================
-
-  IF ( (pRegion%mixtInput%flowModel == FLOW_NAVST) .AND. &
-       (pRegion%mixtInput%turbModel /= TURB_MODEL_NONE) ) THEN
-    CALL TURB_RFLU_DeallocateMemory(pRegion)
-  END IF ! pRegion%mixtInput%flowModel
-#endif
 
 #ifdef PERI
   IF ( pRegion%periInput%flowKind /= OFF ) THEN

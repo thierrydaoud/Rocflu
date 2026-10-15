@@ -126,9 +126,6 @@ SUBROUTINE RFLU_CheckValidity(pRegion)
 
   nLocs = 0
 
-#ifdef ROCPROF
-  CALL FPROFILER_BEGINS("RFLU::CheckValidity")
-#endif
 
 ! ******************************************************************************
 ! Loop over cells and check for positivity
@@ -228,9 +225,6 @@ SUBROUTINE RFLU_CheckValidity(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-  CALL FPROFILER_ENDS("RFLU::CheckValidity")
-#endif
 
   CALL DeregisterFunction( global )
 

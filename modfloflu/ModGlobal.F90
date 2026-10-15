@@ -93,12 +93,6 @@ MODULE ModGlobal
     INTEGER :: gridFormat,solutFormat
     INTEGER :: gridSource,initFlowFlag
 
-#ifdef GENX
-    CHARACTER(CHRLEN) :: outDirHDF
-#ifdef PLAG
-    CHARACTER(CHRLEN) :: winp
-#endif
-#endif
 
 ! Subbu - Global variable declaration cyldet case
     REAL(RFREAL), DIMENSION(29) :: timingSubRout
@@ -270,10 +264,6 @@ MODULE ModGlobal
 !   Statistics
 ! ==============================================================================
 
-#ifdef GENX
-    CHARACTER(CHRLEN), POINTER :: mixtStatNm(:,:,:), turbStatNm(:,:,:), &
-                                  plagStatNm(:,:,:), peulStatNm(:,:,:)
-#endif
     INTEGER :: doStat,reStat,mixtNStat,turbNStat,plagNStat,peulNStat,statBc
     INTEGER, POINTER :: mixtStatId(:,:),mixtStatCode(:,:,:)
     INTEGER, POINTER :: turbStatId(:,:),turbStatCode(:,:,:)
@@ -287,9 +277,6 @@ MODULE ModGlobal
 ! ==============================================================================
 
     INTEGER :: checkLevel,verbLevel,warnCounter
-#ifdef GENX
-    INTEGER :: verbLevelCOM
-#endif
 
 ! ==============================================================================
 !   Transformation of grid and solution, enforcement of patch coordinates

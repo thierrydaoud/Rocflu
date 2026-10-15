@@ -298,12 +298,6 @@ MODULE ModError
   INTEGER, PARAMETER :: ERR_OLES_STENCIL     = 1200, & ! Optimal LES
                         ERR_OLES_FLOWMODEL   = 1201
 
-#ifdef GENX
-  INTEGER, PARAMETER :: ERR_BCCOUPLED_NONE   = 1300, & ! GENx
-                        ERR_MDOT_NEGATIVE    = 1301, &
-                        ERR_TFLM_NEGATIVE    = 1302, & 
-                        ERR_TB_NEGATIVE      = 1303
-#endif
 
   INTEGER, PARAMETER :: ERR_NDIMENS_INVALID  = 1400, & ! Grid conversion
                         ERR_NZONES_INVALID   = 1401, &
@@ -987,16 +981,6 @@ MODULE ModError
         CASE (ERR_OLES_FLOWMODEL)
           message = 'Optimal LES approach needs Navier-Stokes flow model.'
 
-#ifdef GENX
-        CASE (ERR_BCCOUPLED_NONE)
-          message = 'No coupled boundaries defined.'
-        CASE (ERR_MDOT_NEGATIVE)
-          message = 'Received negative mass flux on burning patch.'
-        CASE (ERR_TFLM_NEGATIVE)
-          message = 'Received negative flame temperature on burning patch.'
-        CASE (ERR_TB_NEGATIVE)
-          message = 'Received negative temperature on non-burning patch.'         
-#endif
 
         CASE (ERR_NDIMENS_INVALID)
           message = 'Number of dimensions invalid.'

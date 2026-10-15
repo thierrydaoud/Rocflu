@@ -71,36 +71,21 @@
 !
 ! ******************************************************************************
 
-#ifdef GENX
-SUBROUTINE RFLU_FlowSolver(globalGenx,timeSystem,dTimeSystem,genxHandleBc, & 
-                           genxHandleGm)
-#else
 SUBROUTINE RFLU_FlowSolver(dTimeSystem,dIterSystem,levels)
-#endif
 
   USE ModDataTypes
-#ifdef GENX
-  USE ModGenx, ONLY: t_globalGenx
-#endif  
   USE ModDataStruct, ONLY: t_level,t_region
   USE ModGlobal, ONLY: t_global
   USE ModError
   USE ModMPI
   USE ModParameters
   
-#ifdef GENX
-  USE RFLU_ModGeometry
-  USE RFLU_ModGENXTools, ONLY: RFLU_GENX_InitBFLAG
-#endif   
 
 #ifdef PETSC
   USE RFLU_ModNewtonKrylov, ONLY: RFLU_NK_TimeStepping
 #endif
   
   USE ModInterfaces, ONLY: RFLU_TimeStepping
-#ifdef GENX
-  USE ModInterfaces, ONLY: RFLU_GetBoundaryValues,RFLU_PutBoundaryValuesAlpha
-#endif
 
   IMPLICIT NONE
 
@@ -108,26 +93,15 @@ SUBROUTINE RFLU_FlowSolver(dTimeSystem,dIterSystem,levels)
 ! Arguments
 ! ******************************************************************************
 
-#ifdef GENX
-  INTEGER :: dIterSystem
-  INTEGER, INTENT(IN) :: genxHandleBc,genxHandleGm
-  DOUBLE PRECISION, INTENT(IN) :: dTimeSystem,timeSystem
-  TYPE(t_globalGenx), POINTER :: globalGenx
-#else
   INTEGER, INTENT(IN) :: dIterSystem
   REAL(RFREAL), INTENT(IN) :: dTimeSystem
   TYPE(t_level), POINTER :: levels(:)  
-#endif
 
 ! ******************************************************************************
 ! Locals
 ! ******************************************************************************
 
   CHARACTER(CHRLEN) :: RCSIdentString
-#ifdef GENX  
-  INTEGER :: iReg
-  LOGICAL :: corrFlag  
-#endif
   TYPE(t_region), POINTER :: pRegion,regions(:)
   TYPE(t_global), POINTER :: global
 
@@ -137,34 +111,13 @@ SUBROUTINE RFLU_FlowSolver(dTimeSystem,dIterSystem,levels)
 
   RCSIdentString = '$RCSfile: RFLU_FlowSolver.F90,v $ $Revision: 1.1.1.1 $'
 
-#ifdef GENX
-  global  => globalGenx%global
-  regions => globalGenx%levels(1)%regions
-
-  IF ( (global%currentTime-timeSystem) > 1.0E-10_RFREAL ) THEN
-    corrFlag = .TRUE.
-  ELSE 
-    corrFlag = .FALSE.    
-  END IF ! global 
-
-  global%currentTime  = timeSystem
-  global%timeStamp    = timeSystem
-  
-  global%genxHandleBc = genxHandleBc
-  global%genxHandleGm = genxHandleGm
-  dIterSystem         = 0
-#else
   global  => levels(1)%regions(1)%global
   regions => levels(1)%regions  
-#endif
 
   global%dTimeSystem = dTimeSystem
 
   CALL RegisterFunction(global,'RFLU_FlowSolver',__FILE__)
 
-#ifdef ROCPROF
-  CALL FPROFILER_BEGINS("RFLU::FlowSolver")
-#endif
 
 ! ******************************************************************************
 ! Start time stepping
@@ -182,36 +135,6 @@ SUBROUTINE RFLU_FlowSolver(dTimeSystem,dIterSystem,levels)
     END IF ! global%flowType
   END IF ! global%myProcid
 
-#ifdef GENX
-! ==============================================================================
-! Get current boundary condition values for computing time steps
-! ==============================================================================
-
-  DO iReg = 1,global%nRegionsLocal
-    pRegion => regions(iReg)
-    CALL COM_call_function(global%genxHandleBc,2,0.0_RFREAL,1)
-    CALL RFLU_PutBoundaryValuesAlpha(pRegion)
-    CALL COM_call_function(global%genxHandleBc,2,0.0_RFREAL,2)
-    CALL RFLU_GENX_InitBFLAG(pRegion)
-    CALL RFLU_GetBoundaryValues(pRegion)
-  END DO ! iReg 
-
-! ==============================================================================
-! Update geometry if starting corrector step
-! ==============================================================================
-
-  IF ( corrFlag .EQV. .TRUE. ) THEN  
-    IF ( global%myProcid == MASTERPROC .AND. & 
-         global%verbLevel > VERBOSE_NONE ) THEN 
-      WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,'Starting corrector step.'
-    END IF ! global
-
-    DO iReg = 1,global%nRegionsLocal
-      pRegion => regions(iReg)
-      CALL RFLU_BuildGeometry(pRegion)    
-    END DO ! iReg 
-  END IF ! corrFlag
-#endif
 
 ! ******************************************************************************
 ! Call time-stepping routines
@@ -234,9 +157,6 @@ SUBROUTINE RFLU_FlowSolver(dTimeSystem,dIterSystem,levels)
 ! End
 ! ****************************************************************************** 
   
-#ifdef ROCPROF
-  CALL FPROFILER_ENDS("RFLU::FlowSolver")
-#endif
   
   CALL DeregisterFunction(global)
 

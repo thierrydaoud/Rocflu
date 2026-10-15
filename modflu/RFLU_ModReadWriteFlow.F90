@@ -2021,10 +2021,6 @@ MODULE RFLU_ModReadWriteFlow
 
   SUBROUTINE RFLU_ReadFlowWrapper(pRegion)
 
-#ifdef GENX
-    USE RFLU_ModGENXIO, ONLY: RFLU_GENX_DecideReadFile, & 
-                              RFLU_GENX_GetDataFlow
-#endif
 
 #ifdef PLAG
     USE ModInterfacesLagrangian, ONLY: PLAG_RFLU_ReadSolutionASCII, &
@@ -2070,9 +2066,6 @@ MODULE RFLU_ModReadWriteFlow
 !   Read mixture solution files
 ! ******************************************************************************
 
-#ifdef GENX
-    IF ( RFLU_GENX_DecideReadFile(global) .EQV. .FALSE. ) THEN 
-#endif
       IF ( global%solutFormat == FORMAT_ASCII ) THEN
         CALL RFLU_ReadFlowASCII(pRegion)
 !      ELSE IF ( global%solutFormat == FORMAT_BINARY ) THEN
@@ -2092,11 +2085,6 @@ MODULE RFLU_ModReadWriteFlow
       ELSE
         CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
       END IF ! global%solutFormat
-#ifdef GENX
-    ELSE 
-      CALL RFLU_GENX_GetDataFlow(pRegion) 
-    END IF ! RFLU_GENX_DecideReadFile         
-#endif
 
 ! ******************************************************************************
 !   Read physical module solution files
@@ -4099,10 +4087,6 @@ END IF
 
   SUBROUTINE RFLU_WriteFlowWrapper(pRegion)
 
-#ifdef GENX
-    USE RFLU_ModGENXIO, ONLY: RFLU_GENX_DecideWriteFile, & 
-                              RFLU_GENX_PutDataFlow
-#endif
 
 #ifdef PLAG
     USE ModInterfacesLagrangian, ONLY: PLAG_RFLU_WriteSolutionASCII, &
@@ -4152,9 +4136,6 @@ END IF
 !   Write mixture solution files
 ! ******************************************************************************
 
-#ifdef GENX
-    IF ( RFLU_GENX_DecideWriteFile(global) .EQV. .FALSE. ) THEN 
-#endif
 
 ! TLJ - this block sometimes gives me trouble
 #ifdef FOLDER   
@@ -4190,11 +4171,6 @@ END IF
       ELSE
         CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
       END IF ! global%solutFormat
-#ifdef GENX
-    ELSE 
-      CALL RFLU_GENX_PutDataFlow(pRegion) 
-    END IF ! RFLU_GENX_DecideReadFile         
-#endif
 
 ! ******************************************************************************
 !   Write physical module solution files

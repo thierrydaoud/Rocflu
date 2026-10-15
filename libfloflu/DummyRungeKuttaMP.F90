@@ -108,9 +108,6 @@ SUBROUTINE DummyRungeKuttaMP( regions )
   USE ModInterfaces, ONLY : RFLU_MinimumTimeStepImpulse, &
                             RFLU_TimeStepImpulse
 
-#ifdef GENX
-  USE RFLU_ModGENXTools, ONLY: RFLU_GENX_InitBFLAG
-#endif
 #ifdef PLAG
   USE PLAG_RFLU_ModComm
 #endif

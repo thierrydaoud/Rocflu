@@ -651,10 +651,6 @@ MODULE RFLU_ModReadWriteGridSpeeds
 
   SUBROUTINE RFLU_ReadGridSpeedsWrapper(pRegion)
   
-#ifdef GENX
-    USE RFLU_ModGENXIO, ONLY: RFLU_GENX_GetDataGSpeedsSurf, & 
-                              RFLU_GENX_GetDataGSpeedsVol
-#endif  
   
     IMPLICIT NONE
   
@@ -686,7 +682,6 @@ MODULE RFLU_ModReadWriteGridSpeeds
 !   Read grid speed files
 ! ******************************************************************************
 
-#ifndef GENX
     IF ( global%gridFormat == FORMAT_ASCII ) THEN 
       CALL RFLU_ReadGridSpeedsASCII(pRegion)
 !    ELSE IF ( global%gridFormat == FORMAT_BINARY ) THEN
@@ -699,10 +694,6 @@ MODULE RFLU_ModReadWriteGridSpeeds
     ELSE  
       CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
     END IF ! global%gridFormat
-#else
-    CALL RFLU_GENX_GetDataGSpeedsSurf(pRegion)
-    CALL RFLU_GENX_GetDataGSpeedsVol(pRegion)    
-#endif
     
 ! ******************************************************************************
 !   End
@@ -1118,11 +1109,6 @@ MODULE RFLU_ModReadWriteGridSpeeds
 
   SUBROUTINE RFLU_WriteGridSpeedsWrapper(pRegion)
 
-#ifdef GENX
-    USE RFLU_ModGENXIO, ONLY: RFLU_GENX_DecideWriteFile, & 
-                              RFLU_GENX_PutDataGSpeedsSurf, & 
-                              RFLU_GENX_PutDataGSpeedsVol
-#endif
 
     IMPLICIT NONE
   
@@ -1154,9 +1140,6 @@ MODULE RFLU_ModReadWriteGridSpeeds
 !   Read grid speed file
 ! ******************************************************************************
 
-#ifdef GENX
-    IF ( RFLU_GENX_DecideWriteFile(global) .EQV. .FALSE. ) THEN 
-#endif
       IF ( global%gridFormat == FORMAT_ASCII ) THEN 
         CALL RFLU_WriteGridSpeedsASCII(pRegion)
 !      ELSE IF ( global%gridFormat == FORMAT_BINARY ) THEN
@@ -1169,12 +1152,6 @@ MODULE RFLU_ModReadWriteGridSpeeds
       ELSE  
         CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
       END IF ! global%gridFormat
-#ifdef GENX
-    ELSE 
-      CALL RFLU_GENX_PutDataGSpeedsSurf(pRegion)
-      CALL RFLU_GENX_PutDataGSpeedsVol(pRegion) 
-    END IF ! RFLU_GENX_DecideReadFile         
-#endif
     
 ! ******************************************************************************
 !   End

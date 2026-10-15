@@ -171,9 +171,6 @@ MODULE RFLU_ModDifferentiationFaces
 
     CALL RegisterFunction(global,'RFLU_ComputeGradFaces',__FILE__)
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::ComputeGradFaces")
-#endif
 
     IF ( (iEndVar  - iBegVar) /= (iEndGrad - iBegGrad) ) THEN 
       CALL ErrorStop(global,ERR_GRAD_MISMATCH,__LINE__)
@@ -365,9 +362,6 @@ MODULE RFLU_ModDifferentiationFaces
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::ComputeGradFaces")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -452,9 +446,6 @@ MODULE RFLU_ModDifferentiationFaces
 
     CALL RegisterFunction(global,'RFLU_ComputeGradFacesConstr',__FILE__)
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::ComputeGradFacesConstr")
-#endif
 
     IF ( (iEndVar  - iBegVar) /= (iEndGrad - iBegGrad) ) THEN 
       CALL ErrorStop(global,ERR_GRAD_MISMATCH,__LINE__)
@@ -816,9 +807,6 @@ MODULE RFLU_ModDifferentiationFaces
 !    END DO ! iGrad   
 ! END DEBUG
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::ComputeGradFacesConstr")
-#endif
 
     CALL DeregisterFunction(global)
 

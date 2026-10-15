@@ -209,15 +209,10 @@ SUBROUTINE RFLU_InitInputValues(regions)
 !   Grid motion
 ! ==============================================================================
 
-#ifndef GENX
     pMixtInput%moveGrid      = .FALSE.
     pMixtInput%moveGridType  = MOVEGRID_TYPE_DISP
     pMixtInput%moveGridNIter = 4
     pMixtInput%moveGridSFact = 0.25_RFREAL
-#else
-    pMixtInput%moveGrid      = .TRUE.
-    pMixtInput%moveGridType  = MOVEGRID_TYPE_GENX   
-#endif
 
 ! ==============================================================================
 !   Viscosity model. NOTE reference viscosity set to crazy value so can detect

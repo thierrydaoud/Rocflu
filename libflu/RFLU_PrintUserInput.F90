@@ -92,9 +92,6 @@ SUBROUTINE RFLU_PrintUserInput(regions)
   USE ModInterfacesSpecies, ONLY: SPEC_PrintUserInput
 #endif
 
-#ifdef TURB
-  USE ModInterfacesTurbulence, ONLY: TURB_PrintUserInput
-#endif
 
 #ifdef INRT
   USE ModInterfacesInteract, ONLY: INRT_PrintUserInput, &
@@ -846,10 +843,6 @@ SUBROUTINE RFLU_PrintUserInput(regions)
 
   IF ( pMixtInput%flowModel == FLOW_NAVST ) THEN
     IF ( pMixtInput%turbModel /= TURB_MODEL_NONE ) THEN
-#ifdef TURB
-      WRITE(STDOUT,'(A,5X,A)') SOLVER_NAME,'Turbulence module: Active'
-      CALL TURB_PrintUserInput(regions(iReg))
-#endif
     ELSE
       WRITE(STDOUT,'(A,5X,A)') SOLVER_NAME,'Turbulence module: Not active'
     END IF ! MixtInput%turbModel
@@ -880,10 +873,6 @@ SUBROUTINE RFLU_PrintUserInput(regions)
 ! Radiation --------------------------------------------------------------------
 
   IF ( pMixtInput%radiUsed .EQV. .TRUE. ) THEN
-#ifdef RADI
-    WRITE(STDOUT,'(A,5X,A)') SOLVER_NAME,'Radiation module: Active'
-    CALL RADI_PrintUserInput(regions(iReg))
-#endif
   ELSE
     WRITE(STDOUT,'(A,5X,A)') SOLVER_NAME,'Radiation module: Not active'
   END IF ! pMixtInput%radiUsed

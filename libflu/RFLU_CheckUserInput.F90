@@ -539,49 +539,11 @@ SUBROUTINE RFLU_CheckUserInput(regions)
                                      'grid motion type. Overriding user input.'
         END IF ! iReg
 
-#ifndef GENX
         pMixtInput%moveGridType = MOVEGRID_TYPE_DISP
-#else
-        pMixtInput%moveGridType = MOVEGRID_TYPE_GENX
-#endif
       END IF ! pMixtInput%moveGridType
 
-#ifdef GENX
-      IF ( pMixtInput%moveGridType /= MOVEGRID_TYPE_GENX ) THEN
-        global%warnCounter = global%warnCounter + 1
-
-        IF ( iReg == LBOUND(regions,1) .AND.  &
-             global%myProcid == MASTERPROC .AND. &
-             global%verbLevel > VERBOSE_NONE ) THEN
-          WRITE(STDOUT,'(A,3X,A,A)') SOLVER_NAME, &
-                                     '*** WARNING *** Invalid input for ', &
-                                     'grid motion type. Overriding user input.'
-        END IF ! iReg
-
-        pMixtInput%moveGridType = MOVEGRID_TYPE_GENX
-      END IF ! pMixtInput%moveGridType
-#endif
     END IF ! pMixtInput%moveGrid
 
-#ifdef GENX
-! ==============================================================================
-!   Check for valid input for grid motion within coupled calculations
-! ==============================================================================
-
-    IF ( pMixtInput%moveGrid .EQV. .FALSE. ) THEN
-      global%warnCounter = global%warnCounter + 1
-
-      IF ( iReg == LBOUND(regions,1) .AND. &
-           global%myProcid == MASTERPROC .AND. &
-           global%verbLevel > VERBOSE_NONE ) THEN
-        WRITE(STDOUT,'(A,3X,A,A)') SOLVER_NAME, &
-                                   '*** WARNING *** Invalid input for ', &
-                                   'grid motion. Overriding user input.'
-      END IF ! global%myProcid
-
-      pMixtInput%moveGrid = .TRUE.
-    END IF ! pMixtInput
-#endif
 
 ! ==============================================================================
 !   Check for valid input for OLES computations

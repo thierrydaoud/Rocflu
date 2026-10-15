@@ -86,13 +86,6 @@ SUBROUTINE rflumap(caseString,mapOption,nRegions,nProcs,verbLevel)
   USE RFLU_ModDimensions
   USE RFLU_ModRegionMapping
   
-#ifdef GENX
-  USE RFLU_ModGENXAdmin, ONLY: RFLU_GENX_ReadCtrlFile
-  USE RFLU_ModGENXIO, ONLY: RFLU_GENX_BuildRocinPaneStrings, & 
-                            RFLU_GENX_CloseRocinCtrlFiles, &
-                            RFLU_GENX_OpenRocinCtrlFiles, & 
-                            RFLU_GENX_WriteRocinCtrlFiles
-#endif  
   
   USE ModInterfaces, ONLY: RFLU_BuildDataStruct, &
                            RFLU_CreateGrid, &
@@ -150,9 +143,6 @@ SUBROUTINE rflumap(caseString,mapOption,nRegions,nProcs,verbLevel)
     
   CALL RFLU_InitGlobal(casename,verbLevel,CRAZY_VALUE_INT,global)
 
-#ifdef GENX
-  CALL RFLU_GENX_ReadCtrlFile(global)
-#endif
 
 ! ******************************************************************************
 ! Print header
@@ -188,9 +178,6 @@ SUBROUTINE rflumap(caseString,mapOption,nRegions,nProcs,verbLevel)
   ELSE IF ( mapOption == MAP_FINAL ) THEN
     CALL RFLU_ReadRegionMappingFile(global,MAPFILE_READMODE_PEEK,-1)
     
-#ifdef GENX    
-    CALL RFLU_GENX_OpenRocinCtrlFiles(global)
-#endif    
     
 ! ------------------------------------------------------------------------------
 !   Loop over processes
@@ -218,25 +205,14 @@ SUBROUTINE rflumap(caseString,mapOption,nRegions,nProcs,verbLevel)
         CALL RFLU_ReadDimensions(pRegion)
         CALL RFLU_CreateGrid(pRegion)
 
-#ifdef GENX   
-        CALL RFLU_GENX_BuildRocinPaneStrings(pRegion,paneStringVol, & 
-                                             paneStringSurf)
-#endif        
         
         CALL RFLU_DestroyGrid(pRegion)
       END DO ! iReg                            
                  
-#ifdef GENX    
-      CALL RFLU_GENX_WriteRocinCtrlFiles(global,iProc,paneStringVol, & 
-                                         paneStringSurf)      
-#endif      
 
       CALL RFLU_DestroyRegionMapping(global,MAPTYPE_REG)
     END DO ! iProc        
             
-#ifdef GENX
-    CALL RFLU_GENX_CloseRocinCtrlFiles(global)
-#endif   
 
 ! ==============================================================================
 ! Invalid mapping option

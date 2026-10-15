@@ -125,9 +125,6 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
   global%casename = casename
 
   global%verbLevel = verbLevel
-#ifdef GENX
-  global%verbLevelCOM = 0
-#endif
 
   global%checkLevel = CHECK_HIGH ! Default
 
@@ -291,9 +288,7 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
 
   global%rkScheme = RK_SCHEME_4_CLASSICAL
 
-#ifndef GENX
   global%timeStamp = 0.0E+0_RFREAL
-#endif
 
   global%restartFromScratch = .FALSE.
 
@@ -560,12 +555,10 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
 ! GENX; if GENX is defined, winName is set in rocflu_load_module.F90
 ! ==============================================================================
 
-#ifndef GENX
   global%surfWinName      = ''
   global%surfWinNameInput = ''
   global%volWinName       = ''
   global%volWinNameInput  = ''
-#endif
 
 ! The following will be overwritten by RFLU_ReadGENXControlFile
 

@@ -458,21 +458,7 @@ MODULE PLAG_ModDimensions
     iFile = IF_DIMS
 
     IF ( global%flowType == FLOW_UNSTEADY ) THEN 
-#ifndef GENX
       currentTime = global%currentTime
-#else
-      IF ( global%timeStamp > 0.0_RFREAL ) THEN
-        global%warnCounter = global%warnCounter + 1    
-
-        IF ( global%myProcid == MASTERPROC .AND. &
-             global%verbLevel > VERBOSE_NONE ) THEN        
-          WRITE(STDOUT,'(A,3X,A,1X,A)') SOLVER_NAME,'*** WARNING ***', & 
-                                        'Hard-code - read file from time zero.'
-        END IF ! global%myProcid
-      END IF ! global%timeStamp
-
-      currentTime = 0.0_RFREAL ! Hard-code for GENX restart
-#endif        
       CALL BuildFileNameUnsteady(global,FILEDEST_INDIR,'.pdim', & 
                                  pRegion%iRegionGlobal,currentTime, & 
                                  iFileName)
@@ -860,21 +846,7 @@ MODULE PLAG_ModDimensions
     iFile = IF_DIMS
 
     IF ( global%flowType == FLOW_UNSTEADY ) THEN 
-#ifndef GENX
       currentTime = global%currentTime
-#else
-      IF ( global%timeStamp > 0.0_RFREAL ) THEN
-        global%warnCounter = global%warnCounter + 1    
-
-        IF ( global%myProcid == MASTERPROC .AND. &
-             global%verbLevel > VERBOSE_NONE ) THEN        
-          WRITE(STDOUT,'(A,3X,A,1X,A)') SOLVER_NAME,'*** WARNING ***', & 
-                                        'Hard-code - read file from time zero.'
-        END IF ! global%myProcid
-      END IF ! global%timeStamp
-
-      currentTime = 0.0_RFREAL ! Hard-code for GENX restart
-#endif        
       CALL BuildFileNameUnsteady(global,FILEDEST_INDIR,'.pdim', & 
                                  pRegion%iRegionGlobal,currentTime, & 
                                  iFileName)

@@ -364,9 +364,6 @@ SUBROUTINE RFLU_ROE_ComputeFluxC1(pRegion)
 
   CALL RegisterFunction(global,'RFLU_ROE_ComputeFluxC1',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::ROE_ComputeFluxC1")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -479,9 +476,6 @@ SUBROUTINE RFLU_ROE_ComputeFluxC1(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::ROE_ComputeFluxC1")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -556,9 +550,6 @@ SUBROUTINE RFLU_ROE_ComputeFluxC2_TCP(pRegion)
 
   CALL RegisterFunction(global,'RFLU_ROE_ComputeFluxC2_TCP',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::ROE_ComputeFluxC2_TCP")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -740,9 +731,6 @@ SUBROUTINE RFLU_ROE_ComputeFluxC2_TCP(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::ROE_ComputeFluxC2_TCP")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -811,9 +799,6 @@ SUBROUTINE RFLU_ROE_ComputeFluxD1_TCP(pRegion)
 
   CALL RegisterFunction(global,'RFLU_ROE_ComputeFluxD1_TCP',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::ROE_ComputeFluxD1_TCP")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -980,9 +965,6 @@ SUBROUTINE RFLU_ROE_ComputeFluxD1_TCP(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::ROE_ComputeFluxD1_TCP")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -1056,9 +1038,6 @@ SUBROUTINE RFLU_ROE_ComputeFluxD2_TCP(pRegion)
 
   CALL RegisterFunction(global,'RFLU_ROE_ComputeFluxD2_TCP',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::ROE_ComputeFluxD2_TCP")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -1271,9 +1250,6 @@ SUBROUTINE RFLU_ROE_ComputeFluxD2_TCP(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::ROE_ComputeFluxD2_TCP")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -1763,9 +1739,6 @@ SUBROUTINE RFLU_ROE_ComputeFlux1_TCP(pRegion)
 
   CALL RegisterFunction(global,'RFLU_ROE_ComputeFlux1_TCP',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::ROE_ComputeFlux1_TCP")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -1984,9 +1957,6 @@ SUBROUTINE RFLU_ROE_ComputeFlux1_TCP(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::ROE_ComputeFlux1_TCP")
-#endif
 
   CALL DeregisterFunction(global)
 
@@ -2607,9 +2577,6 @@ SUBROUTINE RFLU_ROE_ComputeFlux2_TCP(pRegion)
 
   CALL RegisterFunction(global,'RFLU_ROE_ComputeFlux2_TCP',__FILE__)
 
-#ifdef ROCPROF 
-  CALL FPROFILER_BEGINS("RFLU::ROE_ComputeFlux2_TCP")
-#endif
 
 ! ******************************************************************************
 ! Set dimensions and pointers
@@ -2921,9 +2888,6 @@ SUBROUTINE RFLU_ROE_ComputeFlux2_TCP(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF 
-  CALL FPROFILER_ENDS("RFLU::ROE_ComputeFlux2_TCP")
-#endif
 
   CALL DeregisterFunction(global)
 

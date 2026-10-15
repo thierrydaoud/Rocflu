@@ -731,12 +731,10 @@ SUBROUTINE RFLU_NK_TimeStepping(dTimeSystem,dIterSystem,regions)
     IF ( (doPrint .EQV. .TRUE.) .OR. (finished .EQV. .TRUE.) ) THEN
       CALL RFLU_PrintWriteConvergence(global)
       
-#ifndef GENX      
       IF ( moveGrid .EQV. .TRUE. ) THEN
         CALL RFLU_ComputeIntegralValues(regions) 
         CALL WriteTotalMass(regions)
       END IF ! moveGrid
-#endif    
       
       DO iReg = 1,global%nRegionsLocal
         IF ( regions(iReg)%mixtInput%spaceDiscr == DISCR_OPT_LES ) THEN 
@@ -781,15 +779,8 @@ SUBROUTINE RFLU_NK_TimeStepping(dTimeSystem,dIterSystem,regions)
     END IF ! global
 
 ! DEBUG
-#ifdef GENX
-!    CALL RFLU_WriteGridWrapper(pRegion)
-!    CALL RFLU_WriteFlowWrapper(pRegion)
-!    CALL RFLU_ComputeIntegralValues(regions,integ) 
-!    print*,global%myProcid,global%currentTime,'777 777',integ(MAN_INTEG_MASS),integ(MAN_INTEG_VOL)
-#endif
 ! END DEBUG
 
-#ifndef GENX
 ! ==============================================================================
 !   Store flow field (and grid if moving). Write restart info file after 
 !   flow (and grid) files so that should those not be written due to reaching
@@ -853,20 +844,12 @@ SUBROUTINE RFLU_NK_TimeStepping(dTimeSystem,dIterSystem,regions)
       END DO ! iReg
     END IF ! iReg
 #endif
-#endif
 
 ! ==============================================================================
 !   If run finished, update GENX buffers and exit
 ! ==============================================================================
 
     IF ( finished .EQV. .TRUE. ) THEN 
-#ifdef GENX
-       DO iReg = 1,global%nRegionsLocal
-         CALL RFLU_PutBoundaryValues(regions(iReg))
-       END DO ! iReg
-       
-       global%timeStamp = global%currentTime       
-#endif   
 ! DEBUG
        IF ( global%myProcid == 0 ) THEN
          CALL PetscGetTime(time,ierr)

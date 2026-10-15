@@ -338,9 +338,6 @@ MODULE PLAG_RFLU_ModComm
 !   Initialize variables
 ! ******************************************************************************
     
-#ifdef ROCPROF
-  CALL FPROFILER_BEGINS("PLAG_RFLU::PLAG_RFLU_CommDriver")
-#endif
 
     loopCounter = 0
 
@@ -355,9 +352,6 @@ MODULE PLAG_RFLU_ModComm
 !      and exit commLoop if null
 ! ==============================================================================    
 
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::TotalnPclsComm")
-#endif
 
       CALL PLAG_RFLU_TotalnPclsComm(regions)
 
@@ -370,9 +364,6 @@ MODULE PLAG_RFLU_ModComm
 !              global%currentTime,loopCounter,global%nPclsCommTot
 !      END IF ! global%myProcid
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::TotalnPclsComm")
-#endif
 
       IF ( global%nPclsCommTot == 0 ) THEN
         EXIT commLoop
@@ -382,57 +373,36 @@ MODULE PLAG_RFLU_ModComm
 !     Initialize receive counters
 ! ------------------------------------------------------------------------------
  
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::InitRecvCount")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
         CALL PLAG_RFLU_InitRecvCounters(pRegion)
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::InitRecvCount")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Send counters
 ! ------------------------------------------------------------------------------
  
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::ISendCount")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
         CALL PLAG_RFLU_ISendCounters(pRegion)
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::ISendCount")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Copy counters on same processors
 ! ------------------------------------------------------------------------------
  
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::CopyCount")
-#endif
 
       CALL PLAG_RFLU_CopyCounters(regions)
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::CopyCount")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Create and fill send data buffers 
 ! ------------------------------------------------------------------------------
 
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::CreateBuffSend")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
@@ -440,35 +410,23 @@ MODULE PLAG_RFLU_ModComm
         CALL PLAG_RFLU_LoadBuffersSend(pRegion)
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::CreateBuffSend")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Receive counters 
 !      Note: separate from clear requests due MPI issues on uP
 ! ------------------------------------------------------------------------------
 
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::RecvCount")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
         CALL PLAG_RFLU_RecvCounters(pRegion)
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::RecvCount")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Clear requests and create receive data buffers 
 ! ------------------------------------------------------------------------------
 
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::CreateBuffRecv")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
@@ -476,48 +434,30 @@ MODULE PLAG_RFLU_ModComm
         CALL PLAG_RFLU_CreateBuffersRecv(pRegion)
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::CreateBuffRecv")
-#endif
 
 ! ------------------------------------------------------------------------------
 !    Send communication buffers
 ! ------------------------------------------------------------------------------
 
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::ISendData")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
         CALL PLAG_RFLU_ISendData(pRegion)
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::ISendData")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Communicate data buffers for borders on same processor
 ! ------------------------------------------------------------------------------
  
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::CopyData")
-#endif
 
       CALL PLAG_RFLU_CopyData(regions)
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::CopyData")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Update datastructure after buffers have been sent
 ! ------------------------------------------------------------------------------
 
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::UpdateDataPar")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
@@ -527,51 +467,33 @@ MODULE PLAG_RFLU_ModComm
         END IF ! nPcls
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::UpdateDataPar")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Receive data buffers
 ! ------------------------------------------------------------------------------
 
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::RecvData")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
         CALL PLAG_RFLU_RecvData(pRegion)
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::RecvData")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Clear requests for data buffers
 ! ------------------------------------------------------------------------------
 
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::ClearReqsData")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
         CALL PLAG_RFLU_ClearRequestWrapper(pRegion,REQUEST_TYPE_DATA)
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::ClearReqsData")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Unload receive buffers, deallocate buffers, and reallocate memory
 ! ------------------------------------------------------------------------------
 
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::UnloadBuffRecv")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
@@ -598,26 +520,17 @@ MODULE PLAG_RFLU_ModComm
         CALL PLAG_ReallocMemWrapper(pRegion) 
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::UnloadBuffRecv")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Initialize send counters
 ! ------------------------------------------------------------------------------
 
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::InitSendCountPar")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
         CALL PLAG_RFLU_InitSendCounters(pRegion)
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::InitSendCountPar")
-#endif
 
 ! ------------------------------------------------------------------------------
 !     Continue tracking particles if remaining trajectory distance is not zero
@@ -625,9 +538,6 @@ MODULE PLAG_RFLU_ModComm
 !       iPclEnd greater or equal to iPclBeg.
 ! ------------------------------------------------------------------------------
 
-#ifdef ROCPROF
-      CALL FPROFILER_BEGINS("PLAG_RFLU::FindCellsPar")
-#endif
 
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
@@ -656,9 +566,6 @@ MODULE PLAG_RFLU_ModComm
         END SELECT ! pRegion%plagInput%findPclMethod
       END DO ! iReg
 
-#ifdef ROCPROF
-      CALL FPROFILER_ENDS("PLAG_RFLU::FindCellsPar")
-#endif
 
 ! ==============================================================================
 !     Update loopCounter 
@@ -679,9 +586,6 @@ MODULE PLAG_RFLU_ModComm
 !   Update datastructure after communication is completed
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("PLAG_RFLU::UpdateDataPar2")
-#endif
 
     DO iReg = 1,global%nRegionsLocal
       pRegion => regions(iReg)
@@ -691,9 +595,6 @@ MODULE PLAG_RFLU_ModComm
       END IF ! nPcls
     END DO ! iReg
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("PLAG_RFLU::UpdateDataPar2")
-#endif
 
 ! ******************************************************************************
 ! Print number of particles in each region
@@ -710,9 +611,6 @@ MODULE PLAG_RFLU_ModComm
 !!     END IF ! istage
 !  END DO ! iReg 
   
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("PLAG_RFLU::PLAG_RFLU_CommDriver")
-#endif
 
 ! ******************************************************************************
 !   End

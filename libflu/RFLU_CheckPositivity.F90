@@ -143,9 +143,6 @@ SUBROUTINE RFLU_CheckPositivity(pRegion)
   indVFracE = pRegion%plagInput%indVFracE
 #endif
 
-#ifdef ROCPROF
-  CALL FPROFILER_BEGINS("RFLU::CheckPositivity")
-#endif
 
 ! ******************************************************************************
 ! Loop over cells and check for positivity
@@ -274,9 +271,6 @@ SUBROUTINE RFLU_CheckPositivity(pRegion)
 ! End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-  CALL FPROFILER_ENDS("RFLU::CheckPositivity")
-#endif
 
   CALL DeregisterFunction(global)
 

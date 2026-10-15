@@ -235,9 +235,6 @@ END SUBROUTINE GetStatistics
 SUBROUTINE InitStatistics( regions )
 
   USE ModInterfaces, ONLY : RFLU_ReadStat
-#ifdef GENX
-  USE STAT_RFLU_ModGenxAdmin, ONLY : STAT_RFLU_GenxGetData
-#endif
   IMPLICIT NONE
 
 ! ... parameters
@@ -276,16 +273,9 @@ SUBROUTINE InitStatistics( regions )
 
       IF (global%myProcid==MASTERPROC .AND. global%verbLevel/=VERBOSE_NONE)  &
         WRITE(STDOUT,'(A)') SOLVER_NAME//' Restart statistics ...'
-#ifndef GENX
       DO iReg=1,global%nRegionsLocal
         CALL RFLU_ReadStat( regions(iReg) )
       ENDDO
-#else
-      DO iReg=1,global%nRegionsLocal
-        pRegion => regions(iReg)
-        CALL STAT_RFLU_GenxGetData( pRegion )
-      ENDDO
-#endif
 
 ! - initialize new statistics
 
@@ -534,9 +524,6 @@ END SUBROUTINE StatDataSampling
 
 SUBROUTINE StatMapping( global )
 
-#ifdef GENX
-  USE ModInterfacesStatistics, ONLY : GenxStatNaming
-#endif
 #ifdef PLAG
   USE ModInterfacesLagrangian, ONLY : PLAG_StatMapping
 #endif
@@ -549,9 +536,6 @@ SUBROUTINE StatMapping( global )
   INTEGER  :: l, n
 
 ! ... local variables
-#ifdef GENX
-  CHARACTER(CHRLEN), POINTER :: statName(:,:,:)
-#endif
   INTEGER :: errorFlag
   INTEGER, POINTER  :: statId(:,:), statCode(:,:,:)
 
@@ -570,13 +554,6 @@ SUBROUTINE StatMapping( global )
   statId   => global%mixtStatId
   statCode => global%mixtStatCode
 
-#ifdef GENX
-  ALLOCATE( global%mixtStatNm(2,2,global%mixtNStat),stat=errorFlag )
-  global%error = errorFlag
-  IF (global%error /= 0) CALL ErrorStop( global,ERR_ALLOCATE,__LINE__ )
-
-  statName => global%mixtStatNm
-#endif
 
 ! set mixture mapping ---------------------------------------------------------
 
@@ -587,66 +564,30 @@ SUBROUTINE StatMapping( global )
       ELSE IF (statId(n,l)==1) THEN 
         statCode(n,1,l) = STAT_CV
         statCode(n,2,l) = CV_MIXT_DENS
-#ifdef GENX
-        statName(n,1,l) = 'rho'
-        statName(n,2,l) = 'kg/m^3'
-#endif
       ELSE IF (statId(n,l)==2) THEN 
         statCode(n,1,l) = STAT_CV
         statCode(n,2,l) = CV_MIXT_XVEL
-#ifdef GENX
-        statName(n,1,l) = 'u'
-        statName(n,2,l) = 'm/s'
-#endif
       ELSE IF (statId(n,l)==3) THEN 
         statCode(n,1,l) = STAT_CV 
         statCode(n,2,l) = CV_MIXT_YVEL 
-#ifdef GENX
-        statName(n,1,l) = 'v'
-        statName(n,2,l) = 'm/s'
-#endif
       ELSE IF (statId(n,l)==4) THEN 
         statCode(n,1,l) = STAT_CV 
         statCode(n,2,l) = CV_MIXT_ZVEL 
-#ifdef GENX
-        statName(n,1,l) = 'w'
-        statName(n,2,l) = 'm/s'
-#endif
       ELSE IF (statId(n,l)==5) THEN 
         statCode(n,1,l) = STAT_DV
         statCode(n,2,l) = DV_MIXT_TEMP
-#ifdef GENX
-        statName(n,1,l) = 'T'
-        statName(n,2,l) = 'K'
-#endif
       ELSE IF (statId(n,l)==6) THEN 
         statCode(n,1,l) = STAT_DV
         statCode(n,2,l) = DV_MIXT_PRES
-#ifdef GENX
-        statName(n,1,l) = 'p'
-        statName(n,2,l) = 'N/m^2'
-#endif
       ELSE IF (statId(n,l)==7) THEN 
         statCode(n,1,l) = STAT_DV
         statCode(n,2,l) = DV_MIXT_SOUN
-#ifdef GENX
-        statName(n,1,l) = 'c'
-        statName(n,2,l) = 'm/s'
-#endif
       ELSE IF (statId(n,l)==8) THEN 
         statCode(n,1,l) = STAT_TV
         statCode(n,2,l) = TV_MIXT_MUEL
-#ifdef GENX
-        statName(n,1,l) = 'mul'
-        statName(n,2,l) = 'kg/ms'
-#endif
       ELSE IF (statId(n,l)==9) THEN 
         statCode(n,1,l) = STAT_TV
         statCode(n,2,l) = TV_MIXT_TCOL
-#ifdef GENX
-        statName(n,1,l) = 'tcol'
-        statName(n,2,l) = 'kg m/Ks^3'
-#endif
       ELSE
         CALL ErrorStop( global,ERR_STATS_INDEXING,__LINE__, &
                         'mixture index out of range.' ) 
@@ -654,11 +595,6 @@ SUBROUTINE StatMapping( global )
     ENDDO
   ENDDO
 
-#ifdef GENX
-! defined names and units of mixture statistics
-
-  CALL GenxStatNaming( global, FTYPE_MIXT )
-#endif
 
 111 CONTINUE
 

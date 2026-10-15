@@ -205,16 +205,7 @@ SUBROUTINE RFLU_TimeStepViscous(pRegion)
     vc = 0.5_RFREAL*((u1+u2)*nx + (v1+v2)*ny + (w1+w2)*nz)
     as = 0.5_RFREAL*(a1+a2)
 
-#ifdef TURB
-    IF ( turbModel == ACTIVE ) THEN
-      fmue = 0.5_RFREAL*(pTv(TV_MIXT_MUEL,c1) + pTv(TV_MIXT_MUEL,c2))/prLam  & 
-           + 0.5*RFREAL*(pTv(TV_MIXT_MUET,c1) + pTv(TV_MIXT_MUET,c2))/prTurb
-    ELSE 
-      fmue = 0.5_RFREAL*(pTv(TV_MIXT_MUEL,c1) + pTv(TV_MIXT_MUEL,c2))/prLam
-    END IF ! turbModel
-#else
     fmue = 0.5_RFREAL*(pTv(TV_MIXT_MUEL,c1) + pTv(TV_MIXT_MUEL,c2))/prLam
-#endif      
 
     srad = (ABS(vc - fs) + as)*nm & 
          + 4.0_RFREAL*fmue/(0.5_RFREAL*(r1 + r2))*nm/dn
@@ -286,15 +277,7 @@ SUBROUTINE RFLU_TimeStepViscous(pRegion)
             a1 = pDv(DV_MIXT_SOUN,c1)                        
           END IF ! minj
                   
-#ifdef TURB
-          IF ( turbModel == ACTIVE ) THEN
-            fmue = pTv(TV_MIXT_MUEL,c1)/prLam + pTv(TV_MIXT_MUET,c1)/prTurb
-          ELSE 
-            fmue = pTv(TV_MIXT_MUEL,c1)/prLam
-          END IF ! turbModel
-#else
           fmue = pTv(TV_MIXT_MUEL,c1)/prLam
-#endif  
                   
           pRegion%dt(c1) = pRegion%dt(c1) & 
                          + (ABS(vc - fsu) + a1)*nm + 4.0_RFREAL*fmue/r1*nm/dn
@@ -332,15 +315,7 @@ SUBROUTINE RFLU_TimeStepViscous(pRegion)
 
           vc = u1*nx + v1*ny + w1*nz
 
-#ifdef TURB
-          IF ( turbModel == ACTIVE ) THEN
-            fmue = pTv(TV_MIXT_MUEL,c1)/prLam + pTv(TV_MIXT_MUET,c1)/prTurb
-          ELSE 
-            fmue = pTv(TV_MIXT_MUEL,c1)/prLam
-          END IF ! turbModel
-#else
           fmue = pTv(TV_MIXT_MUEL,c1)/prLam
-#endif  
 
           pRegion%dt(c1) = pRegion%dt(c1) & 
                          + (ABS(vc - fsu) + a1)*nm + 4.0_RFREAL*fmue/r1*nm/dn

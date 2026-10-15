@@ -82,13 +82,6 @@ MODULE ModInterfacesStatistics
     TYPE(t_global), POINTER :: global
   END SUBROUTINE ReadStatisticSection
 
-#ifdef GENX
-  SUBROUTINE GenxStatNaming( global, fluidType )
-    USE ModGlobal, ONLY     : t_global
-    TYPE(t_global), POINTER :: global
-    INTEGER :: fluidType
-  END SUBROUTINE GenxStatNaming
-#endif
 #endif
 
   END INTERFACE

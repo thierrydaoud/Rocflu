@@ -824,12 +824,6 @@ MODULE ModParameters
                         IF_PROBE      = 50, &  ! + global%nProbes-1 channels
                         IF_ISP        = 51, &  ! Specific Impulse
                         IF_VELACCEL   = 52     ! moving reference frame
-#ifdef PEUL
-  INTEGER, PARAMETER :: IF_PEUL_SOLUT = 73
-#endif
-#ifdef TURB
-  INTEGER, PARAMETER :: IF_TURB_SOLUT = 81
-#endif
 #ifdef PLAG
   INTEGER, PARAMETER :: IF_PLAG_SURF_STATS = 90, & ! Surface statistics
                         IF_PLAG_STATS      = 91, & ! Statistics
@@ -1006,11 +1000,7 @@ MODULE ModParameters
 ! Output prefix
 ! ******************************************************************************
 
-#ifdef GENX
-  CHARACTER(5), PARAMETER :: SOLVER_NAME = 'RFLU>'
-#else
   CHARACTER(0), PARAMETER :: SOLVER_NAME = ''
-#endif
 
 END MODULE ModParameters
 

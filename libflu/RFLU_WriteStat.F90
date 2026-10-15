@@ -147,12 +147,6 @@ SUBROUTINE RFLU_WriteStat( region )
 
 ! turbulence NSTAT and ID
 
-#ifdef TURB
-  IF (global%turbNStat > 0) THEN
-    turbStatId(:)=global%turbStatId(1,:)*10+global%turbStatId(2,:)
-    WRITE(IF_STAT,err=10) global%turbNStat,turbStatId
-  ENDIF
-#endif
 
 ! write time averaged variables --------------------------------------------
 
@@ -167,13 +161,6 @@ SUBROUTINE RFLU_WriteStat( region )
     WRITE(IF_STAT,err=10) ((mixttav(l,ijk), ijk=ijkbeg,ijkend), &
                               l=1,global%mixtNStat)
   ENDIF
-#ifdef TURB
-  IF (global%turbNStat > 0) THEN
-    turbtav => region%turb%tav
-    WRITE(IF_STAT,err=10) ((turbtav(l,ijk), ijk=ijkbeg,ijkend), &
-                              l=1,global%turbNStat)
-  ENDIF
-#endif
 
 ! close file ---------------------------------------------------------------
 

@@ -80,10 +80,6 @@ SUBROUTINE RFLU_MoveGridWrapper(regions)
   USE ModMPI
   USE ModParameters
 
-#ifdef GENX
-  USE RFLU_ModGENXTools, ONLY: RFLU_GENX_MoveGrid, &
-                               RFLU_GENX_ConstrainDisp
-#endif
 
   USE ModInterfaces, ONLY: RFLU_MoveGridDisp, & 
                            RFLU_MoveGridXyz
@@ -123,22 +119,10 @@ SUBROUTINE RFLU_MoveGridWrapper(regions)
 ! Call appropriate grid motion routine
 ! ******************************************************************************
 
-#ifdef GENX
-  DO iReg = 1,global%nRegionsLocal
-     pRegion => regions(iReg)
-     IF(global%cnstrCaseRad > 0.0) THEN
-        CALL RFLU_GENX_ConstrainDisp(pRegion)
-     ENDIF
-  END DO ! iReg
-#endif
   IF ( regions(1)%mixtInput%moveGridType == MOVEGRID_TYPE_DISP ) THEN 
     CALL RFLU_MoveGridDisp(regions)  
   ELSE IF ( regions(1)%mixtInput%moveGridType == MOVEGRID_TYPE_XYZ ) THEN 
     CALL RFLU_MoveGridXyz(regions,MOVEGRID_CONTEXT_MOVESMOOTH)
-#ifdef GENX    
-  ELSE IF ( regions(1)%mixtInput%moveGridType == MOVEGRID_TYPE_GENX ) THEN 
-    CALL RFLU_GENX_MoveGrid(regions)
-#endif    
   ELSE 
     CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
   END IF ! regions(1)%mixtInput%moveGridType

@@ -72,11 +72,7 @@
 !
 ! ******************************************************************************
 
-#ifdef GENX
-SUBROUTINE RFLU_ComputeIntegralValues(regions,integ)
-#else
 SUBROUTINE RFLU_ComputeIntegralValues(regions)
-#endif
 
   USE ModGlobal, ONLY: t_global
   USE ModParameters
@@ -88,9 +84,6 @@ SUBROUTINE RFLU_ComputeIntegralValues(regions)
   
   IMPLICIT NONE
 
-#ifdef GENX
-  INCLUDE 'rocmanf90.h'
-#endif
 
 ! ******************************************************************************
 ! Declarations and definitions
@@ -110,12 +103,7 @@ SUBROUTINE RFLU_ComputeIntegralValues(regions)
   INTEGER :: errorFlag,i,ic,ifc,iPatch,iReg
   REAL(RFREAL) :: enerLocal,ibAreaLocal,inbAreaLocal,massLocal,xMomLocal, & 
                   yMomLocal,zMomLocal,volLocal
-#ifdef GENX
-  DOUBLE PRECISION, DIMENSION(MAN_INTEG_SIZE) :: integ
-  REAL(RFREAL), DIMENSION(MAN_INTEG_SIZE) :: globalVals,localVals
-#else
   REAL(RFREAL), DIMENSION(2) :: globalVals,localVals
-#endif
   REAL(RFREAL), DIMENSION(:), POINTER :: pVol
   REAL(RFREAL), DIMENSION(:,:), POINTER :: pCv
   TYPE(t_global), POINTER :: global
@@ -151,59 +139,13 @@ SUBROUTINE RFLU_ComputeIntegralValues(regions)
     END DO ! ic
   END DO ! iReg
 
-#ifdef GENX
-! ******************************************************************************
-! Compute momenta components and energy
-! ******************************************************************************
-
-  xMomLocal = 0.0_RFREAL ! Not computed at present
-  yMomLocal = 0.0_RFREAL
-  zMomLocal = 0.0_RFREAL
-  enerLocal = 0.0_RFREAL 
-
-! ******************************************************************************
-! Compute interacting surface areas
-! ******************************************************************************
-
-  inbAreaLocal = 0.0_RFREAL
-  ibAreaLocal  = 0.0_RFREAL
-
-  DO iReg = 1,global%nRegionsLocal 
-    pRegion => regions(iReg)  
-  
-    DO iPatch = 1,pRegion%grid%nPatches
-      pPatch => pRegion%patches(iPatch)
-    
-      IF ( pPatch%bcCoupled == BC_BURNING ) THEN  
-        DO ifc = 1,pPatch%nBFaces
-          ibAreaLocal = ibAreaLocal + pPatch%fn(XYZMAG,ifc)
-        END DO ! ifc  
-      ELSE IF ( pPatch%bcCoupled == BC_NOT_BURNING ) THEN
-        DO ifc = 1,pPatch%nBFaces
-          inbAreaLocal = inbAreaLocal + pPatch%fn(XYZMAG,ifc)
-        END DO ! ifc   
-      END IF ! pPatach%bcCoupled
-    END DO ! iPatch
-  END DO ! iReg
-#endif 
 
 ! ******************************************************************************
 ! Gather data
 ! ******************************************************************************
 
-#ifdef GENX
-  localVals(MAN_INTEG_VOL    ) = volLocal
-  localVals(MAN_INTEG_MASS   ) = massLocal
-  localVals(MAN_INTEG_XMOM   ) = xMomLocal
-  localVals(MAN_INTEG_YMOM   ) = yMomLocal
-  localVals(MAN_INTEG_ZMOM   ) = zMomLocal
-  localVals(MAN_INTEG_ENER   ) = enerLocal
-  localVals(MAN_INTEG_IBAREA ) = ibAreaLocal  
-  localVals(MAN_INTEG_INBAREA) = inbAreaLocal      
-#else
   localVals(1) = volLocal
   localVals(2) = massLocal  
-#endif
 
 ! ******************************************************************************
 ! Perform reduction operation
@@ -220,14 +162,8 @@ SUBROUTINE RFLU_ComputeIntegralValues(regions)
 ! Scatter data
 ! ******************************************************************************
 
-#ifdef GENX
-  DO i = 1,MAN_INTEG_SIZE ! Explicit loop to avoid ASCI White problem
-    integ(i) = globalVals(i)
-  END DO ! i
-#else
   global%totalVol  = globalVals(1)
   global%totalMass = globalVals(2)  
-#endif
 
 ! ******************************************************************************
 ! End

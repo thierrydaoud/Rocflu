@@ -88,9 +88,6 @@ SUBROUTINE RFLU_PrintHeader(global)
   USE ModInterfacesSpecies, ONLY: SPEC_BuildVersionString
 #endif
   
-#ifdef TURB
-  USE ModInterfacesTurbulence, ONLY: TURB_BuildVersionString
-#endif
   
   IMPLICIT NONE
 
@@ -180,12 +177,6 @@ SUBROUTINE RFLU_PrintHeader(global)
   WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,TRIM(headerString) 
 #endif
 
-#ifdef TURB
-  WRITE(STDOUT,'(A)') SOLVER_NAME
-  WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,'Compiled with turbulence module'
-  CALL TURB_BuildVersionString(headerString)
-  WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,TRIM(headerString) 
-#endif
 
   WRITE(STDOUT,'(A)') SOLVER_NAME
     

@@ -76,9 +76,6 @@ SUBROUTINE PLAG_StatMapping( global ) ! PUBLIC
 
   USE ModDataTypes
   USE ModGlobal, ONLY : t_global
-#ifdef GENX
-  USE ModInterfacesStatistics, ONLY : GenxStatNaming
-#endif
   USE ModError
   USE ModParameters
   USE PLAG_ModParameters
@@ -92,9 +89,6 @@ SUBROUTINE PLAG_StatMapping( global ) ! PUBLIC
 
 ! ... local variables
   CHARACTER(CHRLEN) :: RCSIdentString
-#ifdef GENX
-  CHARACTER(CHRLEN), POINTER :: statName(:,:,:)
-#endif
   INTEGER :: errorFlag
   INTEGER, POINTER  :: statId(:,:), statCode(:,:,:)
 
@@ -113,13 +107,6 @@ SUBROUTINE PLAG_StatMapping( global ) ! PUBLIC
   statId   => global%plagStatId
   statCode => global%plagStatCode
 
-#ifdef GENX
-  ALLOCATE( global%plagStatNm(2,2,global%plagNStat),stat=errorFlag )
-  global%error = errorFlag
-  IF (global%error /= 0) CALL ErrorStop( global,ERR_ALLOCATE,__LINE__ )
-
-  statName => global%plagStatNm
-#endif
 
 ! set PLAG mapping ---------------------------------------------------------
 
@@ -130,66 +117,30 @@ SUBROUTINE PLAG_StatMapping( global ) ! PUBLIC
       ELSE IF (statId(n,l)==1) THEN 
         statCode(n,1,l) = STAT_PLAGEV
         statCode(n,2,l) = EV_PLAG_DIAM3
-#ifdef GENX
-        statName(n,1,l) = ' '
-        statName(n,2,l) = ' '
-#endif
       ELSE IF (statId(n,l)==2) THEN 
         statCode(n,1,l) = STAT_PLAGEV
         statCode(n,2,l) = EV_PLAG_DIAM4
-#ifdef GENX
-        statName(n,1,l) = ' '
-        statName(n,2,l) = ' '
-#endif
       ELSE IF (statId(n,l)==3) THEN 
         statCode(n,1,l) = STAT_PLAGEV
         statCode(n,2,l) = EV_PLAG_NUMDENS
-#ifdef GENX
-        statName(n,1,l) = ' '
-        statName(n,2,l) = ' '
-#endif
       ELSE IF (statId(n,l)==4) THEN 
         statCode(n,1,l) = STAT_PLAGEV
         statCode(n,2,l) = EV_PLAG_UVEL
-#ifdef GENX
-        statName(n,1,l) = ' '
-        statName(n,2,l) = ' '
-#endif
       ELSE IF (statId(n,l)==5) THEN 
         statCode(n,1,l) = STAT_PLAGEV
         statCode(n,2,l) = EV_PLAG_VVEL
-#ifdef GENX
-        statName(n,1,l) = ' '
-        statName(n,2,l) = ' '
-#endif
       ELSE IF (statId(n,l)==6) THEN 
         statCode(n,1,l) = STAT_PLAGEV
         statCode(n,2,l) = EV_PLAG_WVEL
-#ifdef GENX
-        statName(n,1,l) = ' '
-        statName(n,2,l) = ' '
-#endif
       ELSE IF (statId(n,l)==7) THEN 
         statCode(n,1,l) = STAT_PLAGEV
         statCode(n,2,l) = EV_PLAG_MASS
-#ifdef GENX
-        statName(n,1,l) = ' '
-        statName(n,2,l) = ' '
-#endif
       ELSE IF (statId(n,l)==8) THEN 
         statCode(n,1,l) = STAT_PLAGEV
         statCode(n,2,l) = EV_PLAG_MASS+1
-#ifdef GENX
-        statName(n,1,l) = ' '
-        statName(n,2,l) = ' '
-#endif
        ELSE IF (statId(n,l)==9) THEN 
         statCode(n,1,l) = STAT_PLAGEV
         statCode(n,2,l) = EV_PLAG_MASS+2
-#ifdef GENX
-        statName(n,1,l) = ' '
-        statName(n,2,l) = ' '
-#endif
      ELSE
         CALL ErrorStop( global,ERR_STATS_INDEXING,__LINE__, &
                         'PLAG index is not defined.' ) 
@@ -197,11 +148,6 @@ SUBROUTINE PLAG_StatMapping( global ) ! PUBLIC
     ENDDO
   ENDDO
 
-#ifdef GENX
-! defined names and units of turbulence statistics
-
-  CALL GenxStatNaming( global, FTYPE_PLAG )
-#endif
 
 ! finalize --------------------------------------------------------------------
 

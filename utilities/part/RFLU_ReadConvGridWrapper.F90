@@ -88,10 +88,6 @@ SUBROUTINE RFLU_ReadConvGridWrapper(pRegion)
   USE RFLU_ModTETMESH
   USE RFLU_ModVGRIDns
 
-#ifdef GENX
-  USE RFLU_ModGENXIO, ONLY: RFLU_GENX_DecideReadFile, & 
-                            RFLU_GENX_GetGrid
-#endif 
 
   IMPLICIT NONE
   

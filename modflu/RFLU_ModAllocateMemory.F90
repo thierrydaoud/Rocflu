@@ -264,7 +264,6 @@ SUBROUTINE RFLU_AllocateMemoryGSpeeds(pRegion)
 !   Interior faces
 ! ------------------------------------------------------------------------------
 
-#ifndef GENX
     ALLOCATE(pGrid%gs(pGrid%nFaces),STAT=errorFlag)
     global%error = errorFlag
     IF ( global%error /= ERR_NONE ) THEN
@@ -274,17 +273,6 @@ SUBROUTINE RFLU_AllocateMemoryGSpeeds(pRegion)
     DO ifc = 1,pGrid%nFaces ! Explicit loop to avoid Frost problem
       pGrid%gs(ifc) = 0.0_RFREAL
     END DO ! ifc
-#else
-    ALLOCATE(pGrid%gs(pGrid%nFacesTot),STAT=errorFlag)
-    global%error = errorFlag
-    IF ( global%error /= ERR_NONE ) THEN
-      CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'pGrid%gs')
-    END IF ! global%error
-
-    DO ifc = 1,pGrid%nFacesTot ! Explicit loop to avoid Frost problem
-      pGrid%gs(ifc) = 0.0_RFREAL
-    END DO ! ifc
-#endif
 
 ! ------------------------------------------------------------------------------
 !   Patch faces
@@ -294,7 +282,6 @@ SUBROUTINE RFLU_AllocateMemoryGSpeeds(pRegion)
       DO iPatch = 1,pGrid%nPatches
         pPatch => pRegion%patches(iPatch)
 
-#ifndef GENX
         ALLOCATE(pPatch%gs(pPatch%nBFaces),STAT=errorFlag)
         global%error = errorFlag
         IF ( global%error /= ERR_NONE ) THEN
@@ -304,21 +291,6 @@ SUBROUTINE RFLU_AllocateMemoryGSpeeds(pRegion)
         DO ifc = 1,pPatch%nBFaces ! Explicit loop to avoid Frost problem
           pPatch%gs(ifc) = 0.0_RFREAL
         END DO ! ifc
-#else
-        ALLOCATE(pPatch%gs(pPatch%nBFacesTot),STAT=errorFlag)
-        global%error = errorFlag
-        IF ( global%error /= ERR_NONE ) THEN
-          CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'pPatch%gs')
-        END IF ! global%error
-
-        DO ifc = 1,pPatch%nBFaces ! Explicit loop to avoid Frost problem
-          pPatch%gs(ifc) = 0.0_RFREAL
-        END DO ! ifc
-
-        DO ifc = pPatch%nBFaces+1,pPatch%nBFacesTot
-          pPatch%gs(ifc) = REAL(CRAZY_VALUE_INT,KIND=RFREAL)
-        END DO ! ifc
-#endif
       END DO ! iPatch
     END IF ! pGrid%nPatches
 
@@ -1246,7 +1218,6 @@ SUBROUTINE RFLU_AllocateMemoryTStep(pRegion)
       END DO ! ic
     END IF ! global%solverType
 
-#ifndef GENX
 ! ------------------------------------------------------------------------------
 !   Patch displacements. NOTE allocate here only if not running inside GENX,
 !   because when running inside GENX allocate displacements also for virtual
@@ -1270,7 +1241,6 @@ SUBROUTINE RFLU_AllocateMemoryTStep(pRegion)
         END DO ! icmp
       END DO ! iPatch
     END IF ! pGrid%nPatches
-#endif
   END IF ! pMixtInput%moveGrid
 
 #ifdef STATS

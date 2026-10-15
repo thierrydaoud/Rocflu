@@ -105,9 +105,6 @@ SUBROUTINE RFLU_GetUserInput(regions,inPrep)
   USE ModInterfacesSpecies, ONLY: SPEC_UserInput
 #endif
 
-#ifdef TURB
-  USE ModInterfacesTurbulence, ONLY: TURB_UserInput
-#endif
 
 #ifdef INRT
   USE ModInterfacesInteract, ONLY: INRT_UserInput
@@ -154,16 +151,6 @@ SUBROUTINE RFLU_GetUserInput(regions,inPrep)
 
   CALL RFLU_UserInput(regions)
 
-#ifdef GENX
-! write timeStampPrep into time variables: See note above
-
-  IF ( PRESENT(inPrep) .EQV. .TRUE. ) THEN
-    IF ( inPrep .EQV. .TRUE. ) THEN
-      global%timeStamp   = global%timeStampPrep
-      global%currentTime = global%timeStampPrep
-    END IF ! inPrep
-  END IF ! PRESENT
-#endif
 
 ! ******************************************************************************
 ! Input for physical modules
@@ -177,17 +164,11 @@ SUBROUTINE RFLU_GetUserInput(regions,inPrep)
   CALL PERI_UserInput(regions)
 #endif
 
-#ifdef RADI
-  CALL RADI_UserInput(regions)
-#endif
 
 #ifdef SPEC
   CALL SPEC_UserInput(regions)
 #endif
 
-#ifdef TURB
-  CALL TURB_UserInput(regions)
-#endif
 
 #ifdef INRT
   CALL INRT_UserInput(regions) ! must follow all other *_UserInput routines

@@ -74,9 +74,6 @@ MODULE ModInterfaces
   USE ModInterfacesUtil
 
   USE RFLU_ModInterfacesCommon
-#ifdef GENX
-  USE RFLU_ModInterfacesExternal
-#endif
   USE RFLU_ModInterfacesLibrary
   USE RFLU_ModInterfacesSolver
   USE RFLU_ModInterfacesUtilities

@@ -165,9 +165,6 @@ MODULE RFLU_ModDifferentiationCells
 
     CALL RegisterFunction(global,'RFLU_ComputeGradCells_1D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::ComputeGradCells_1D")
-#endif
 
     IF ( (iEndVar  - iBegVar) /= (iEndGrad - iBegGrad) ) THEN 
       CALL ErrorStop(global,ERR_GRAD_MISMATCH,__LINE__)
@@ -318,9 +315,6 @@ MODULE RFLU_ModDifferentiationCells
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::ComputeGradCells_1D")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -397,9 +391,6 @@ MODULE RFLU_ModDifferentiationCells
 
     CALL RegisterFunction(global,'RFLU_ComputeGradCells_2D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::ComputeGradCells_2D")
-#endif
 
     IF ( (iEndVar  - iBegVar) /= (iEndGrad - iBegGrad) ) THEN 
       CALL ErrorStop(global,ERR_GRAD_MISMATCH,__LINE__)
@@ -489,9 +480,6 @@ MODULE RFLU_ModDifferentiationCells
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::ComputeGradCells_2D")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -569,9 +557,6 @@ MODULE RFLU_ModDifferentiationCells
 
     CALL RegisterFunction(global,'RFLU_ComputeGradCells_3D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::ComputeGradCells_3D")
-#endif
 
     IF ( (iEndVar  - iBegVar) /= (iEndGrad - iBegGrad) ) THEN 
       CALL ErrorStop(global,ERR_GRAD_MISMATCH,__LINE__)
@@ -677,9 +662,6 @@ MODULE RFLU_ModDifferentiationCells
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::ComputeGradCells_3D")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -757,9 +739,6 @@ MODULE RFLU_ModDifferentiationCells
 
     CALL RegisterFunction(global,'RFLU_ComputeGradCellsFast_2D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::ComputeGradCellsFast_2D")
-#endif
 
     IF ( (iEndVar  - iBegVar) /= (iEndGrad - iBegGrad) ) THEN 
       CALL ErrorStop(global,ERR_GRAD_MISMATCH,__LINE__)
@@ -909,9 +888,6 @@ MODULE RFLU_ModDifferentiationCells
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::ComputeGradCellsFast_2D")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -989,9 +965,6 @@ MODULE RFLU_ModDifferentiationCells
 
     CALL RegisterFunction(global,'RFLU_ComputeGradCellsFast_3D',__FILE__ )
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::ComputeGradCellsFast_3D")
-#endif
 
     IF ( (iEndVar  - iBegVar) /= (iEndGrad - iBegGrad) ) THEN 
       CALL ErrorStop(global,ERR_GRAD_MISMATCH,__LINE__)
@@ -1165,9 +1138,6 @@ MODULE RFLU_ModDifferentiationCells
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::ComputeGradCellsFast_3D")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -1251,9 +1221,6 @@ MODULE RFLU_ModDifferentiationCells
 
     CALL RegisterFunction(global,'RFLU_ComputeGradCellsConstr',__FILE__)
 
-#ifdef ROCPROF
-    CALL FPROFILER_BEGINS("RFLU::ComputeGradCellsConstr")
-#endif
 
     IF ( (iEndVar  - iBegVar) /= (iEndGrad - iBegGrad) ) THEN 
       CALL ErrorStop(global,ERR_GRAD_MISMATCH,__LINE__)
@@ -1599,9 +1566,6 @@ MODULE RFLU_ModDifferentiationCells
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::ComputeGradCellsConstr")
-#endif
 
     CALL DeregisterFunction(global)
 

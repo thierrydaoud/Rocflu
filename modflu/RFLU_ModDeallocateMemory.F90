@@ -1003,7 +1003,6 @@ SUBROUTINE RFLU_DeallocateMemoryTStep(pRegion)
       END IF ! global%error
     END IF ! global%solverType
 
-#ifndef GENX
 ! ------------------------------------------------------------------------------
 !   Patch displacements. NOTE allocate here only if not running inside GENX,
 !   because when running inside GENX allocate displacements also for virtual
@@ -1022,7 +1021,6 @@ SUBROUTINE RFLU_DeallocateMemoryTStep(pRegion)
 
       END DO ! iPatch
     END IF ! pGrid%nPatches
-#endif
   END IF ! pMixtInput%moveGrid
 
 #ifdef STATS

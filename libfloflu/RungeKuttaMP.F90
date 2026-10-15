@@ -111,9 +111,6 @@ SUBROUTINE RungeKuttaMP( regions )
   USE PICL_ModInterfaces, ONLY: PICL_TEMP_Runge
 #endif
 
-#ifdef GENX
-  USE RFLU_ModGENXTools, ONLY: RFLU_GENX_InitBFLAG
-#endif
 #ifdef SPEC
   USE SPEC_RFLU_ModPBA, ONLY: SPEC_RFLU_PBA_ProgramBurn, &
                               SPEC_RFLU_PBA_ReactionZone
@@ -184,9 +181,6 @@ SUBROUTINE RungeKuttaMP( regions )
 
 ! ----- RFLU fill GENX incoming buffers ---------------------------------------
 
-#ifdef GENX
-        CALL RFLU_GENX_InitBFLAG(pRegion)
-#endif
         CALL RFLU_UpdateBoundaryValues(regions(iReg),istage)
 
 ! ----- Scale grid speeds -----------------------------------------------------

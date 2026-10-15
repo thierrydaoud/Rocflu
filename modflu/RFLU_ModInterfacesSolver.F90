@@ -147,19 +147,10 @@ MODULE RFLU_ModInterfacesSolver
     TYPE(t_region), POINTER :: pRegion     
   END SUBROUTINE RFLU_ComputeIntegral5OLES
 
-#ifndef GENX
   SUBROUTINE RFLU_ComputeIntegralValues(regions)
     USE ModDataStruct, ONLY: t_region
     TYPE(t_region), POINTER :: regions(:)
   END SUBROUTINE RFLU_ComputeIntegralValues
-#else
-  SUBROUTINE RFLU_ComputeIntegralValues(regions,integ)
-    USE ModGenx ! To access MAN_INTEG_SIZE
-    USE ModDataStruct, ONLY: t_region
-    DOUBLE PRECISION, DIMENSION(MAN_INTEG_SIZE) :: integ
-    TYPE(t_region), POINTER :: regions(:)
-  END SUBROUTINE RFLU_ComputeIntegralValues
-#endif
 
   SUBROUTINE RFLU_ComputeIntegrals1245OLES(pRegion)
     USE ModDataStruct, ONLY: t_region
@@ -203,7 +194,6 @@ MODULE RFLU_ModInterfacesSolver
     TYPE(t_region) :: region     
   END SUBROUTINE RFLU_FinishSD
 
-#ifndef GENX
   SUBROUTINE RFLU_FlowSolver(dTimeSystem,dIterSystem,levels)
     USE ModDataTypes
     USE ModDataStruct, ONLY: t_level
@@ -211,23 +201,12 @@ MODULE RFLU_ModInterfacesSolver
     REAL(RFREAL), INTENT(IN) :: dTimeSystem
     TYPE(t_level), POINTER :: levels(:)
   END SUBROUTINE RFLU_FlowSolver
-#else
-  SUBROUTINE RFLU_FlowSolver(globalGenx,timeSystem,dTimeSystem,genxHandleBc, & 
-                             genxHandleGm)
-    USE ModDataTypes
-    USE ModGenx, ONLY: t_globalGenx 
-    INTEGER, INTENT(IN) :: genxHandleBc,genxHandleGm
-    DOUBLE PRECISION, INTENT(IN) :: dTimeSystem,timeSystem
-    TYPE(t_globalGenx), POINTER :: globalGenx         
-  END SUBROUTINE RFLU_FlowSolver
-#endif
 
   SUBROUTINE RFLU_GetDeformationWrapper(regions)
     USE ModDataStruct, ONLY: t_region
     TYPE(t_region), DIMENSION(:), POINTER :: regions   
   END SUBROUTINE RFLU_GetDeformationWrapper
 
-#ifndef GENX
   SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
     USE ModDataTypes  
     USE ModGlobal, ONLY: t_global
@@ -237,14 +216,6 @@ MODULE RFLU_ModInterfacesSolver
     TYPE(t_global), POINTER :: global
     TYPE(t_level), POINTER :: levels(:)
   END SUBROUTINE RFLU_InitFlowSolver  
-#else
-  SUBROUTINE RFLU_InitFlowSolver(globalGenx,initialTime,communicator,genxHandle)
-    USE ModGenx, ONLY: t_globalGenx    
-    INTEGER, INTENT(IN) :: communicator,genxHandle
-    DOUBLE PRECISION, INTENT(IN) :: initialTime
-    TYPE(t_globalGenx), POINTER :: globalGenx
-  END SUBROUTINE RFLU_InitFlowSolver  
-#endif
 
   SUBROUTINE RFLU_InvFlux_I(pRegion)
     USE ModDataStruct, ONLY: t_region

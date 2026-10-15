@@ -112,13 +112,8 @@ SUBROUTINE RFLU_WriteVersionString(global)
 
   CALL BuildVersionString(versionString)
 
-#ifndef CHARM
   moduleString = 'rflump'
   iFileName    = TRIM(global%outDir)//'rflump.vrs'  
-#else
-  moduleString = 'rflump_charm'
-  iFileName    = TRIM(global%outDir)//'rflump_charm.vrs'    
-#endif 
   
 ! ******************************************************************************
 ! Open file, write string, close file

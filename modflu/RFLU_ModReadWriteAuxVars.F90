@@ -745,10 +745,6 @@ MODULE RFLU_ModReadWriteAuxVars
 
   SUBROUTINE RFLU_ReadAuxVarsWrapper(pRegion)
 
-#ifdef GENX
-    USE RFLU_ModGENXIO, ONLY: RFLU_GENX_DecideReadFile, & 
-                              RFLU_GENX_GetDataFlow
-#endif
 
     IMPLICIT NONE
 
@@ -780,9 +776,6 @@ MODULE RFLU_ModReadWriteAuxVars
 !   Read mixture solution files
 ! ******************************************************************************
 
-#ifdef GENX
-    IF ( RFLU_GENX_DecideReadFile(global) .EQV. .FALSE. ) THEN 
-#endif
       IF ( global%solutFormat == FORMAT_ASCII ) THEN
         CALL RFLU_ReadAuxVarsASCII(pRegion)
 !      ELSE IF ( global%solutFormat == FORMAT_BINARY ) THEN
@@ -795,11 +788,6 @@ MODULE RFLU_ModReadWriteAuxVars
       ELSE
         CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
       END IF ! global%solutFormat
-#ifdef GENX
-    ELSE 
-      CALL RFLU_GENX_GetDataFlow(pRegion) 
-    END IF ! RFLU_GENX_DecideReadFile         
-#endif
 
 ! ******************************************************************************
 !   End
@@ -1245,10 +1233,6 @@ MODULE RFLU_ModReadWriteAuxVars
 
   SUBROUTINE RFLU_WriteAuxVarsWrapper(pRegion)
 
-#ifdef GENX
-    USE RFLU_ModGENXIO, ONLY: RFLU_GENX_DecideWriteFile, & 
-                              RFLU_GENX_PutDataFlow
-#endif
 
     IMPLICIT NONE
 
@@ -1280,9 +1264,6 @@ MODULE RFLU_ModReadWriteAuxVars
 !   Write mixture solution files
 ! ******************************************************************************
 
-#ifdef GENX
-    IF ( RFLU_GENX_DecideWriteFile(global) .EQV. .FALSE. ) THEN 
-#endif
       IF ( global%solutFormat == FORMAT_ASCII ) THEN
         CALL RFLU_WriteAuxVarsASCII(pRegion)
 !      ELSE IF ( global%solutFormat == FORMAT_BINARY ) THEN
@@ -1295,11 +1276,6 @@ MODULE RFLU_ModReadWriteAuxVars
       ELSE
         CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
       END IF ! global%solutFormat
-#ifdef GENX
-    ELSE 
-      CALL RFLU_GENX_PutDataFlow(pRegion) 
-    END IF ! RFLU_GENX_DecideReadFile         
-#endif
 
 ! ******************************************************************************
 !   End

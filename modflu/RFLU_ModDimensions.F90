@@ -502,9 +502,6 @@ MODULE RFLU_ModDimensions
 
   SUBROUTINE RFLU_ReadDimensionsWrapper(pRegion)
 
-#ifdef GENX
-    USE RFLU_ModGENXIO, ONLY: RFLU_GENX_GetDimensions
-#endif
 
 #ifdef PLAG
     USE PLAG_ModDimensions, ONLY: PLAG_RFLU_ReadDimensions
@@ -1140,9 +1137,6 @@ MODULE RFLU_ModDimensions
     USE PLAG_ModDimensions, ONLY: PLAG_RFLU_WriteDimensions
 #endif
 
-#ifdef GENX
-    USE RFLU_ModGENXIO, ONLY: RFLU_GENX_DecideWriteFile
-#endif
 
     IMPLICIT NONE
 
@@ -1175,9 +1169,6 @@ MODULE RFLU_ModDimensions
 !   Call routines
 ! ******************************************************************************
 
-#ifdef GENX
-    IF ( RFLU_GENX_DecideWriteFile(global) .EQV. .TRUE. ) THEN     
-#endif
       IF ( writeMode == WRITE_DIMENS_MODE_FORCE ) THEN 
         CALL RFLU_WriteDimensions(pRegion)
       ELSE 
@@ -1185,9 +1176,6 @@ MODULE RFLU_ModDimensions
           CALL RFLU_WriteDimensions(pRegion)
         END IF ! pRegion%mixtInput%moveGrid 
       END IF ! writeMode
-#ifdef GENX
-    END IF ! RFLU_GENX_DecideWriteFile
-#endif
 
 #ifdef PLAG
     IF ( global%plagUsed .EQV. .TRUE. ) THEN

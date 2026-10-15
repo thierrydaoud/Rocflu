@@ -176,9 +176,6 @@ MODULE RFLU_ModConvertCv
 
     CALL RegisterFunction(global,'RFLU_ConvertCvCons2Prim',__FILE__)
 
-#ifdef ROCPROF 
-    CALL FPROFILER_BEGINS("RFLU::ConvertCvCons2Prim")
-#endif
 
 ! ******************************************************************************
 !   Set pointers and variables
@@ -372,9 +369,6 @@ MODULE RFLU_ModConvertCv
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::ConvertCvCons2Prim")
-#endif
 
     CALL DeregisterFunction(global)
 
@@ -465,9 +459,6 @@ MODULE RFLU_ModConvertCv
 
     CALL RegisterFunction(global,'RFLU_ConvertCvPrim2Cons',__FILE__)
 
-#ifdef ROCPROF 
-    CALL FPROFILER_BEGINS("RFLU::ConvertCvPrim2Cons")
-#endif
 
 ! ******************************************************************************
 !   Set pointers and variables
@@ -830,9 +821,6 @@ MODULE RFLU_ModConvertCv
 !   End
 ! ******************************************************************************
 
-#ifdef ROCPROF
-    CALL FPROFILER_ENDS("RFLU::ConvertCvPrim2Cons")
-#endif
 
     CALL DeregisterFunction(global)
 

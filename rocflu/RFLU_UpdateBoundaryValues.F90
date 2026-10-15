@@ -82,17 +82,9 @@ SUBROUTINE RFLU_UpdateBoundaryValues(region,istage)
   USE ModMPI
   USE ModParameters
 
-#ifdef GENX
-  USE ModInterfaces, ONLY: RFLU_GetBoundaryValues, &
-                           RFLU_PutBoundaryValuesAlpha, & 
-                           UpdateTbc
-#endif
 
   IMPLICIT NONE
 
-#ifdef GENX
-  INCLUDE 'roccomf90.h'
-#endif
 
 ! ******************************************************************************
 ! Definitions and declarations
@@ -114,9 +106,6 @@ SUBROUTINE RFLU_UpdateBoundaryValues(region,istage)
   REAL(RFREAL) :: trk(5)
   TYPE(t_global), POINTER :: global
 
-#ifdef GENX
-  DOUBLE PRECISION :: alpha
-#endif
 
 ! ******************************************************************************
 ! Start
@@ -136,18 +125,6 @@ SUBROUTINE RFLU_UpdateBoundaryValues(region,istage)
 
   time = global%currentTime + global%dtMin*trk(istage)
 
-#ifdef GENX 
-! ******************************************************************************
-! Fill incoming buffers
-! ******************************************************************************
-   
-  alpha = (time-global%timeStamp)/global%dTimeSystem
-
-  CALL COM_call_function(global%genxHandleBc,2,alpha,1)
-  CALL RFLU_PutBoundaryValuesAlpha(region)
-  CALL COM_call_function(global%genxHandleBc,2,alpha,2)
-  CALL RFLU_GetBoundaryValues(region)
-#endif
 
 ! ******************************************************************************
 ! Fill in time-dependent boundary condition data 

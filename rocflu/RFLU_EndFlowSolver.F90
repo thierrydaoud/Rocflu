@@ -235,7 +235,6 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
   END IF ! global%plagUsed
 #endif
 
-#ifndef GENX
   DO iReg = 1,global%nRegionsLocal
     pRegion => levels(1)%regions(iReg) ! single-level grids for now
     
@@ -312,7 +311,6 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
         CALL RFLU_WriteStat(pRegion)
       END DO ! iReg
     END IF ! global%doStat
-#endif
 #endif
 
 ! ******************************************************************************
@@ -649,14 +647,10 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
   END IF ! global%solverType
 #endif
 
-#ifndef GENX
 ! ******************************************************************************
 ! Finalize Rocprof
 ! ****************************************************************************** 
 
-#ifdef ROCPROF
-  CALL Rocprof_Finalize(1)
-#endif
 
 ! ******************************************************************************
 ! Finalize MPI
@@ -667,7 +661,6 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
   IF ( global%error /= ERR_NONE ) THEN 
     CALL ErrorStop(global,ERR_MPI_OUTPUT,__LINE__)
   END IF ! global%error
-#endif
 
 ! ******************************************************************************
 ! End
