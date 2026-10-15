@@ -29,6 +29,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Ghost particles | Overflowing the ghost arrays wrote past their end | Guards stop the run; ghost arrays 30% smaller | f7a3980, 0bb2e4b |
 | Neighbour search | Dense subbin tables: ~28 GB requested for 50,000 particles in one 2 cm bin | Compact lists: ~1.2 MB for the same bin (about 24,000 times less), byte-identical results | 82d4ca4 |
 | Clean-up | ppiclF's own unit tests no longer matched the code; the burn-rate model and the `PICLDEBUG` output were unused | Removed; the regression suite replaces the unit tests. Input files that still ask for `REACTIVE` or a negative `STATIONARY` stop with a message | 3c41db2 |
+| Memory | ppiclF reserved fixed arrays for 80,000 particles, 640,000 ghosts and 120,000 cells per rank, plus 50 steps of viscous-unsteady history even when it was off: 1.34 GB for a run with one particle. A run with more particles on a rank stopped and needed a recompile | Arrays sized from the run and grown when needed; the history is allocated only with `VISCOUSUNSTEADY` (`VUSTEPS` steps). 265 MB for the same run; no particle, ghost, cell or wall limits | c1ac692, 0d4d86c, e227f99 |
 
 ## Regression tests
 
@@ -281,7 +282,8 @@ momentum is unchanged.
 
 Two robustness fixes came with this:
 - Sending or receiving more ghosts than `PPICLF_LPART_GP` wrote past the end of the ghost
-  arrays. The run now stops with a message. Ghosts no longer carry the projection values,
+  arrays. The run now stopped with a message; since e227f99 the ghost arrays grow instead
+  (see [Memory](#memory-ppiclf-arrays-sized-at-run-time-c1ac692-0d4d86c-e227f99)). Ghosts no longer carry the projection values,
   which shrinks the ghost arrays by 30% (about 520 to 360 MB per rank at LPART = 80000).
 - The subbin contents were dense tables of (subbins × particles) 4-byte integers. A 2 cm
   bin with 0.4 mm subbins has 140,608 subbins, so 50,000 particles requested about 28 GB
@@ -382,6 +384,141 @@ every particle must end inside the box, and 2 and 4 ranks must match 1 rank. The
 fails it: the 300 m/s particle leaves the domain and the run crashes. At an edge or a
 corner each wall's friction also slows the motion towards the other walls (e ≈ 0.55 at
 the edge, 0.47 in the corner with μ = 0.4), so there the test only checks the rebound.
+
+## Memory: ppiclF arrays sized at run time (c1ac692, 0d4d86c, e227f99)
+
+### The problem
+
+ppiclF kept its data in Fortran COMMON blocks whose sizes were fixed when the code was
+compiled, in `libpicl/user_files/PPICLF_USER.h`:
+
+| Setting | Value | What it sized |
+|---|---|---|
+| `PPICLF_LPART` | 80,000 | Particles on one rank: the state `y`, `rprop`, `feedbk`, `iprop`, the neighbour-search copy and the send buffer for particles changing rank |
+| `PPICLF_LPART_GP` | 8 × `LPART` = 640,000 | Ghost particles on one rank |
+| `PPICLF_LEE` | 120,000 | Fluid cells on one rank, and cells overlapping one rank's bins |
+| `PPICLF_LWALL` | 50,000 | Particle-wall triangles |
+| `PPICLF_VU` | 50 | Steps of viscous-unsteady history per particle (500 values each, stored three times) |
+
+Every rank reserved all of it, whatever the run needed, and the zeroing at start-up
+touched every page:
+
+- A shock-tube run with **one particle on 640 cells used 1.34 GB** of memory (peak
+  resident set). The viscous-unsteady history alone took about 900 MB of it, even with
+  `VISCOUSUNSTEADY 0`.
+- A rank that needed more than the fixed sizes stopped ("Increase LPART", "increase
+  PPICLF_LPART_GP", "Increase LEE"), and the code had to be recompiled.
+- With `PPICLF_VU 0` (to save memory) and `VISCOUSUNSTEADY 1` in the input, the history
+  routines wrote past the end of zero-length arrays.
+- One limit was not checked at all: when a rank's bins overlapped more than `PPICLF_LEE`
+  fluid cells, the extra cells were dropped on receive without a message (see below).
+
+### What changed
+
+The change was made in three steps, each built and run through the whole regression
+suite twice before the next one:
+
+1. **c1ac692: the viscous-unsteady history.** The history arrays and `rprop3` (the same
+   history packed per particle, so that it moves with a particle that changes rank) became
+   allocatable, in module `ppiclf_unsteady` (`ppiclf_unsteady.f`). They are allocated at
+   start-up only when `VISCOUSUNSTEADY ≥ 1`, with as many steps as the new PICL key
+   `VUSTEPS` (default 50, the old `PPICLF_VU`). `PPICLF_VU` and `PPICLF_LRP3` are gone.
+   `DU HEATTRANSFER` is computed in the same routines, so it now needs
+   `VISCOUSUNSTEADY ≥ 1`; before, it was silently zero without it.
+2. **0d4d86c: move the arrays into a module.** Every array sized by `LPART`, `LPART_GP`,
+   `LEE` or `LWALL` moved from the COMMON blocks (`PPICLF_SOLN.h`, `PPICLF_PARALLEL.h`,
+   `PPICLF_GRID.h`, `PPICLF_GEOM.h`) into module `ppiclf_data` (`ppiclf_data.f`) as an
+   allocatable array. Every routine that includes `PPICLF` got a `use ppiclf_data` line.
+   The sizes were still the old fixed values, so this step changed only where the memory
+   lives; results were bit-for-bit the same.
+3. **e227f99: size from the run, and grow.** The fixed sizes are gone. Each group of
+   arrays has a capacity (`ppiclf_maxpart`, `ppiclf_maxghost`, `ppiclf_maxcell`,
+   `ppiclf_maxfv`, `ppiclf_maxwall`) that starts at 1 and grows whenever a count would
+   exceed it.
+
+The modules and allocatable arrays are standard Fortran 90; the files stay in fixed form
+(72 columns), which gfortran compiles as before. The module files (`.mod`) are written to
+`libpicl/build/`.
+
+### How the arrays grow
+
+The number of particles on a rank changes during a run: ppiclF assigns particles to ranks
+by spatial bins, and a cloud that is compressed or swept downstream piles into fewer
+bins. The counts only go up in a few places, and each one now makes room first:
+
+| Count | Where it grows | How |
+|---|---|---|
+| Particles | `AddParticles` (start-up), the restart reader, `MoveParticle` (particles changing rank) | `ppiclf_data_GrowPart`, which also grows the viscous-unsteady history |
+| Ghosts | `CreateGhost` (ghosts to send), `MoveGhost` (ghosts received) | `ppiclf_data_GrowGhost` |
+| Cells overlapping the bins | `MapOverlapGrid` (cells to send and received), the interpolation and projection transfers | `ppiclf_data_GrowCell` |
+| Fluid cells of this rank | `InitOverlapGrid` | `ppiclf_data_GrowFV`, exact: Rocflu passes its cell count |
+| Wall triangles | `AddWall` | `ppiclf_data_GrowWall` |
+
+A capacity grows to what is needed, and by at least 1.5 times, so a count that creeps up
+reallocates rarely (from 1 to 100,000 takes about 30 steps over a whole run). Growing
+copies the existing entries into the larger array; it never shrinks.
+
+**Transfers between ranks.** Particles, ghosts and cells move between ranks through
+gslib's crystal router. If a rank receives more than its arrays hold, the router keeps what
+fits, drops the rest, and only reports the full count afterwards; growing after the
+transfer would be too late. So before each of the five transfers, `ppiclf_comm_NumIncoming`
+counts the columns each rank sends to each other rank and adds them up with one
+`MPI_Reduce_scatter_block`, which tells every rank how many it will receive. The rank grows
+its arrays to that number, then the transfer runs. Each transfer still checks the received
+count afterwards, as a guard that should never trigger.
+
+**Restart.** The particle reader used to fill the first ranks with `PPICLF_LPART`
+particles each. It now gives every rank an equal block, ⌈total / ranks⌉, the same split
+Rocflu uses for `points.dat`; ppiclF then moves the particles to the ranks that own their
+bins, as before. (Restart itself is still unverified; see [Still open](#still-open).)
+
+### Two bugs found on the way
+
+- **Cells dropped without a message (`MapOverlapGrid`).** Only the number of cells a rank
+  *sent* was checked against `PPICLF_LEE`; the number it *received* was not. A rank whose
+  bins overlapped more than 120,000 fluid cells lost the extra cells, so particles near
+  them interpolated from, and projected onto, an incomplete stencil. Now the cell arrays
+  grow before the transfer.
+- **`points.dat` read one column past the rank's share (`PICL_TEMP_InitSolver`).** Every
+  line of `points.dat` is read on every rank, to get the global bounding box, but the
+  position was read straight into the rank's particle buffer `y(:,i)`. Once a rank had its
+  share, the remaining lines went into column `npart_local + 1`. That was harmless while the
+  buffer had 80,000 columns; with a buffer of exactly the rank's share it corrupted memory
+  and the 2- and 4-rank cases crashed at exit. The position is now read into a local
+  variable and copied only for the rank's own particles. Valgrind found this one.
+
+### How it was checked
+
+- **Regression suite:** 35 PASS, twice, after each of the three steps, with the goldens
+  unchanged. Since every capacity starts at 1, every case grows its arrays many times (on
+  1, 2 and 4 ranks, with ghosts across ranks and periodic faces), so the growth paths are
+  covered by the whole suite.
+- **Valgrind** on `box/ghost-collisions/np4` and `box/walls/np4` (4 ranks, ghosts growing
+  and moving between ranks): no invalid reads or writes.
+- **Beyond the old limit:** 120,000 particles on one rank (the old limit was 80,000)
+  run to the end, and all 120,000 are in the particle output.
+- **Memory**, shock tube with one particle on one rank (peak resident set):
+
+| Build | Memory |
+|---|---|
+| Before (fixed arrays, 50-step history) | 1,342 MB |
+| c1ac692 (history only when `VISCOUSUNSTEADY ≥ 1`) | 807 MB |
+| e227f99 (everything sized from the run) | 265 MB |
+
+Most of the remaining 265 MB is Rocflu and MPI. The fixed-size data of the solver
+executable `rflump` (its `bss` segment) went from 1.8 GB to 0.5 MB. With `VISCOUSUNSTEADY 1` the history is allocated as
+before, per particle (about 12 kB per particle for 50 steps).
+
+### What changes for users and developers
+
+- `PPICLF_USER.h` no longer has `PPICLF_LPART`, `PPICLF_LEE`, `PPICLF_LWALL`, `PPICLF_VU` or
+  `PPICLF_LRP3`. There is nothing to raise for a larger run.
+- `VUSTEPS` in the PICL section sets the length of the viscous-unsteady history.
+- A new per-particle array goes in module `ppiclf_data`: declare it, allocate it in
+  `ppiclf_data_Allocate`, and add it to `ppiclf_data_GrowPart`. Routines that use it need
+  `use ppiclf_data` (every routine that includes `PPICLF` already has it).
+- Arrays whose size is a particle, ghost or cell count must not be given a fixed size
+  anywhere else (local buffers included): size them from the current count or capacity.
 
 ## Notes for the discussion with the MFC team
 

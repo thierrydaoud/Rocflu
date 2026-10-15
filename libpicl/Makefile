@@ -5,6 +5,9 @@ CPFLAGS         += -E
  	           
 INSTALL_LOCATION = .
 
+# Fortran module files (.mod) of ppiclF go here, not in libpicl/
+MOD_DIR = $(INSTALL_LOCATION)/build
+
 ####################
 # DO NOT TOUCH BELOW
 ####################
@@ -84,7 +87,8 @@ libObjs: $(SOURCE_ROOT_PPICLF)/ppiclf.o
 	@echo "                       "
 
 getObjs: $(SOURCE_ROOT_PPICLF)/ppiclf.f
-	$(FC) $(FFLAGS) -c $(SOURCE_ROOT_PPICLF)/ppiclf.f $(GSLIB_IFLAGS) 
+	mkdir -p $(MOD_DIR)
+	$(FC) $(FFLAGS) -J $(MOD_DIR) -c $(SOURCE_ROOT_PPICLF)/ppiclf.f $(GSLIB_IFLAGS) 
 	mv *.o $(SOURCE_ROOT_PPICLF)
 	@echo "                              "
 	@echo "******************************"
@@ -116,6 +120,7 @@ makeThird: $(SOURCE_ROOT_GSLIB)/install
 	@echo "                       "
 
 clean:
+	 rm -rf $(MOD_DIR)
 	 rm -r $(SOURCE_ROOT_PPICLF)/*.o                        
 	 rm -r $(SOURCE_ROOT_PPICLF)/ppiclf.f
 	 rm -r $(SOURCE_ROOT_PPICLF)/PPICLF
