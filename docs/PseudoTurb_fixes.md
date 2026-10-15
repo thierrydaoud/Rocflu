@@ -364,7 +364,7 @@ momentum is unchanged.
 Two robustness fixes came with this:
 - Sending or receiving more ghosts than `PPICLF_LPART_GP` wrote past the end of the ghost
   arrays. The run now stopped with a message; since e227f99 the ghost arrays grow instead
-  (see [Memory](#memory-ppiclf-arrays-sized-at-run-time-c1ac692-0d4d86c-e227f99)). Ghosts no longer carry the projection values,
+  (see [Memory](#memory-ppiclf-arrays-sized-at-run-time-c1ac692-0d4d86c-e227f99-074d58d)). Ghosts no longer carry the projection values,
   which shrinks the ghost arrays by 30% (about 520 to 360 MB per rank at LPART = 80000).
 - The subbin contents were dense tables of (subbins × particles) 4-byte integers. A 2 cm
   bin with 0.4 mm subbins has 140,608 subbins, so 50,000 particles requested about 28 GB
@@ -466,7 +466,7 @@ fails it: the 300 m/s particle leaves the domain and the run crashes. At an edge
 corner each wall's friction also slows the motion towards the other walls (e ≈ 0.55 at
 the edge, 0.47 in the corner with μ = 0.4), so there the test only checks the rebound.
 
-## Memory: ppiclF arrays sized at run time (c1ac692, 0d4d86c, e227f99)
+## Memory: ppiclF arrays sized at run time (c1ac692, 0d4d86c, e227f99, 074d58d)
 
 ### The problem
 
@@ -604,6 +604,56 @@ before, per particle (about 12 kB per particle for 50 steps).
   `use ppiclf_data` (every routine that includes `PPICLF` already has it).
 - Arrays whose size is a particle, ghost or cell count must not be given a fixed size
   anywhere else (local buffers included): size them from the current count or capacity.
+- The number of entries per particle or cell is set at run time too; see the next
+  section.
+
+### Field sizes set at run time
+
+The three steps above size each array's particle, ghost, cell or wall dimension from
+the run. The other dimension, how many entries a particle or a cell carries, was still a
+compile-time constant in `PPICLF_USER.h`. Rocflu had to keep its number of
+`InterpFieldUser` calls equal to `PPICLF_LRP_INT` by hand, and a run without
+pseudo-turbulence still carried all PT fields. Now both dimensions of every array are set
+when the run starts.
+
+| Size | Arrays | Was | Now |
+|---|---|---|---|
+| State per particle | `y`, `y1`, `ydot`, `ydotc` | `PPICLF_LRS` 10 | `ppiclf_lrs` |
+| Properties per particle | `rprop`, `cp_map` (with `y`) | `PPICLF_LRP` 53 | `ppiclf_lrp` |
+| Interpolated fields | `int_fld`, `int_fld_input` | `PPICLF_LRP_INT` 29 | `ppiclf_lrp_int` |
+| Projected fields | `feedbk`, `pro_fld`, `pro_fld_picl` | `PPICLF_LRP_PRO` 31 | `ppiclf_lrp_pro` |
+| Properties a ghost carries | `rprop_gp` (with `y`) | `PPICLF_LRP_GHOST` 6 | `ppiclf_lrp_ghost` |
+
+- **One user routine sets them.** `ppiclf_user_Layout`
+  (`libpicl/user_files/ppiclf_user_Layout.f`) sets `ppiclf_lrs`, `ppiclf_lrp` and
+  `ppiclf_lrp_pro`. It lists the interpolated slots (`ppiclf_solve_AddInterpSlot`) and
+  the slots ghosts carry (`ppiclf_solve_AddGhostSlot`). `PICL_TEMP_InitSolver` calls it
+  once through `ppiclf_solve_InitLayout`, after the PICL flags are read and before any
+  particle exists, and gets back the sizes of `y` and `rprop` to create the particles.
+  Rank 0 prints the sizes and both lists.
+- **ppiclF counts the interpolated fields itself.** The count is the length of the
+  list. The check in `PICL_TEMP_Runge*.F90` that the number of fields was 29 is gone.
+  Instead ppiclF stops with the slot number if, in a stage, Rocflu gives a slot that is
+  not on the list, gives one twice, or leaves one out. (At start-up ppiclF interpolates
+  once before Rocflu has given any field; then nothing is interpolated, as before.)
+- **The slot lists are module arrays.** `ppiclf_int_slots` replaces `PPICLF_INT_MAP`,
+  which was kept in a COMMON block and filled in call order. A field's column is now its
+  place in the list. Each field is interpolated on its own, so the order changes no
+  result.
+- **Removed macros:** `PPICLF_LRS`, `PPICLF_LRP`, `PPICLF_LRP_INT`, `PPICLF_LRP_PRO`,
+  `PPICLF_LRP_GHOST`, `PPICLF_GHOST_SLOTS_INDEX`, `PPICLF_LRP_GP`, `PPICLF_INTERP`,
+  `PPICLF_PROJECT`. The slot names (`PPICLF_J*`, `PPICLF_R_*`, `PPICLF_P_*`) stay.
+- **Local arrays** sized by these numbers (the neighbour routine's `yi`, `rpropi`, `yj`,
+  `rpropj`) are sized from the module variables, so `-fcheck=all` still checks them.
+
+In 074d58d the layout is the one the macros gave: every field on. Checked: in all 42
+cases (the suite, `AMFORCE 2` variants of the ghost and binary-collision cases, and
+`QSFLUCT` and `PSEUDOTURB` variants with `OUTMODEL 1`) every particle and flow file is
+byte-identical to f4d6486; 35 PASS twice.
+
+Next, the layout follows the physics that is on: the PT projected fields and diagnostics
+only with `PSEUDOTURB`, the gas gradients only with the models that read them,
+temperature only with `HEATTRANSFER`, spin only with `COLLISIONS` ≥ 2.
 
 ## Particle properties (`rprop`)
 
@@ -758,7 +808,7 @@ Removed:
   and nothing read it. Its array (`ppF`) and its `InterpFieldUser` call are gone from
   `PICL_TEMP_Runge.F90` and `PICL_TEMP_Runge_EulerPT.F90`. (The check there that the
   number of interpolated fields was 29 has since been replaced by ppiclF's own check; see
-  the next section.)
+  [Field sizes set at run time](#field-sizes-set-at-run-time).)
 - Slots 34 and 35, empty since the burn-rate model was removed.
 
 Each particle now stores 48 bytes less in `rprop`, and the same again in the
@@ -777,55 +827,6 @@ Checked: 35 PASS twice; in all 39 cases with particles (the suite, `AMFORCE 2` v
 and `QSFLUCT` and `PSEUDOTURB` variants with `OUTMODEL 1`, 62 fields) every named field is
 bit-identical to the old field it replaces in the files of 74b8f87, and the flow files
 are byte-identical.
-
-### Field sizes set at run time
-
-The particle, ghost, cell and wall counts were already set at run time (see
-[Memory](#memory-ppiclf-arrays-sized-at-run-time-c1ac692-0d4d86c-e227f99)). The other
-dimension of each array, how many entries a particle or a cell carries, was still a
-compile-time constant in `PPICLF_USER.h`. Rocflu had to keep its number of
-`InterpFieldUser` calls equal to `PPICLF_LRP_INT` by hand, and a run without
-pseudo-turbulence still carried all PT fields. Now both dimensions of every array are set
-when the run starts.
-
-| Size | Arrays | Was | Now |
-|---|---|---|---|
-| State per particle | `y`, `y1`, `ydot`, `ydotc` | `PPICLF_LRS` 10 | `ppiclf_lrs` |
-| Properties per particle | `rprop`, `cp_map` (with `y`) | `PPICLF_LRP` 53 | `ppiclf_lrp` |
-| Interpolated fields | `int_fld`, `int_fld_input` | `PPICLF_LRP_INT` 29 | `ppiclf_lrp_int` |
-| Projected fields | `feedbk`, `pro_fld`, `pro_fld_picl` | `PPICLF_LRP_PRO` 31 | `ppiclf_lrp_pro` |
-| Properties a ghost carries | `rprop_gp` (with `y`) | `PPICLF_LRP_GHOST` 6 | `ppiclf_lrp_ghost` |
-
-- **One user routine sets them.** `ppiclf_user_Layout`
-  (`libpicl/user_files/ppiclf_user_Layout.f`) sets `ppiclf_lrs`, `ppiclf_lrp` and
-  `ppiclf_lrp_pro`. It lists the interpolated slots (`ppiclf_solve_AddInterpSlot`) and
-  the slots ghosts carry (`ppiclf_solve_AddGhostSlot`). `PICL_TEMP_InitSolver` calls it
-  once through `ppiclf_solve_InitLayout`, after the PICL flags are read and before any
-  particle exists, and gets back the sizes of `y` and `rprop` to create the particles.
-  Rank 0 prints the sizes and both lists.
-- **ppiclF counts the interpolated fields itself.** The count is the length of the
-  list. The check in `PICL_TEMP_Runge*.F90` that the number of fields was 29 is gone.
-  Instead ppiclF stops with the slot number if, in a stage, Rocflu gives a slot that is
-  not on the list, gives one twice, or leaves one out. (At start-up ppiclF interpolates
-  once before Rocflu has given any field; then nothing is interpolated, as before.)
-- **The slot lists are module arrays.** `ppiclf_int_slots` replaces `PPICLF_INT_MAP`,
-  which was kept in a COMMON block and filled in call order. A field's column is now its
-  place in the list. Each field is interpolated on its own, so the order changes no
-  result.
-- **Removed macros:** `PPICLF_LRS`, `PPICLF_LRP`, `PPICLF_LRP_INT`, `PPICLF_LRP_PRO`,
-  `PPICLF_LRP_GHOST`, `PPICLF_GHOST_SLOTS_INDEX`, `PPICLF_LRP_GP`, `PPICLF_INTERP`,
-  `PPICLF_PROJECT`. The slot names (`PPICLF_J*`, `PPICLF_R_*`, `PPICLF_P_*`) stay.
-- **Local arrays** sized by these numbers (the neighbour routine's `yi`, `rpropi`, `yj`,
-  `rpropj`) are sized from the module variables, so `-fcheck=all` still checks them.
-
-In this commit the layout is the one the macros gave: every field on. Checked: in all 42
-cases (the suite, `AMFORCE 2` variants of the ghost and binary-collision cases, and
-`QSFLUCT` and `PSEUDOTURB` variants with `OUTMODEL 1`) every particle and flow file is
-byte-identical to f4d6486; 35 PASS twice.
-
-Next, the layout follows the physics that is on: the PT projected fields and diagnostics
-only with `PSEUDOTURB`, the gas gradients only with the models that read them,
-temperature only with `HEATTRANSFER`, spin only with `COLLISIONS` ≥ 2.
 
 ## Notes for the discussion with the MFC team
 
