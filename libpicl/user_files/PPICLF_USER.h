@@ -1,6 +1,6 @@
 #define PPICLF_LRS 10
-#define PPICLF_LRP 59
-#define PPICLF_LRP_INT 30
+#define PPICLF_LRP 53
+#define PPICLF_LRP_INT 29
 #define PPICLF_LRP_PRO 31
 
 ! The viscous-unsteady history (PPICLF_VU, PPICLF_LRP3) is sized at run
@@ -22,64 +22,78 @@
 #define PPICLF_JOY 9
 #define PPICLF_JOZ 10
 
-! rprop: PPICLF_LRP
+! rprop: PPICLF_LRP, grouped by role
+!--- Particle properties: set at start-up, used every step
 #define PPICLF_R_JRHOP 1
-#define PPICLF_R_JRHOF 2
-#define PPICLF_R_JDP 3
-#define PPICLF_R_JVOLP 4
-#define PPICLF_R_JPHIP 5
-#define PPICLF_R_JUX 6
-#define PPICLF_R_JUY 7
-#define PPICLF_R_JUZ 8
-#define PPICLF_R_JCS 9
-#define PPICLF_R_JDPDX 10
-#define PPICLF_R_JDPDY 11
-#define PPICLF_R_JDPDZ 12
-#define PPICLF_R_JSDRX 13
-#define PPICLF_R_JSDRY 14
-#define PPICLF_R_JSDRZ 15
-#define PPICLF_R_JRHSR 16
-#define PPICLF_R_JPGCX 17 
-#define PPICLF_R_JPGCY 18
-#define PPICLF_R_JPGCZ 19
-#define PPICLF_R_JDPi  20
-#define PPICLF_R_JDPe  21
-#define PPICLF_R_JSPL 22
-#define PPICLF_R_JSPT 23
-#define PPICLF_R_JT   24
-#define PPICLF_R_FLUCTFX 25
-#define PPICLF_R_FLUCTFY 26
-#define PPICLF_R_FLUCTFZ 27
-#define PPICLF_R_WDOTX 28
-#define PPICLF_R_WDOTY 29
-#define PPICLF_R_WDOTZ 30
+#define PPICLF_R_JDP 2
+#define PPICLF_R_JVOLP 3
+!    superparticle loading (always 1 for now)
+#define PPICLF_R_JSPL 4
+!--- Model state carried from step to step
+!    fluctuating quasi-steady force (QSFLUCT)
+#define PPICLF_R_FLUCTFX 5
+#define PPICLF_R_FLUCTFY 6
+#define PPICLF_R_FLUCTFZ 7
+!    pseudo-turbulence stochastic variables (PSEUDOTURB)
+#define PPICLF_R_XIPAR 8
+#define PPICLF_R_XIPERP 9
+#define PPICLF_R_XIT 10
+!    density-weighted relative acceleration, read from neighbours
+!    (AMFORCE 2); must stay contiguous (x, y, z)
+#define PPICLF_R_WDOTX 11
+#define PPICLF_R_WDOTY 12
+#define PPICLF_R_WDOTZ 13
+!--- Gas at the particle: interpolated from Rocflu every stage
+!    (PPICLF_LRP_INT of them, PICL_TEMP_Runge InterpFieldUser calls)
+#define PPICLF_R_JRHOF 14
+!    particle volume fraction: the projected particle volume,
+!    interpolated back to the particle
+#define PPICLF_R_JPHIP 15
+#define PPICLF_R_JUX 16
+#define PPICLF_R_JUY 17
+#define PPICLF_R_JUZ 18
+#define PPICLF_R_JCS 19
+#define PPICLF_R_JT 20
+#define PPICLF_R_JDPDX 21
+#define PPICLF_R_JDPDY 22
+#define PPICLF_R_JDPDZ 23
+!    substantial derivative of the gas velocity, Du/Dt
+#define PPICLF_R_JSDRX 24
+#define PPICLF_R_JSDRY 25
+#define PPICLF_R_JSDRZ 26
+!    d(rho phi_g)/dt and grad(rho phi_g)
+#define PPICLF_R_JRHSR 27
+#define PPICLF_R_JPGCX 28
+#define PPICLF_R_JPGCY 29
+#define PPICLF_R_JPGCZ 30
+!    vorticity
 #define PPICLF_R_JXVOR 31
 #define PPICLF_R_JYVOR 32
 #define PPICLF_R_JZVOR 33
-#define PPICLF_R_JP 36
-#define PPICLF_R_JRHOGX 37
-#define PPICLF_R_JRHOGY 38
-#define PPICLF_R_JRHOGZ 39
-#define PPICLF_R_JDPVDX 40
-#define PPICLF_R_JDPVDY 41
-#define PPICLF_R_JDPVDZ 42
-#define PPICLF_R_JSDOX 43
-#define PPICLF_R_JSDOY 44
-#define PPICLF_R_JSDOZ 45
-#define PPICLF_R_XIPAR 46
-#define PPICLF_R_XIPERP 47
-#define PPICLF_R_XIT 48
-#define PPICLF_R_RTildePar 49
-#define PPICLF_R_RTildePerp 50
-#define PPICLF_R_R11 51
-#define PPICLF_R_R22 52
-#define PPICLF_R_R33 53
-#define PPICLF_R_KMehra 54
-#define PPICLF_R_KOsnes 55
-#define PPICLF_R_RparMehra 56
-#define PPICLF_R_RperpMehra 57
-#define PPICLF_R_RTerm2Par 58
-#define PPICLF_R_RTerm2Perp 59
+!    gas density gradient
+#define PPICLF_R_JRHOGX 34
+#define PPICLF_R_JRHOGY 35
+#define PPICLF_R_JRHOGZ 36
+!    divergence of the viscous stress
+#define PPICLF_R_JDPVDX 37
+#define PPICLF_R_JDPVDY 38
+#define PPICLF_R_JDPVDZ 39
+!    substantial derivative of the vorticity
+#define PPICLF_R_JSDOX 40
+#define PPICLF_R_JSDOY 41
+#define PPICLF_R_JSDOZ 42
+!--- Pseudo-turbulence diagnostics (PSEUDOTURB), output only
+#define PPICLF_R_RTildePar 43
+#define PPICLF_R_RTildePerp 44
+#define PPICLF_R_R11 45
+#define PPICLF_R_R22 46
+#define PPICLF_R_R33 47
+#define PPICLF_R_KMehra 48
+#define PPICLF_R_KOsnes 49
+#define PPICLF_R_RparMehra 50
+#define PPICLF_R_RperpMehra 51
+#define PPICLF_R_RTerm2Par 52
+#define PPICLF_R_RTerm2Perp 53
 
 ! rprop slots sent with ghost particles: the ones the neighbour routine
 ! (ppiclf_user_EvalNearestNeighbor) reads from its neighbour (rpropj).

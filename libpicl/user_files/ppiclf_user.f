@@ -150,16 +150,6 @@
 !
 !-----------------------------------------------------------------------
 !
-! Reapply axi-sym collision correction
-! Right now hard coding smallest radius  
-      do i=1,ppiclf_npart
-        ppiclf_rprop(PPICLF_R_JDPe,i) = 
-     > (0.00005/ppiclf_rprop(PPICLF_R_JSPT,i))
-     > * ppiclf_rprop(PPICLF_R_JDP,i)  
-      end do 
-!
-!-----------------------------------------------------------------------
-!
 ! Reset arrays for Viscous Unsteady Force
 !
       if (ViscousUnsteady_flag>=1) then
@@ -229,15 +219,6 @@
          ! particles with vmag <= 1e-3 skipped all forces, ydot, the
          ! feedback and the neighbor search, so resting particles kept
          ! stale values, never collided and never exchanged heat.
-
-         ! TLJ - redefined rprop(PPICLF_R_JSPT,i) to be the particle
-         !   velocity magnitude for plotting purposes - 01/03/2025
- 
-         ! ***This is bad practice and leads to hard to debug code -Avery***
-         ppiclf_rprop(PPICLF_R_JSPT,i) = sqrt(
-     >       ppiclf_y(PPICLF_JVX,i)**2 +
-     >       ppiclf_y(PPICLF_JVY,i)**2 +
-     >       ppiclf_y(PPICLF_JVZ,i)**2)
 
          ! No floor on rep: the models that use it have finite limits
          ! as Re -> 0 (the QS models compute their own Re)

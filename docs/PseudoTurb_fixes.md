@@ -528,12 +528,12 @@ before, per particle (about 12 kB per particle for 50 steps).
 
 ## Particle properties (`rprop`)
 
-`ppiclf_rprop(1:59, i)` holds everything about particle `i` that is not in the state
-`y`. The 59 slots do four different jobs, but until now all of them moved with the
-particle, went to every ghost, were written to every `par*.vtu` file (as `rpro01`
-to `rpro59`) and were read back on restart.
+`ppiclf_rprop(:, i)` holds everything about particle `i` that is not in the state
+`y`. It had 59 slots doing four different jobs, in no particular order, and all of them
+moved with the particle, went to every ghost, were written to every `par*.vtu` file (as
+`rpro01` to `rpro59`) and were read back on restart. Before the changes below:
 
-| Job | Slots | Needed |
+| Job | Slots (old numbering) | Needed |
 |---|---|---|
 | Particle properties | 1 ρp, 3 dp, 4 Vp, 22 superparticle loading | Every step, and on restart. Set once in `PICL_TEMP_InitSolver` |
 | Carried from step to step | 25–27 quasi-steady force fluctuation, 46–48 ξ∥, ξ⊥, ξT | Every step, and on restart: each step updates the previous value |
@@ -546,7 +546,7 @@ Planned, one commit at a time:
 
 1. Ghosts carry only what the neighbour search reads (done, below).
 2. Choose the fields of the particle output with a list, and name them (done, below).
-3. Remove the unused slots and group the rest by job.
+3. Remove the unused slots and group the rest by job (done, below).
 4. Later: a separate double-precision particle restart file holding only the state a
    run needs to continue, as MFC does. Until then a particle restart stops (below).
 
@@ -656,6 +656,43 @@ every golden. Checked: in all 37 cases with particles (the 35 suite cases plus
 field it replaces in the files of 74b8f87 (e.g. `rho_g` to `rpro02`), and the flow
 files are byte-identical. The default output alone and `OUTMODEL` with `QSFLUCT` and
 `PSEUDOTURB` were also run.
+
+### Unused slots removed, the rest grouped by job
+
+`PPICLF_LRP` is 53 (was 59) and `PPICLF_LRP_INT` 29 (was 30). The `PPICLF_R_*` names are
+unchanged; only their numbers moved, so each job is one block (`PPICLF_USER.h`):
+
+| Slots | Job | Contents |
+|---|---|---|
+| 1–4 | Particle properties | `JRHOP`, `JDP`, `JVOLP`, `JSPL` |
+| 5–13 | Model state carried from step to step | `FLUCTFX/Y/Z`, `XIPAR/XIPERP/XIT`, `WDOTX/Y/Z` |
+| 14–42 | Gas at the particle, interpolated every stage | `JRHOF`, `JPHIP`, `JUX/Y/Z`, `JCS`, `JT`, `JDPDX/Y/Z`, `JSDRX/Y/Z`, `JRHSR`, `JPGCX/Y/Z`, `JXVOR/Y/Z`, `JRHOGX/Y/Z`, `JDPVDX/Y/Z`, `JSDOX/Y/Z` |
+| 43–53 | Pseudo-turbulence diagnostics | `RTildePar` … `RTerm2Perp` |
+
+Removed:
+- `JDPi` (never written) and `JDPe` (rewritten every step as 50 µm/\|v\| × dp, a
+  leftover "axisymmetric collision correction" that nothing read).
+- `JSPT`, the particle speed \|v\| stored "for plotting"; it only fed `JDPe`. ParaView
+  computes it from `vp_x vp_y vp_z`.
+- `JP`, the gas pressure: Rocflu computed it and ppiclF interpolated it every stage,
+  and nothing read it. Its array (`ppF`) and its `InterpFieldUser` call are gone from
+  `PICL_TEMP_Runge.F90` and `PICL_TEMP_Runge_EulerPT.F90`, and the check there that the
+  number of interpolated fields matches `PPICLF_LRP_INT` now expects 29.
+- Slots 34 and 35, empty since the burn-rate model was removed.
+
+Each particle now stores 48 bytes less in `rprop`, and the same again in the
+neighbour-search copy (`cp_map`) and in every transfer of a particle to another rank.
+One field less is computed, sent between ranks and interpolated every stage.
+
+**Adding a slot:** put it in the block of its job and renumber the rest of that block
+and the blocks after it; nothing in the code uses slot numbers directly, only the
+`PPICLF_R_*` names. Update `PPICLF_LRP`, and for an interpolated field `PPICLF_LRP_INT`
+and the check in the two `PICL_TEMP_Runge*.F90` files.
+
+Checked: 35 PASS twice; in all 39 cases with particles (the suite, `AMFORCE 2` variants,
+and `QSFLUCT` and `PSEUDOTURB` variants with `OUTMODEL 1`, 62 fields) every named field is
+bit-identical to the old field it replaces in the files of 74b8f87, and the flow files
+are byte-identical.
 
 ## Notes for the discussion with the MFC team
 

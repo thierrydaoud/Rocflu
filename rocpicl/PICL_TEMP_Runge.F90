@@ -131,7 +131,7 @@ TYPE(t_grid), POINTER :: pGrid
                   dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz, vFrac, Cp
 
   REAL(KIND=8), DIMENSION(3) :: ug      
-  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: rhoF, uxF, uyF, uzF, csF, tpF, ppF, vfP, &
+  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: rhoF, uxF, uyF, uzF, csF, tpF, vfP, &
                                              dpxF, dpyF, dpzF, SDRX, SDRY, SDRZ, rhsR, &
                                              pGcX, pGcY, pGcZ, PhiP, YTEMP, &
                                              JFXCell, JFYCell, JFZCell, JFECell, &
@@ -196,7 +196,7 @@ TYPE(t_grid), POINTER :: pGrid
 !allocate arrays to send to picl
     nCells = pRegion%grid%nCells
     ALLOCATE(rhoF(nCells), uxF(nCells), uyF(nCells), uzF(nCells), csF(nCells), &
-             tpF(nCells), ppF(nCells), vfP(nCells), dpxF(nCells), dpyF(nCells), dpzF(nCells), &
+             tpF(nCells), vfP(nCells), dpxF(nCells), dpyF(nCells), dpzF(nCells), &
              SDRX(nCells), SDRY(nCells), SDRZ(nCells), rhsR(nCells), pGcX(nCells), pGcY(nCells), &
              pGcZ(nCells), JFXCell(nCells), JFYCell(nCells), JFZCell(nCells), JFECell(nCells), &
              PhiP(nCells), domgdx(nCells), domgdy(nCells), domgdz(nCells), &
@@ -343,7 +343,6 @@ pGc => pRegion%mixt%gradCell
        csF(i) = pRegion%mixt%dv(DV_MIXT_SOUN,i)
        tpF(i) = pRegion%mixt%dv(DV_MIXT_TEMP,i) 
        ! Davin - added pressure to interpolation values 02/22/2025
-       ppF(i) = pRegion%mixt%dv(DV_MIXT_PRES,i) 
 
        dpxF(i) = pRegion%mixt%gradCell(XCOORD,GRC_MIXT_PRES,i) ! dp/dx
        dpyF(i) = pRegion%mixt%gradCell(YCOORD,GRC_MIXT_PRES,i) ! dp/dy
@@ -446,9 +445,9 @@ pGc => pRegion%mixt%gradCell
 !       the ppiclf particle locations
 ! TLJ PPICLF_LRP_INT in PPICLF_USER.h must match the number
 !     of calls to ppiclf_solve_InterpFieldUser
-! Davin - added pressure 02/22/2025
-      IF(PPICLF_LRP_INT .NE. 30) THEN
-         WRITE(*,*) "Error: PPICLF_LRP_INT must be set to 30"
+! (29: the gas pressure added 02/22/2025 was never used and was removed)
+      IF(PPICLF_LRP_INT .NE. 29) THEN
+         WRITE(*,*) "Error: PPICLF_LRP_INT must be set to 29"
          CALL ErrorStop(global,ERR_INVALID_VALUE ,__LINE__,'PPICLF:LRP_INT')
       END IF
  
@@ -472,7 +471,6 @@ pGc => pRegion%mixt%gradCell
       CALL ppiclf_solve_InterpFieldUser(PPICLF_R_JXVOR,domgdx)
       CALL ppiclf_solve_InterpFieldUser(PPICLF_R_JYVOR,domgdy)  
       CALL ppiclf_solve_InterpFieldUser(PPICLF_R_JZVOR,domgdz)  
-      CALL ppiclf_solve_InterpFieldUser(PPICLF_R_JP,ppF)  
       CALL ppiclf_solve_InterpFieldUser(PPICLF_R_JRHOGX,drhodx)
       CALL ppiclf_solve_InterpFieldUser(PPICLF_R_JRHOGY,drhody)
       CALL ppiclf_solve_InterpFieldUser(PPICLF_R_JRHOGZ,drhodz)
@@ -887,7 +885,7 @@ END DO
       END IF ! global%error
     END IF
 
-    DEALLOCATE(rhoF, uxF, uyF, uzF, csF, tpF, ppF, &
+    DEALLOCATE(rhoF, uxF, uyF, uzF, csF, tpF, &
                SDRX, SDRY, SDRZ, rhsR, pGcX, pGcY, pGcZ, &
                JFXCell, JFYCell, JFZCell, JFECell, &
                domgdx, domgdy, domgdz, drhodx, drhody, drhodz, &
