@@ -11,6 +11,42 @@ was wrong, how each problem was fixed, and how the fix was checked. The PT model
 All changes are covered by the regression suite in [`tests/`](../tests/README.md):
 35 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks.
 
+## Contents
+
+- [Summary](#summary)
+- [Regression tests](#regression-tests)
+- [Interpolation: weighted linear least squares](#interpolation-weighted-linear-least-squares)
+  - [Interpolation in shock-driven flows](#interpolation-in-shock-driven-flows)
+- [Where a particle stage spends its time, and a faster stencil search](#where-a-particle-stage-spends-its-time-and-a-faster-stencil-search)
+  - [Measured breakdown](#measured-breakdown)
+  - [A faster stencil search](#a-faster-stencil-search)
+- [Projection: kernel width per direction, and cloud-edge cells](#projection-kernel-width-per-direction-and-cloud-edge-cells)
+- [Low-slip closures](#low-slip-closures)
+- [Quasi-steady drag, aligned with MFC](#quasi-steady-drag-aligned-with-mfc)
+- [Particle collisions](#particle-collisions)
+  - [Contact stiffness from the pair's effective mass (3afd23a)](#contact-stiffness-from-the-pairs-effective-mass-3afd23a)
+  - [Ghost particles and the neighbour search (f7a3980, 0bb2e4b, 82d4ca4)](#ghost-particles-and-the-neighbour-search-f7a3980-0bb2e4b-82d4ca4)
+- [Particle–wall collisions (2ff0cd8)](#particlewall-collisions-2ff0cd8)
+  - [Turning walls on](#turning-walls-on)
+  - [What changed](#what-changed)
+  - [Results](#results)
+- [Memory: ppiclF arrays sized at run time (c1ac692, 0d4d86c, e227f99, 074d58d)](#memory-ppiclf-arrays-sized-at-run-time-c1ac692-0d4d86c-e227f99-074d58d)
+  - [The problem](#the-problem)
+  - [What changed](#what-changed-1)
+  - [How the arrays grow](#how-the-arrays-grow)
+  - [Two bugs found on the way](#two-bugs-found-on-the-way)
+  - [How it was checked](#how-it-was-checked)
+  - [What changes for users and developers](#what-changes-for-users-and-developers)
+  - [Field sizes set at run time](#field-sizes-set-at-run-time)
+- [Particle properties (rprop)](#particle-properties-rprop)
+  - [Ghosts carry only what the neighbour search reads (a7f5748)](#ghosts-carry-only-what-the-neighbour-search-reads-a7f5748)
+  - [Particle output: a list of named fields](#particle-output-a-list-of-named-fields)
+  - [Unused slots removed, the rest grouped by job](#unused-slots-removed-the-rest-grouped-by-job)
+- [Notes for the discussion with the MFC team](#notes-for-the-discussion-with-the-mfc-team)
+- [MPI and periodic boundaries](#mpi-and-periodic-boundaries)
+- [Still open](#still-open)
+- [Reproducing the figures](#reproducing-the-figures)
+
 ## Summary
 
 | Area | Problem | Fix | Commit |
