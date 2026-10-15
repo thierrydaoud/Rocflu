@@ -4,26 +4,57 @@ Small cases (a few hundred cells, 1–40 particles) that run in seconds each. Ev
 case is compared against a stored golden, and most cases also have physics checks
 that judge whether the result is correct, not just unchanged.
 
+This suite tests the coupled code end to end: grid, pre-processing, the Rocflu solver
+and ppiclF together, on 1, 2 and 4 MPI ranks. It replaces ppiclF's own unit tests
+(`libpicl/unit_tests`, `short_tests` and the `#ifdef TEST` code), which were removed
+in 3c41db2.
+
+There are two kinds of test:
+- **Golden comparison.** The final gas and particle state must match the one stored
+  in `goldens/<case>/golden.json`. This catches any change in results, intended or not.
+- **Physics checks.** Conservation, exact interpolation, restitution and so on, tested
+  against the physics rather than against an older run. They stay meaningful when a fix
+  changes every golden on purpose.
+
+The 35 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
+one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
+collisions, walls) and [gas only](#gas-only-cases) (the flow solver without particles).
+
 ## Running
 
-Build the code first (`makeall.sh`). Then, from this directory:
+### 1. Build
+
+Build the code in the tree you want to test (`makeall.sh`, or `make RFLU=1 PICL=1
+FOLDER=1 -j16`). The suite runs the executables `rflumap`, `rflupart`, `rfluinit` and
+`rflump` from the top of that tree. By default that is the tree that holds this
+`tests/` directory; `--exe` points at another one.
+
+### 2. Run
+
+From this directory:
 
 ```bash
-module load gcc/14.2.0 openmpi/5.0.7
+module purge; module load gcc/14.2.0 openmpi/5.0.7
 ./run_tests.py list                        # show cases
 ./run_tests.py run                         # all cases, compare to goldens (~40 s)
 ./run_tests.py run -o shocktube/two-way    # cases whose name contains a pattern
+./run_tests.py run -o walls np1            # several patterns: any of them
 ./run_tests.py run --exe /path/to/tree     # test executables from another tree
-./run_tests.py run --generate              # rewrite goldens from this build
+./run_tests.py run -j 21                   # cases run at the same time (default 8)
+./run_tests.py run --keep                  # keep run directories of passing cases
 ```
+
+Load the modules in the same shell. Without them every case fails with a `GLIBCXX`
+error.
 
 Pre-processing (`rflumap`, `rflupart`, `rfluinit`) runs serially where you launch the
 script. The solver runs through `srun`:
 - From a login node, each case is its own short job (`-A bala1s -p hpg-dev`). Override
   with `--account`/`--partition` or `ROCPICL_TEST_ACCOUNT`/`ROCPICL_TEST_PARTITION`.
+  `-j 21` runs the whole suite in about 40 s when the partition is free.
 - Inside an allocation (`salloc`), cases run as job steps.
 - `--local-ranks N` runs cases with at most N ranks with `mpirun --bind-to none` where
-  you launch the script (e.g. `-j 6 --local-ranks 4` on a login node, at most 16 cores;
+  you launch the script (e.g. `-j 4 --local-ranks 4` on a login node, at most 16 cores;
   the whole suite takes ~5 min). Without `--bind-to none`, concurrent cases all pin
   to the first cores and run ~10x slower.
 
@@ -31,8 +62,35 @@ A case whose solver run fails is set up again and retried once; `srun` on a shar
 partition can fail when the Slurm controller is unresponsive. The retry and any Slurm
 messages are shown next to the case.
 
+### 3. Read the result
+
+The script prints one line per case and a total, e.g. `35 PASS`. See [Results](#results)
+for what each status means.
+
 Run directories go to `_work/runs/<case>` (git-ignored). They are deleted for cases
-that pass, unless you pass `--keep`.
+that pass, unless you pass `--keep`. A failed case keeps its directory, with the
+input files and one log per step: `mesh.log`, `rflumap.log`, `rflupart.log`,
+`rfluinit.log`, `rflump.log`. A golden mismatch names the worst particle or cell and
+its value against the golden.
+
+### 4. After changing the code
+
+- **Results should not change** (a clean-up, a speed-up): run the suite. It must pass
+  as it is.
+- **Results change on purpose** (a fix): the goldens of the affected cases have to be
+  rewritten. Do it from a clean build of a committed tree, so each golden records which
+  commit produced it:
+  1. Commit the fix.
+  2. Do a clean build of that commit, ideally in a separate worktree, so the binaries
+     cannot come from uncommitted edits.
+  3. `./run_tests.py run --generate --exe <tree>`. A golden is written only if the
+     case's physics checks pass. `--force` writes it anyway; use it only for a case
+     marked `known_issue`.
+  4. Run the comparison twice (`./run_tests.py run --exe <tree>`). Both must pass.
+  5. Commit `goldens/` separately from the fix.
+
+  Never regenerate goldens to make a failing physics check go away: the check is
+  telling you the new result is wrong.
 
 ## Results
 
@@ -84,6 +142,64 @@ by particle.
 | `binary_collisions` | Colliding pairs (ids 2k−1, 2k) conserve momentum (1e-5) and angular momentum about their centre of mass (0.5%), and separate; head-on pairs rebound with the input `EREST` (within 1%) |
 | `wall_collisions` | Every particle that reaches a wall of the box rebounds from it and ends inside the box, clear of the wall; one that hits a single wall rebounds with the input `EREST` (within 0.035) |
 | `same_as` | Particles match the same case on a different number of ranks (all particle fields, or only those named by the case's `same_as_fields`) |
+
+## The test cases
+
+Every case writes two solution dumps and is compared at the last one. "np*N*" in a name
+is the number of MPI ranks. Where a case exists on several rank counts, the 2- and
+4-rank versions also run `same_as` against the 1-rank one (except where noted), so
+they test that the result does not depend on the decomposition.
+
+### Shock tube cases
+
+A 40 × 4 × 4 mm tube of 1 mm cells, periodic in y and z, with a Mach 1.27 shock starting at
+x = −10 mm and running into particles at rest (100 µm, quasi-steady drag, Osnes).
+They run to 20 µs.
+
+| Case | Ranks | Setup | Checks | What it guards |
+|---|---|---|---|---|
+| `shocktube/one-way/1-particle` | 1, 2 | One particle, `FEEDBACK 0` | `particles_moved`, `same_as` | ppiclF bins around a single particle (this once gave a filter width of 0) |
+| `shocktube/one-way/4-particles` | 1, 2 | Four particles, `FEEDBACK 0` | `particles_moved`, `same_as` | Interpolation and drag with several particles |
+| `shocktube/two-way/4-particles` | 1, 2 | Four particles, `FEEDBACK 1` | `particles_moved`, `same_as` | Feedback to the gas, across a rank border |
+| `shocktube/two-way/added-mass` | 2 | + `AMFORCE 2` | `particles_moved` | Added-mass force (Briney) |
+| `shocktube/two-way/pressure-gradient` | 2 | + `PGFORCE 1` | `particles_moved` | Pressure-gradient force |
+| `shocktube/two-way/viscous-unsteady` | 2 | + `VISCOUSUNSTEADY 1` | `particles_moved` | History force |
+| `shocktube/two-way/heat-transfer` | 2 | + `HEATTRANSFER 3` | `particles_moved` | Heat-transfer closure |
+| `shocktube/two-way/qs-fluctuations` | 2 | + `QSFLUCT 2` | `particles_moved` | Quasi-steady force fluctuations |
+| `shocktube/two-way/qs-parmar` | 2 | `QSFORCE 2` | `particles_moved` | Parmar drag (MFC numbering) |
+| `shocktube/two-way/qs-gidaspow` | 2 | `QSFORCE 1` | `particles_moved` | Gidaspow drag |
+
+The force-model cases have no physics check beyond `particles_moved`. Their golden is
+what guards them: any change in the model's result shows up as a golden mismatch.
+
+### Box cases
+
+An 8 mm cube of 1 mm cells (8 × 8 × 8), either periodic on all faces or closed by slip
+walls. The gas is uniform (1.2 kg/m³, 101 325 Pa) unless stated otherwise.
+
+| Case | Ranks | Setup | Checks | What it guards |
+|---|---|---|---|---|
+| `box/momentum-exchange` | 1, 2 | Periodic; gas at 50 m/s through 40 particles (20 µm) at rest, two-way | `mass`, `momentum`, `energy`, `same_as` | The gas loses exactly the momentum and energy the particles gain |
+| `box/quiescent-cloud` | 2, 4 | Periodic; 30 fixed particles (300 µm, uneven) in gas at rest, `STATIONARY 1`, `PGFORCE 1` | `quiescent`, `mass` | Stale virtual cells at rank borders set the gas moving (e3ed370) |
+| `box/resting-heat-exchange` | 1 | Periodic; particles at rest at 296.4 K in gas at rest at 294.2 K, `HEATTRANSFER 2` | `particles_heat_exchange`, `mass`, `energy` | Heat transfer at zero slip used to be skipped (f0ae123) |
+| `box/linear-interp` | 1, 2, 4 | Closed; gas at rest with density linear in x, y, z; 40 tracers (1 µm) | `linear_interp`, `mass` | Interpolation is exact for a linear field (89f9661) |
+| `box/elongated-projection` | 1, 2 | Closed, 2:1:1 cells; one fixed particle | `projection_shape`, `mass` | The projection kernel spreads ~0.44 cell lengths in every direction (414ce7f, affad85) |
+| `box/ghost-collisions` | 1, 2, 4 | Periodic; 9 overlapping pairs at rest, collisions as the only force | `collision_pairs`, `same_as` | Pairs across bin faces, rank borders, periodic faces, edges and corners all behave like a pair inside one bin (ghost particles) |
+| `box/binary-collisions` | 1, 2, 4 | Periodic; 4 approaching pairs (equal and 8:1 mass, head-on and oblique, 1–10 m/s), `COLLISIONS 2` | `binary_collisions`, `same_as` | Momentum and angular momentum conserved, rebound with `EREST` (3afd23a) |
+| `box/walls` | 1, 2, 4 | Closed, all walls `PARTWALL 1`; 7 particles hitting faces, a quad diagonal, an edge and a corner at 1–300 m/s | `wall_collisions`, `same_as` (particle state only) | Particle–wall contacts (2ff0cd8) |
+
+All box cases with particles also check `particles_moved` where the particles are
+meant to move.
+
+### Gas-only cases
+
+No particles (`USED 0`): a pressure and density jump at x = 4.3 mm in the box, to test
+the flow solver's own conservation.
+
+| Case | Ranks | Setup | Checks | What it guards |
+|---|---|---|---|---|
+| `box/gas-jump/closed` | 2 | Slip walls, two regions | `mass`, `gas_energy` | Conservation across a region border |
+| `box/gas-jump/periodic` | 1, 2 | Periodic on all faces | `mass`, `gas_energy` | Conservative fluxes across periodic faces (11dc640) |
 
 ## Known issues tracked by the suite
 

@@ -55,6 +55,22 @@ cd your-repo-name
    cd your-repo-name
    ```
 
+## 🧪 Testing
+
+The regression suite in [`tests/`](tests/README.md) runs 35 small cases of the coupled
+code on 1, 2 and 4 MPI ranks. It compares each one with a stored result and checks the
+physics (conservation, interpolation, collisions, walls). After building:
+
+```bash
+cd tests
+module purge; module load gcc/14.2.0 openmpi/5.0.7
+./run_tests.py run
+```
+
+See [`tests/README.md`](tests/README.md) for the list of cases and how to run them on
+HiPerGator, and [`docs/PseudoTurb_fixes.md`](docs/PseudoTurb_fixes.md) for the fixes
+they guard.
+
 ## 🛠️ Making Changes with Git
 
 Once you’ve cloned your fork of the repository, here are the basic Git commands you’ll use when contributing to the project:

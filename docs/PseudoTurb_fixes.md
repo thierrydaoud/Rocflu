@@ -28,6 +28,38 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Particle walls | Walls existed only through `filein.vtk`; a particle over the edge between two wall triangles was pushed by both (e = 0.60 instead of 0.70); a fast particle went through the wall and the run crashed | Walls from the fluid wall patches (`PARTWALL 1`), contacts computed like pair contacts, a fluid side that pushes back; `filein.vtk` removed | 2ff0cd8 |
 | Ghost particles | Overflowing the ghost arrays wrote past their end | Guards stop the run; ghost arrays 30% smaller | f7a3980, 0bb2e4b |
 | Neighbour search | Dense subbin tables: ~28 GB requested for 50,000 particles in one 2 cm bin | Compact lists: ~1.2 MB for the same bin (about 24,000 times less), byte-identical results | 82d4ca4 |
+| Clean-up | ppiclF's own unit tests no longer matched the code; the burn-rate model and the `PICLDEBUG` output were unused | Removed; the regression suite replaces the unit tests. Input files that still ask for `REACTIVE` or a negative `STATIONARY` stop with a message | 3c41db2 |
+
+## Regression tests
+
+Every fix on this branch is guarded by the suite in [`tests/`](../tests/README.md). It
+runs small cases of the full code (grid, pre-processing, Rocflu and ppiclF) and judges
+each one in two ways: against a stored golden, which catches any change, and against
+physics checks (conservation, exact interpolation of a linear field, restitution,
+decomposition independence), which say whether the result is right. The cases are:
+
+- **Shock tube** (13 cases): a Mach 1.27 shock over 1 or 4 particles, one- and two-way,
+  with each force model switched on in turn (added mass, pressure gradient, viscous
+  unsteady, heat transfer, quasi-steady fluctuations, Parmar and Gidaspow drag).
+- **Box** (19 cases): an 8 mm cube, periodic or closed. Momentum and energy exchange,
+  a quiescent cloud, heat exchange at rest, interpolation of a linear field, the
+  projection on elongated cells, collisions through ghosts and periodic faces, binary
+  collisions, and particle–wall collisions.
+- **Gas only** (3 cases): a pressure jump in a closed and a periodic box, testing the
+  flow solver's own conservation.
+
+Most cases run on 1, 2 and 4 ranks and must give the same particles on each. To run
+them, from `tests/`:
+
+```bash
+module purge; module load gcc/14.2.0 openmpi/5.0.7
+./run_tests.py run                     # all 35 cases against the goldens
+./run_tests.py run -o box/walls        # a subset
+```
+
+[`tests/README.md`](../tests/README.md) lists every case and check, and explains how to
+run on a login node or through Slurm, read a failure and regenerate goldens after an
+intended change.
 
 ## Interpolation: weighted linear least squares
 
