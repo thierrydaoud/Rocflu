@@ -353,11 +353,9 @@
          ! AVERY - always use subbins
          IF ( 1 .EQ. 1 ) THEN !sbNearest_flag .EQ. 1) THEN
             CALL ppiclf_solve_NearestNeighborSB(
-     >           i,tot_SBin,SBin_start,SBin_list,n_SBin,i_Bin)
+     >           i,tot_SBin,SBin_start,SBin_list,n_SBin)
             IF (collisional_flag>=1 .AND. ppiclf_nwall>0)
      >         CALL ppiclf_solve_WallContacts(i)
-!         ELSE
-!             CALL ppiclf_solve_NearestNeighbor(i)
          END IF
 
          end if ! end Step 1b; nearestneighbor
