@@ -15,7 +15,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 
 | Area | Problem | Fix | Commit |
 |---|---|---|---|
-| Interpolation | Inverse distance (1/d³) had errors of up to ±18% of the change in density across one cell, even in a linear field, and was discontinuous at cell faces. A particle sheet hit by a planar shock rippled with the cell size (57 µm spread after 250 µs) | Weighted linear least squares, exact for linear fields; the sheet stays flat (0.07 µm) | 89f9661, 6d00ca4 |
+| Interpolation | Inverse distance (1/d³) had errors of up to ±18% of the change in density across one cell, even in a linear field, and was discontinuous at cell faces. A particle sheet hit by a planar shock rippled with the cell size (57 µm standard deviation after 250 µs) | Weighted linear least squares, exact for linear fields; the sheet stays flat (0.07 µm) | 89f9661, 6d00ca4 |
 | Projection | The kernel used one length for every direction, so the spread on stretched cells was wrong | Each direction is scaled by its own cell length, as in MFC | 414ce7f |
 | Projection | Cells just outside the bin domain were dropped, so cloud-edge particles reached 8 cells instead of 27; φ was ~8% too high at the edge | Map those cells to particle bins | affad85 |
 | Closures | Forces and heat transfer were skipped below 1 mm/s slip, and the old value was kept | Evaluate at any slip; skip only the quasi-steady drag at zero slip | f0ae123 |
@@ -45,38 +45,79 @@ twice.
 
 ### Interpolation in shock-driven flows
 
-**A particle sheet ripples with the old interpolation.** A flat sheet of particles hit by a
-planar shock should stay flat. In the LLNL sheet case (8,281 particles, dp = 150 µm,
-Ms 1.27, cells 0.25 × 0.517 × 0.517 mm, run with the old code) it did not: particles near
-cell faces lagged and particles near cell centres led, so the sheet became corrugated with
-the cell size as wavelength. Its spread in x grew to 193 µm (1.3 diameters) by 0.5 ms.
+**Same instant, different places in the cells.** Stationary tracers sit at four fixed x
+positions in a planar shock (Ms 1.27, 1 mm cells): one behind the shock and three inside
+it. At each x they are stepped every 50 µm in y across four cells. The gas does not vary
+in y, so all tracers at one x must read the same value.
+
+![Same instant, different places in the cells](figures/fig_static_interp.png)
+
+The old interpolation gives a wave with exactly the cell period: up to 0.7% peak to peak
+in density and up to 33% in dp/dx. The new one is flat. This is the y-direction
+counterpart of the interpolation figure above, where a particle moved along x.
 
 The cause is the inverse-distance weighting. It weights each cell by its 3D distance from
 the particle, so a particle near a y face, roughly equidistant from several cell centres,
 gives more weight to the cells upstream and downstream of it in x than a particle at the
-cell centre does. Behind the shock the gas varies in x, so particles at different places
-in their cells saw different gas velocities and drag. Least squares is exact for a
-variation in x whatever the particle's position in y and z.
+cell centre does. Wherever the gas varies in x, particles at different places in their
+cells therefore read different values. Least squares fits a linear variation exactly,
+wherever the particle sits.
+
+**A particle sheet ripples with the old interpolation.** A flat sheet of identical
+particles hit by a planar shock should stay flat: in a point-particle model nothing sets
+one particle apart from another. In the LLNL sheet case (8,281 particles, dp = 150 µm,
+Ms 1.27, cells 0.25 × 0.517 × 0.517 mm, run with the old code) it did not. The sheet sits
+in one layer of cells, so the gas density, volume fraction and pressure gradient change a
+lot from one x-cell to the next right at the sheet. Through the effect above, the
+particles read gas density differing by up to 4%, volume fraction by up to 38% and dp/dx
+by up to 40%, all from cells that are uniform in y and z to 0.4%. Particles on cell faces
+lagged and particles in cell centres led, so the sheet rippled with the cell size as
+wavelength; the standard deviation of the particles' x positions reached 193 µm
+(1.3 diameters) by 0.5 ms.
 
 A periodic slice of that case (4 × 4 cells across, 13 × 13 particles at 13 different
-positions in their cells, the same forces) reproduces it, and shows that the new
-interpolation removes it:
+places in their cells, the same forces, two-way coupled) reproduces it:
 
 ![Particle sheet, old vs new interpolation](figures/fig_sheet.png)
 
-| Spread of the sheet in x (std) | 100 µs | 150 µs | 200 µs | 250 µs |
+- **Front views (top):** the sheet seen face-on, each particle coloured by how far it is
+  ahead (red) or behind (blue) the sheet's average position. Old: a pattern tied to the
+  cells. New: uniform.
+- **Side views (bottom):** y up, flow to the right. Old: one bulge per cell. New: a
+  straight line.
+- **Right:** the spread of the sheet in x (standard deviation) over time, on a log axis.
+
+| Spread of the sheet in x (standard deviation) | 100 µs | 150 µs | 200 µs | 250 µs |
 |---|---|---|---|---|
 | Old, one-way (`FEEDBACK 0`) | 2.2 µm | 11.2 µm | 24.9 µm | 42.8 µm |
 | Old, two-way (`FEEDBACK 1`) | 3.4 µm | 15.2 µm | 33.1 µm | 56.6 µm |
 | New, one-way | 0.09 µm | 0.24 µm | 0.48 µm | 0.78 µm |
 | New, two-way | 0.01 µm | 0.03 µm | 0.05 µm | 0.07 µm |
 
-The ripple appears with one-way coupling too, where the gas stays uniform in y and z, so
-it comes from the interpolation and not from the feedback. Panels (a) and (b) show each
-particle's offset from the sheet's mean x against its place in the cell; the spread at a
-given place comes from the place in z.
+The ripple appears with one-way coupling too, where the particles do not change the gas,
+so it comes from the interpolation and not from the feedback.
 
 ![Particle sheet, side view](figures/anim_sheet.gif)
+
+In the animation the solid line joins the particles whose z is at a cell centre, the
+dashed line those whose z is near a cell face.
+
+**Control: a sheet that must spread.** With diameters from 130 to 170 µm the particles
+feel different drag (acceleration roughly as 1/dp), and the new interpolation spreads the
+sheet as it should: the 130 µm particles end 426 µm ahead of the 170 µm ones at 250 µs.
+The old run spreads a little more, because its cell-dependent push adds to the real one.
+The two are independent, so they add roughly as √(a² + b²):
+
+| t | New, mixed sizes | Old artefact alone (identical particles) | √(sum of squares) | Old, mixed sizes |
+|---|---|---|---|---|
+| 150 µs | 50 µm | 15 µm | 52 µm | 55 µm |
+| 200 µs | 91 µm | 33 µm | 97 µm | 104 µm |
+| 250 µs | 139 µm | 57 µm | 150 µm | 163 µm |
+
+So the new interpolation removes only the part of the spreading that depends on where
+particles sit in their cells. Where the real spreading is large, the old artefact was a
+10–20% error on top of it; where it is small, as for identical particles, the artefact
+was all of it.
 
 **Shock profiles.** The gas seen by a line of stationary 1 µm tracers across a planar
 shock (one-way), at two Mach numbers and two cell sizes:
@@ -377,6 +418,8 @@ The collision figures use the same folder: `animate_collisions.py` animates a ru
 `box/binary-collisions` written every 0.1 µs; `walls.py` sets up and runs the wall probe
 (`WALLS=vtk` or `WALLS=patch`, `SHOTS=` a subset) with any built tree, and
 `animate_walls.py` and `wall_summary.py` draw the animation and the summary figure from
-the old (3afd23a) and new (2ff0cd8) probe runs. `shock_interp.py` (planar shock) and
-`sheet.py` (particle sheet) run and plot the interpolation comparisons in shock-driven
-flow, with aa3c0b6 as the old interpolation.
+the old (3afd23a) and new (2ff0cd8) probe runs. `shock_interp.py` (planar shock),
+`static_interp.py` (tracers across the cells at one instant) and `sheet.py` (particle
+sheet, `run`, `runpoly`, `plot2`, `animate`; its runs went to Slurm on hpg-dev, 8 ranks
+each) run and plot the interpolation comparisons in shock-driven flow, with aa3c0b6 as
+the old interpolation.
