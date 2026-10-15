@@ -1,18 +1,31 @@
-# RocfluMP build files
-build_lib/*.f90
-build_lib/*.d
-build_lib/*.o
-build_lib/*
-build_util/*
+# Build products. Only the Makefile of each build directory is source.
+/build_lib/*
+!/build_lib/Makefile
+/build_std/*
+!/build_std/Makefile
+/build_util/*/*
+!/build_util/*/Makefile
+/rfluclone
+/rfluconv
+/rfluextr
+/rfluinit
+/rflumap
+/rflump
+/rflupart
+/rflupick
+/rflupost
+
+# ppiclF and gslib build products (libpicl/Makefile)
+libpicl/build/
+libpicl/ppiclF/source/ppiclf.f
+libpicl/ppiclF/source/PPICLF
+libpicl/ppiclF/source/*.o
+libpicl/ppiclF/source/*.a
+libpicl/ppiclF/source/*.gch
+libpicl/user_files/**/*.mod
+libpicl/ppiclF/3rd_party/gslib/gslib/src/*.o
+libpicl/ppiclF/3rd_party/gslib/gslib/src/*.a
+libpicl/ppiclF/3rd_party/gslib/lib/*.a
 
 # Vim swap files
-## RocfluMP
 *.swp
-*/*.swp
-## ppiclF
-libpicl/ppiclf/source/*.swp
-libpicl/user_files/*.swp
-libpicl/ppiclF/3rd_party/gslib/gslib/src/*.swp
-
-# ppiclF Fortran module files (libpicl/Makefile, -J)
-libpicl/build/
