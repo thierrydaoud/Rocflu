@@ -80,12 +80,7 @@ ifeq ($(findstring rahul-Dell,$(MACHINE)),rahul-Dell)
 
   FPPFLAGS+=
 
-  TECHOME= ../../libtecplot/tecio
-  LIBTEC=$(TECHOME)/lib/tecio64.a
 
-  ifdef RFLUPOST
-    INCTEC=-I$(TECHOME)/include
-  endif
 
   LIBMET= -lmetis #../../libmetis/libmetis.a
 endif
@@ -180,12 +175,7 @@ ifeq ($(findstring ufhpc,$(MACHINE)),ufhpc)
 
   CMFLAGS+= -fallow-argument-mismatch
 
-  TECHOME= ../../libtecplot/tecio
-  LIBTEC=$(TECHOME)/lib/tecio64.a
 
-  ifdef RFLUPOST
-    INCTEC=-I$(TECHOME)/include
-  endif
 
   #LIBMET = ../../libmetis/libmetis.a
 
@@ -259,12 +249,7 @@ ifeq ($(findstring lanl,$(MACHINE)),lanl)
 
   FPPFLAGS+=
 
-  TECHOME=../../libtecplot/tecio
-  LIBTEC=$(TECHOME)/lib/tecio64.a
 
-  ifdef RFLUPOST
-    INCTEC=-I$(TECHOME)/include
-  endif
 
   LIBMET = ../../libmetis/libmetis.a
 endif
@@ -302,7 +287,6 @@ ifeq ($(findstring vulcan,$(MACHINE)),vulcan)
   endif
 
   LIBMET = /usr/local/tools/petsc-3.4.0/lib/libmetis.a
-  FPPFLAGS+=-DNO_TECPLOT
 
 endif
 
@@ -342,14 +326,9 @@ ifeq ($(findstring surface,$(MACHINE)),surface)
 
   FPPFLAGS+=
 
-  ifdef RFLUPOST
-    INCTEC=-I$(TECHOME)/include
-  endif
 
   LIBMET = ../../libmetis/libmetis.a
 
-  TECHOME= ../../libtecplot/tecio
-  LIBTEC=$(TECHOME)/lib/tecio64.a
 
 endif
 
@@ -389,14 +368,9 @@ ifeq ($(findstring cab,$(MACHINE)),cab)
 
   FPPFLAGS+=
 
-  ifdef RFLUPOST
-    INCTEC=-I$(TECHOME)/include
-  endif
 
   LIBMET = ../../libmetis/libmetis.a
 
-  TECHOME= ../../libtecplot/tecio
-  LIBTEC=$(TECHOME)/lib/tecio64.a
 
 endif
 
@@ -438,14 +412,9 @@ ifeq ($(findstring quartz,$(MACHINE)),quartz)
 
   FPPFLAGS+= -cpp 
 
-  ifdef RFLUPOST
-    INCTEC=-I$(TECHOME)/include
-  endif
 
   LIBMET = ../../libmetis/libmetis.a
 
-  TECHOME= ../../libtecplot/tecio
-  LIBTEC=$(TECHOME)/lib/tecio64.a
 
 endif
 
@@ -471,7 +440,7 @@ else
 	$(COMP) $(CMFLAGS) $(F90_CPP) $(F90FLAGS_FIXED) -c $< -o $@
 endif
 %.o: %.C
-	$(CXX) $(CXXOPT) -I$(FLUIDHOME)/include $(INCTEC) $(INCMET) $(FORTFLAGS) -c $< -o $@
+	$(CXX) $(CXXOPT) -I$(FLUIDHOME)/include $(INCMET) $(FORTFLAGS) -c $< -o $@
 
 #.SECONDARY: %.f90
 .PRECIOUS: %.f90

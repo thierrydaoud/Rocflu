@@ -190,22 +190,20 @@ SUBROUTINE rflupost(caseString,stampString,verbLevel)
   END IF ! global%flowType  
 
 ! ******************************************************************************
-! Check for TECPLOT library. NOTE if not available, continue anyway if have 
-! solution initialized from hardcode, because this is likely to mean that errors
-! will be computed in RFLU_PostProcess* routines.
+! Tecplot output (OUTFORMAT 1) was removed; use EnSight (OUTFORMAT 2). With a
+! solution initialized from hardcode, continue anyway, because errors are then
+! computed in the RFLU_PostProcess* routines.
 ! ******************************************************************************
 
-#ifdef NO_TECPLOT
   IF ( global%postOutputFormat == POST_OUTPUT_FORMAT_TECPLOT ) THEN
     IF ( global%initFlowFlag /= INITFLOW_FROMHARDCODE ) THEN 
       CALL ErrorStop(global,ERR_POST_OUTPUT_FORMAT_INVALID,__LINE__)
     ELSE 
       global%warnCounter = global%warnCounter + 1
       WRITE(STDOUT,'(A,1X,A,1X,A)') SOLVER_NAME,'*** WARNING ***', &
-            'TECPLOT library not available. Continuing anyway.'
+            'Tecplot output was removed (use OUTFORMAT 2). Continuing anyway.'
     END IF ! global%initFlowFlag
   END IF ! global%postOutputFormat
-#endif
 
 ! ******************************************************************************
 ! Call appropriate routine to write output

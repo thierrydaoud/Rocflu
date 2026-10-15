@@ -144,9 +144,6 @@ MODULE ModBndPatch
     REAL(RFREAL), DIMENSION(:,:), POINTER :: cvMixt
     REAL(RFREAL), DIMENSION(:,:), POINTER :: cf,cmom,forceCoeffs,forceVacCoeffs,momentCoeffs    
     REAL(RFREAL), DIMENSION(:), POINTER :: massCoeffs
-#ifndef NO_TECPLOT
-    REAL(RFREAL), DIMENSION(:,:), POINTER :: varFaceTEC,varVertTEC
-#endif   
 
     TYPE(t_bcvalues) :: mixt,turb,spec,peul,valRadi,valBola
     TYPE(t_bcvalues_plag)     :: plag

@@ -110,9 +110,6 @@ SUBROUTINE RFLU_MergePostProcessRegions(levels)
   USE RFLU_ModVertexLists   
   USE RFLU_ModWeights  
 
-#ifndef NO_TECPLOT  
-  USE RFLU_ModTECPLOT
-#endif
 
 #ifdef PLAG
   USE ModInterfacesLagrangian, ONLY: PLAG_RFLU_ComputeVolFrac
@@ -176,15 +173,6 @@ SUBROUTINE RFLU_MergePostProcessRegions(levels)
 
   CALL RegisterFunction(global,'RFLU_MergePostProcessRegions',__FILE__)
 
-#ifndef NO_TECPLOT
-! ******************************************************************************
-! Initialize TECPLOT interface
-! ******************************************************************************
-
-  IF ( global%postOutputFormat == POST_OUTPUT_FORMAT_TECPLOT ) THEN 
-    CALL RFLU_TEC_Init(global)
-  END IF ! global%postOutputFormat 
-#endif
 
 ! ******************************************************************************
 ! Allocate memory for serial region
@@ -520,87 +508,6 @@ SUBROUTINE RFLU_MergePostProcessRegions(levels)
 ! ******************************************************************************
 
   SELECT CASE ( global%postOutputFormat )   
-#ifndef NO_TECPLOT
-    CASE ( POST_OUTPUT_FORMAT_TECPLOT ) 
-      CALL RFLU_TEC_OpenFileField(pRegionSerial)
-
-      IF ( global%patchCoeffFlag .EQV. .TRUE. ) THEN    
-        CALL RFLU_TEC_OpenFilePatch(pRegionSerial)  
-      END IF ! global%patchCoeffFlag   
-
-#ifdef PLAG
-      IF ( global%plagUsed .EQV. .TRUE. ) THEN
-        CALL RFLU_TEC_OpenFilePnt(pRegion)
-        CALL RFLU_TEC_OpenFilePatchStats(pRegion)
-      END IF ! global%plagUsed
-#endif
-
-      IF ( global%postPlotVolFlag .EQV. .TRUE. ) THEN
-        CALL RFLU_TEC_BuildDataFieldVol(pRegionSerial)      
-        CALL RFLU_TEC_WriteFileFieldVol(pRegionSerial)         
-        CALL RFLU_TEC_DestroyDataFieldVol(pRegionSerial)
-      END IF ! global%postPlotVolFlag
-
-      CALL RFLU_SetPatchPlotFlags(pRegionSerial)
-
-      DO iPatchSerial = 1,pRegionSerial%grid%nPatches
-        pPatchSerial => pRegionSerial%patches(iPatchSerial)
-
-        IF ( pPatchSerial%plotFlag .EQV. .TRUE. ) THEN 
-          CALL RFLU_TEC_BuildDataFieldSurf(pRegionSerial,pPatchSerial)             
-          CALL RFLU_TEC_WriteFileFieldSurf(pRegionSerial,pPatchSerial)
-          CALL RFLU_TEC_DestroyDataFieldSurf(pRegionSerial,pPatchSerial) 
-        END IF ! pPatchSerial%plotFlag
-      END DO ! iPatchSerial
-
-      IF ( global%patchCoeffFlag .EQV. .TRUE. ) THEN   
-        DO iPatchSerial = 1,pRegionSerial%grid%nPatches
-          pPatchSerial => pRegionSerial%patches(iPatchSerial)
-
-          CALL RFLU_TEC_BuildDataPatch(pRegionSerial,pPatchSerial)  
-          CALL RFLU_TEC_WriteFilePatch(pRegionSerial,pPatchSerial)
-          CALL RFLU_TEC_DestroyDataPatch(pRegionSerial,pPatchSerial)
-        END DO ! iPatchSerial
-      END IF ! global%patchCoeffFlag
-
-#ifdef PLAG
-      IF ( global%plagUsed .EQV. .TRUE. ) THEN
-        IF ( FloatEqual(global%postPlagFrac,1.0_RFREAL) .EQV. .FALSE. ) THEN
-          CALL PLAG_CreatePlotFlags(pRegionSerial)
-          CALL PLAG_SetPlotFlags(pRegionSerial)
-        END IF ! FloatEqual
-   
-        CALL RFLU_TEC_WriteFilePnt(pRegionSerial)
-
-        IF ( FloatEqual(global%postPlagFrac,1.0_RFREAL) .EQV. .FALSE. ) THEN
-          CALL PLAG_DestroyPlotFlags(pRegionSerial)
-        END IF ! FloatEqual
-
-        DO iPatchSerial = 1,pRegionSerial%grid%nPatches
-          pPatchSerial => pRegionSerial%patches(iPatchSerial)
-
-          IF ( pPatchSerial%plotStatsFlag .EQV. .TRUE. ) THEN
-            CALL RFLU_TEC_BuildDataPatchStats(pRegionSerial,pPatchSerial)
-            CALL RFLU_TEC_WriteFilePatch(pRegionSerial,pPatchSerial)
-            CALL RFLU_TEC_DestroyDataPatch(pRegionSerial,pPatchSerial)
-          END IF ! pPatchSerial%plotStatsFlag
-        END DO ! iPatchSerial
-      END IF ! global%plagUsed
-#endif
-
-      CALL RFLU_TEC_CloseFileField(global)
-
-      IF ( global%patchCoeffFlag .EQV. .TRUE. ) THEN  
-        CALL RFLU_TEC_CloseFilePatch(global)
-      END IF ! global%patchCoeffFlag      
-
-#ifdef PLAG
-      IF ( global%plagUsed .EQV. .TRUE. ) THEN
-        CALL RFLU_TEC_CloseFilePnt(global)
-        CALL RFLU_TEC_CloseFilePatchStats(global)
-      END IF ! global%plagUsed
-#endif
-#endif
     CASE ( POST_OUTPUT_FORMAT_ENSIGHT ) 
       pRegion => levels(1)%regions(0)
       CALL RFLU_ENS_BuildDataInfo(pRegion,1) 

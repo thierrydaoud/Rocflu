@@ -135,9 +135,6 @@ MODULE ModDataStruct
     TYPE(t_plag_input) :: plagInput
     TYPE(t_inrt_input), POINTER :: inrtInput
 
-#ifndef NO_TECPLOT
-    REAL(RFREAL), DIMENSION(:,:), POINTER :: varCellTEC,varVertTEC
-#endif
 
 ! TEMPORARY
 !    PetscFortranAddr :: poissonInfoPETSc(RFLU_PETSC_POISSON_INFO_BEG: & 

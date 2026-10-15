@@ -481,7 +481,7 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
 ! Postprocessor
 ! ==============================================================================
 
-  global%postOutputFormat = POST_OUTPUT_FORMAT_TECPLOT
+  global%postOutputFormat = POST_OUTPUT_FORMAT_ENSIGHT
 
   global%postInterpOrder = 1
   global%postInterpType  = INTERP_TYPE_PROPER

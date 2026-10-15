@@ -84,9 +84,6 @@ SUBROUTINE RFLU_PostProcessRegions(levels)
 
   USE RFLU_ModPlottingVars
 
-#ifndef NO_TECPLOT  
-  USE RFLU_ModTECPLOT
-#endif
 
 #ifdef PLAG
   USE PLAG_ModPlotting
@@ -146,36 +143,6 @@ SUBROUTINE RFLU_PostProcessRegions(levels)
 ! ******************************************************************************
 
   SELECT CASE ( global%postOutputFormat ) 
-#ifndef NO_TECPLOT
-    CASE ( POST_OUTPUT_FORMAT_TECPLOT )  
-      CALL RFLU_TEC_Init(global)
-
-      IF ( global%nRegions == 1 ) THEN ! single region
-        pRegion => levels(1)%regions(0)
-      ELSE 
-        pRegion => levels(1)%regions(1)
-      END IF ! global%nRegions
-
-      CALL RFLU_CountPlottingVars(pRegion)
-      CALL RFLU_CreatePlottingVarMaps(pRegion)
-      CALL RFLU_BuildPlottingVarMaps(pRegion)
-      CALL RFLU_PrintPlottingVarsInfo(pRegion)
-
-      CALL RFLU_TEC_OpenFileField(pRegion)
-
-      CALL RFLU_DestroyPlottingVarMaps(pRegion)
-
-      IF ( global%patchCoeffFlag .EQV. .TRUE. ) THEN
-        CALL RFLU_TEC_OpenFilePatch(pRegion)
-      END IF ! global%patchCoeffFlag  
-    
-#ifdef PLAG
-      IF ( global%plagUsed .EQV. .TRUE. ) THEN
-        CALL RFLU_TEC_OpenFilePnt(pRegion)
-        CALL RFLU_TEC_OpenFilePatchStats(pRegion)
-      END IF ! global%plagUsed
-#endif
-#endif
     CASE DEFAULT
       CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
   END SELECT ! global%postOutputFormat  
@@ -203,61 +170,6 @@ SUBROUTINE RFLU_PostProcessRegions(levels)
       CALL RFLU_PostProcessRegionsCommon1(pRegion,postInfoFileExists)
    
       SELECT CASE ( global%postOutputFormat )   
-#ifndef NO_TECPLOT   
-        CASE ( POST_OUTPUT_FORMAT_TECPLOT )  
-          IF ( global%postPlotVolFlag .EQV. .TRUE. ) THEN      
-            CALL RFLU_TEC_BuildDataFieldVol(pRegion)
-            CALL RFLU_TEC_WriteFileFieldVol(pRegion)
-            CALL RFLU_TEC_DestroyDataFieldVol(pRegion)                       
-          END IF ! global%postPlotVolFlag
-
-          CALL RFLU_SetPatchPlotFlags(pRegion)
-
-          DO iPatch = 1,pRegion%grid%nPatches
-            pPatch => pRegion%patches(iPatch)
-
-            IF ( pPatch%plotFlag .EQV. .TRUE. ) THEN 
-              CALL RFLU_TEC_BuildDataFieldSurf(pRegion,pPatch)               
-              CALL RFLU_TEC_WriteFileFieldSurf(pRegion,pPatch)
-              CALL RFLU_TEC_DestroyDataFieldSurf(pRegion,pPatch)
-            END IF ! pPatch%plotFlag
-          END DO ! iPatch
-
-          IF ( global%patchCoeffFlag .EQV. .TRUE. ) THEN 
-            DO iPatch = 1,pRegion%grid%nPatches
-              pPatch => pRegion%patches(iPatch)
-
-              CALL RFLU_TEC_BuildDataPatch(pRegion,pPatch)  
-              CALL RFLU_TEC_WriteFilePatch(pRegion,pPatch)
-              CALL RFLU_TEC_DestroyDataPatch(pRegion,pPatch) 
-            END DO ! iPatch 
-          END IF ! global%patchCoeffFlag                                    
-
-#ifdef PLAG
-          IF ( global%plagUsed .EQV. .TRUE. ) THEN
-            IF ( FloatEqual(global%postPlagFrac,1.0_RFREAL) .EQV. .FALSE. ) THEN 
-              CALL PLAG_CreatePlotFlags(pRegion)
-              CALL PLAG_SetPlotFlags(pRegion)
-            END IF ! FloatEqual
-
-            CALL RFLU_TEC_WriteFilePnt(pRegion)
-
-            IF ( FloatEqual(global%postPlagFrac,1.0_RFREAL) .EQV. .FALSE. ) THEN
-              CALL PLAG_DestroyPlotFlags(pRegion)
-            END IF ! FloatEqual
-
-            DO iPatch = 1,pRegion%grid%nPatches
-              pPatch => pRegion%patches(iPatch)
-
-              IF ( pPatch%plotStatsFlag .EQV. .TRUE. ) THEN
-                CALL RFLU_TEC_BuildDataPatchStats(pRegion,pPatch)  
-                CALL RFLU_TEC_WriteFilePatch(pRegion,pPatch)
-                CALL RFLU_TEC_DestroyDataPatch(pRegion,pPatch) 
-              END IF ! pPatch%plotStatsFlag
-            END DO ! iPatch 
-          END IF ! global%plagUsed
-#endif
-#endif                     
         CASE DEFAULT
           CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
       END SELECT ! global%postOutputFormat
@@ -271,21 +183,6 @@ SUBROUTINE RFLU_PostProcessRegions(levels)
 ! ******************************************************************************  
  
   SELECT CASE ( global%postOutputFormat )   
-#ifndef NO_TECPLOT   
-    CASE ( POST_OUTPUT_FORMAT_TECPLOT )  
-      CALL RFLU_TEC_CloseFileField(global)
-
-      IF ( global%patchCoeffFlag .EQV. .TRUE. ) THEN
-        CALL RFLU_TEC_CloseFilePatch(global)
-      END IF ! global%patchCoeffFlag 
-
-#ifdef PLAG
-      IF ( global%plagUsed .EQV. .TRUE. ) THEN
-        CALL RFLU_TEC_CloseFilePnt(global)  
-        CALL RFLU_TEC_CloseFilePatchStats(global)
-      END IF ! global%plagUsed
-#endif
-#endif      
     CASE DEFAULT
       CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
   END SELECT ! global%postOutputFormat

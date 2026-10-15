@@ -28,7 +28,7 @@ RFLUPOST=1
 ### Include common and dependent makefiles #####################################
 include $(FLUIDHOME)/Makefile.common
 include $(FLUIDHOME)/Makefile.$(SYSTEM)
-LIBEXT= $(LIBTEC) $(LIBSYS)
+LIBEXT= $(LIBSYS)
 
 ### Define SRCF90 and SRCF77 ###################################################
 include $(SRCDIR)/$(FILELIST)
