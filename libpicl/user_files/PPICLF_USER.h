@@ -81,6 +81,14 @@
 #define PPICLF_R_RTerm2Par 58
 #define PPICLF_R_RTerm2Perp 59
 
+! rprop slots sent with ghost particles: the ones the neighbour routine
+! (ppiclf_user_EvalNearestNeighbor) reads from its neighbour (rpropj).
+! A ghost carries y (PPICLF_LRS) and these slots only; the other slots
+! of rpropj are zero for a ghost. Add a slot here if that routine
+! starts reading it from rpropj.
+#define PPICLF_LRP_GHOST 6
+#define PPICLF_GHOST_RPROP PPICLF_R_JDP, PPICLF_R_JRHOP, PPICLF_R_JVOLP, PPICLF_R_WDOTX, PPICLF_R_WDOTY, PPICLF_R_WDOTZ
+
 ! map: PPICLF_LRP_PRO
 !--- Particle Volume Fraction Feedback
 #define PPICLF_P_JPHIP 1

@@ -407,10 +407,14 @@
      >       dist_total, rnx, rny, rnz, area, rpx1, rpy1, rpz1, rpx2,
      >       rpy2, rpz2, rflip, a_sum, rd, rdist, theta, tri_area,
      >       ab_dot_ac, ab_mag, ac_mag, zdistSQ, rthresh
+      ! a ghost's rprop, unpacked to full length (slots a ghost does
+      ! not carry stay zero)
+      REAL*8 rpropj(PPICLF_LRP)
       INTEGER*4 istride, k, kmax, kp, kkp, kk, j, jp, l, iSB, jSB, kSB,
      >          loopSB, tempSB, iSBin(3)
 ! 
       distSQ = ppiclf_nndist**2
+      rpropj = 0.0D0
       
       ! find ith particle subbin (tempSB)
       DO l = 1,3
@@ -464,11 +468,15 @@
                 END IF
                 IF (dist_total .GT. distSQ) CYCLE
                 jp = -1*j
+                DO l = 1,PPICLF_LRP_GHOST
+                  rpropj(ppiclf_gp_rprop(l)) =
+     >              ppiclf_rprop_gp(PPICLF_LRS+l,j)
+                END DO
                 CALL ppiclf_user_EvalNearestNeighbor(i,jp
      >                                 ,ppiclf_cp_map(1,i)
      >                                 ,ppiclf_cp_map(1+PPICLF_LRS,i)
      >                                 ,ppiclf_rprop_gp(1,j)
-     >                                 ,ppiclf_rprop_gp(1+PPICLF_LRS,j))
+     >                                 ,rpropj)
               END IF
             END DO !k
           END IF ! if loopSB is valid

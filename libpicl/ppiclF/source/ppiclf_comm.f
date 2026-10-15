@@ -1147,8 +1147,13 @@
               ppiclf_rprop_gp(2,ppiclf_npart_gp) = GhostPos(2)
               ppiclf_rprop_gp(3,ppiclf_npart_gp) = GhostPos(3)
 
-              DO k=4,PPICLF_LRP_GP
+              DO k=4,PPICLF_LRS
                 ppiclf_rprop_gp(k,ppiclf_npart_gp) = ppiclf_cp_map(k,ip)
+              END DO
+              ! only the rprop slots the neighbour search reads
+              DO k=1,PPICLF_LRP_GHOST
+                ppiclf_rprop_gp(PPICLF_LRS+k,ppiclf_npart_gp) =
+     >            ppiclf_cp_map(PPICLF_LRS+ppiclf_gp_rprop(k),ip)
               END DO
             END DO !iz = 1:3
           END DO !iy = 1:3

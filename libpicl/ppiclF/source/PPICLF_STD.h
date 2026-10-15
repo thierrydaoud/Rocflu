@@ -26,10 +26,12 @@
 #define PPICLF_LRP_PRO 1
 #endif
 
-! Ghosts carry y and rprop, which is all the neighbour search reads.
-! Projection does not use ghosts (it goes through the overlap grid).
+! Ghosts carry y and the PPICLF_LRP_GHOST rprop slots listed in
+! PPICLF_GHOST_RPROP (PPICLF_USER.h), which is all the neighbour search
+! reads. Projection does not use ghosts (it goes through the overlap
+! grid).
 #ifndef PPICLF_LRP_GP
-#define PPICLF_LRP_GP (PPICLF_LRS+PPICLF_LRP)
+#define PPICLF_LRP_GP (PPICLF_LRS+PPICLF_LRP_GHOST)
 #endif
 
 #ifndef PPICLF_LIP_GP
