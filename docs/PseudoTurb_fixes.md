@@ -15,7 +15,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 
 | Area | Problem | Fix | Commit |
 |---|---|---|---|
-| Interpolation | Inverse distance (1/d³) had errors of up to ±18% of the change in density across one cell, even in a linear field, and was discontinuous at cell faces | Weighted linear least squares, exact for linear fields | 89f9661, 6d00ca4 |
+| Interpolation | Inverse distance (1/d³) had errors of up to ±18% of the change in density across one cell, even in a linear field, and was discontinuous at cell faces. A particle sheet hit by a planar shock rippled with the cell size (57 µm spread after 250 µs) | Weighted linear least squares, exact for linear fields; the sheet stays flat (0.07 µm) | 89f9661, 6d00ca4 |
 | Projection | The kernel used one length for every direction, so the spread on stretched cells was wrong | Each direction is scaled by its own cell length, as in MFC | 414ce7f |
 | Projection | Cells just outside the bin domain were dropped, so cloud-edge particles reached 8 cells instead of 27; φ was ~8% too high at the edge | Map those cells to particle bins | affad85 |
 | Closures | Forces and heat transfer were skipped below 1 mm/s slip, and the old value was kept | Evaluate at any slip; skip only the quasi-steady drag at zero slip | f0ae123 |
@@ -42,6 +42,60 @@ at every face. Weighted linear least squares (radius 1.8h) reproduces linear fie
 round-off, and its value is continuous as the particle crosses a face. Each cell also now
 enters each bin's stencil only once; before, a two-bin periodic case counted some cells
 twice.
+
+### Interpolation in shock-driven flows
+
+**A particle sheet ripples with the old interpolation.** A flat sheet of particles hit by a
+planar shock should stay flat. In the LLNL sheet case (8,281 particles, dp = 150 µm,
+Ms 1.27, cells 0.25 × 0.517 × 0.517 mm, run with the old code) it did not: particles near
+cell faces lagged and particles near cell centres led, so the sheet became corrugated with
+the cell size as wavelength. Its spread in x grew to 193 µm (1.3 diameters) by 0.5 ms.
+
+The cause is the inverse-distance weighting. It weights each cell by its 3D distance from
+the particle, so a particle near a y face, roughly equidistant from several cell centres,
+gives more weight to the cells upstream and downstream of it in x than a particle at the
+cell centre does. Behind the shock the gas varies in x, so particles at different places
+in their cells saw different gas velocities and drag. Least squares is exact for a
+variation in x whatever the particle's position in y and z.
+
+A periodic slice of that case (4 × 4 cells across, 13 × 13 particles at 13 different
+positions in their cells, the same forces) reproduces it, and shows that the new
+interpolation removes it:
+
+![Particle sheet, old vs new interpolation](figures/fig_sheet.png)
+
+| Spread of the sheet in x (std) | 100 µs | 150 µs | 200 µs | 250 µs |
+|---|---|---|---|---|
+| Old, one-way (`FEEDBACK 0`) | 2.2 µm | 11.2 µm | 24.9 µm | 42.8 µm |
+| Old, two-way (`FEEDBACK 1`) | 3.4 µm | 15.2 µm | 33.1 µm | 56.6 µm |
+| New, one-way | 0.09 µm | 0.24 µm | 0.48 µm | 0.78 µm |
+| New, two-way | 0.01 µm | 0.03 µm | 0.05 µm | 0.07 µm |
+
+The ripple appears with one-way coupling too, where the gas stays uniform in y and z, so
+it comes from the interpolation and not from the feedback. Panels (a) and (b) show each
+particle's offset from the sheet's mean x against its place in the cell; the spread at a
+given place comes from the place in z.
+
+![Particle sheet, side view](figures/anim_sheet.gif)
+
+**Shock profiles.** The gas seen by a line of stationary 1 µm tracers across a planar
+shock (one-way), at two Mach numbers and two cell sizes:
+
+![Planar shock, old vs new interpolation](figures/fig_shock_interp.png)
+
+| Shock width 10–90% (density / pressure) | Cell values | Old | New |
+|---|---|---|---|
+| Ms 1.27, 1 mm cells | 3.69 / 3.29 mm | 3.86 / 3.67 mm | 3.49 / 3.31 mm |
+| Ms 1.27, 0.5 mm cells | 1.94 / 1.91 mm | 1.99 / 1.99 mm | 1.92 / 1.92 mm |
+| Ms 2.0, 1 mm cells | 3.77 / 2.86 mm | 3.68 / 3.00 mm | 3.32 / 2.81 mm |
+
+"Cell values" is the straight line between neighbouring cell centres. Rocflu spreads the
+shock over 3–4 cells, and that width halves with the cell size. Least squares follows the
+cell profile and does not widen it (its support radius is 1.8 cells, but the fit is
+linear). Neither method overshoots the range of the cell values. The old method has kinks
+at every cell face, clearest in dp/dx (bottom row), so a particle crossing a face felt a
+sudden change in its pressure-gradient force. Both methods converge to the same profile
+when the cells are halved.
 
 ## Projection: kernel width per direction, and cloud-edge cells
 
@@ -299,6 +353,10 @@ Known limitations:
   ranks by about 0.2% of a 4e-4 m/s flow (driven by φ with `FEEDBACK 0`). The particles
   agree; the gas difference is not explained yet.
 - Ghost particles are created and sent in every RK stage, even when nothing uses them.
+- The subbin start index in `ppiclf_user_SetYdot` is declared for every subbin even when
+  no neighbour search runs. Subbins are `NEIGHBORWIDTH` (at least 4 dp) wide, so very small
+  particles with `NEIGHBORWIDTH 0` give a huge count (about 40 GB of address space for
+  1 µm tracers in a 4 cm tube; it is never touched).
 - The quasi-steady fluctuation mean (`QSFLUCT`) only sees neighbours within
   `NEIGHBORWIDTH`, not the filter width it is meant to average over.
 - Feedback lags one RK stage, because particles are projected before `ppiclf_user_SetYdot`.
@@ -319,4 +377,6 @@ The collision figures use the same folder: `animate_collisions.py` animates a ru
 `box/binary-collisions` written every 0.1 µs; `walls.py` sets up and runs the wall probe
 (`WALLS=vtk` or `WALLS=patch`, `SHOTS=` a subset) with any built tree, and
 `animate_walls.py` and `wall_summary.py` draw the animation and the summary figure from
-the old (3afd23a) and new (2ff0cd8) probe runs.
+the old (3afd23a) and new (2ff0cd8) probe runs. `shock_interp.py` (planar shock) and
+`sheet.py` (particle sheet) run and plot the interpolation comparisons in shock-driven
+flow, with aa3c0b6 as the old interpolation.
