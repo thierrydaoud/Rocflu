@@ -80,10 +80,11 @@ places in their cells, the same forces, two-way coupled) reproduces it:
 
 ![Particle sheet, old vs new interpolation](figures/fig_sheet.png)
 
-- **Front views (top):** the sheet seen face-on, each particle coloured by how far it is
+- **Front views (top):** the sheet seen face-on (z horizontal, y vertical), each particle
+  coloured by how far it is
   ahead (red) or behind (blue) the sheet's average position. Old: a pattern tied to the
   cells. New: uniform.
-- **Side views (bottom):** y up, flow to the right. Old: one bulge per cell. New: a
+- **Side views (bottom):** x horizontal (flow to the right), y vertical. Old: one bulge per cell. New: a
   straight line.
 - **Right:** the spread of the sheet in x (standard deviation) over time, on a log axis.
 
@@ -217,7 +218,8 @@ a rank border and the periodic faces. Particles start with an initial velocity, 
 
 ![Binary collisions](figures/anim_binary_collisions.gif)
 
-Each panel follows one pair around its centre of mass, drawn to scale. The line on each
+Each panel follows one pair around its centre of mass, drawn to scale, with x horizontal
+and y vertical (z takes the place of the missing one). The line on each
 particle turns with its spin. Below each panel, the normal relative velocity divided by
 the approach speed rebounds to e = 0.697 for the head-on pairs (EREST = 0.7). Momentum is
 conserved to 1e-5 and angular momentum about the centre of mass to 0.5%, including in
@@ -330,9 +332,9 @@ box (two triangles per face); the new code uses the box's slip walls with `PARTW
 
 ![Particle-wall animation, old vs new](figures/anim_walls.gif)
 
-Each panel looks along the wall. The vertical axis is the distance of the particle's
-centre from the wall in radii: the particle touches at 1 and its centre has crossed the
-wall below 0. Old (orange) and new (blue) particles are drawn to scale side by side, and
+Each panel looks along the wall. The axis normal to the wall is the position of the
+particle's centre relative to the wall in radii (horizontal for the x walls, vertical for
+the y and z walls): the particle touches at 1 and its centre has crossed the wall past 0. Old (orange) and new (blue) particles are drawn to scale side by side, and
 the strip below shows the velocity away from the wall over the approach speed. One
 frame is one time step.
 
