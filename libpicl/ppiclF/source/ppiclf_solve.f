@@ -266,64 +266,35 @@
 !
       INCLUDE "PPICLF"
 !
-! Internal:
-!
-      INTEGER*4 i,j,ie
-!
-      ! Allocate the arrays of module ppiclf_data on the first call
+      ! Allocate the arrays of module ppiclf_data on the first call.
+      ! They start with room for one entry and grow as the run needs
+      ! (ppiclf_data_Grow*).
       IF (ppiclf_maxpart .EQ. 0) THEN
-        ppiclf_maxpart  = PPICLF_LPART
-        ppiclf_maxghost = PPICLF_LPART_GP
-        ppiclf_maxcell  = PPICLF_LEE
-        ppiclf_maxfv    = PPICLF_LEE
-        ppiclf_maxwall  = PPICLF_LWALL
+        ppiclf_maxpart  = 1
+        ppiclf_maxghost = 1
+        ppiclf_maxcell  = 1
+        ppiclf_maxfv    = 1
+        ppiclf_maxwall  = 1
         CALL ppiclf_data_Allocate
       END IF
 
-      ! zero'ing real particle properties
-      DO i=1,PPICLF_LPART 
-        DO j=1,PPICLF_LRS
-          ppiclf_y    (j,i) = 0.0D0
-          ppiclf_ydot (j,i) = 0.0D0
-          ppiclf_ydotc(j,i) = 0.0D0
-          ppiclf_y1   (j,i) = 0.0D0
-        END DO
-        DO j=1,PPICLF_LRP
-           ppiclf_rprop(j,i) = 0.0D0
-        END DO
-        DO j=1,PPICLF_LRP2
-           ppiclf_rprop2(j,i) = 0.0D0
-        END DO
-        DO j=1,PPICLF_LRP4
-           ppiclf_rprop4(j,i) = 0.0D0
-        END DO
-        DO j=1,PPICLF_LRP5
-           ppiclf_rprop5(j,i) = 0.0D0
-        END DO
-        DO j=1,PPICLF_LIP
-           ppiclf_iprop(j,i) = 0
-        END DO
-        DO j = 1,PPICLF_LRP_PRO
-          ppiclf_feedbk(j,i) = 0.0D0
-        END DO
-      END DO
-      ! zero'ing ghost particle properties
-      DO i=1,PPICLF_LPART_GP
-        DO j =1,PPICLF_LIP_GP
-          ppiclf_iprop_gp(j,i) = 0
-        END DO
-        DO j=1,PPICLF_LRP_GP
-           ppiclf_rprop_gp(j,i) = 0.0D0
-        END DO
-      END DO
+      ! zero'ing real and ghost particle properties
+      ppiclf_y     = 0.0D0
+      ppiclf_ydot  = 0.0D0
+      ppiclf_ydotc = 0.0D0
+      ppiclf_y1    = 0.0D0
+      ppiclf_rprop  = 0.0D0
+      ppiclf_rprop2 = 0.0D0
+      ppiclf_rprop4 = 0.0D0
+      ppiclf_rprop5 = 0.0D0
+      ppiclf_iprop  = 0
+      ppiclf_feedbk = 0.0D0
+      ppiclf_iprop_gp = 0
+      ppiclf_rprop_gp = 0.0D0
 
       ppiclf_npart = 0
       ! zero'ing grid properties for interpolation
-      DO ie=1,PPICLF_LEE
-        DO j=1,PPICLF_LRP_INT
-          ppiclf_int_fld(j,ie) = 0.0D0
-        END DO
-      END DO
+      ppiclf_int_fld = 0.0D0
 
       CALL ppiclf_user_InitZero
 
@@ -356,9 +327,10 @@
 
       CALL ppiclf_prints('   *Begin AddParticles$')
 
-      IF(ppiclf_npart+npart .gt. PPICLF_LPART .or. npart .lt. 0)
+      IF(npart .lt. 0)
      >   CALL ppiclf_exittr('Invalid number of particles$',
-     >                      0.0D0,ppiclf_npart+npart)
+     >                      0.0D0,npart)
+      CALL ppiclf_data_GrowPart(ppiclf_npart + npart)
 
       CALL ppiclf_printsi('      -Begin copy particles$',npart)
 
@@ -1055,7 +1027,7 @@ c----------------------------------------------------------------------
 ! Internal: 
 !
       REAL*8 Max_CellLen(3)
-      INTEGER*4 nkey(2), nl, nii, njj, nrr, ie, l 
+      INTEGER*4 nkey(2), nl, nii, njj, nrr, ie, l, nin
       LOGICAL partl
 !
       ! send it all
@@ -1066,8 +1038,13 @@ c----------------------------------------------------------------------
       nkey(1) = 2
       nkey(2) = 1
 
+      ! Grow the cell arrays to what this rank will receive
+      CALL ppiclf_comm_NumIncoming(ppiclf_nCells_Interp, nii,
+     >                             ppiclf_cell_map_interp, njj, nin)
+      CALL ppiclf_data_GrowCell(nin)
+
       CALL pfgslib_crystal_tuple_transfer(ppiclf_cr_hndl ! Setup
-     >      ,ppiclf_nCells_Interp, PPICLF_LEE ! Amount of columns to transfer
+     >      ,ppiclf_nCells_Interp, ppiclf_maxcell ! Columns allocated
      >      ,ppiclf_cell_map_interp, nii      ! Integer communication
      >      ,partl, nl                        ! Logical communication
      >      ,ppiclf_int_fld, nrr              ! Real communication
@@ -1823,7 +1800,7 @@ c----------------------------------------------------------------------
 
       ! Internal:
       INTEGER*4 i, j, ip, ie, nCellProj, CellID, nl, nii, njj,
-     >          nrr, nkey(2), iee
+     >          nrr, nkey(2), iee, nin
       REAL*8    CellVol, GaussianConst, dist, w(27), wsum
       LOGICAL   partl 
  
@@ -1873,8 +1850,13 @@ c----------------------------------------------------------------------
       nrr = PPICLF_LRP_PRO
       nkey(1) = 2
       nkey(2) = 1
+      ! Grow the cell arrays to what this rank will receive
+      CALL ppiclf_comm_NumIncoming(ppiclf_nCells_Proj, nii,
+     >                             ppiclf_cell_map_proj, njj, nin)
+      CALL ppiclf_data_GrowCell(nin)
+
       CALL pfgslib_crystal_tuple_transfer(ppiclf_cr_hndl ! Setup
-     >      ,ppiclf_nCells_Proj, PPICLF_LEE ! Amount of columns to transfer
+     >      ,ppiclf_nCells_Proj, ppiclf_maxcell ! Columns allocated
      >      ,ppiclf_cell_map_proj, nii      ! Integer communication
      >      ,partl, nl                      ! Logical communication
      >      ,ppiclf_pro_fld_picl, nrr       ! Real communication

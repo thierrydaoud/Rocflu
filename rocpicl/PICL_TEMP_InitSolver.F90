@@ -124,8 +124,8 @@ INTEGER :: errorFlag,icg
                    yMaxCell,zMinCell,zMaxCell,x,vFrac,volpclsum,xLoc,yLoc,zLoc,yL, &
                    zpf_factor,xpf_factor,dp,neighborWidth,xp_min,xp_max, &
                    yp_min, yp_max, zp_min, zp_max, MinFluidCells, maxVF
-   REAL(RFREAL) :: y(PPICLF_LRS, PPICLF_LPART), &
-                   rprop(PPICLF_LRP, PPICLF_LPART)
+   ! this rank's share of points.dat, handed to ppiclF
+   REAL(RFREAL), ALLOCATABLE :: y(:,:), rprop(:,:)
    REAL(RFREAL), DIMENSION(:,:), ALLOCATABLE :: rocGrid 
    REAL(RFREAL), DIMENSION(:,:), ALLOCATABLE :: xGrid, yGrid, zGrid
    REAL(RFREAL),ALLOCATABLE,DIMENSION(:) :: xData,yData,zData,rData,dumData    
@@ -140,7 +140,7 @@ INTEGER :: errorFlag,icg
    REAL(RFREAL) :: xv(3,4)
    ! points.dat line and optional initial velocity
    CHARACTER(512) :: pointsLine
-   REAL(RFREAL) :: velp(3)
+   REAL(RFREAL) :: velp(3), xyzp(3)
    INTEGER :: velErr
 
    INTEGER :: seed(33), isize, CellVertices
@@ -338,19 +338,21 @@ IF(global%restartFromScratch) THEN
    BACKSPACE(iFile, IOSTAT=ErrorFlag)
   
    READ(iFile,*) npart ! global number of particles
-   IF (npart .gt. PPICLF_LPART*global%nProcs) THEN
-      CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__,'PPICLF:too &
-        many particles to initialize')
-   END IF
   
    npart_local = CEILING(REAL(npart)/(REAL(global%nProcs)))
+   ALLOCATE(y(PPICLF_LRS,MAX(npart_local,1)), &
+            rprop(PPICLF_LRP,MAX(npart_local,1)),STAT=errorFlag)
+   IF ( errorFlag /= 0 ) THEN
+     CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'PPICLF:y,rprop')
+   END IF
+   y = 0.0_RFREAL
    i = 1
    i_global = 1
    i_global_min = npart_local*global%myProcid
    i_global_max = npart_local*(global%myProcid+1)
    IF(i_global_max > npart) i_global_max = npart
 
-   rprop(1:PPICLF_LRP,1:PPICLF_LPART) = 0.0D0
+   rprop = 0.0_RFREAL
    dp_max = 0.0D0
    xp_min =  17400000.0
    yp_min =  17400000.0
@@ -359,27 +361,31 @@ IF(global%restartFromScratch) THEN
    yp_max = -17400000.0
    zp_max = -17400000.0
    ! Each line: material x y z dp [u v w]. The velocity is optional;
-   ! particles without one start at rest.
+   ! particles without one start at rest. Every line is read (for the
+   ! global bounds), but only this rank's lines go into y: y has exactly
+   ! npart_local columns.
    DO i_global=1,npart
       READ(iFile,'(A)') pointsLine
-      READ(pointsLine,*,IOSTAT=velErr) matName, &
-           (y(ii,i),ii=PPICLF_JX,PPICLF_JZ),dp,velp
+      READ(pointsLine,*,IOSTAT=velErr) matName,xyzp,dp,velp
       IF (velErr /= 0) THEN
          velp = 0.0_RFREAL
-         READ(pointsLine,*) matName,(y(ii,i),ii=PPICLF_JX,PPICLF_JZ),dp
+         READ(pointsLine,*) matName,xyzp,dp
       END IF
 
       ! These are global max/min's since in 1:npart loop
       dp_max = max(dp_max,dp)
-      xp_min = min(xp_min,y(1,i)-dp/2.0)
-      xp_max = max(xp_max,y(1,i)+dp/2.0)
-      yp_min = min(yp_min,y(2,i)-dp/2.0)
-      yp_max = max(yp_max,y(2,i)+dp/2.0)
-      zp_min = min(zp_min,y(3,i)-dp/2.0)
-      zp_max = max(zp_max,y(3,i)+dp/2.0)
+      xp_min = min(xp_min,xyzp(1)-dp/2.0)
+      xp_max = max(xp_max,xyzp(1)+dp/2.0)
+      yp_min = min(yp_min,xyzp(2)-dp/2.0)
+      yp_max = max(yp_max,xyzp(2)+dp/2.0)
+      zp_min = min(zp_min,xyzp(3)-dp/2.0)
+      zp_max = max(zp_max,xyzp(3)+dp/2.0)
   
       ! if in range for this processor set all the other properties and increment i
       IF((i_global .GT. i_global_min) .AND. (i_global .LE. i_global_max)) THEN
+         y(PPICLF_JX,i) = xyzp(1)
+         y(PPICLF_JY,i) = xyzp(2)
+         y(PPICLF_JZ,i) = xyzp(3)
          y(PPICLF_JVX,i) = velp(1)
          y(PPICLF_JVY,i) = velp(2)
          y(PPICLF_JVZ,i) = velp(3)
@@ -683,6 +689,13 @@ END IF
 
 ! Sets ppiclf_nndist, ppiclf_filter(1:3), ppiclf_y(), ppiclf_rprop()
 !(imethod (RK pick), nDimensions, iendian (IO format), .....)
+! On a restart the particles come from the par file and y, rprop are not
+! read; ppiclF still takes the arguments
+IF (.NOT. ALLOCATED(y)) THEN
+  ALLOCATE(y(PPICLF_LRS,1),rprop(PPICLF_LRP,1))
+  y = 0.0_RFREAL
+  rprop = 0.0_RFREAL
+END IF
 CALL ppiclf_solve_InitParticle(2,3,0,npart_local,y,rprop,filter,neighborWidth) 
 IF(global%myProcid == MASTERPROC) THEN
   PRINT*, 'x fluid min/max', x_per_min, x_per_max
@@ -958,6 +971,9 @@ IF ( global%myProcid == MASTERPROC) then
 ENDIF
 
 ! finalize --------------------------------------------------------------------
+
+  ! y(:,1) is printed in the summary above; ppiclF holds its own copy
+  IF (ALLOCATED(y)) DEALLOCATE(y,rprop)
 
   CALL DeregisterFunction( global )
 

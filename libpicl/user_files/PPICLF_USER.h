@@ -1,19 +1,17 @@
-#define PPICLF_LPART 80000
 #define PPICLF_LRS 10
 #define PPICLF_LRP 59
 #define PPICLF_LRP2 0
 #define PPICLF_LRP4 0
 #define PPICLF_LRP5 0
-#define PPICLF_LEE 120000
 #define PPICLF_LRP_INT 30
 #define PPICLF_LRP_PRO 31
 
 ! The viscous-unsteady history (PPICLF_VU, PPICLF_LRP3) is sized at run
 ! time from the input (VISCOUSUNSTEADY, VUSTEPS); see ppiclf_unsteady.f
 
-! maximum number of particle-wall triangles (faces of the PARTWALL
-! patches; a quadrilateral face is two triangles)
-#define PPICLF_LWALL 50000
+! Particle, ghost, cell and wall-triangle counts (formerly PPICLF_LPART,
+! PPICLF_LPART_GP, PPICLF_LEE, PPICLF_LWALL) are not set here: ppiclF
+! sizes those arrays at run time and grows them (ppiclf_data.f)
 
 ! y, y1, ydot, ydotc: PPICLF_LRS
 #define PPICLF_JX 1

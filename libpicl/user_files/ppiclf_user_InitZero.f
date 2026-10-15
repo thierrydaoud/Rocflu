@@ -29,14 +29,14 @@
          ! history packed per particle: drudt Mixt/Plag (3 each),
          ! dTdt Mixt/Plag, T Mixt/Plag
          ppiclf_lrp3 = 10*n
-         allocate(ppiclf_rprop3(ppiclf_lrp3,PPICLF_LPART),
+         allocate(ppiclf_rprop3(ppiclf_lrp3,ppiclf_maxpart),
      >            ppiclf_TimeBH(n),
-     >            ppiclf_drudtPlag(3,n,PPICLF_LPART),
-     >            ppiclf_drudtMixt(3,n,PPICLF_LPART),
-     >            ppiclf_dTdtPlag(n,PPICLF_LPART),
-     >            ppiclf_dTdtMixt(n,PPICLF_LPART),
-     >            ppiclf_TMixt(n,PPICLF_LPART),
-     >            ppiclf_TPlag(n,PPICLF_LPART), stat=ierr)
+     >            ppiclf_drudtPlag(3,n,ppiclf_maxpart),
+     >            ppiclf_drudtMixt(3,n,ppiclf_maxpart),
+     >            ppiclf_dTdtPlag(n,ppiclf_maxpart),
+     >            ppiclf_dTdtMixt(n,ppiclf_maxpart),
+     >            ppiclf_TMixt(n,ppiclf_maxpart),
+     >            ppiclf_TPlag(n,ppiclf_maxpart), stat=ierr)
          if (ierr .ne. 0) call ppiclf_exittr(
      >      'InitZero: cannot allocate the unsteady history$',0.0d0,n)
       endif

@@ -1,7 +1,3 @@
-#ifndef PPICLF_LPART
-#define PPICLF_LPART 100000
-#endif
-
 #ifndef PPICLF_LRP
 #define PPICLF_LRP 1
 #endif
@@ -20,14 +16,6 @@
 
 #ifndef PPICLF_LIP
 #define PPICLF_LIP 11
-#endif
-
-! Ghost particles per rank, sent plus received. A particle sends up to
-! 7 ghosts, or up to 26 when its bin is narrower than twice the neighbour
-! width. CreateGhost and MoveGhost stop the run if this is exceeded;
-! raise it in PPICLF_USER.h.
-#ifndef PPICLF_LPART_GP
-#define PPICLF_LPART_GP (8*PPICLF_LPART)
 #endif
 
 #ifndef PPICLF_INTERP
@@ -60,22 +48,6 @@
 #define PPICLF_LIP_GP 8
 #endif
 
-#ifndef PPICLF_LEX
-#define PPICLF_LEX 1
-#endif
-
-#ifndef PPICLF_LEY
-#define PPICLF_LEY 1
-#endif
-
-#ifndef PPICLF_LEZ
-#define PPICLF_LEZ 1
-#endif
-
-#ifndef PPICLF_LEE
-#define PPICLF_LEE 1
-#endif
-
 #ifndef PPICLF_BMAX
 #define PPICLF_BMAX 1
 #endif
@@ -94,9 +66,5 @@
 
 #ifndef PPICLF_LRMAX
 #define PPICLF_LRMAX 6
-#endif
-
-#ifndef PPICLF_LWALL
-#define PPICLF_LWALL 20
 #endif
 

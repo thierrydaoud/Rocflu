@@ -4,6 +4,11 @@
 ! be fixed-size COMMON arrays (PPICLF_LPART, PPICLF_LPART_GP, PPICLF_LEE,
 ! PPICLF_LWALL); they are allocated by ppiclf_data_Allocate.
 !
+! Capacities (number of columns allocated). They start at 1 and only
+! grow (ppiclf_data_Grow*): before a transfer, a rank learns how many
+! columns it will receive (ppiclf_comm_NumIncoming) and grows first,
+! because gslib's crystal router drops what does not fit.
+!
 ! Capacities (number of columns allocated):
 !   ppiclf_maxpart  : real particles on this rank
 !   ppiclf_maxghost : ghost particles on this rank
@@ -13,7 +18,8 @@
 !                     int_fld_input, pro_fld)
 !   ppiclf_maxwall  : particle-wall triangles
 !
-! Must come first in ppiclf.f: the routines below USE it.
+! Comes right after ppiclf_unsteady.f in ppiclf.f: the routines below
+! USE it.
 !
 !-----------------------------------------------------------------------
       module ppiclf_data
@@ -50,6 +56,91 @@
 
 ! Particle walls
       real*8, allocatable :: ppiclf_wall_c(:,:), ppiclf_wall_n(:,:)
+
+      contains
+!-----------------------------------------------------------------------
+! Resize an allocatable array along its particle/cell dimension to n,
+! keeping the existing entries and zeroing the new ones.
+!-----------------------------------------------------------------------
+      subroutine ppiclf_resize_r2(a, n, idim)
+      real*8, allocatable, intent(inout) :: a(:,:)
+      integer*4 n, idim, m, ierr
+      real*8, allocatable :: t(:,:)
+      if (idim .eq. 2) then
+        allocate(t(size(a,1),n), stat=ierr)
+      else
+        allocate(t(n,size(a,2)), stat=ierr)
+      end if
+      if (ierr .ne. 0) call ppiclf_exittr(
+     >   'Cannot grow a ppiclF array$',0.0d0,n)
+      t = 0.0d0
+      m = min(size(a,idim), n)
+      if (m .gt. 0) then
+        if (idim .eq. 2) then
+          t(:,1:m) = a(:,1:m)
+        else
+          t(1:m,:) = a(1:m,:)
+        end if
+      end if
+      call move_alloc(t, a)
+      end subroutine ppiclf_resize_r2
+!-----------------------------------------------------------------------
+      subroutine ppiclf_resize_i2(a, n, idim)
+      integer*4, allocatable, intent(inout) :: a(:,:)
+      integer*4 n, idim, m, ierr
+      integer*4, allocatable :: t(:,:)
+      if (idim .eq. 2) then
+        allocate(t(size(a,1),n), stat=ierr)
+      else
+        allocate(t(n,size(a,2)), stat=ierr)
+      end if
+      if (ierr .ne. 0) call ppiclf_exittr(
+     >   'Cannot grow a ppiclF array$',0.0d0,n)
+      t = 0
+      m = min(size(a,idim), n)
+      if (m .gt. 0) then
+        if (idim .eq. 2) then
+          t(:,1:m) = a(:,1:m)
+        else
+          t(1:m,:) = a(1:m,:)
+        end if
+      end if
+      call move_alloc(t, a)
+      end subroutine ppiclf_resize_i2
+!-----------------------------------------------------------------------
+      subroutine ppiclf_resize_i1(a, n)
+      integer*4, allocatable, intent(inout) :: a(:)
+      integer*4 n, m, ierr
+      integer*4, allocatable :: t(:)
+      allocate(t(n), stat=ierr)
+      if (ierr .ne. 0) call ppiclf_exittr(
+     >   'Cannot grow a ppiclF array$',0.0d0,n)
+      t = 0
+      m = min(size(a), n)
+      if (m .gt. 0) t(1:m) = a(1:m)
+      call move_alloc(t, a)
+      end subroutine ppiclf_resize_i1
+!-----------------------------------------------------------------------
+      subroutine ppiclf_resize_r3(a, n)
+      ! along the third (particle) dimension
+      real*8, allocatable, intent(inout) :: a(:,:,:)
+      integer*4 n, m, ierr
+      real*8, allocatable :: t(:,:,:)
+      allocate(t(size(a,1),size(a,2),n), stat=ierr)
+      if (ierr .ne. 0) call ppiclf_exittr(
+     >   'Cannot grow a ppiclF array$',0.0d0,n)
+      t = 0.0d0
+      m = min(size(a,3), n)
+      if (m .gt. 0) t(:,:,1:m) = a(:,:,1:m)
+      call move_alloc(t, a)
+      end subroutine ppiclf_resize_r3
+!-----------------------------------------------------------------------
+      ! New capacity: at least nneed, and at least 1.5 times the old one
+      ! so that a slowly growing count reallocates rarely
+      integer*4 function ppiclf_newcap(nold, nneed)
+      integer*4 nold, nneed
+      ppiclf_newcap = max(nneed, nold + nold/2, 1)
+      end function ppiclf_newcap
 
       end module ppiclf_data
 !-----------------------------------------------------------------------
@@ -142,6 +233,119 @@
         ppiclf_wall_c = 0.0d0
         ppiclf_wall_n = 0.0d0
       end if
+
+      return
+      end
+!-----------------------------------------------------------------------
+      subroutine ppiclf_data_GrowPart(nneed)
+!
+! Makes room for nneed real particles on this rank: the particle arrays
+! of ppiclf_data and the viscous-unsteady history of ppiclf_unsteady.
+!
+      use ppiclf_data
+      use ppiclf_unsteady
+      implicit none
+      integer*4 nneed, n
+!
+      if (nneed .le. ppiclf_maxpart) return
+      n = ppiclf_newcap(ppiclf_maxpart, nneed)
+      call ppiclf_resize_r2(ppiclf_y,      n, 2)
+      call ppiclf_resize_r2(ppiclf_y1,     n, 2)
+      call ppiclf_resize_r2(ppiclf_ydot,   n, 2)
+      call ppiclf_resize_r2(ppiclf_ydotc,  n, 2)
+      call ppiclf_resize_r2(ppiclf_rprop,  n, 2)
+      call ppiclf_resize_r2(ppiclf_rprop2, n, 2)
+      call ppiclf_resize_r2(ppiclf_rprop4, n, 2)
+      call ppiclf_resize_r2(ppiclf_rprop5, n, 2)
+      call ppiclf_resize_r2(ppiclf_feedbk, n, 2)
+      call ppiclf_resize_i2(ppiclf_iprop,  n, 2)
+      call ppiclf_resize_r2(ppiclf_cp_map, n, 2)
+      call ppiclf_resize_r2(ppiclf_part2cell_dist, n, 1)
+      call ppiclf_resize_i2(ppiclf_part2cell_map,  n, 1)
+      call ppiclf_resize_i1(ppiclf_npart2cell, n)
+      if (allocated(ppiclf_rprop3)) then
+        call ppiclf_resize_r2(ppiclf_rprop3,   n, 2)
+        call ppiclf_resize_r3(ppiclf_drudtPlag, n)
+        call ppiclf_resize_r3(ppiclf_drudtMixt, n)
+        call ppiclf_resize_r2(ppiclf_dTdtPlag, n, 2)
+        call ppiclf_resize_r2(ppiclf_dTdtMixt, n, 2)
+        call ppiclf_resize_r2(ppiclf_TMixt,    n, 2)
+        call ppiclf_resize_r2(ppiclf_TPlag,    n, 2)
+      end if
+      ppiclf_maxpart = n
+
+      return
+      end
+!-----------------------------------------------------------------------
+      subroutine ppiclf_data_GrowGhost(nneed)
+!
+! Makes room for nneed ghost particles on this rank
+!
+      use ppiclf_data
+      implicit none
+      integer*4 nneed, n
+!
+      if (nneed .le. ppiclf_maxghost) return
+      n = ppiclf_newcap(ppiclf_maxghost, nneed)
+      call ppiclf_resize_r2(ppiclf_rprop_gp, n, 2)
+      call ppiclf_resize_i2(ppiclf_iprop_gp, n, 2)
+      ppiclf_maxghost = n
+
+      return
+      end
+!-----------------------------------------------------------------------
+      subroutine ppiclf_data_GrowCell(nneed)
+!
+! Makes room for nneed overlap-grid cells on this rank
+!
+      use ppiclf_data
+      implicit none
+      integer*4 nneed, n
+!
+      if (nneed .le. ppiclf_maxcell) return
+      n = ppiclf_newcap(ppiclf_maxcell, nneed)
+      call ppiclf_resize_r2(ppiclf_picl_grid,       n, 2)
+      call ppiclf_resize_r2(ppiclf_int_fld,         n, 2)
+      call ppiclf_resize_r2(ppiclf_pro_fld_picl,    n, 2)
+      call ppiclf_resize_i2(ppiclf_cell_map,        n, 2)
+      call ppiclf_resize_i2(ppiclf_cell_map_orig,   n, 2)
+      call ppiclf_resize_i2(ppiclf_cell_map_interp, n, 2)
+      call ppiclf_resize_i2(ppiclf_cell_map_proj,   n, 2)
+      ppiclf_maxcell = n
+
+      return
+      end
+!-----------------------------------------------------------------------
+      subroutine ppiclf_data_GrowFV(nneed)
+!
+! Makes room for nneed fluid-solver cells (set once, from Rocflu)
+!
+      use ppiclf_data
+      implicit none
+      integer*4 nneed
+!
+      if (nneed .le. ppiclf_maxfv) return
+      call ppiclf_resize_r2(ppiclf_fluid_grid,    nneed, 2)
+      call ppiclf_resize_r2(ppiclf_int_fld_input, nneed, 1)
+      call ppiclf_resize_r2(ppiclf_pro_fld,       nneed, 1)
+      ppiclf_maxfv = nneed
+
+      return
+      end
+!-----------------------------------------------------------------------
+      subroutine ppiclf_data_GrowWall(nneed)
+!
+! Makes room for nneed particle-wall triangles
+!
+      use ppiclf_data
+      implicit none
+      integer*4 nneed, n
+!
+      if (nneed .le. ppiclf_maxwall) return
+      n = ppiclf_newcap(ppiclf_maxwall, nneed)
+      call ppiclf_resize_r2(ppiclf_wall_c, n, 2)
+      call ppiclf_resize_r2(ppiclf_wall_n, n, 2)
+      ppiclf_maxwall = n
 
       return
       end

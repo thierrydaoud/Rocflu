@@ -19,10 +19,9 @@
 !
 ! Internal:
 !
-      real*4  rout_pos(3      *PPICLF_LPART) 
-     >       ,rout_sln(PPICLF_LRS*PPICLF_LPART)
-     >       ,rout_lrp(PPICLF_LRP*PPICLF_LPART)
-     >       ,rout_lip(3      *PPICLF_LPART)
+      ! sized by this rank's particle count
+      real*4, allocatable :: rout_pos(:), rout_sln(:), rout_lrp(:),
+     >                       rout_lip(:)
       real*8 dp_max
       character*1 dum_read
       character*132 filein2
@@ -90,24 +89,17 @@
       call ppiclf_bcast(ivtu_size,isize)
 
 
-      npart_min = npt_total/ppiclf_np+1
-      if (npart_min*ppiclf_np .gt. npt_total) npart_min = npart_min-1
-
-      if (npt_total .gt. PPICLF_LPART*ppiclf_np) 
-     >   call ppiclf_exittr('Increase LPART to at least$',0.0d0
-     >    ,npart_min)
-
-
-      npmax = min(npt_total/PPICLF_LPART+1,ppiclf_np)
-      stride_len = 0
-      if (ppiclf_nid .le. npmax-1 .and. ppiclf_nid. ne. 0) 
-     >stride_len = ppiclf_nid*PPICLF_LPART
-
-      npart = PPICLF_LPART
-      if (ppiclf_nid .gt. npmax-1) npart = 0
-
-      ndiff = npt_total - (npmax-1)*PPICLF_LPART
-      if (ppiclf_nid .eq. npmax-1) npart = ndiff
+      ! Each rank reads a block of ceiling(npt_total/np) particles, the
+      ! last ranks fewer (as Rocflu splits points.dat); ppiclF then
+      ! moves them to the ranks that own their bins
+      npart_min = (npt_total + ppiclf_np - 1)/ppiclf_np
+      stride_len = int(ppiclf_nid,8)*npart_min
+      npart = max(0, min(npart_min, npt_total - ppiclf_nid*npart_min))
+      call ppiclf_data_GrowPart(npart)
+      allocate(rout_pos(3*max(npart,1)),
+     >         rout_sln(PPICLF_LRS*max(npart,1)),
+     >         rout_lrp(PPICLF_LRP*max(npart,1)),
+     >         rout_lip(3*max(npart,1)))
 
       iorank = -1
 
@@ -774,10 +766,9 @@ c1511 continue
 !
 ! Internal:
 !
-      real*4  rout_pos(3      *PPICLF_LPART) 
-     >       ,rout_sln(PPICLF_LRS*PPICLF_LPART)
-     >       ,rout_lrp(PPICLF_LRP*PPICLF_LPART)
-     >       ,rout_lip(3      *PPICLF_LPART)
+      ! sized by this rank's particle count
+      real*4, allocatable :: rout_pos(:), rout_sln(:), rout_lrp(:),
+     >                       rout_lip(:)
       character*3 filein
       character*12 vtufile
       character*6  prostr
@@ -805,6 +796,8 @@ c1511 continue
 
       nnp   = ppiclf_np
       nxx   = PPICLF_NPART
+      allocate(rout_pos(3*max(nxx,1)), rout_sln(PPICLF_LRS*max(nxx,1)),
+     >         rout_lrp(PPICLF_LRP*max(nxx,1)), rout_lip(3*max(nxx,1)))
 
       npt_total = ppiclf_iglsum(nxx,1)
 

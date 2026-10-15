@@ -96,12 +96,11 @@
      > CALL ppiclf_exittr('InitParticle must be before InitOverlap$'
      >                  ,0.0d0,0)
 
-      IF(ncell .GT. PPICLF_LEE .OR. ncell .LT. 0) THEN
-        PRINT*, '***ERROR*** PPICLF_LEE', PPICLF_LEE, 'in', 
-     >   'InitMapOverlapGrid must be greater than', ncell
-        CALL MPI_BARRIER(ppiclf_comm,ierr) 
-        CALL ppiclf_exittr('Increase LEE in InitOverlap$',0.0d0,ncell)
-      END IF
+      IF(ncell .LT. 0)
+     >  CALL ppiclf_exittr('InitOverlap: negative cell count$',0.0d0,
+     >                     ncell)
+      ! Arrays indexed by the fluid solver's cells: exactly ncell
+      CALL ppiclf_data_GrowFV(ncell)
 
       ! Number of finite volume cells from fluid solver
       ppiclf_nFVCells = ncell
@@ -602,17 +601,27 @@
 ! Internal:
 !
       LOGICAL   partl ! dummy variable    
-      ! rprop3 is sized at run time, so the send buffer is too
-      INTEGER*4 rtempLim, ierr
-      SAVE      rtempLim
-      DATA      rtempLim /0/
+      ! rprop3 and the particle capacity are set at run time, so the
+      ! send buffer is too
+      INTEGER*4 rtempLim, ierr, nin
       REAL*8, ALLOCATABLE, SAVE :: rtemp(:,:)
       INTEGER*4 i, icount, j0
 !
-      IF (.NOT. ALLOCATED(rtemp)) THEN
-        rtempLim = PPICLF_LRS*4 + PPICLF_LRP + PPICLF_LRP2
+      j0 = 4 ! index of ppiclf_iprop that contains rank to send to
+
+      ! Grow the particle arrays to what this rank will receive
+      CALL ppiclf_comm_NumIncoming(ppiclf_npart, PPICLF_LIP,
+     >                             ppiclf_iprop, j0, nin)
+      CALL ppiclf_data_GrowPart(nin)
+
+      rtempLim = PPICLF_LRS*4 + PPICLF_LRP + PPICLF_LRP2
      >       + ppiclf_lrp3 + PPICLF_LRP4 + PPICLF_LRP5 + PPICLF_LRP_PRO
-        ALLOCATE(rtemp(rtempLim,PPICLF_LPART), STAT=ierr)
+      IF (ALLOCATED(rtemp)) THEN
+        IF (SIZE(rtemp,2) .NE. ppiclf_maxpart .OR.
+     >      SIZE(rtemp,1) .NE. rtempLim) DEALLOCATE(rtemp)
+      END IF
+      IF (.NOT. ALLOCATED(rtemp)) THEN
+        ALLOCATE(rtemp(rtempLim,ppiclf_maxpart), STAT=ierr)
         IF (ierr .NE. 0) CALL ppiclf_exittr(
      >     'MoveParticle: cannot allocate the send buffer$',0.0d0,ierr)
       END IF
@@ -654,19 +663,20 @@
         CALL ppiclf_copy(rtemp(icount,i),
      >                   ppiclf_feedbk(1,i),PPICLF_LRP_PRO)
       END DO
-      
-      j0 = 4 ! index of ppiclf_iprop that contains rank to send to
+
       CALL pfgslib_crystal_tuple_transfer(ppiclf_cr_hndl
-     >             ,ppiclf_npart,PPICLF_LPART ! Setup
+     >             ,ppiclf_npart,ppiclf_maxpart ! Setup
      >             ,ppiclf_iprop,PPICLF_LIP   ! Integer Comm
      >             ,partl,0                   ! Logical Comm
      >             ,rtemp,rtempLim            ! Real Comm
      >             ,j0)                       ! Receiver processor index
 
-      IF(ppiclf_npart .GT. PPICLF_LPART .OR. ppiclf_npart .LT. 0) THEN
-        PRINT*,'Increase LPART. Processor:',ppiclf_nid,
-     >   'LPART should be greater than:',ppiclf_npart
-        CALL ppiclf_exittr('Increase LPART$',0.0d0,ppiclf_npart)
+      ! Cannot happen after NumIncoming; kept as a guard against losing
+      ! particles silently
+      IF(ppiclf_npart .GT. ppiclf_maxpart .OR. ppiclf_npart .LT. 0) THEN
+        PRINT*,'Particles received:',ppiclf_npart,' rank:',ppiclf_nid
+        CALL ppiclf_exittr('MoveParticle: more particles received '//
+     >    'than allocated$',0.0d0,ppiclf_npart)
       END IF
  
       ! Update processor particle values with newly transfered rtemp
@@ -711,6 +721,48 @@
       END
 
 !-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_comm_NumIncoming(n, ld, list, irow, nin)
+!
+! Number of columns this rank will receive in a crystal-router transfer
+! in which every rank sends columns 1..n of list, list(irow,i) being
+! the receiving rank. gslib drops the columns that do not fit in the
+! receiving arrays, so the arrays must be grown to nin beforehand.
+!
+      use ppiclf_data
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+      INCLUDE 'mpif.h'
+!
+! Input:
+!
+      INTEGER*4 n, ld, irow
+      INTEGER*4 list(ld,*)
+!
+! Output:
+!
+      INTEGER*4 nin
+!
+! Internal:
+!
+      INTEGER*4 i, ierr
+      INTEGER*4, ALLOCATABLE :: cnt(:)
+!
+      ALLOCATE(cnt(0:ppiclf_np-1))
+      cnt = 0
+      DO i = 1,n
+        IF (list(irow,i) .LT. 0 .OR. list(irow,i) .GE. ppiclf_np)
+     >    CALL ppiclf_exittr('NumIncoming: invalid receiving rank$',
+     >                       0.0d0,list(irow,i))
+        cnt(list(irow,i)) = cnt(list(irow,i)) + 1
+      END DO
+      CALL MPI_Reduce_scatter_block(cnt, nin, 1, MPI_INTEGER, MPI_SUM,
+     >                              ppiclf_comm, ierr)
+      DEALLOCATE(cnt)
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_MapOverlapGrid
       use ppiclf_data
 !
@@ -735,7 +787,7 @@
      >          centeri(3), exchCellMultiplier
       LOGICAL   partl, ErrorFound
       EXTERNAL  ppiclf_vlmin, ppiclf_vlmax
-      INTEGER*4 nSent, sentTo(27), m
+      INTEGER*4 nSent, sentTo(27), m, nin
       LOGICAL   dupl
 !
 ! Code Start:
@@ -871,14 +923,8 @@
               IF (dupl) CYCLE
               nSent = nSent + 1
               sentTo(nSent) = nrank
+              CALL ppiclf_data_GrowCell(ppiclf_nCells_FV2PICL + 1)
               ppiclf_nCells_FV2PICL = ppiclf_nCells_FV2PICL + 1
-              IF(ppiclf_nCells_FV2PICL .GT. PPICLF_LEE) THEN
-                PRINT*, '***ERROR*** PPICLF_LEE',PPICLF_LEE, 'in', 
-     >           'MapOverlapGrid must be greater than',
-     >            ppiclf_nCells_FV2PICL 
-                CALL ppiclf_exittr('Increase PPICLF_LEE$ (MapOverlap)',0.0D0
-     >               ,ppiclf_nCells_FV2PICL)
-              END IF
 
               ! make sure it is mapped to active nrank and map rank to
               ! processor. *** FOR ACTIVE BINNING ***
@@ -926,7 +972,7 @@
 
       ! GSLIB required info
       ! NumPiclCells - number of columns to transfer
-      ! PPICLF_LEE - number of columns declared
+      ! ppiclf_maxcell - number of columns allocated
       ! nl - partl row size (dummy logical variable)
       nl   = 0
       ! nii - ppiclf_cell_map row size declared
@@ -939,12 +985,21 @@
       nkey(1) = 2
       nkey(2) = 1
 
+      ! Grow the cell arrays to what this rank will receive. Before,
+      ! cells beyond PPICLF_LEE were dropped here without a message.
+      CALL ppiclf_comm_NumIncoming(ppiclf_nCells_FV2PICL, nii,
+     >                             ppiclf_cell_map, njj, nin)
+      CALL ppiclf_data_GrowCell(nin)
+
       CALL pfgslib_crystal_tuple_transfer(
-     >        ppiclf_cr_hndl,ppiclf_nCells_FV2PICL,PPICLF_LEE !setup
+     >        ppiclf_cr_hndl,ppiclf_nCells_FV2PICL,ppiclf_maxcell !setup
      >        ,ppiclf_cell_map,nii ! Integer Comm
      >        ,partl,nl                 ! Logical Comm
      >        ,ppiclf_picl_grid,nrr      ! Real Comm
      >        ,njj)                      ! Receiver processor index
+      IF (ppiclf_nCells_FV2PICL .GT. ppiclf_maxcell)
+     >  CALL ppiclf_exittr('MapOverlapGrid: more cells received '//
+     >    'than allocated$',0.0d0,ppiclf_nCells_FV2PICL)
       CALL pfgslib_crystal_tuple_sort(
      >        ppiclf_cr_hndl,ppiclf_nCells_FV2PICL !setup
      >        ,ppiclf_cell_map,nii !Integer to sort
@@ -1106,9 +1161,7 @@
               nrank = iig + ppiclf_n_bins(1)*jjg 
      >               + ppiclf_n_bins(1)*ppiclf_n_bins(2)*kkg
               !ghostsMade = ghostsMade + 1
-              IF(ppiclf_npart_gp .GE. PPICLF_LPART_GP)
-     >          CALL ppiclf_exittr('Too many ghosts to send; '//
-     >          'increase PPICLF_LPART_GP$',0.0d0,ppiclf_npart)
+              CALL ppiclf_data_GrowGhost(ppiclf_npart_gp + 1)
               ppiclf_npart_gp = ppiclf_npart_gp + 1
               ! Copy particle ID info
               ppiclf_iprop_gp(1,ppiclf_npart_gp) = ppiclf_iprop(1,ip)
@@ -1195,24 +1248,31 @@
 !
 ! Internal:
 !
-      INTEGER*4 iprop_proc_index
+      INTEGER*4 iprop_proc_index, nin
       LOGICAL   partl  ! Dummy variable       
 !
       iprop_proc_index = 4 ! since ppiclf_iprop(4,np) contains processor
                            ! that should receive ghost particle
+
+      ! Grow the ghost arrays to what this rank will receive
+      CALL ppiclf_comm_NumIncoming(ppiclf_npart_gp, PPICLF_LIP_GP,
+     >                             ppiclf_iprop_gp, iprop_proc_index,
+     >                             nin)
+      CALL ppiclf_data_GrowGhost(nin)
+
       CALL pfgslib_crystal_tuple_transfer(ppiclf_cr_hndl
-     >             ,ppiclf_npart_gp,PPICLF_LPART_GP ! Setup
+     >             ,ppiclf_npart_gp,ppiclf_maxghost ! Setup
      >             ,ppiclf_iprop_gp,PPICLF_LIP_GP   ! Integer Comm
      >             ,partl,0                         ! Logical Comm
      >             ,ppiclf_rprop_gp,PPICLF_LRP_GP   ! Real Comm
      >             ,iprop_proc_index)               ! Receiver processor index
 
-      ! gslib drops ghosts beyond PPICLF_LPART_GP and returns the full
-      ! count, so a count above it means ghosts were lost
-      IF(ppiclf_npart_gp .GT. PPICLF_LPART_GP) THEN
+      ! gslib drops ghosts beyond the capacity and returns the full
+      ! count; cannot happen after NumIncoming, kept as a guard
+      IF(ppiclf_npart_gp .GT. ppiclf_maxghost) THEN
         PRINT*,'Ghosts received:',ppiclf_npart_gp,' rank:',ppiclf_nid
-        CALL ppiclf_exittr('Too many ghosts received; '//
-     >    'increase PPICLF_LPART_GP$',0.0d0,ppiclf_npart_gp)
+        CALL ppiclf_exittr('MoveGhost: more ghosts received '//
+     >    'than allocated$',0.0d0,ppiclf_npart_gp)
       END IF
 
       RETURN

@@ -6,7 +6,8 @@
 ! otherwise. ppiclf_rprop3 packs the per-particle history so it moves
 ! with the particle between ranks (ppiclf_user_plag2prop/prop2plag).
 !
-! Must come first in ppiclf.f: the routines below USE it.
+! Must come first in ppiclf.f (before ppiclf_data.f): the routines
+! below USE it.
 !
 !-----------------------------------------------------------------------
       module ppiclf_unsteady

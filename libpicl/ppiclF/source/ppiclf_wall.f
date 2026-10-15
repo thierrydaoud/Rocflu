@@ -58,10 +58,8 @@
       ! Degenerate triangle: no area, no contacts
       IF (rmag .LE. 0.0d0) RETURN
 
+      CALL ppiclf_data_GrowWall(ppiclf_nwall + 1)
       ppiclf_nwall = ppiclf_nwall + 1
-      IF (ppiclf_nwall .GT. PPICLF_LWALL)
-     >CALL ppiclf_exittr('Increase PPICLF_LWALL in PPICLF_USER.h$'
-     >                  ,0.d0,ppiclf_nwall)
 
       DO l = 1,3
          rn(l) = rn(l)/rmag
