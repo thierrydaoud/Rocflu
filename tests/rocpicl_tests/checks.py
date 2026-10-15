@@ -37,6 +37,9 @@ def compare_states(new, ref, label="golden", fields=None):
         if fields:
             names = [f for f in names if f.startswith(tuple(fields))]
         for f in names:
+            if any(f not in p for p in new["particles"].values()):
+                errors.append("particle field %s is in %s but not written" % (f, label))
+                continue
             group = SPIN if f in SPIN else (f,)
             scale = max(abs(p.get(g, 0.0)) for p in refp.values() for g in group) or 1.0
             worst = None

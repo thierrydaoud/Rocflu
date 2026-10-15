@@ -1012,9 +1012,10 @@ c----------------------------------------------------------------------
       use ppiclf_data
 !
 ! This is called by rocpicl/PICL_TEMP_Runge.F90, once per stage for
-! each interpolated field: the gas field infld (one value per fluid
-! cell) goes to rprop slot jp. jp must be one of the slots listed by
-! ppiclf_user_Layout (ppiclf_int_slots), each given once per stage.
+! each gas field: infld (one value per fluid cell) is interpolated to
+! rprop slot jp if ppiclf_user_Layout listed jp (ppiclf_int_slots), and
+! ignored otherwise, because no model that is on reads it. Each listed
+! slot must be given once per stage.
 !
       IMPLICIT NONE
 !
@@ -1029,13 +1030,14 @@ c----------------------------------------------------------------------
 !
       INTEGER*4 n, k, kfld
 !
+      IF(jp .LE. 0 .OR. jp .GT. ppiclf_lrp)
+     >   CALL ppiclf_exittr('Interpolated slot outside rprop$',0.0d0,jp)
       kfld = 0
       DO k=1,ppiclf_lrp_int
         IF(ppiclf_int_slots(k) .EQ. jp) kfld = k
       END DO
-      IF(kfld .EQ. 0)
-     >   CALL ppiclf_exittr('Slot is not an interpolated field$'
-     >                     ,0.0d0,jp)
+      ! not needed by this run
+      IF(kfld .EQ. 0) RETURN
       IF(ppiclf_int_given(kfld))
      >   CALL ppiclf_exittr('Interpolated field given twice, slot$'
      >                     ,0.0d0,jp)

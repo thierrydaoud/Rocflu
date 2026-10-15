@@ -69,7 +69,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Particle output | Every file held all 72 particle fields, named `y01`…, `rpro01`…, `tag01`… (300 bytes per particle) | A list of named fields: velocity, volume fraction, diameter and ID by default (44 bytes per particle); more groups with `OUTPARTICLE`, `OUTGAS`, `OUTGRADGAS`, `OUTMODEL`. Particle restart stops until it has its own file | (this section) |
 | Interpolation speed | 60% of a particle stage went to finding the cells around each particle | Marker per cell, an early exit and contiguous reads: that search is 45% faster, the whole run 14–20% faster, results bit-identical | (section "Where a particle stage spends its time") |
 | Ghost particles | A ghost carried all 59 particle properties; the neighbour search reads 6 | A ghost carries those 6 (16 doubles instead of 69), byte-identical results | a7f5748 |
-| Field sizes | The number of fields per particle and per cell (state, properties, interpolated, projected) was fixed at compile time; Rocflu's number of interpolated fields had to match it by hand | Set at start-up by `ppiclf_user_Layout`; ppiclF counts the interpolated fields and stops on a missing or extra one; byte-identical results | (section "Field sizes set at run time") |
+| Field sizes | The number of fields per particle and per cell (state, properties, interpolated, projected) was fixed at compile time; Rocflu's number of interpolated fields had to match it by hand; every run interpolated 29 gas fields and projected 31 | Set at start-up by `ppiclf_user_Layout` from the physics that is on: 7 interpolated fields for drag only, 10 projected without pseudo-turbulence; ppiclF stops if a needed field is not given; byte-identical flow files | 074d58d, (section "Field sizes set at run time") |
 
 ## Regression tests
 
@@ -687,9 +687,47 @@ cases (the suite, `AMFORCE 2` variants of the ghost and binary-collision cases, 
 `QSFLUCT` and `PSEUDOTURB` variants with `OUTMODEL 1`) every particle and flow file is
 byte-identical to f4d6486; 35 PASS twice.
 
-Next, the layout follows the physics that is on: the PT projected fields and diagnostics
-only with `PSEUDOTURB`, the gas gradients only with the models that read them,
-temperature only with `HEATTRANSFER`, spin only with `COLLISIONS` ≥ 2.
+#### Only the fields the physics needs
+
+With the sizes set at start-up, `ppiclf_user_Layout` now reads the PICL flags and keeps
+only the fields that a model that is on uses.
+
+Interpolated gas fields: before, all 29 were sent between ranks and interpolated to every
+particle at every RK stage.
+
+| Gas fields at the particle | Interpolated when | Read by |
+|---|---|---|
+| ρ_g, φ_p, u_g, c_g, T_g (7) | always | drag, heat transfer, viscosity, every model |
+| ∇p (3) | `PGFORCE 1` or `AMFORCE 1` | pressure-gradient force, Parmar added mass |
+| Du/Dt, ∂(ρφ_g)/∂t, ∇(ρφ_g), ∇ρ (10) | `AMFORCE` ≥ 1 or `VISCOUSUNSTEADY` ≥ 1 | added mass, viscous unsteady force |
+| vorticity, Dω/Dt (6) | `COLLISIONS` ≥ 2 | torque, lift |
+| ∇·τ (3) | `PGFORCE 1` with the Navier–Stokes flow model | pressure-gradient force |
+
+A run with drag only interpolates 7 fields. Rocflu still computes all 29 and hands each
+over; `InterpFieldUser` ignores a field that is not on the list. ppiclF still stops if a
+field on the list is not given in a stage. A slot that is not interpolated stays zero, so
+a model that starts reading a gas slot must have it added to the list.
+
+Projected fields: without `PSEUDOTURB` there are 10 instead of 31 (φ_p, force, energy, and
+the five fields the probes read in `WriteProbe.F90`); the Reynolds stress, k_sg and heat
+flux fields are allocated, filled and projected only with it.
+
+Particle output: `OUTGRADGAS 1` writes only the gradient fields that were interpolated (the
+others would be zeros). The regression harness now reports a field that is in a golden but
+no longer written as a failure, instead of stopping with an error.
+
+Checked: the suite and 12 variants (`AMFORCE 1` and 2, `VISCOUSUNSTEADY` with `AMFORCE 1` and
+`PGFORCE`, `COLLISIONS 3` and 4, `QSFLUCT` and `PSEUDOTURB` with `OUTMODEL 1`), 44 runs with
+particles. Against 074d58d the flow files are byte-identical and every particle field that is
+still written is bit-identical; the fields no longer written are exactly the ones the table
+leaves out for each case. The goldens were regenerated only to drop those fields. Not run:
+the ∇·τ branch (a Navier–Stokes shock tube stops in Rocflu's start-up, with or without this
+change).
+
+Still to do: `rprop` and `y` keep all their slots (temperature without `HEATTRANSFER`, spin
+without `COLLISIONS` ≥ 2, the PT slots without `PSEUDOTURB`). Dropping them changes slot
+numbers from run to run, which Rocflu, which knows them only as compile-time constants,
+would need to follow.
 
 ## Particle properties (`rprop`)
 
@@ -814,7 +852,8 @@ start-up with *"Particle restart is not available yet"* until the separate resta
 exists. A new run (no `.rin` file) is unaffected.
 
 **Regression suite.** The template input turns on `OUTPARTICLE`, `OUTGAS` and
-`OUTGRADGAS`, so the goldens keep checking the same quantities. The harness and the 32
+`OUTGRADGAS`, so the goldens keep checking the same quantities (the gradients only where a
+model needs them; see [Only the fields the physics needs](#only-the-fields-the-physics-needs)). The harness and the 32
 goldens with particles use the new names; the conversion renamed keys only (8,790
 values compared, none changed) and dropped the superparticle loading, which was 1.0 in
 every golden. Checked: in all 37 cases with particles (the 35 suite cases plus

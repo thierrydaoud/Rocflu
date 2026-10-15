@@ -20,7 +20,10 @@ Particle fields are read by name (`vp_x`, `rho_g`, `dp`, ...; see
 `libpicl/user_files/ppiclf_user_OutputFields.f`). The template input
 `templates/rectshktb.inp` turns on `OUTPARTICLE`, `OUTGAS` and `OUTGRADGAS`, because the
 goldens and checks use the particle temperature, spin, density and volume and the gas
-values at the particles; keep them on.
+values at the particles; keep them on. Gas gradients are written only when a model that is
+on needs them (`ppiclf_user_Layout`), so cases without pressure-gradient, added-mass,
+viscous-unsteady or rotational-collision models have no `dpdx_g` and similar fields. A
+field that is in a golden but no longer written fails the comparison.
 
 The 35 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,

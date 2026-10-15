@@ -12,7 +12,8 @@
 !   OUTGAS      1 : gas density, velocity, sound speed and temperature
 !                   interpolated to the particle
 !   OUTGRADGAS  1 : gas gradients and derivatives interpolated to the
-!                   particle (for checking the interpolation)
+!                   particle (for checking the interpolation), those
+!                   that a model that is on needs
 !   OUTMODEL    1 : states and diagnostics of the models that are on
 !
 ! Called once, before the first particle file is written.
@@ -77,58 +78,37 @@
 !
 ! OUTGRADGAS
 !
+      ! only the fields this run interpolates (ppiclf_user_Layout)
       if (out_gradgas_flag .ge. 1) then
          ! pressure gradient
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JDPDX, 'dpdx_g')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JDPDY, 'dpdy_g')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JDPDZ, 'dpdz_g')
+         call ppiclf_user_AddGasField(PPICLF_R_JDPDX, 'dpdx_g')
+         call ppiclf_user_AddGasField(PPICLF_R_JDPDY, 'dpdy_g')
+         call ppiclf_user_AddGasField(PPICLF_R_JDPDZ, 'dpdz_g')
          ! substantial derivative of the gas velocity, Du/Dt
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JSDRX, 'DuDt_g_x')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JSDRY, 'DuDt_g_y')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JSDRZ, 'DuDt_g_z')
+         call ppiclf_user_AddGasField(PPICLF_R_JSDRX, 'DuDt_g_x')
+         call ppiclf_user_AddGasField(PPICLF_R_JSDRY, 'DuDt_g_y')
+         call ppiclf_user_AddGasField(PPICLF_R_JSDRZ, 'DuDt_g_z')
          ! d(rho phi_g)/dt and grad(rho phi_g)
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JRHSR, 'drhophidt_g')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JPGCX, 'drhophidx_g')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JPGCY, 'drhophidy_g')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JPGCZ, 'drhophidz_g')
+         call ppiclf_user_AddGasField(PPICLF_R_JRHSR, 'drhophidt_g')
+         call ppiclf_user_AddGasField(PPICLF_R_JPGCX, 'drhophidx_g')
+         call ppiclf_user_AddGasField(PPICLF_R_JPGCY, 'drhophidy_g')
+         call ppiclf_user_AddGasField(PPICLF_R_JPGCZ, 'drhophidz_g')
          ! vorticity
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JXVOR, 'vort_g_x')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JYVOR, 'vort_g_y')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JZVOR, 'vort_g_z')
+         call ppiclf_user_AddGasField(PPICLF_R_JXVOR, 'vort_g_x')
+         call ppiclf_user_AddGasField(PPICLF_R_JYVOR, 'vort_g_y')
+         call ppiclf_user_AddGasField(PPICLF_R_JZVOR, 'vort_g_z')
          ! gas density gradient
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JRHOGX, 'drhodx_g')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JRHOGY, 'drhody_g')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JRHOGZ, 'drhodz_g')
+         call ppiclf_user_AddGasField(PPICLF_R_JRHOGX, 'drhodx_g')
+         call ppiclf_user_AddGasField(PPICLF_R_JRHOGY, 'drhody_g')
+         call ppiclf_user_AddGasField(PPICLF_R_JRHOGZ, 'drhodz_g')
          ! divergence of the viscous stress
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JDPVDX, 'divtau_g_x')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JDPVDY, 'divtau_g_y')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JDPVDZ, 'divtau_g_z')
+         call ppiclf_user_AddGasField(PPICLF_R_JDPVDX, 'divtau_g_x')
+         call ppiclf_user_AddGasField(PPICLF_R_JDPVDY, 'divtau_g_y')
+         call ppiclf_user_AddGasField(PPICLF_R_JDPVDZ, 'divtau_g_z')
          ! substantial derivative of the vorticity
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JSDOX, 'DvortDt_g_x')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JSDOY, 'DvortDt_g_y')
-         call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_JSDOZ, 'DvortDt_g_z')
+         call ppiclf_user_AddGasField(PPICLF_R_JSDOX, 'DvortDt_g_x')
+         call ppiclf_user_AddGasField(PPICLF_R_JSDOY, 'DvortDt_g_y')
+         call ppiclf_user_AddGasField(PPICLF_R_JSDOZ, 'DvortDt_g_z')
       endif
 !
 ! OUTMODEL: only the models that are on
@@ -183,6 +163,31 @@
      >                               PPICLF_R_RTerm2Perp, 'Rterm2_perp')
          endif
       endif
+
+      return
+      end
+!-----------------------------------------------------------------------
+!
+! Adds rprop slot jp to the particle output under fname if the slot is
+! interpolated from the gas in this run; a slot that is not stays zero.
+!
+!-----------------------------------------------------------------------
+      subroutine ppiclf_user_AddGasField(jp, fname)
+      use ppiclf_data
+!
+      implicit none
+!
+      include "PPICLF"
+!
+      integer*4 jp, k
+      character*(*) fname
+!
+      do k = 1, ppiclf_lrp_int
+         if (ppiclf_int_slots(k) .eq. jp) then
+            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP, jp, fname)
+            return
+         endif
+      end do
 
       return
       end
