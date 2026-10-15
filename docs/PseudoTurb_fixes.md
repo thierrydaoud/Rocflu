@@ -30,6 +30,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Neighbour search | Dense subbin tables: ~28 GB requested for 50,000 particles in one 2 cm bin | Compact lists: ~1.2 MB for the same bin (about 24,000 times less), byte-identical results | 82d4ca4 |
 | Clean-up | ppiclF's own unit tests no longer matched the code; the burn-rate model and the `PICLDEBUG` output were unused | Removed; the regression suite replaces the unit tests. Input files that still ask for `REACTIVE` or a negative `STATIONARY` stop with a message | 3c41db2 |
 | Memory | ppiclF reserved fixed arrays for 80,000 particles, 640,000 ghosts and 120,000 cells per rank, plus 50 steps of viscous-unsteady history even when it was off: 1.34 GB for a run with one particle. A run with more particles on a rank stopped and needed a recompile | Arrays sized from the run and grown when needed; the history is allocated only with `VISCOUSUNSTEADY` (`VUSTEPS` steps). 265 MB for the same run; no particle, ghost, cell or wall limits | c1ac692, 0d4d86c, e227f99 |
+| Ghost particles | A ghost carried all 59 particle properties; the neighbour search reads 6 | A ghost carries those 6 (16 doubles instead of 69), byte-identical results | a7f5748 |
 
 ## Regression tests
 
@@ -523,6 +524,58 @@ before, per particle (about 12 kB per particle for 50 steps).
   `use ppiclf_data` (every routine that includes `PPICLF` already has it).
 - Arrays whose size is a particle, ghost or cell count must not be given a fixed size
   anywhere else (local buffers included): size them from the current count or capacity.
+
+## Particle properties (`rprop`)
+
+`ppiclf_rprop(1:59, i)` holds everything about particle `i` that is not in the state
+`y`. The 59 slots do four different jobs, but until now all of them moved with the
+particle, went to every ghost, were written to every `par*.vtu` file (as `rpro01`
+to `rpro59`) and were read back on restart.
+
+| Job | Slots | Needed |
+|---|---|---|
+| Particle properties | 1 ρp, 3 dp, 4 Vp, 22 superparticle loading | Every step, and on restart. Set once in `PICL_TEMP_InitSolver` |
+| Carried from step to step | 25–27 quasi-steady force fluctuation, 46–48 ξ∥, ξ⊥, ξT | Every step, and on restart: each step updates the previous value |
+| Gas values at the particle | 2, 5–19, 24, 31–33, 36–45 (30 slots) | During the step only: Rocflu interpolates them before every stage. Slot 36 (gas pressure) is never read |
+| Read from neighbours | 28–30 Ẇ | Added mass (`AMFORCE 2`) reads it from neighbouring particles, ghosts included |
+| Diagnostics | 23 (\|v\|), 49–59 (pseudo-turbulence terms) | Output only |
+| Unused | 20 (never written), 21 (written from a hard-coded 50 µm, never read), 34, 35 (freed when the burn-rate model was removed) | |
+
+Planned, one commit at a time:
+
+1. Ghosts carry only what the neighbour search reads (done, below).
+2. Remove the unused slots and group the rest by job.
+3. Name the fields in the particle output (`rhop`, `dp`, ...) instead of `rproNN`.
+4. Split restart from visualization, as MFC does: a double-precision restart file
+   holding only the state a run needs to continue, and visualization files whose
+   optional fields (gas values, diagnostics) are chosen in the input. Today the
+   restart reads the single-precision `par*.vtu` file, so a restarted run cannot match
+   an uninterrupted one.
+
+### Ghosts carry only what the neighbour search reads (a7f5748)
+
+A ghost carried `y` and all of `rprop`: 69 doubles. The neighbour routine
+(`ppiclf_user_EvalNearestNeighbor`) reads only dp, ρp, Vp and Ẇ from its neighbour, so a
+ghost now carries `y` and those 6 slots: 16 doubles, 128 bytes instead of 552, in memory
+and in the ghost transfer.
+
+- The slots are listed once, in `PPICLF_USER.h`:
+  `PPICLF_LRP_GHOST` (how many) and `PPICLF_GHOST_RPROP` (which). Module `ppiclf_data`
+  turns the list into the array `ppiclf_gp_rprop`.
+- `ppiclf_comm_CreateGhost` packs those slots after `y`.
+- The neighbour search unpacks a ghost's slots into a full-length local `rpropj` before
+  calling the user routine, so the routine's interface is unchanged. Slots a ghost does
+  not carry are zero.
+- `ppiclf_cp_map`, the real particles' copy, keeps all of `rprop`: particle `i`'s own
+  values (`rpropi`) and the wall contacts read more than these 6 slots.
+- **If the neighbour routine starts reading another slot from `rpropj`, add it to
+  `PPICLF_GHOST_RPROP`.** Otherwise a ghost passes zero for it, and only pairs across a
+  rank boundary or a periodic face are wrong.
+
+Checked: all 35 suite cases, plus `AMFORCE 2` versions of the ghost-collision (1, 2 and 4
+ranks) and binary-collision (2 and 4 ranks) cases, write byte-identical particle and flow
+files before and after. Ẇ is non-zero in those runs, so the ghosts' Ẇ is used. The suite
+itself has no `AMFORCE 2` case across ranks.
 
 ## Notes for the discussion with the MFC team
 
