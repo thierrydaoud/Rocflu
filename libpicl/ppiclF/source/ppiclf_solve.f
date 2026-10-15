@@ -1,6 +1,7 @@
       SUBROUTINE ppiclf_solve_Initialize(xi1,xpmin,xpmax,
      >           yi1,ypmin,ypmax,zi1,zpmin,zpmax,
      >           ai1,apa,apxa,aprin,aprout)
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -113,6 +114,7 @@
       SUBROUTINE ppiclf_solve_InitParticle(imethod,ndim,iendian,npart,y,
      >                                     rprop,filt2,filt3)
 #endif
+      use ppiclf_data
 !
 ! Called from rocpicl/PICL_TEMP_InitSolver.F90
 
@@ -168,6 +170,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InitParam(imethod,ndim,iendian)
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -257,6 +260,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InitZero
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -266,6 +270,16 @@
 !
       INTEGER*4 i,j,ie
 !
+      ! Allocate the arrays of module ppiclf_data on the first call
+      IF (ppiclf_maxpart .EQ. 0) THEN
+        ppiclf_maxpart  = PPICLF_LPART
+        ppiclf_maxghost = PPICLF_LPART_GP
+        ppiclf_maxcell  = PPICLF_LEE
+        ppiclf_maxfv    = PPICLF_LEE
+        ppiclf_maxwall  = PPICLF_LWALL
+        CALL ppiclf_data_Allocate
+      END IF
+
       ! zero'ing real particle properties
       DO i=1,PPICLF_LPART 
         DO j=1,PPICLF_LRS
@@ -322,6 +336,7 @@
 #else
       SUBROUTINE ppiclf_solve_AddParticles(npart,y,rprop)
 #endif
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -368,6 +383,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_SetParticleTag(npart)
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -391,6 +407,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_NearestNeighborSB(i,SBt,SBs,SBl,SBn,iB)
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -487,6 +504,7 @@ c----------------------------------------------------------------------
 #else
       SUBROUTINE ppiclf_solve_WriteVTU(time)
 #endif
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -514,6 +532,7 @@ c----------------------------------------------------------------------
 #else
       SUBROUTINE ppiclf_solve_IntegrateParticle(istep,iostep,dt,time)
 #endif
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -555,6 +574,7 @@ c----------------------------------------------------------------------
 
 !----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_IntegrateRK3s_Rocflu(iout)
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -629,6 +649,7 @@ c----------------------------------------------------------------------
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_PeriodicParticleShift
+      use ppiclf_data
 !
 !
       IMPLICIT NONE
@@ -679,6 +700,7 @@ c----------------------------------------------------------------------
 !----------------------------------------------------------------------- 
 
       SUBROUTINE ppiclf_solve_InvokeLinearPeriodic(i)
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -716,6 +738,7 @@ c----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 
       SUBROUTINE ppiclf_solve_SetRK3Coeff(dt)
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -772,6 +795,7 @@ c----------------------------------------------------------------------
 !----------------------------------------------------------------------
 
       SUBROUTINE ppiclf_solve_SetYdot
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -786,6 +810,7 @@ c----------------------------------------------------------------------
       END
 !----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InitSolve
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -885,6 +910,7 @@ c----------------------------------------------------------------------
 !      END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InterpParticleGrid
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -921,6 +947,7 @@ c----------------------------------------------------------------------
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InterpFieldUser(jp,infld)
+      use ppiclf_data
 !
 ! This is called by rocpicl/PICL_TEMP_Runge.F90
 ! There is a call for each quantity that should be interpolated
@@ -965,6 +992,7 @@ c----------------------------------------------------------------------
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InitInterp
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -989,6 +1017,7 @@ c----------------------------------------------------------------------
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InterpField(j)
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -1017,6 +1046,7 @@ c----------------------------------------------------------------------
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InterpTupleTransfer
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -1024,8 +1054,7 @@ c----------------------------------------------------------------------
 !
 ! Internal: 
 !
-      REAL*8 FLD(PPICLF_LEX,PPICLF_LEY,PPICLF_LEZ,PPICLF_LEE),
-     >       Max_CellLen(3)
+      REAL*8 Max_CellLen(3)
       INTEGER*4 nkey(2), nl, nii, njj, nrr, ie, l 
       LOGICAL partl
 !
@@ -1076,6 +1105,7 @@ c----------------------------------------------------------------------
 !______________________________________________________________________
 !
       SUBROUTINE ppiclf_solve_SBParticleToCellMap
+      use ppiclf_data
 
       IMPLICIT NONE
 
@@ -1447,6 +1477,7 @@ c----------------------------------------------------------------------
 !______________________________________________________________________
 !
       SUBROUTINE ppiclf_solve_ParticleToCellMap
+      use ppiclf_data
 
       IMPLICIT NONE
 
@@ -1571,6 +1602,7 @@ c----------------------------------------------------------------------
 !-----------------------------------------------------------------------
 !
       SUBROUTINE ppiclf_solve_InterpLS(ip,n,id,dx,rs)
+      use ppiclf_data
 !
 ! Interpolates the fluid fields to particle ip by a weighted linear
 ! least-squares fit f ~ a + b.(x - xp) over the n stencil cells.
@@ -1722,6 +1754,7 @@ c----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_RemoveParticle
+      use ppiclf_data
 !
       USE ppiclf_unsteady
       IMPLICIT NONE
@@ -1782,6 +1815,7 @@ c----------------------------------------------------------------------
 !----------------------------------------------------------------------
 
       SUBROUTINE ppiclf_solve_ProjectParticleGrid
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -1867,6 +1901,7 @@ c----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_GetProFld(e,m,fld)
+      use ppiclf_data
 !
       IMPLICIT NONE
 !

@@ -11,6 +11,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_InitZero
+      use ppiclf_data
 !
       use ppiclf_unsteady
       implicit none

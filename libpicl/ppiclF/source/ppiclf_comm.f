@@ -5,6 +5,7 @@
 #else
       SUBROUTINE ppiclf_comm_InitMPI(comm,id,np)
 #endif
+      use ppiclf_data
 !
 !     This subroutine is called from rocflu/RFLU_InitFlowSolver.F90
 !
@@ -42,6 +43,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_InitCrystal
+      use ppiclf_data
 !
 !     This subroutine is called form ppiclf_comm_InitMPI
 !
@@ -65,6 +67,7 @@
 #else
       SUBROUTINE ppiclf_comm_InitOverlapGrid(ncell,fluidGrid)
 #endif
+      use ppiclf_data
 !
 ! This subroutine is called from rocpicl/PICL_TEMP_InitSolver.F90
 !
@@ -113,6 +116,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_CreateBin
+      use ppiclf_data
 !
 ! This subroutine is called from ppiclf_solve_InitSolve
 !
@@ -545,6 +549,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_FindParticle
+      use ppiclf_data
 !
 ! This subroutine is called from ppiclf_solve_InitSolve
 !
@@ -585,6 +590,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_MoveParticle
+      use ppiclf_data
 !
 ! This subroutine is called from ppiclf_solve_InitSolve
 !
@@ -706,6 +712,7 @@
 
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_MapOverlapGrid
+      use ppiclf_data
 !
 ! This subroutine is called from ppiclf_solve_InitSolve
 !
@@ -962,6 +969,7 @@
       END 
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_CreateGhost
+      use ppiclf_data
 !
       IMPLICIT NONE
 !
@@ -1130,6 +1138,7 @@
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_GhostDistCheck(ix,Pos,distchk,
      >                                      GhostInc,l,dSQ)
+      use ppiclf_data
       
       IMPLICIT NONE
       
@@ -1156,6 +1165,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_LinearPeriodicityGhost(iig,l,Pos,PerShift)
+      use ppiclf_data
       
       IMPLICIT NONE
       
@@ -1177,6 +1187,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_MoveGhost
+      use ppiclf_data
 !
       IMPLICIT NONE
 !

@@ -34,6 +34,7 @@
 !
       subroutine ppiclf_user_history_uniformtrap
      >           (i,iStage,fvux,fvuy,fvuz,qq_du)
+      use ppiclf_data
 !
       use ppiclf_unsteady
       implicit none
@@ -184,6 +185,7 @@
 !
       subroutine ppiclf_user_history_variabletrap
      >           (i,iStage,fvux,fvuy,fvuz,qq_du)
+      use ppiclf_data
 !
       use ppiclf_unsteady
       implicit none
@@ -358,6 +360,7 @@
 !
       subroutine ppiclf_user_history_modifiedtrap
      >           (i,iStage,fvux,fvuy,fvuz,qq_du)
+      use ppiclf_data
 !
       use ppiclf_unsteady
       implicit none
@@ -497,6 +500,7 @@
 !
       subroutine ppiclf_user_history_hinsberg
      >           (i,iStage,fvux,fvuy,fvuz,qq_du)
+      use ppiclf_data
 !
       use ppiclf_unsteady
       implicit none
@@ -729,6 +733,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_ShiftUnsteadyData
+      use ppiclf_data
 !
       use ppiclf_unsteady
       implicit none
@@ -798,6 +803,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_UpdatePlag(i,iStage)
+      use ppiclf_data
 !
       use ppiclf_unsteady
       implicit none
@@ -920,6 +926,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_prop2plag
+      use ppiclf_data
 !
       use ppiclf_unsteady
       implicit none
@@ -983,6 +990,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_plag2prop
+      use ppiclf_data
 !
       use ppiclf_unsteady
       implicit none

@@ -21,6 +21,7 @@
 !
       subroutine ppiclf_user_EvalNearestNeighbor
      >    (i,j,yi,rpropi,yj,rpropj)
+      use ppiclf_data
 !
       implicit none
 !
@@ -301,6 +302,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_EvalWallContact(i,yi,rpropi,rn,rdelta)
+      use ppiclf_data
 !
       implicit none
 !
@@ -362,6 +364,7 @@
       subroutine ppiclf_user_ContactForce(i,rn_12x,rn_12y,rn_12z,
      >     rdelta12,u12x,u12y,u12z,rmult,Rstar,rad1,r12,
      >     omgrx,omgry,omgrz)
+      use ppiclf_data
 !
       implicit none
 !

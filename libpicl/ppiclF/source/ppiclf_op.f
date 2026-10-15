@@ -1,5 +1,6 @@
 c-----------------------------------------------------------------------
       subroutine ppiclf_gop( x, w, op, n)
+      use ppiclf_data
 ! 
       implicit none
 ! 
@@ -38,6 +39,7 @@ c-----------------------------------------------------------------------
       end
 c-----------------------------------------------------------------------
       subroutine ppiclf_igop( x, w, op, n)
+      use ppiclf_data
 ! 
       implicit none
 ! 
@@ -286,6 +288,7 @@ c-----------------------------------------------------------------------
       END
 c-----------------------------------------------------------------------
       subroutine ppiclf_exittr(stringi,rdata,idata)
+      use ppiclf_data
 ! 
       implicit none
 ! 
@@ -314,6 +317,7 @@ c     call mpi_finalize (ierr)
       end
 c-----------------------------------------------------------------------
       subroutine ppiclf_printsri(stringi,rdata,idata)
+      use ppiclf_data
 ! 
       implicit none
 ! 
@@ -341,6 +345,7 @@ c-----------------------------------------------------------------------
       end
 c-----------------------------------------------------------------------
       subroutine ppiclf_printsi(stringi,idata)
+      use ppiclf_data
 ! 
       implicit none
 ! 
@@ -367,6 +372,7 @@ c-----------------------------------------------------------------------
       end
 c-----------------------------------------------------------------------
       subroutine ppiclf_printsr(stringi,rdata)
+      use ppiclf_data
 ! 
       implicit none
 ! 
@@ -394,6 +400,7 @@ c-----------------------------------------------------------------------
       end
 c-----------------------------------------------------------------------
       subroutine ppiclf_prints(stringi)
+      use ppiclf_data
 ! 
       implicit none
 ! 
@@ -477,6 +484,7 @@ c-----------------------------------------------------------------------
       END
 c-----------------------------------------------------------------------
       subroutine ppiclf_byte_open_mpi(fnamei,mpi_fh,ifro,ierr)
+      use ppiclf_data
 ! 
       implicit none
 ! 
@@ -506,6 +514,7 @@ c-----------------------------------------------------------------------
       end
 C--------------------------------------------------------------------------
       subroutine ppiclf_byte_read_mpi(buf,icount,mpi_fh,ierr)
+      use ppiclf_data
 ! 
       implicit none
 ! 
@@ -526,6 +535,7 @@ C--------------------------------------------------------------------------
       end
 c--------------------------------------------------------------------------
       subroutine ppiclf_byte_write_mpi(buf,icount,iorank,mpi_fh,ierr)
+      use ppiclf_data
 ! 
       implicit none
 ! 
@@ -580,6 +590,7 @@ c--------------------------------------------------------------------------
       end
 C--------------------------------------------------------------------------
       subroutine ppiclf_bcast(buf,len)
+      use ppiclf_data
 ! 
       implicit none
 ! 

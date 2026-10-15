@@ -26,6 +26,7 @@
       END MODULE ppiclf_wallbin
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_AddWall(xp1,xp2,xp3,rnf)
+      use ppiclf_data
 !
 ! Add triangle (xp1,xp2,xp3). rnf points into the fluid; the stored
 ! normal is oriented the same way.
@@ -83,6 +84,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_WallSubbins(i_Bin,n_SBin,tot_SBin)
+      use ppiclf_data
 !
 ! File every wall triangle into the subbins of this rank's bin that
 ! lie within ppiclf_nndist of it (bounding box, then plane distance
@@ -271,6 +273,7 @@
       END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_WallContacts(i)
+      use ppiclf_data
 !
 ! Contacts of particle i with the wall triangles and their forces.
 !

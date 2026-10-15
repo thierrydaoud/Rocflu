@@ -46,6 +46,7 @@
       subroutine ppiclf_user_PseudoTurb(i,iStage,Nu,fqsx,fqsy,fqsz,
      >                         xi_par,xi_perp,xi_T,
      >                         Rsg, Tsg, alpha_PT)
+      use ppiclf_data
 !                                                    
       implicit none
 !

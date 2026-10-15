@@ -22,6 +22,7 @@
 !
       subroutine ppiclf_user_Torque_driver(i,iStage,taux,tauy,tauz,
      >                                 taux_hydro,tauy_hydro,tauz_hydro)
+      use ppiclf_data
 !
       implicit none
 !
@@ -70,6 +71,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine Torque_Hydro(i,taux_hydro,tauy_hydro,tauz_hydro)
+      use ppiclf_data
 !
       implicit none
 !
@@ -160,6 +162,7 @@
 !
       subroutine Torque_Undisturbed(i, 
      >           taux_undist,tauy_undist,tauz_undist)
+      use ppiclf_data
 !
       implicit none
 !

@@ -30,6 +30,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_QS_fluct_Lattanzi(i,iStage,fqs_fluct)
+      use ppiclf_data
 !
       implicit none
 !
@@ -167,6 +168,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_QS_fluct_Osnes(i,iStage,fqs_fluct)
+      use ppiclf_data
 !                                                    
       implicit none
 !

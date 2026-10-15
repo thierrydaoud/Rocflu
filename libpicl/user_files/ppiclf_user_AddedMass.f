@@ -15,6 +15,7 @@
 !
       subroutine ppiclf_user_AM_Parmar(i,iStage,
      >                 famx,famy,famz,rmass_add)
+      use ppiclf_data
 !
       implicit none
 !
@@ -163,6 +164,7 @@
 !
       subroutine ppiclf_user_AM_Briney_Unary(i,iStage,
      >                 famx,famy,famz,rmass_add)
+      use ppiclf_data
 !
       implicit none
 !
@@ -257,6 +259,7 @@
 !
       subroutine ppiclf_user_AM_Briney_Binary(i,iStage,
      >                 famx,famy,famz,rmass_add)
+      use ppiclf_data
 !
       implicit none
 !

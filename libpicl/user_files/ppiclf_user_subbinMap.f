@@ -9,6 +9,7 @@
 !
       SUBROUTINE ppiclf_user_subbinMap(i_Bin, n_SBin, tot_SBin,
      >                                  SBin_start, SBin_list)
+      use ppiclf_data
 !
       IMPLICIT NONE
 !

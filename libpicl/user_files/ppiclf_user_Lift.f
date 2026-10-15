@@ -13,6 +13,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_Lift_driver(i,iStage,liftx,lifty,liftz)
+      use ppiclf_data
 !
       implicit none
 !
@@ -59,6 +60,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine Lift_Saffman(i,liftx,lifty,liftz)
+      use ppiclf_data
 !
       implicit none
 !
@@ -130,6 +132,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine Lift_Magnus(i,liftx,lifty,liftz)
+      use ppiclf_data
 !
       implicit none
 !

@@ -32,6 +32,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_QS_Parmar(i,beta)
+      use ppiclf_data
 !
       implicit none
 !
@@ -150,6 +151,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_QS_Osnes(i,beta)
+      use ppiclf_data
 !
       implicit none
 !
@@ -263,6 +265,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_QS_Gidaspow(i,beta)
+      use ppiclf_data
 !
       implicit none
 !

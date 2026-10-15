@@ -37,6 +37,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_SetYdot
+      use ppiclf_data
 !
       implicit none
 !

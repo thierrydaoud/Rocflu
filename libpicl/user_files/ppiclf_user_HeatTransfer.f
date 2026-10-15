@@ -15,6 +15,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_HT_driver(i,Nuss,qq)
+      use ppiclf_data
 !
       implicit none
 !
@@ -65,6 +66,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine HTModel_Stokes(i,Nuss)
+      use ppiclf_data
 !
       implicit none
 !
@@ -105,6 +107,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine HTModel_RM(i,Nuss)
+      use ppiclf_data
 !
       implicit none
 !
@@ -151,6 +154,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine HTModel_Gunn(i,Nuss)
+      use ppiclf_data
 !
       implicit none
 !
@@ -203,6 +207,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine HTModel_Fox(i,Nuss)
+      use ppiclf_data
 !
       implicit none
 !
@@ -241,6 +246,7 @@
 !-----------------------------------------------------------------------
 !
       subroutine HTModel_Sun(i,Nuss)
+      use ppiclf_data
 !
       implicit none
 !

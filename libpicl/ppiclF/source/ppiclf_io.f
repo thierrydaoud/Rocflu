@@ -7,6 +7,7 @@
       subroutine ppiclf_io_ReadParticleVTU(filein1,istartoutin,
      > npart,dp_max)
 #endif
+      use ppiclf_data
 !
       implicit none
 !
@@ -207,6 +208,7 @@
       end
 !-----------------------------------------------------------------------
       subroutine ppiclf_io_WriteBinVTU(filein1)
+      use ppiclf_data
 !
       implicit none
 !
@@ -759,6 +761,7 @@ c1511 continue
       end
 !-----------------------------------------------------------------------
       subroutine ppiclf_io_WriteParticleVTU(filein1)
+      use ppiclf_data
 !
       implicit none
 !
@@ -1158,6 +1161,7 @@ c1511 continue
       end
 !-----------------------------------------------------------------------
       subroutine ppiclf_io_OutputDiagAll
+      use ppiclf_data
 !
       implicit none
 !
@@ -1172,6 +1176,7 @@ c1511 continue
       end
 !-----------------------------------------------------------------------
       subroutine ppiclf_io_OutputDiagGen
+      use ppiclf_data
 !
       implicit none
 !
@@ -1225,6 +1230,7 @@ c1511 continue
       end
 !-----------------------------------------------------------------------
       subroutine ppiclf_io_OutputDiagGrid
+      use ppiclf_data
 !
       implicit none
 !
@@ -1260,6 +1266,7 @@ c1511 continue
       end
 !-----------------------------------------------------------------------
       subroutine ppiclf_io_OutputDiagGhost
+      use ppiclf_data
 !
       implicit none
 !
