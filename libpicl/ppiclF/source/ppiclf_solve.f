@@ -1072,9 +1072,18 @@ c----------------------------------------------------------------------
       ! At most 4 per direction on a uniform hex mesh.
       INTEGER*4 LSMAX
       PARAMETER (LSMAX = 125)
-      INTEGER*4 nLS, lsID(LSMAX), m
+      INTEGER*4 nLS, lsID(LSMAX), m, mpos
       REAL*8    lsDX(3,LSMAX), lsR(3,LSMAX), lsD2(LSMAX), dx(3)
-      LOGICAL   inSupp, dupl
+      LOGICAL   inSupp, dupl, skip
+      ! lsMark(ie) = ip once cell ie is in particle ip's stencil
+      INTEGER*4, ALLOCATABLE :: lsMark(:)
+      ! Largest support radius in the stencil and of the current cell,
+      ! and the distance window for the same-offset check
+      REAL*8    lsRmax(3), rc(3), d2tol
+      ! Centre and lengths of the cell of each subbin entry, in subbin
+      ! order (read contiguously by the particle loop)
+      REAL*8, ALLOCATABLE :: sbCell(:,:)
+      LOGICAL   perl(3)
       !***************************************************************
 
       IF(ppiclf_npart .LT. 1) RETURN
@@ -1196,10 +1205,24 @@ c----------------------------------------------------------------------
       END DO !ie
       CALL ppiclf_solve_SortSubbins(nent,entSB,entID,tot_SBin,
      >                              SBin_start,SBin_list)
+      ALLOCATE(lsMark(ppiclf_nCells_Interp), sbCell(6,MAX(nent,1)))
+      lsMark = 0
+      DO i_count = 1,nent
+        ie = SBin_list(i_count)
+        DO l = 1,6
+          sbCell(l,i_count) = ppiclf_picl_grid(l,ie)
+        END DO
+      END DO
+      DO l = 1,3
+        perl(l) = ppiclf_linperiodic(l) .AND. ppiclf_EqualDomain(l)
+      END DO
       partCount = 0
       DO ip=1,ppiclf_npart !Loop all particles in this bin
         nnearest = 0 ! number of nearest elements
         nLS = 0
+        DO l=1,3
+          lsRmax(l) = 0.0D0
+        END DO
         DO ie = 1,28
           CellID_nearest(ie) = -1 ! index of nearest elements
           dSQ(ie) = 1E20 ! distance to center of nearest element
@@ -1225,72 +1248,102 @@ c----------------------------------------------------------------------
                   ie = SBin_list(i_count) 
                   ! get offset from particle to center (nearest
                   ! periodic image)
-                  dSQi    = 0.0
-                  dSQl    = 0.0
-                  dNSQi   = 0.0D0
                   farAway = .FALSE.
                   inSupp  = .TRUE.
+                  skip    = .FALSE.
                   DO l=1,3
-                    dl = ppiclf_picl_grid(l,ie) - xp(l)
-                    IF(ppiclf_linperiodic(l) .AND.
-     >                                      ppiclf_EqualDomain(l)) THEN
+                    dl = sbCell(l,i_count) - xp(l)
+                    IF (perl(l)) THEN
                       IF(ABS(dl) .GT. binblength(l)-ABS(dl))
      >                  dl = dl - SIGN(binblength(l),dl)
                     END IF
                     dx(l) = dl
-                    dSQl = dl**2
+                    IF (dl**2 .GT. dSQchk(l)) farAway = .TRUE.
+                    rc(l) = 1.8D0*sbCell(3+l,i_count)
+                    IF (ABS(dl) .GE. rc(l)) inSupp = .FALSE.
+                    ! Outside both the least-squares support and the
+                    ! projection box: the cell is not used at all
+                    IF (farAway .AND. .NOT. inSupp) THEN
+                      skip = .TRUE.
+                      EXIT
+                    END IF
+                  END DO !l
+                  IF (skip) CYCLE !i_count
+                  dSQi    = 0.0
+                  dNSQi   = 0.0D0
+                  DO l=1,3
+                    dSQl = dx(l)**2
                     dSQi = dSQi + dSQl
                     ! Offset in units of the cell length (projection)
-                    dNSQi = dNSQi + dSQl/ppiclf_picl_grid(3+l,ie)**2
-                    IF (dSQl .GT. dSQchk(l)) farAway = .TRUE.
-                    IF (ABS(dl) .GE. 1.8D0*ppiclf_picl_grid(3+l,ie))
-     >                inSupp = .FALSE.
+                    dNSQi = dNSQi + dSQl/sbCell(3+l,i_count)**2
                   END DO !l
                   ! Add to the least-squares stencil, once per cell
                   ! (a cell can sit in two subbins with periodicity,
                   ! or be received twice for a two-bin periodic box)
                   IF (inSupp) THEN
-                    dupl = .FALSE.
-                    DO m = 1,nLS
-                      IF (lsID(m) .EQ. ie) dupl = .TRUE.
-                      IF (ABS(lsDX(1,m)-dx(1)) .LT. 1.0D-9*lsR(1,m)
-     >              .AND. ABS(lsDX(2,m)-dx(2)) .LT. 1.0D-9*lsR(2,m)
-     >              .AND. ABS(lsDX(3,m)-dx(3)) .LT. 1.0D-9*lsR(3,m))
-     >                  dupl = .TRUE.
-                    END DO
+                    ! Once per cell: skip a cell already in the stencil
+                    ! (a cell can sit in two subbins with periodicity),
+                    ! and a copy of one at the same offset (within
+                    ! 1e-9 of the support; a cell received twice for a
+                    ! two-bin periodic box).
+                    dupl = (lsMark(ie) .EQ. ip)
+                    ! Find the place that keeps the stencil sorted by
+                    ! distance (then offset), so the sums do not depend
+                    ! on the order cells arrive in (domain
+                    ! decomposition). A same-offset copy has almost the
+                    ! same distance: only entries within d2tol of dSQi
+                    ! are compared (d2tol bounds the change in distance
+                    ! that offsets within 1e-9 of the support allow).
+                    IF (.NOT. dupl) THEN
+                      d2tol = 0.0D0
+                      DO l=1,3
+                        d2tol = d2tol + MAX(lsRmax(l),rc(l))**2
+                      END DO
+                      d2tol = 4.0D-9*d2tol
+                      mpos = nLS + 1
+                      DO m = nLS,1,-1
+                        IF (lsD2(m) .LT. dSQi - d2tol) EXIT
+                        IF (ABS(lsD2(m)-dSQi) .LE. d2tol) THEN
+                          IF (ABS(lsDX(1,m)-dx(1)) .LT. 1.0D-9*lsR(1,m)
+     >                  .AND. ABS(lsDX(2,m)-dx(2)) .LT. 1.0D-9*lsR(2,m)
+     >                  .AND. ABS(lsDX(3,m)-dx(3)) .LT. 1.0D-9*lsR(3,m))
+     >                      dupl = .TRUE.
+                        END IF
+                        ! entry m goes after the new cell?
+                        IF (lsD2(m) .GT. dSQi) THEN
+                          mpos = m
+                        ELSE IF (lsD2(m) .EQ. dSQi) THEN
+                          IF (lsDX(1,m) .GT. dx(1) .OR.
+     >                       (lsDX(1,m) .EQ. dx(1) .AND.
+     >                        lsDX(2,m) .GT. dx(2)) .OR.
+     >                       (lsDX(1,m) .EQ. dx(1) .AND.
+     >                        lsDX(2,m) .EQ. dx(2) .AND.
+     >                        lsDX(3,m) .GE. dx(3))) mpos = m
+                        END IF
+                      END DO
+                    END IF
                     IF (.NOT. dupl) THEN
                       nLS = nLS + 1
                       IF (nLS .GT. LSMAX) CALL ppiclf_exittr(
      >                  'Too many cells in interpolation stencil$',
      >                  0.0D0,nLS)
-                      ! Keep the stencil sorted by distance (then
-                      ! offset), so the sums do not depend on the
-                      ! order cells arrive in (domain decomposition)
-                      m = nLS
-                      DO WHILE (m .GT. 1)
-                        IF (lsD2(m-1) .LT. dSQi) EXIT
-                        IF (lsD2(m-1) .EQ. dSQi) THEN
-                          IF (lsDX(1,m-1) .LT. dx(1)) EXIT
-                          IF (lsDX(1,m-1) .EQ. dx(1) .AND.
-     >                        lsDX(2,m-1) .LT. dx(2)) EXIT
-                          IF (lsDX(1,m-1) .EQ. dx(1) .AND.
-     >                        lsDX(2,m-1) .EQ. dx(2) .AND.
-     >                        lsDX(3,m-1) .LT. dx(3)) EXIT
-                        END IF
+                      DO m = nLS,mpos+1,-1
                         lsID(m) = lsID(m-1)
                         lsD2(m) = lsD2(m-1)
                         DO l=1,3
                           lsDX(l,m) = lsDX(l,m-1)
                           lsR(l,m)  = lsR(l,m-1)
                         END DO
-                        m = m - 1
                       END DO
+                      m = mpos
                       lsID(m) = ie
                       lsD2(m) = dSQi
                       DO l=1,3
                         lsDX(l,m) = dx(l)
-                        lsR(l,m)  = 1.8D0*ppiclf_picl_grid(3+l,ie)
+                        lsR(l,m)  = rc(l)
+                        lsRmax(l) = MAX(lsRmax(l),rc(l))
                       END DO
+                      lsMark(ie) = ip
                     END IF
                   END IF
                   ! skip to next fluid cell if greater than 1.5*max cell
@@ -1300,7 +1353,10 @@ c----------------------------------------------------------------------
                   added = .FALSE.
                   alreadyMapped = .FALSE.
                   DO i = 1,27
-                    IF(ie .EQ. CellID_nearest(i)) alreadyMapped = .TRUE.
+                    IF(ie .EQ. CellID_nearest(i)) THEN
+                      alreadyMapped = .TRUE.
+                      EXIT
+                    END IF
                   END DO
                   DO i = 1,27
                     IF(alreadyMapped) EXIT ! go to next cell in SB
@@ -1393,6 +1449,8 @@ c----------------------------------------------------------------------
           CALL ppiclf_solve_InterpLS(ip,nLS,lsID,lsDX,lsR)
         END IF !nnearest
       END DO !ip
+
+      DEALLOCATE(lsMark, sbCell)
 
       IF(ppiclf_remove_particle) THEN
         ! Delete particles that are outside of fluid grid

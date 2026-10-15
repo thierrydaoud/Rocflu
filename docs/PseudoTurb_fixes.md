@@ -31,6 +31,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Clean-up | ppiclF's own unit tests no longer matched the code; the burn-rate model and the `PICLDEBUG` output were unused | Removed; the regression suite replaces the unit tests. Input files that still ask for `REACTIVE` or a negative `STATIONARY` stop with a message | 3c41db2 |
 | Memory | ppiclF reserved fixed arrays for 80,000 particles, 640,000 ghosts and 120,000 cells per rank, plus 50 steps of viscous-unsteady history even when it was off: 1.34 GB for a run with one particle. A run with more particles on a rank stopped and needed a recompile | Arrays sized from the run and grown when needed; the history is allocated only with `VISCOUSUNSTEADY` (`VUSTEPS` steps). 265 MB for the same run; no particle, ghost, cell or wall limits | c1ac692, 0d4d86c, e227f99 |
 | Particle output | Every file held all 72 particle fields, named `y01`…, `rpro01`…, `tag01`… (300 bytes per particle) | A list of named fields: velocity, volume fraction, diameter and ID by default (44 bytes per particle); more groups with `OUTPARTICLE`, `OUTGAS`, `OUTGRADGAS`, `OUTMODEL`. Particle restart stops until it has its own file | (this section) |
+| Interpolation speed | 60% of a particle stage went to finding the cells around each particle | Marker per cell, an early exit and contiguous reads: that search is 45% faster, the whole run 14–20% faster, results bit-identical | (section "Where a particle stage spends its time") |
 | Ghost particles | A ghost carried all 59 particle properties; the neighbour search reads 6 | A ghost carries those 6 (16 doubles instead of 69), byte-identical results | a7f5748 |
 
 ## Regression tests
@@ -173,6 +174,83 @@ linear). Neither method overshoots the range of the cell values. The old method 
 at every cell face, clearest in dp/dx (bottom row), so a particle crossing a face felt a
 sudden change in its pressure-gradient force. Both methods converge to the same profile
 when the cells are halved.
+
+## Where a particle stage spends its time, and a faster stencil search
+
+### Measured breakdown
+
+Case: periodic 8 mm box, 32³ cells, 50,653 particles (a 37³ lattice, dp = 100 µm), gas at 50 m/s,
+two-way coupling, 4 ranks on one node, 75 steps (210 RK stages timed). Each phase was timed with
+a barrier before and after it (temporary timers, not committed), so a phase is not charged for
+waiting on a slower rank. Times are for the whole run, per rank.
+
+| Part of the particle stage (QS drag only) | Time | Share | Scales with the number of fields |
+|---|---|---|---|
+| Stencil search: the cells around each particle (`SBParticleToCellMap`) | 28.9 s | 60% | no |
+| Least-squares fit: weights and the 4×4 solve (`InterpLS`) | 2.4 s | 5% | no |
+| Evaluating the 29 interpolated fields (`InterpLS`) | 3.9 s | 8% | yes |
+| Copying the fields and sending them to the bins | 1.3 s | 3% | yes |
+| Projection (31 fields) | 4.7 s | 10% | partly |
+| Rocflu computing the gas fields before ppiclF | 3.8 s | 8% | mostly |
+| Moving particles between bins, ghosts, forces | 2.8 s | 6% | no |
+| **Particle stage total** (of a 60 s run) | **47.7 s** | | |
+
+With pressure gradient, added mass, QS fluctuations and pseudo-turbulence on, the forces take
+4.8 s and Rocflu spends another 15.4 s after ppiclF reading back and using the pseudo-turbulence
+projections. Turning off bounds checking (`-fcheck=all` in `libpicl/Makefile`) changes the run
+time by about 2%, so it is not worth losing. `perf` on one rank put 52% of all samples in
+`SBParticleToCellMap`.
+
+So most of the time goes into finding the cells around each particle, not into the number of
+fields: sizing the fields at run time saves about 15% of a QS-only run; the stencil search was
+the larger target.
+
+### A faster stencil search
+
+For every particle, `SBParticleToCellMap` scans the cells of the 27 subbins around it (about 150
+cells; subbins are 1.8 cell lengths wide). A cell goes into the least-squares stencil if the
+particle is inside its support (at most 64 cells, kept sorted by distance and then offset, so
+the sums do not depend on the order cells arrive in), and into the 27-cell projection list if it
+is within 1.5 cell lengths. Per candidate cell the old code
+
+- checked it against every stencil cell found so far (up to 64): same cell, or a copy of it at
+  the same offset (a cell received twice in a two-bin periodic box);
+- then shifted the sorted stencil to insert it;
+- looked for it in the 27-cell projection list, without stopping at a match;
+- read the cell's centre and lengths from `ppiclf_picl_grid` through the subbin list, so the
+  reads jump around in memory.
+
+Changes (`ppiclf_solve.f`), none of which changes a result:
+
+- **Same cell:** a marker per cell (`lsMark(ie) = ip`) answers "already in this particle's
+  stencil?" in one step.
+- **Same offset:** a copy at the same offset (within 10⁻⁹ of the support, as before) is at almost
+  the same distance. The scan that finds the insertion point in the sorted stencil now also does
+  this check, only for entries whose distance is within a window `d2tol` of the new cell's. The
+  window is the largest distance change that offsets within 10⁻⁹ of the support allow (with a
+  factor 2 margin), so every entry the old check could match is still checked.
+- **Early exit:** a candidate is dropped as soon as one direction puts it outside both the
+  least-squares support and the projection box (such a cell was never used). The distances are
+  then summed only for the cells kept, in the same order as before.
+- The 27-cell list check stops at its first match.
+- The centres and lengths of the cells are copied once per stage into an array in subbin order
+  (`sbCell`), so the particle loop reads them contiguously.
+
+| | Before | After |
+|---|---|---|
+| Stencil search, QS case above | 29.1 s | 15.9 s (−45%) |
+| Whole run, QS only | 60.0 s | 47.8 s (−20%) |
+| Whole run, all the models above | 82.0 s | 70.3 s (−14%) |
+
+Checked: 35 PASS twice; all 39 cases with particles (suite, `AMFORCE 2`, `QSFLUCT` and
+`PSEUDOTURB` variants) write bit-identical particle fields and byte-identical flow files compared
+with 74b8f87; the flow files of the 50,653-particle case above (two-way coupled, so they depend
+on every particle) are byte-identical before and after.
+
+The search is still the largest part of a stage. Narrower subbins would scan fewer cells, but
+they change the order cells arrive in, which decides between cells at exactly the same distance
+at the edge of the 27-cell projection list, so results could change in the last bits; that is
+left for later.
 
 ## Projection: kernel width per direction, and cloud-edge cells
 
