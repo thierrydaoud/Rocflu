@@ -40,22 +40,6 @@ install:
 ifndef NOUTILS
 	$(MAKE) -C $(BUILDUTIL_DIR) $@
 endif
-################ CVS commands
-GENX_COMPONENTS = CODING_RULES Makefile Makefile.AIX Makefile.IRIX64 \
-        Makefile.Linux Makefile.SunOS Makefile.common README \
-        TEMPLATE.F90 genx libfloflu libflu modfloflu \
-        modflu rocflu rocinteract rocpart rocrad rocspecies \
-        rocturb rocperi utilities
-
-cvsfwdtag:
-	cvs tag -F gen2_5 $(GENX_COMPONENTS)
-
-cvs2genx:
-	cvs update -r gen2_5
-
-cvs2main:
-	cvs update -A
-
 ################################################################################
 #
 # RCS Revision history:
