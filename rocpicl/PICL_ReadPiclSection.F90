@@ -85,7 +85,7 @@ SUBROUTINE PICL_ReadPiclSection( global )
   INTEGER :: nVals
 
   INTEGER :: iReg
-  INTEGER, PARAMETER :: NVALS_MAX = 30
+  INTEGER, PARAMETER :: NVALS_MAX = 34
 
   CHARACTER(20) :: keys(NVALS_MAX)
 
@@ -133,6 +133,12 @@ SUBROUTINE PICL_ReadPiclSection( global )
   keys(28)  = 'REACTIVE'
   keys(29)  = 'PSEUDOTURB'
   keys(30)  = 'VUSTEPS'
+! Optional groups of fields in the particle files (ppiclf_user_OutputFields).
+! No key may be the start of another: ReadSection matches the start of a line.
+  keys(31)  = 'OUTPARTICLE'
+  keys(32)  = 'OUTGAS'
+  keys(33)  = 'OUTGRADGAS'
+  keys(34)  = 'OUTMODEL'
  
   CALL ReadSection( global,IF_INPUT,nVals,keys(1:nVals),vals(1:nVals), & 
                     defined(1:nVals) ) 
@@ -273,6 +279,11 @@ SUBROUTINE PICL_ReadPiclSection( global )
   IF (defined(30) .EQV. .TRUE. ) THEN
     global%piclVUSteps = NINT(vals(30))
   END IF
+
+  IF (defined(31) .EQV. .TRUE. ) global%piclOutParticle = NINT(vals(31))
+  IF (defined(32) .EQV. .TRUE. ) global%piclOutGas      = NINT(vals(32))
+  IF (defined(33) .EQV. .TRUE. ) global%piclOutGradGas  = NINT(vals(33))
+  IF (defined(34) .EQV. .TRUE. ) global%piclOutModel    = NINT(vals(34))
 
 ! The unsteady history is allocated only when VISCOUSUNSTEADY >= 1, and the
 ! diffusive-unsteady heat transfer is computed in the same routines

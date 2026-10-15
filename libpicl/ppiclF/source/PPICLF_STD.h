@@ -58,3 +58,7 @@
 #define PPICLF_LRMAX 6
 #endif
 
+! Arrays a particle output field can come from (ppiclf_out_source)
+#define PPICLF_OUT_Y 1
+#define PPICLF_OUT_RPROP 2
+#define PPICLF_OUT_TAG 3

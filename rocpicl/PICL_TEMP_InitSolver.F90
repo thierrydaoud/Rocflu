@@ -152,7 +152,8 @@ INTEGER :: errorFlag,icg
         qs_fluct_filter_adapt_flag, &
         ViscousUnsteady_flag, ppiclf_nUnsteadyData,ppiclf_nTimeBH, &
         sbNearest_flag, flow_model, pseudoTurb_flag, &
-        HTUnsteady_flag
+        HTUnsteady_flag, out_particle_flag, out_gas_flag, &
+        out_gradgas_flag, out_model_flag
    REAL(RFREAL) :: rmu_ref, tref, suth, ksp, erest
    COMMON /RFLU_ppiclF/ stationary, qs_flag, am_flag, pg_flag, &
         collisional_flag, heattransfer_flag, feedback_flag, &
@@ -161,7 +162,8 @@ INTEGER :: errorFlag,icg
         qs_fluct_filter_adapt_flag, ksp, erest, &
         ViscousUnsteady_flag, ppiclf_nUnsteadyData,ppiclf_nTimeBH, &
         sbNearest_flag, flow_model, pseudoTurb_flag, &
-        HTUnsteady_flag
+        HTUnsteady_flag, out_particle_flag, out_gas_flag, &
+        out_gradgas_flag, out_model_flag
    REAL(RFREAL) :: ppiclf_rcp_part
    CHARACTER(12) :: ppiclf_matname
    COMMON /RFLU_ppiclf_misc01/ ppiclf_rcp_part
@@ -221,6 +223,11 @@ feedback_flag = global%piclFeedbackFlag
 qs_fluct_flag = global%piclQsFluctFlag
 sbNearest_flag = global%piclSBNearFlag
 pseudoTurb_flag = global%piclPseudoTurbFlag
+! optional groups of fields in the particle files
+out_particle_flag = global%piclOutParticle
+out_gas_flag      = global%piclOutGas
+out_gradgas_flag  = global%piclOutGradGas
+out_model_flag    = global%piclOutModel
 
 rmu_flag = pRegion%mixtInput%viscModel
 rmu_ref = pRegion%mixtInput%refVisc
@@ -516,6 +523,13 @@ ELSE
    IF(ii .lt. 0) THEN
       CALL ErrorStop(global,ERR_FILE_EXIST,__LINE__,vtuFile)
    END IF
+
+   ! The particle files hold only the fields chosen for output
+   ! (ppiclf_user_OutputFields), not the whole state, so they cannot be
+   ! read back. A separate particle restart file is planned.
+   CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
+     'Particle restart is not available yet: par*.vtu files hold only '// &
+     'the output fields. Remove the .rin file to start a new run.')
 
    npart = -1
    dp_max = -1.0

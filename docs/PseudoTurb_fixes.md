@@ -30,6 +30,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Neighbour search | Dense subbin tables: ~28 GB requested for 50,000 particles in one 2 cm bin | Compact lists: ~1.2 MB for the same bin (about 24,000 times less), byte-identical results | 82d4ca4 |
 | Clean-up | ppiclF's own unit tests no longer matched the code; the burn-rate model and the `PICLDEBUG` output were unused | Removed; the regression suite replaces the unit tests. Input files that still ask for `REACTIVE` or a negative `STATIONARY` stop with a message | 3c41db2 |
 | Memory | ppiclF reserved fixed arrays for 80,000 particles, 640,000 ghosts and 120,000 cells per rank, plus 50 steps of viscous-unsteady history even when it was off: 1.34 GB for a run with one particle. A run with more particles on a rank stopped and needed a recompile | Arrays sized from the run and grown when needed; the history is allocated only with `VISCOUSUNSTEADY` (`VUSTEPS` steps). 265 MB for the same run; no particle, ghost, cell or wall limits | c1ac692, 0d4d86c, e227f99 |
+| Particle output | Every file held all 72 particle fields, named `y01`…, `rpro01`…, `tag01`… (300 bytes per particle) | A list of named fields: velocity, volume fraction, diameter and ID by default (44 bytes per particle); more groups with `OUTPARTICLE`, `OUTGAS`, `OUTGRADGAS`, `OUTMODEL`. Particle restart stops until it has its own file | (this section) |
 | Ghost particles | A ghost carried all 59 particle properties; the neighbour search reads 6 | A ghost carries those 6 (16 doubles instead of 69), byte-identical results | a7f5748 |
 
 ## Regression tests
@@ -544,13 +545,10 @@ to `rpro59`) and were read back on restart.
 Planned, one commit at a time:
 
 1. Ghosts carry only what the neighbour search reads (done, below).
-2. Remove the unused slots and group the rest by job.
-3. Name the fields in the particle output (`rhop`, `dp`, ...) instead of `rproNN`.
-4. Split restart from visualization, as MFC does: a double-precision restart file
-   holding only the state a run needs to continue, and visualization files whose
-   optional fields (gas values, diagnostics) are chosen in the input. Today the
-   restart reads the single-precision `par*.vtu` file, so a restarted run cannot match
-   an uninterrupted one.
+2. Choose the fields of the particle output with a list, and name them (done, below).
+3. Remove the unused slots and group the rest by job.
+4. Later: a separate double-precision particle restart file holding only the state a
+   run needs to continue, as MFC does. Until then a particle restart stops (below).
 
 ### Ghosts carry only what the neighbour search reads (a7f5748)
 
@@ -611,6 +609,53 @@ Times are medians of the 3 runs; the ghost exchange varied by up to ±0.6 s betw
 
 The case and scripts are in `tests/_work/bench` (not tracked): `bench_setup.py` makes the case,
 `bench_run.sh` runs it and `analyze.py` reads the `GHOSTT` lines the timed builds print.
+
+### Particle output: a list of named fields
+
+Being in `rprop` and being written to the particle files are now separate questions.
+The writer (`ppiclf_io_WriteParticleVTU`) used to write all of `y`, all 59 `rprop`
+slots and the 3 tags, as `y01`…, `rpro01`… and `tag01`…. It now writes the fields of
+a list, built once by `ppiclf_user_OutputFields` (`libpicl/user_files`). Each entry
+is a slot of `ppiclf_y`, `ppiclf_rprop` or `ppiclf_iprop` and the name it is written
+under. A slot that is not in the list is still computed and used; it is only not
+written. Positions are always written, as the points of the file.
+
+| Group | Fields | Written when |
+|---|---|---|
+| Default | `vp_x vp_y vp_z` (particle velocity), `phi_p` (particle volume fraction: the projected particle volume, interpolated back to the particle), `dp`, `id id_rank id_cycle` (index on the rank that created the particle, that rank, the cycle it was created on) | Always |
+| Particle | `Tp`, `omp_x omp_y omp_z` (spin), `rhop`, `volp` | `OUTPARTICLE 1` |
+| Gas at the particle | `rho_g`, `ug_x ug_y ug_z`, `c_g` (sound speed), `T_g` | `OUTGAS 1` |
+| Gas gradients at the particle | `dpdx_g …`, `DuDt_g_* `, `drhophidt_g`, `drhophidx_g …`, `vort_g_*`, `drhodx_g …`, `divtau_g_*`, `DvortDt_g_*` | `OUTGRADGAS 1`, for checking the interpolation |
+| Models | `Ffluct_*` (with `QSFLUCT`), `Wdot_*` (with `AMFORCE 2`), `xi_par xi_perp xi_T` and the 11 pseudo-turbulence diagnostics (with `PSEUDOTURB`) | `OUTMODEL 1`, for the models that are on |
+
+- The four keys go in the `# PICL` section; all default to 0. No key is the start of
+  another, because Rocflu's `ReadSection` matches the start of each input line (a key
+  `OUTGAS` would also match a line `OUTGASGRAD 1`).
+- The superparticle loading (always 1 for now) and the unused slots are not written.
+- To add a field: one `call ppiclf_io_AddOutputField(source, slot, 'name')` in
+  `ppiclf_user_OutputFields`, inside the group it belongs to. The call stops the run if
+  the slot is out of range, the name is empty, longer than 24 characters or used twice,
+  or the list is longer than 80 fields.
+- File size: each particle used to take 300 bytes per file (3 position values and 72
+  fields of 4 bytes); with the default fields it takes 44 bytes, 6.8 times less. For the
+  4-particle shock tube: 9,395 bytes before, 1,807 with the default fields and 5,860 with
+  the three groups the regression suite turns on.
+
+**Particle restart stops for now.** A restart used to read `y` and all of `rprop` back
+from the last `par*.vtu` file, in file order. The files now hold only the output fields
+(in single precision, which a restart should not use anyway), so a restart stops at
+start-up with *"Particle restart is not available yet"* until the separate restart file
+exists. A new run (no `.rin` file) is unaffected.
+
+**Regression suite.** The template input turns on `OUTPARTICLE`, `OUTGAS` and
+`OUTGRADGAS`, so the goldens keep checking the same quantities. The harness and the 32
+goldens with particles use the new names; the conversion renamed keys only (8,790
+values compared, none changed) and dropped the superparticle loading, which was 1.0 in
+every golden. Checked: in all 37 cases with particles (the 35 suite cases plus
+`AMFORCE 2` variants with `OUTMODEL 1`), every named field is bit-identical to the
+field it replaces in the files of 74b8f87 (e.g. `rho_g` to `rpro02`), and the flow
+files are byte-identical. The default output alone and `OUTMODEL` with `QSFLUCT` and
+`PSEUDOTURB` were also run.
 
 ## Notes for the discussion with the MFC team
 

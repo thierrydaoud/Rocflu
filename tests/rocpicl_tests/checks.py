@@ -7,6 +7,8 @@ moves every golden on purpose.
 
 import math
 
+from .state import SPIN, VEL
+
 # Gas fields are double precision; particle files are single precision
 GAS_RTOL = 1e-10
 PAR_RTOL = 2e-6
@@ -18,7 +20,6 @@ def _close(a, b, rtol, scale):
 
 # Spin components are compared on the scale of the largest one, so a
 # component that is only round-off (a head-on hit) is not judged on its own
-SPIN = ("y08", "y09", "y10")
 
 
 def compare_states(new, ref, label="golden", fields=None):
@@ -155,14 +156,14 @@ def check_gas_energy(init, final, case):
 
 def check_particles_heat_exchange(init, final, case):
     """Particles at rest in gas at a different temperature exchange heat."""
-    t0 = {k: p["y07"] for k, p in init["particles"].items()}
-    changed = any(abs(p["y07"] - t0[k]) > 1e-6 * abs(t0[k]) for k, p in final["particles"].items())
+    t0 = {k: p["Tp"] for k, p in init["particles"].items()}
+    changed = any(abs(p["Tp"] - t0[k]) > 1e-6 * abs(t0[k]) for k, p in final["particles"].items())
     return [] if changed else ["particle temperatures never changed; resting particles exchange no heat"]
 
 
 def check_particles_moved(init, final, case):
     """Guards conservation checks against a run where nothing happened."""
-    moved = any(abs(p["y04"]) > 0 for p in final["particles"].values())
+    moved = any(abs(p["vp_x"]) > 0 for p in final["particles"].values())
     return [] if moved else ["particles never moved; the case tests nothing"]
 
 
@@ -178,10 +179,10 @@ def check_linear_interp(init, final, case):
     errors = []
     for pid, p in sorted(final["particles"].items()):
         exact = rho0 * (1.0 + a * p["x"] + b * p["y"] + c * p["z"])
-        if abs(p["rpro02"] - exact) > LINEAR_INTERP_RTOL * exact:
+        if abs(p["rho_g"] - exact) > LINEAR_INTERP_RTOL * exact:
             errors.append("particle %s at (%.4g, %.4g, %.4g): rhof %.9g, exact %.9g (rel. error %.2e)"
-                          % (pid, p["x"], p["y"], p["z"], p["rpro02"], exact,
-                             abs(p["rpro02"] - exact) / exact))
+                          % (pid, p["x"], p["y"], p["z"], p["rho_g"], exact,
+                             abs(p["rho_g"] - exact) / exact))
     return errors
 
 
@@ -242,9 +243,9 @@ def check_collision_pairs(init, final, case):
         for l, axis in enumerate("xyz"):  # separation, unwrapped across periodic faces
             dl = b[axis] - a[axis]
             d.append(dl - length[l] * round(dl / length[l]))
-        va = [a["y%02d" % j] for j in (4, 5, 6)]
-        vb = [b["y%02d" % j] for j in (4, 5, 6)]
-        pairs.append((k, d, va, vb, a["rpro03"]))
+        va = [a[c] for c in VEL]
+        vb = [b[c] for c in VEL]
+        pairs.append((k, d, va, vb, a["dp"]))
 
     errors = []
     vscale = max(abs(v) for _, _, va, vb, _ in pairs for v in va + vb)
@@ -296,11 +297,11 @@ def check_binary_collisions(init, final, case):
     errors = []
     for k in range(1, len(p0) // 2 + 1):
         a, b = 2 * k - 1, 2 * k
-        m = {i: p0[i]["rpro01"] * p0[i]["rpro04"] for i in (a, b)}
-        inertia = {i: m[i] * p0[i]["rpro03"] ** 2 / 10.0 for i in (a, b)}
+        m = {i: p0[i]["rhop"] * p0[i]["volp"] for i in (a, b)}
+        inertia = {i: m[i] * p0[i]["dp"] ** 2 / 10.0 for i in (a, b)}
 
         def vel(p, i):
-            return [p[i]["y%02d" % j] for j in (4, 5, 6)]
+            return [p[i][c] for c in VEL]
 
         def sep(p):
             return [_min_image(p[b][ax] - p[a][ax], length[l]) for l, ax in enumerate("xyz")]
@@ -315,7 +316,7 @@ def check_binary_collisions(init, final, case):
             mu = m[a] * m[b] / (m[a] + m[b])
             orb = [mu * (d[1] * dv[2] - d[2] * dv[1]), mu * (d[2] * dv[0] - d[0] * dv[2]),
                    mu * (d[0] * dv[1] - d[1] * dv[0])]
-            return [o + sum(inertia[i] * p[i]["y%02d" % (8 + l)] for i in (a, b))
+            return [o + sum(inertia[i] * p[i][SPIN[l]] for i in (a, b))
                     for l, o in enumerate(orb)]
 
         scale = sum(m[i] * sum(v * v for v in vel(p0, i)) ** 0.5 for i in (a, b))
@@ -334,7 +335,7 @@ def check_binary_collisions(init, final, case):
             errors.append("pair %d: angular momentum changed by %.2e of mu*d*|dv|" % (k, dl / lscale))
 
         dist1 = math.sqrt(sum(x * x for x in d1))
-        dp_mean = 0.5 * (p0[a]["rpro03"] + p0[b]["rpro03"])
+        dp_mean = 0.5 * (p0[a]["dp"] + p0[b]["dp"])
         vn1 = sum(x * y for x, y in zip(dv1, d1)) / dist1
         if dist1 <= dp_mean or vn1 <= 0.0:
             errors.append("pair %d: never collided or still in contact (distance %.3g dp, "
@@ -366,21 +367,21 @@ def check_wall_collisions(init, final, case):
     p1 = final["particles"]
     errors = []
     for pid, p in sorted(init["particles"].items(), key=lambda kv: int(kv[0])):
-        r = 0.5 * p["rpro03"]
+        r = 0.5 * p["dp"]
         q = p1.get(pid)
         if q is None:
             errors.append("particle %s lost" % pid)
             continue
         hits = []
         for k, ax in enumerate("xyz"):
-            v0 = p["y%02d" % (4 + k)]
+            v0 = p[VEL[k]]
             gap0 = (hi[k] - p[ax]) if v0 > 0 else (p[ax] - lo[k])
             if v0 != 0.0 and gap0 - r <= abs(v0) * t_end:
                 hits.append(k)
         for k in hits:
             ax = "xyz"[k]
-            v0 = p["y%02d" % (4 + k)]
-            e = -q["y%02d" % (4 + k)] / v0
+            v0 = p[VEL[k]]
+            e = -q[VEL[k]] / v0
             if e <= 0.0 or (len(hits) == 1 and abs(e - erest) > WALL_E_TOL):
                 errors.append("particle %s, %s wall: restitution %.4f, input %.3f"
                               % (pid, ax, e, erest))

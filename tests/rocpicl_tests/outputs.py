@@ -89,11 +89,11 @@ _NUM = re.compile(r"[-+]?\d*\.\d+(?:[EeDd][-+]?\d+)?")
 def particle_ids(fields, npart, nranks):
     """Global particle ids = 1-based line order in points.dat.
 
-    tag02 is the rank that read the particle, tag01 its index on that rank,
+    id_rank is the rank that read the particle, id its index on that rank,
     and each rank reads ceil(npart/nranks) consecutive lines.
     """
     per_rank = -(-npart // nranks)
-    return [int(r) * per_rank + int(i) for r, i in zip(fields["tag02"], fields["tag01"])]
+    return [int(r) * per_rank + int(i) for r, i in zip(fields["id_rank"], fields["id"])]
 
 
 def read_flow_ascii(path):

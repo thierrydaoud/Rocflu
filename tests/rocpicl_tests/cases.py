@@ -333,8 +333,9 @@ for n in (1, 2, 4):
         same_as=None if n == 1 else "box/walls/np1",
         # The gas in this closed box differs slightly between decompositions
         # (~0.2% of a 4e-4 m/s flow driven by the particles' volume fraction
-        # with FEEDBACK 0), so the gas seen by the particles (rprop) does too
-        same_as_fields=("y",))
+        # with FEEDBACK 0), so the gas seen by the particles (rprop) does too.
+        # Particle state only (position y, velocity, temperature, spin)
+        same_as_fields=("y", "vp_", "Tp", "omp_"))
 
 # -- Gas only: conservation of the flow solver itself --------------------------
 JUMP = {("PICL", "USED"): 0, ("INITFLOW", "RVAL1"): "0.0043", ("INITFLOW", "RVAL3"): "0.0",

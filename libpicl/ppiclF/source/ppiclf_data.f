@@ -61,6 +61,18 @@
 ! Particle walls
       real*8, allocatable :: ppiclf_wall_c(:,:), ppiclf_wall_n(:,:)
 
+! Particle output: the fields written to par*.vtu, in order. Field k is
+! slot ppiclf_out_slot(k) of the array named by ppiclf_out_source(k)
+! (PPICLF_OUT_Y: ppiclf_y, PPICLF_OUT_RPROP: ppiclf_rprop,
+! PPICLF_OUT_TAG: ppiclf_iprop), written under ppiclf_out_name(k).
+! Filled once by ppiclf_user_OutputFields (ppiclf_io_AddOutputField).
+      integer*4, parameter :: ppiclf_max_out = 80
+      integer*4 ppiclf_nout
+      data ppiclf_nout /-1/
+      integer*4 ppiclf_out_source(ppiclf_max_out),
+     >          ppiclf_out_slot(ppiclf_max_out)
+      character*24 ppiclf_out_name(ppiclf_max_out)
+
       contains
 !-----------------------------------------------------------------------
 ! Resize an allocatable array along its particle/cell dimension to n,

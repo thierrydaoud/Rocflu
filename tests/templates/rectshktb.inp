@@ -112,6 +112,7 @@ FEEDBACK         0 ! 0 = none; 1 = particles affecting fluid
 QSFLUCT 	       0 ! 0 = none; 1 = Lattanzi; 2 = Osnes  
 QSFLUCTFILT      0 ! 0 = box filter; 1 = gaussian. For fluctuation QS force only.
 QSFLUCTFILTADAPT 0 ! 0 = not adaptive; 1 = adaptive
+PSEUDOTURB       0 ! 0 = none; 1 = pseudo-turbulence model
 TEMP             296.40 ! temperature; must be consistent with Ambient air conditions
 FILTERWIDTH      0.002 ! meters
 NEIGHBORWIDTH    0.0 ! Actual neighbor width = max(4*dp_max, neighborwidth)
@@ -124,6 +125,10 @@ ANGULARPERIODIC  0      ! 0=turn off ; 1=Z-Axis
 ANGLE            90.0   ! angle between the two wedge faces, degrees
 XANGLE           0.0    ! angle between x-axis and lower wedge face, CCW +ve, degrees
 SUBBIN           0 ! 0 = Zwick subbin; 1 = Avery subbin
+OUTPARTICLE      1 ! particle files: also Tp, spin, rhop, volp
+OUTGAS           1 ! particle files: also gas density, velocity, sound speed, T at the particle
+OUTGRADGAS       1 ! particle files: also gas gradients at the particle
+OUTMODEL         0 ! particle files: also the states/diagnostics of the models that are on
 #
 
 # POST 

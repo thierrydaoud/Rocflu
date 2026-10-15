@@ -16,6 +16,12 @@ There are two kinds of test:
   against the physics rather than against an older run. They stay meaningful when a fix
   changes every golden on purpose.
 
+Particle fields are read by name (`vp_x`, `rho_g`, `dp`, ...; see
+`libpicl/user_files/ppiclf_user_OutputFields.f`). The template input
+`templates/rectshktb.inp` turns on `OUTPARTICLE`, `OUTGAS` and `OUTGRADGAS`, because the
+goldens and checks use the particle temperature, spin, density and volume and the gas
+values at the particles; keep them on.
+
 The 35 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
 collisions, walls) and [gas only](#gas-only-cases) (the flow solver without particles).

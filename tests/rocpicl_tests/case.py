@@ -57,8 +57,8 @@ class Case:
     checks: List[str] = field(default_factory=list)
     # Name of another case whose final state must match this one
     same_as: Optional[str] = None
-    # Particle fields compared with same_as (prefixes, e.g. ("y",) for the
-    # particle state only); None compares every field
+    # Particle fields compared with same_as (name prefixes, e.g. ("vp_",) for
+    # the particle velocity only); None compares every field
     same_as_fields: Optional[Tuple[str, ...]] = None
     # Known code problem that makes the physics/cross checks fail. The case
     # reports XFAIL while they fail (golden still guards against changes) and

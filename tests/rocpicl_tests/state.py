@@ -9,14 +9,16 @@ from .case import CASENAME
 from .outputs import (particle_ids, read_flow_ascii, read_particle_vtu, read_vtu_cell_centroids,
                       read_vtu_cell_field)
 
-# Particle fields kept in goldens: full state vector plus the interpolated
-# gas quantities. Other rprop entries are scratch and not always set.
+# Particle fields kept in goldens: the particle state plus the gas quantities
+# interpolated to the particle. Named as in ppiclf_user_OutputFields; the
+# template input turns on OUTPARTICLE, OUTGAS and OUTGRADGAS so they are written.
+VEL = ("vp_x", "vp_y", "vp_z")
+SPIN = ("omp_x", "omp_y", "omp_z")
 PARTICLE_FIELDS = (
     ["x", "y", "z"]
-    + ["y%02d" % j for j in range(4, 11)]          # velocity, temperature, spin
-    + ["rpro%02d" % j for j in (1, 2, 3, 4, 5)]    # rhop, rhof, dp, volp, phip
-    + ["rpro%02d" % j for j in range(6, 13)]       # ux uy uz cs dpdx dpdy dpdz
-    + ["rpro22"]                                   # superparticle loading
+    + list(VEL) + ["Tp"] + list(SPIN)
+    + ["rhop", "rho_g", "dp", "volp", "phi_p"]
+    + ["ug_x", "ug_y", "ug_z", "c_g", "dpdx_g", "dpdy_g", "dpdz_g"]
 )
 # What the five arrays of a Rocflu ASCII flow file hold depends on whether
 # particles are on (RFLU_TimeStepping converts real cells just before writing):
@@ -145,15 +147,16 @@ def totals(gas, particles, cell_volume, picl, cp_particle=0.0):
                 sums[k] += val
     out = {name: val * cell_volume for name, val in
            zip(("gas_rho", "gas_rhou", "gas_rhov", "gas_rhow", "gas_rhoE"), sums)}
-    for c, v in zip("xyz", ("y04", "y05", "y06")):
+    # Particle mass rhop*volp: the superparticle loading is always 1 (not written)
+    for c, v in zip("xyz", VEL):
         out["par_mom" + c] = sum(
-            p["rpro22"] * p["rpro01"] * p["rpro04"] * p[v] for p in particles.values())
+            p["rhop"] * p["volp"] * p[v] for p in particles.values())
     out["par_ke"] = sum(
-        0.5 * p["rpro22"] * p["rpro01"] * p["rpro04"]
-        * (p["y04"] ** 2 + p["y05"] ** 2 + p["y06"] ** 2) for p in particles.values())
+        0.5 * p["rhop"] * p["volp"]
+        * (p["vp_x"] ** 2 + p["vp_y"] ** 2 + p["vp_z"] ** 2) for p in particles.values())
     # Particle thermal energy m*cp*T (temperature is y07)
     out["par_eth"] = sum(
-        p["rpro22"] * p["rpro01"] * p["rpro04"] * cp_particle * p["y07"]
+        p["rhop"] * p["volp"] * cp_particle * p["Tp"]
         for p in particles.values())
     for c, cv in zip("xyz", ("rhou", "rhov", "rhow")):
         out["mom" + c] = out["gas_" + cv] + out["par_mom" + c]

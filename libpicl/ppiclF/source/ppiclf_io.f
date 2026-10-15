@@ -766,21 +766,18 @@ c1511 continue
 ! Internal:
 !
       ! sized by this rank's particle count
-      real*4, allocatable :: rout_pos(:), rout_sln(:), rout_lrp(:),
-     >                       rout_lip(:)
+      real*4, allocatable :: rout_pos(:), rout_fld(:)
       character*3 filein
       character*12 vtufile
-      character*6  prostr
       integer*4 icalld1
       save      icalld1
       data      icalld1 /0/
       integer*4 vtu,pth,prevs(2,ppiclf_np)
-      integer*8 idisp_pos,idisp_sln,idisp_lrp,idisp_lip,stride_len
+      integer*8 idisp_pos,idisp_fld,stride_len
       integer*4 iint, nnp, nxx, npt_total, jx, jy, jz, if_sz, isize,
-     >          iadd, if_pos, if_sln, if_lrp, if_lip, ic_pos, ic_sln,
-     >          ic_lrp, ic_lip, i, j, ie, nps, nglob, nkey, ndum,
-     >          icount_pos, icount_sln, icount_lrp, icount_lip, iorank,
-     >          ierr, ivtu_size
+     >          if_pos, if_fld, ic_pos, ic_fld, i, j, k, nps, nglob,
+     >          nkey, ndum, icount_pos, icount_fld, iorank, ierr,
+     >          ivtu_size
       integer*4 ppiclf_iglsum
       external ppiclf_iglsum
       integer*4 istartout
@@ -789,14 +786,20 @@ c1511 continue
 
       call ppiclf_printsi(' *Begin WriteParticleVTU$',ppiclf_cycle)
 
+      ! the fields to write (ppiclf_user_OutputFields), built once
+      if (ppiclf_nout .lt. 0) then
+         ppiclf_nout = 0
+         call ppiclf_user_OutputFields
+      endif
+
       if (icalld1 .eq. 0) icalld1 = istartout
 
       icalld1 = icalld1+1
 
       nnp   = ppiclf_np
       nxx   = PPICLF_NPART
-      allocate(rout_pos(3*max(nxx,1)), rout_sln(PPICLF_LRS*max(nxx,1)),
-     >         rout_lrp(PPICLF_LRP*max(nxx,1)), rout_lip(3*max(nxx,1)))
+      allocate(rout_pos(3*max(nxx,1)),
+     >         rout_fld(max(ppiclf_nout,1)*max(nxx,1)))
 
       npt_total = ppiclf_iglsum(nxx,1)
 
@@ -819,16 +822,10 @@ c1511 continue
 
       isize = 4
 
-      iadd = 0
       if_pos = 3*isize*npt_total
-      if_sln = 1*isize*npt_total
-      if_lrp = 1*isize*npt_total
-      if_lip = 1*isize*npt_total
+      if_fld = 1*isize*npt_total
 
-      ic_pos = iadd
-      ic_sln = iadd
-      ic_lrp = iadd
-      ic_lip = iadd
+      ic_pos = 0
       do i=1,nxx
 
          ic_pos = ic_pos + 1
@@ -842,24 +839,20 @@ c1511 continue
             rout_pos(ic_pos) = 0.0
          endif
       enddo
-      do j=1,PPICLF_LRS
-      do i=1,nxx
-         ic_sln = ic_sln + 1
-         rout_sln(ic_sln) = sngl(ppiclf_y(j,i))
-      enddo
-      enddo
-      do j=1,PPICLF_LRP
-      do i=1,nxx
-         ic_lrp = ic_lrp + 1
-         rout_lrp(ic_lrp) = sngl(ppiclf_rprop(j,i))
-      enddo
-      enddo
-      do j=1,3
-      do i=1,nxx
-         ! This prints out the particle tag info
-         ic_lip = ic_lip + 1
-         rout_lip(ic_lip) = real(ppiclf_iprop(j,i))
-      enddo
+      ! one block of nxx values per output field
+      ic_fld = 0
+      do k=1,ppiclf_nout
+         j = ppiclf_out_slot(k)
+         do i=1,nxx
+            ic_fld = ic_fld + 1
+            if (ppiclf_out_source(k) .eq. PPICLF_OUT_Y) then
+               rout_fld(ic_fld) = sngl(ppiclf_y(j,i))
+            elseif (ppiclf_out_source(k) .eq. PPICLF_OUT_RPROP) then
+               rout_fld(ic_fld) = sngl(ppiclf_rprop(j,i))
+            else
+               rout_fld(ic_fld) = real(ppiclf_iprop(j,i))
+            endif
+         enddo
       enddo
 
 ! --------------------------------------------------
@@ -948,21 +941,9 @@ c1511 continue
       write(vtu,'(A)',advance='yes') '   <PointData>'
 
 
-      do ie=1,PPICLF_LRS
-         write(prostr,'(A1,I2.2)') "y",ie
-         call ppiclf_io_WriteDataArrayVTU(vtu,prostr,1,iint)
-         iint = iint + 1*isize*npt_total + isize
-      enddo
-
-      do ie=1,PPICLF_LRP
-         write(prostr,'(A4,I2.2)') "rprop",ie
-         call ppiclf_io_WriteDataArrayVTU(vtu,prostr,1,iint)
-         iint = iint + 1*isize*npt_total + isize
-      enddo
-
-      do ie=1,3
-         write(prostr,'(A3,I2.2)') "tag",ie
-         call ppiclf_io_WriteDataArrayVTU(vtu,prostr,1,iint)
+      do k=1,ppiclf_nout
+         call ppiclf_io_WriteDataArrayVTU(vtu,trim(ppiclf_out_name(k))
+     >                                   ,1,iint)
          iint = iint + 1*isize*npt_total + isize
       enddo
 
@@ -1009,9 +990,7 @@ c1511 continue
 
       ! how much to write
       icount_pos = 3*nxx
-      icount_sln = 1*nxx
-      icount_lrp = 1*nxx
-      icount_lip = 1*nxx
+      icount_fld = 1*nxx
 
       iorank = -1
 
@@ -1033,82 +1012,28 @@ c1511 continue
 
       call mpi_barrier(ppiclf_comm,ierr)
 
-      do i=1,PPICLF_LRS
-         idisp_sln = ivtu_size + isize*(3*npt_total 
-     >                         + (i-1)*npt_total
+      do k=1,ppiclf_nout
+         idisp_fld = ivtu_size + isize*(3*npt_total
+     >                         + (k-1)*npt_total
      >                         + (1)*stride_len
-     >                         + 1 + i)
+     >                         + 1 + k)
 
          ! integer write
          if (ppiclf_nid .eq. 0) then
            open(unit=vtu,file=vtufile,access='stream',form="unformatted"
      >         ,position='append')
-           write(vtu) if_sln
-           close(vtu)
-         endif
-   
-         call mpi_barrier(ppiclf_comm,ierr)
-
-         j = (i-1)*ppiclf_npart + 1
-   
-         ! write
-         call ppiclf_byte_open_mpi(vtufile,pth,.false.,ierr)
-         call ppiclf_byte_set_view(idisp_sln,pth)
-         call ppiclf_byte_write_mpi(rout_sln(j),icount_sln,iorank,pth
-     >                             ,ierr)
-         call ppiclf_byte_close_mpi(pth,ierr)
-      enddo
-
-      do i=1,PPICLF_LRP
-         idisp_lrp = ivtu_size + isize*(3*npt_total  
-     >                         + PPICLF_LRS*npt_total
-     >                         + (i-1)*npt_total
-     >                         + (1)*stride_len
-     >                         + 1 + PPICLF_LRS + i)
-
-         ! integer write
-         if (ppiclf_nid .eq. 0) then
-           open(unit=vtu,file=vtufile,access='stream',form="unformatted"
-     >         ,position='append')
-           write(vtu) if_lrp
-           close(vtu)
-         endif
-   
-         call mpi_barrier(ppiclf_comm,ierr)
-
-         j = (i-1)*ppiclf_npart + 1
-   
-         ! write
-         call ppiclf_byte_open_mpi(vtufile,pth,.false.,ierr)
-         call ppiclf_byte_set_view(idisp_lrp,pth)
-         call ppiclf_byte_write_mpi(rout_lrp(j),icount_lrp,iorank,pth
-     >                             ,ierr)
-         call ppiclf_byte_close_mpi(pth,ierr)
-      enddo
-
-      do i=1,3
-         idisp_lip = ivtu_size + isize*(3*npt_total  
-     >                         + PPICLF_LRS*npt_total
-     >                         + PPICLF_LRP*npt_total
-     >                         + (i-1)*npt_total
-     >                         + (1)*stride_len
-     >                         + 1 + PPICLF_LRS + PPICLF_LRP + i)
-         ! integer write
-         if (ppiclf_nid .eq. 0) then
-           open(unit=vtu,file=vtufile,access='stream',form="unformatted"
-     >         ,position='append')
-           write(vtu) if_lip
+           write(vtu) if_fld
            close(vtu)
          endif
 
          call mpi_barrier(ppiclf_comm,ierr)
 
-         j = (i-1)*ppiclf_npart + 1
-   
+         j = (k-1)*nxx + 1
+
          ! write
          call ppiclf_byte_open_mpi(vtufile,pth,.false.,ierr)
-         call ppiclf_byte_set_view(idisp_lip,pth)
-         call ppiclf_byte_write_mpi(rout_lip(j),icount_lip,iorank,pth
+         call ppiclf_byte_set_view(idisp_fld,pth)
+         call ppiclf_byte_write_mpi(rout_fld(j),icount_fld,iorank,pth
      >                             ,ierr)
          call ppiclf_byte_close_mpi(pth,ierr)
       enddo
@@ -1124,6 +1049,60 @@ c1511 continue
       endif
 
       call ppiclf_printsi(' *End WriteParticleVTU$',ppiclf_cycle)
+
+      return
+      end
+!-----------------------------------------------------------------------
+      subroutine ppiclf_io_AddOutputField(isource,islot,fname)
+!
+! Appends one field to the particle output (par*.vtu): slot islot of
+! ppiclf_y (isource = PPICLF_OUT_Y), ppiclf_rprop (PPICLF_OUT_RPROP)
+! or ppiclf_iprop (PPICLF_OUT_TAG), written under the name fname.
+! Called from ppiclf_user_OutputFields.
+!
+      use ppiclf_data
+!
+      implicit none
+!
+      include "PPICLF"
+!
+! Input:
+!
+      integer*4 isource, islot
+      character (len = *) fname
+!
+! Internal:
+!
+      integer*4 k, nslot
+!
+      if (ppiclf_nout .ge. ppiclf_max_out) call ppiclf_exittr(
+     >   'AddOutputField: too many output fields$',0.0d0,ppiclf_nout)
+
+      if (isource .eq. PPICLF_OUT_Y) then
+         nslot = PPICLF_LRS
+      elseif (isource .eq. PPICLF_OUT_RPROP) then
+         nslot = PPICLF_LRP
+      elseif (isource .eq. PPICLF_OUT_TAG) then
+         nslot = PPICLF_LIP
+      else
+         call ppiclf_exittr('AddOutputField: unknown source$',0.0d0,
+     >                      isource)
+      endif
+      if (islot .lt. 1 .or. islot .gt. nslot) call ppiclf_exittr(
+     >   'AddOutputField: slot out of range$',0.0d0,islot)
+
+      if (len_trim(fname) .lt. 1 .or. len_trim(fname) .gt.
+     >    len(ppiclf_out_name(1))) call ppiclf_exittr(
+     >   'AddOutputField: empty or too long name$',0.0d0,islot)
+      do k=1,ppiclf_nout
+         if (ppiclf_out_name(k) .eq. fname) call ppiclf_exittr(
+     >      'AddOutputField: name used twice$',0.0d0,k)
+      enddo
+
+      ppiclf_nout = ppiclf_nout + 1
+      ppiclf_out_source(ppiclf_nout) = isource
+      ppiclf_out_slot(ppiclf_nout)   = islot
+      ppiclf_out_name(ppiclf_nout)   = fname
 
       return
       end

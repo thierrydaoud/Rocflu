@@ -37,6 +37,7 @@ SRC = $(SOURCE_ROOT_PPICLF)/ppiclf_unsteady.f \
       $(SOURCE_ROOT_USER)/ppiclf_user_Lift.f     \
       $(SOURCE_ROOT_USER)/ppiclf_user_ViscousUnsteady.f     \
       $(SOURCE_ROOT_USER)/ppiclf_user_EvalNearestNeighbor.f     \
+      $(SOURCE_ROOT_USER)/ppiclf_user_OutputFields.f     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_comm.f     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_op.f       \
       $(SOURCE_ROOT_PPICLF)/ppiclf_io.f       \
@@ -58,6 +59,7 @@ OBJ = $(SOURCE_ROOT_PPICLF)/ppiclf_unsteady.o \
       $(SOURCE_ROOT_USER)/ppiclf_user_Lift.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_ViscousUnsteady.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_EvalNearestNeighbor.o     \
+      $(SOURCE_ROOT_USER)/ppiclf_user_OutputFields.o     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_comm.o     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_op.o       \
       $(SOURCE_ROOT_PPICLF)/ppiclf_io.o       \
