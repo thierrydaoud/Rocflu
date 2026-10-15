@@ -577,6 +577,41 @@ ranks) and binary-collision (2 and 4 ranks) cases, write byte-identical particle
 files before and after. Ẇ is non-zero in those runs, so the ghosts' Ẇ is used. The suite
 itself has no `AMFORCE 2` case across ranks.
 
+#### What it saves
+
+Each ghost is 584 bytes before and 160 bytes after: its reals (69 or 16 doubles) plus 8 integers
+(`iprop_gp`: tags, bin, destination rank). That is 3.65 times less to hold and to send.
+
+Measured on a periodic 8 mm box with a 37³ lattice of particles (50,653 particles,
+dp = 100 µm, about 5% by volume, 16³ cells), collisions on, 155 steps (480 ghost exchanges, one per
+RK stage), one 16-core node, 3 runs of each build alternating. The two builds are 74b8f87
+and a7f5748 with the same temporary timers: a barrier, then `CreateGhost`, a barrier, then
+`MoveGhost`, a barrier. The barriers keep a rank's wait for slower ranks out of the timers.
+
+| Ranks | Ghosts per rank (real particles per rank) | Ghost exchange, 480 calls: before → after | Ghost data sent per rank per exchange | Ghost arrays per rank | Peak memory per rank | Whole run |
+|---|---|---|---|---|---|---|
+| 4 | 7,181 (12,663) | 3.0 s → 1.35 s | 4.2 → 1.15 MB | 7.1 → 1.9 MB | 209 → 200 MB | 138.6 → 135.6 s |
+| 8 | 4,316 (6,332) | 3.5 s → 1.7 s | 2.5 → 0.69 MB | 3.2 → 0.86 MB | 172 → 166 MB | 86.9 → 86.1 s |
+| 16 | 3,126 (3,166) | 2.9 s → 1.7 s | 1.8 → 0.50 MB | 3.2 → 0.86 MB | 164 → 160 MB | 63.5 → 62.1 s |
+
+Times are medians of the 3 runs; the ghost exchange varied by up to ±0.6 s between runs.
+
+- **The transfer (`MoveGhost`) is 2.4 to 3.2 times faster** (2.25 → 0.78 s on 4 ranks), close to
+  the 3.65 times fewer bytes. Building the ghosts (`CreateGhost`) changes little: it still copies
+  all of `rprop` into `cp_map`. The exchange as a whole takes about half the time.
+- **The whole run is 1–2% faster**, because the ghost exchange is only about 2% of this run.
+  Most of the time is in the neighbour search, the forces and the fluid solver.
+- **The memory saved grows with the number of ghosts**: 424 bytes per ghost the rank can hold
+  (its capacity), plus the same again for the copies gslib makes while sending. A rank has many
+  ghosts when its bins are small next to the neighbour distance: on 16 ranks here a rank holds
+  about as many ghosts as real particles, and a dense production run on many ranks can hold
+  more ghosts than real particles. For example, a rank with 10⁶ ghosts saves about 0.4 GB.
+- Everything runs on one node, so the transfer is a memory copy. Across nodes the network
+  carries 3.65 times fewer bytes, so the saving should be at least as large there.
+
+The case and scripts are in `tests/_work/bench` (not tracked): `bench_setup.py` makes the case,
+`bench_run.sh` runs it and `analyze.py` reads the `GHOSTT` lines the timed builds print.
+
 ## Notes for the discussion with the MFC team
 
 - **The normal force turns attractive at the end of a contact.** The normal force is
