@@ -261,6 +261,10 @@
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InitZero
       use ppiclf_data
+      use ppiclf_unsteady
+!
+! Allocates ppiclF's arrays on the first call and zeroes them (called
+! again on restart, after the particle file is read)
 !
       IMPLICIT NONE
 !
@@ -284,9 +288,6 @@
       ppiclf_ydotc = 0.0D0
       ppiclf_y1    = 0.0D0
       ppiclf_rprop  = 0.0D0
-      ppiclf_rprop2 = 0.0D0
-      ppiclf_rprop4 = 0.0D0
-      ppiclf_rprop5 = 0.0D0
       ppiclf_iprop  = 0
       ppiclf_feedbk = 0.0D0
       ppiclf_iprop_gp = 0
@@ -296,7 +297,15 @@
       ! zero'ing grid properties for interpolation
       ppiclf_int_fld = 0.0D0
 
-      CALL ppiclf_user_InitZero
+      ! viscous-unsteady history
+      ppiclf_rprop3    = 0.0D0
+      ppiclf_TimeBH    = 0.0D0
+      ppiclf_drudtMixt = 0.0D0
+      ppiclf_drudtPlag = 0.0D0
+      ppiclf_dTdtMixt  = 0.0D0
+      ppiclf_dTdtPlag  = 0.0D0
+      ppiclf_TMixt     = 0.0D0
+      ppiclf_TPlag     = 0.0D0
 
       RETURN
       END
@@ -1410,7 +1419,7 @@ c----------------------------------------------------------------------
         IF (remove) THEN
           ! Particle is outside of fluid domain.
           ! iprop(8,ip) set to -1 means it will be removed
-          ! from ppiclf_y & ppiclf_rprop, rprop2, rprop3, rprop4, rprop5
+          ! from ppiclf_y, ppiclf_rprop and rprop3
           ppiclf_iprop(9,ip) = -1
           ppiclf_remove_particle = .TRUE.
           PRINT*, 'part # on proc # removed.', ppiclf_iprop(1,ip),
@@ -1548,7 +1557,7 @@ c----------------------------------------------------------------------
         IF (nnearest .LT. 1) THEN
           ! Particle is outside of fluid domain.
           ! iprop(8,ip) set to -1 means it will be removed
-          ! from ppiclf_y & ppiclf_rprop, rprop2, rprop3, rprop4, rprop5
+          ! from ppiclf_y, ppiclf_rprop and rprop3
           ppiclf_iprop(9,ip) = -1
           ppiclf_remove_particle = .TRUE.
           PRINT*, 'part # on proc # removed with postion of:',
@@ -1757,21 +1766,9 @@ c----------------------------------------------------------------------
      >          (ppiclf_ydotc (1,icount), ppiclf_ydotc(1,i), PPICLF_LRS)
                CALL ppiclf_copy
      >          (ppiclf_rprop (1,icount), ppiclf_rprop(1,i), PPICLF_LRP)
-               IF(PPICLF_LRP2 .GT. 1) THEN
-                 CALL ppiclf_copy
-     >          (ppiclf_rprop2(1,icount),ppiclf_rprop2(1,i),PPICLF_LRP2)
-               END IF
                IF(ppiclf_lrp3 .GT. 1) THEN
                  CALL ppiclf_copy
      >          (ppiclf_rprop3(1,icount),ppiclf_rprop3(1,i),ppiclf_lrp3)
-               END IF
-               IF(PPICLF_LRP4 .GT. 1) THEN
-                 CALL ppiclf_copy
-     >          (ppiclf_rprop4(1,icount),ppiclf_rprop4(1,i),PPICLF_LRP4)
-               END IF
-               IF(PPICLF_LRP5 .GT. 1) THEN
-                 CALL ppiclf_copy
-     >          (ppiclf_rprop5(1,icount),ppiclf_rprop5(1,i),PPICLF_LRP5)
                END IF
                CALL ppiclf_copy(ppiclf_feedbk(1,icount), 
      >                          ppiclf_feedbk(1,i), PPICLF_LRP_PRO)

@@ -32,7 +32,6 @@
 ! Real particles
       real*8, allocatable :: ppiclf_y(:,:), ppiclf_y1(:,:),
      >   ppiclf_ydot(:,:), ppiclf_ydotc(:,:), ppiclf_rprop(:,:),
-     >   ppiclf_rprop2(:,:), ppiclf_rprop4(:,:), ppiclf_rprop5(:,:),
      >   ppiclf_feedbk(:,:)
       integer*4, allocatable :: ppiclf_iprop(:,:)
 
@@ -146,11 +145,14 @@
 !-----------------------------------------------------------------------
       subroutine ppiclf_data_Allocate
 !
-! Allocates every array of module ppiclf_data that is not allocated
-! yet, with the current capacities, and zeroes it.
+! Allocates every array of modules ppiclf_data and ppiclf_unsteady that
+! is not allocated yet, with the current capacities, and zeroes it.
 !
       use ppiclf_data
+      use ppiclf_unsteady
       implicit none
+!
+      include "PPICLF"
 !
       integer*4 n, ierr
 !
@@ -159,8 +161,7 @@
         n = ppiclf_maxpart
         allocate(ppiclf_y(PPICLF_LRS,n), ppiclf_y1(PPICLF_LRS,n),
      >     ppiclf_ydot(PPICLF_LRS,n), ppiclf_ydotc(PPICLF_LRS,n),
-     >     ppiclf_rprop(PPICLF_LRP,n), ppiclf_rprop2(PPICLF_LRP2,n),
-     >     ppiclf_rprop4(PPICLF_LRP4,n), ppiclf_rprop5(PPICLF_LRP5,n),
+     >     ppiclf_rprop(PPICLF_LRP,n),
      >     ppiclf_feedbk(PPICLF_LRP_PRO,n), ppiclf_iprop(PPICLF_LIP,n),
      >     ppiclf_cp_map(PPICLF_LRP_GP,n),
      >     ppiclf_part2cell_dist(n,27), ppiclf_part2cell_map(n,27),
@@ -172,9 +173,6 @@
         ppiclf_ydot = 0.0d0
         ppiclf_ydotc = 0.0d0
         ppiclf_rprop = 0.0d0
-        ppiclf_rprop2 = 0.0d0
-        ppiclf_rprop4 = 0.0d0
-        ppiclf_rprop5 = 0.0d0
         ppiclf_feedbk = 0.0d0
         ppiclf_iprop = 0
         ppiclf_cp_map = 0.0d0
@@ -234,6 +232,25 @@
         ppiclf_wall_n = 0.0d0
       end if
 
+      ! Viscous-unsteady history: ppiclf_nUnsteadyData steps, set by
+      ! Rocflu from the input (0 unless VISCOUSUNSTEADY >= 1)
+      if (.not. allocated(ppiclf_rprop3)) then
+        n = max(ppiclf_nUnsteadyData, 0)
+        ! history packed per particle: drudt Mixt/Plag (3 each),
+        ! dTdt Mixt/Plag, T Mixt/Plag
+        ppiclf_lrp3 = 10*n
+        allocate(ppiclf_rprop3(ppiclf_lrp3,ppiclf_maxpart),
+     >     ppiclf_TimeBH(n),
+     >     ppiclf_drudtPlag(3,n,ppiclf_maxpart),
+     >     ppiclf_drudtMixt(3,n,ppiclf_maxpart),
+     >     ppiclf_dTdtPlag(n,ppiclf_maxpart),
+     >     ppiclf_dTdtMixt(n,ppiclf_maxpart),
+     >     ppiclf_TMixt(n,ppiclf_maxpart),
+     >     ppiclf_TPlag(n,ppiclf_maxpart), stat=ierr)
+        if (ierr .ne. 0) call ppiclf_exittr(
+     >     'Cannot allocate the unsteady history$',0.0d0,n)
+      end if
+
       return
       end
 !-----------------------------------------------------------------------
@@ -254,9 +271,6 @@
       call ppiclf_resize_r2(ppiclf_ydot,   n, 2)
       call ppiclf_resize_r2(ppiclf_ydotc,  n, 2)
       call ppiclf_resize_r2(ppiclf_rprop,  n, 2)
-      call ppiclf_resize_r2(ppiclf_rprop2, n, 2)
-      call ppiclf_resize_r2(ppiclf_rprop4, n, 2)
-      call ppiclf_resize_r2(ppiclf_rprop5, n, 2)
       call ppiclf_resize_r2(ppiclf_feedbk, n, 2)
       call ppiclf_resize_i2(ppiclf_iprop,  n, 2)
       call ppiclf_resize_r2(ppiclf_cp_map, n, 2)

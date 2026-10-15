@@ -2,18 +2,6 @@
 #define PPICLF_LRP 1
 #endif
 
-#ifndef PPICLF_LRP2
-#define PPICLF_LRP2 0
-#endif
-
-#ifndef PPICLF_LRP4
-#define PPICLF_LRP4 0
-#endif
-
-#ifndef PPICLF_LRP5
-#define PPICLF_LRP5 0
-#endif
-
 #ifndef PPICLF_LIP
 #define PPICLF_LIP 11
 #endif

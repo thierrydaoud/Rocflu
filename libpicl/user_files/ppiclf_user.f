@@ -755,34 +755,6 @@
 
 
 
-! 03/17/2026 - Thierry - This is not used. Probably delete in the future
-!
-! Step 13: Store forces
-
-         IF(PPICLF_LRP5 .EQ. 19) THEN
-           ppiclf_rprop5(PPICLF_R_FQSX,i)  = fqsx
-           ppiclf_rprop5(PPICLF_R_FQSY,i)  = fqsy
-           ppiclf_rprop5(PPICLF_R_FQSZ,i)  = fqsz
-           ppiclf_rprop5(PPICLF_R_FAMX,i)  = famx - rmass_add*
-     >                                       ppiclf_ydot(PPICLF_JVX,i)
-           ppiclf_rprop5(PPICLF_R_FAMY,i)  = famy - rmass_add*
-     >                                       ppiclf_ydot(PPICLF_JVY,i)
-           ppiclf_rprop5(PPICLF_R_FAMZ,i)  = famz - rmass_add*
-     >                                       ppiclf_ydot(PPICLF_JVZ,i)
-           ppiclf_rprop5(PPICLF_R_FAMBX,i) = FamBinary(1)
-           ppiclf_rprop5(PPICLF_R_FAMBY,i) = FamBinary(2)
-           ppiclf_rprop5(PPICLF_R_FAMBZ,i) = FamBinary(3)
-           ppiclf_rprop5(PPICLF_R_FCX,i)   = fcx
-           ppiclf_rprop5(PPICLF_R_FCY,i)   = fcy
-           ppiclf_rprop5(PPICLF_R_FCZ,i)   = fcz
-           ppiclf_rprop5(PPICLF_R_FVUX,i)  = fvux
-           ppiclf_rprop5(PPICLF_R_FVUY,i)  = fvuy
-           ppiclf_rprop5(PPICLF_R_FVUZ,i)  = fvuz
-           ppiclf_rprop5(PPICLF_R_QQ,i)    = qq
-           ppiclf_rprop5(PPICLF_R_FPGX,i)  = fdpdx
-           ppiclf_rprop5(PPICLF_R_FPGY,i)  = fdpdy
-           ppiclf_rprop5(PPICLF_R_FPGZ,i)  = fdpdz
-         END IF
 
       enddo ! do i=1,ppiclf_npart
 

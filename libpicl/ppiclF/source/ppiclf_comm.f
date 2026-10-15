@@ -614,8 +614,8 @@
      >                             ppiclf_iprop, j0, nin)
       CALL ppiclf_data_GrowPart(nin)
 
-      rtempLim = PPICLF_LRS*4 + PPICLF_LRP + PPICLF_LRP2
-     >       + ppiclf_lrp3 + PPICLF_LRP4 + PPICLF_LRP5 + PPICLF_LRP_PRO
+      rtempLim = PPICLF_LRS*4 + PPICLF_LRP + ppiclf_lrp3
+     >         + PPICLF_LRP_PRO
       IF (ALLOCATED(rtemp)) THEN
         IF (SIZE(rtemp,2) .NE. ppiclf_maxpart .OR.
      >      SIZE(rtemp,1) .NE. rtempLim) DEALLOCATE(rtemp)
@@ -626,7 +626,7 @@
      >     'MoveParticle: cannot allocate the send buffer$',0.0d0,ierr)
       END IF
 !
-      ! copy particle y, rprop, rprop2, rprop3 arrays into rtemp
+      ! copy particle y, rprop, rprop3 arrays into rtemp
       ! array for communication
       DO i=1,ppiclf_npart
         icount = 1
@@ -640,25 +640,10 @@
         icount = icount + PPICLF_LRS
         CALL ppiclf_copy(rtemp(icount,i),ppiclf_rprop(1,i),PPICLF_LRP)
         icount = icount + PPICLF_LRP
-        IF(PPICLF_LRP2 .GT. 1) THEN
-          CALL ppiclf_copy(rtemp(icount,i),
-     >                     ppiclf_rprop2(1,i),PPICLF_LRP2)
-          icount = icount + PPICLF_LRP2
-        END IF
         IF(ppiclf_lrp3 .GT. 1) THEN
           CALL ppiclf_copy(rtemp(icount,i),
      >                     ppiclf_rprop3(1,i),ppiclf_lrp3)
           icount = icount + ppiclf_lrp3
-        END IF
-        IF(PPICLF_LRP4 .GT. 1) THEN
-          CALL ppiclf_copy(rtemp(icount,i),
-     >                     ppiclf_rprop4(1,i),PPICLF_LRP4)
-          icount = icount + PPICLF_LRP4
-        END IF
-        IF(PPICLF_LRP5 .GT. 1) THEN
-          CALL ppiclf_copy(rtemp(icount,i),
-     >                     ppiclf_rprop5(1,i),PPICLF_LRP5)
-          icount = icount + PPICLF_LRP5
         END IF
         CALL ppiclf_copy(rtemp(icount,i),
      >                   ppiclf_feedbk(1,i),PPICLF_LRP_PRO)
@@ -693,25 +678,10 @@
         icount = icount + PPICLF_LRS
         CALL ppiclf_copy(ppiclf_rprop(1,i),rtemp(icount,i),PPICLF_LRP)
         icount = icount + PPICLF_LRP
-        IF(PPICLF_LRP2 .GT. 1) THEN
-        CALL ppiclf_copy(ppiclf_rprop2(1,i),rtemp(icount,i),
-     >                   PPICLF_LRP2)
-        icount = icount + PPICLF_LRP2
-        END IF
         IF(ppiclf_lrp3 .GT. 1) THEN
           CALL ppiclf_copy(ppiclf_rprop3(1,i),rtemp(icount,i),
      >                     ppiclf_lrp3)
           icount = icount + ppiclf_lrp3
-        END IF
-        IF(PPICLF_LRP4 .GT. 1) THEN
-          CALL ppiclf_copy(ppiclf_rprop4(1,i),rtemp(icount,i),
-     >                     PPICLF_LRP4)
-          icount = icount + PPICLF_LRP4
-        END IF
-        IF(PPICLF_LRP5 .GT. 1) THEN
-          CALL ppiclf_copy(ppiclf_rprop5(1,i),rtemp(icount,i),
-     >                     PPICLF_LRP5)
-          icount = icount + PPICLF_LRP5
         END IF
         CALL ppiclf_copy(ppiclf_feedbk(1,i),rtemp(icount,i),
      >           PPICLF_LRP_PRO)

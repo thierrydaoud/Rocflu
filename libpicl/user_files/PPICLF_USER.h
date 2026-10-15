@@ -1,8 +1,5 @@
 #define PPICLF_LRS 10
 #define PPICLF_LRP 59
-#define PPICLF_LRP2 0
-#define PPICLF_LRP4 0
-#define PPICLF_LRP5 0
 #define PPICLF_LRP_INT 30
 #define PPICLF_LRP_PRO 31
 
@@ -83,27 +80,6 @@
 #define PPICLF_R_RperpMehra 57
 #define PPICLF_R_RTerm2Par 58
 #define PPICLF_R_RTerm2Perp 59
-
-! rprop5: PPICLF_LRP5 - Storing Force Models
-#define PPICLF_R_FQSX 1
-#define PPICLF_R_FQSY 2
-#define PPICLF_R_FQSZ 3
-#define PPICLF_R_FAMX 4
-#define PPICLF_R_FAMY 5
-#define PPICLF_R_FAMZ 6
-#define PPICLF_R_FAMBX 7
-#define PPICLF_R_FAMBY 8
-#define PPICLF_R_FAMBZ 9
-#define PPICLF_R_FCX 10
-#define PPICLF_R_FCY 11
-#define PPICLF_R_FCZ 12
-#define PPICLF_R_FVUX 13
-#define PPICLF_R_FVUY 14
-#define PPICLF_R_FVUZ 15
-#define PPICLF_R_QQ 16
-#define PPICLF_R_FPGX 17 
-#define PPICLF_R_FPGY 18 
-#define PPICLF_R_FPGZ 19 
 
 ! map: PPICLF_LRP_PRO
 !--- Particle Volume Fraction Feedback

@@ -514,6 +514,10 @@ before, per particle (about 12 kB per particle for 50 steps).
 - `PPICLF_USER.h` no longer has `PPICLF_LPART`, `PPICLF_LEE`, `PPICLF_LWALL`, `PPICLF_VU` or
   `PPICLF_LRP3`. There is nothing to raise for a larger run.
 - `VUSTEPS` in the PICL section sets the length of the viscous-unsteady history.
+- The spare property arrays `rprop2`, `rprop4`, `rprop5` (`PPICLF_LRP2/4/5`, all 0) and the
+  unused "store forces" block that wrote `rprop5` are gone, and so is
+  `ppiclf_user_InitZero`: the history is allocated with the other arrays in
+  `ppiclf_data_Allocate` and zeroed in `ppiclf_solve_InitZero`.
 - A new per-particle array goes in module `ppiclf_data`: declare it, allocate it in
   `ppiclf_data_Allocate`, and add it to `ppiclf_data_GrowPart`. Routines that use it need
   `use ppiclf_data` (every routine that includes `PPICLF` already has it).

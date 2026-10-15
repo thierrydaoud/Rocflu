@@ -1,7 +1,7 @@
 !-----------------------------------------------------------------------
 !
 ! History of the viscous-unsteady and diffusive-unsteady heat transfer
-! models, sized at run time (ppiclf_user_InitZero) from the input:
+! models, sized at run time (ppiclf_data_Allocate) from the input:
 ! ppiclf_nUnsteadyData past steps when VISCOUSUNSTEADY >= 1, none
 ! otherwise. ppiclf_rprop3 packs the per-particle history so it moves
 ! with the particle between ranks (ppiclf_user_plag2prop/prop2plag).
