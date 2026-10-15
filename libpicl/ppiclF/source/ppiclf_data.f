@@ -37,12 +37,12 @@
 
 ! Ghost particles, and the real particles' copy for the neighbour search.
 ! cp_map(:,i): y then all of rprop (PPICLF_LRS+PPICLF_LRP).
-! rprop_gp(:,j): y then the rprop slots ppiclf_gp_rprop
+! rprop_gp(:,j): y then the rprop slots ppiclf_ghost_slots
 ! (PPICLF_LRP_GP = PPICLF_LRS+PPICLF_LRP_GHOST).
       real*8, allocatable :: ppiclf_rprop_gp(:,:), ppiclf_cp_map(:,:)
       integer*4, allocatable :: ppiclf_iprop_gp(:,:)
-      integer*4, parameter :: ppiclf_gp_rprop(PPICLF_LRP_GHOST) =
-     >   (/ PPICLF_GHOST_RPROP /)
+      integer*4, parameter :: ppiclf_ghost_slots(PPICLF_LRP_GHOST) =
+     >   (/ PPICLF_GHOST_SLOTS_INDEX /)
 
 ! Overlap grid. PPICLF_PART2CELL_DIST(ip,i): squared particle-to-cell-
 ! center offset, each direction scaled by that cell's length,

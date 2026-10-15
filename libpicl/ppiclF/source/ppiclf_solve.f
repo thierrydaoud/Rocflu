@@ -465,7 +465,7 @@
                 IF (dist_total .GT. distSQ) CYCLE
                 jp = -1*j
                 DO l = 1,PPICLF_LRP_GHOST
-                  rpropj(ppiclf_gp_rprop(l)) =
+                  rpropj(ppiclf_ghost_slots(l)) =
      >              ppiclf_rprop_gp(PPICLF_LRS+l,j)
                 END DO
                 CALL ppiclf_user_EvalNearestNeighbor(i,jp

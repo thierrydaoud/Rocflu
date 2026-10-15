@@ -1153,7 +1153,7 @@
               ! only the rprop slots the neighbour search reads
               DO k=1,PPICLF_LRP_GHOST
                 ppiclf_rprop_gp(PPICLF_LRS+k,ppiclf_npart_gp) =
-     >            ppiclf_cp_map(PPICLF_LRS+ppiclf_gp_rprop(k),ip)
+     >            ppiclf_cp_map(PPICLF_LRS+ppiclf_ghost_slots(k),ip)
               END DO
             END DO !iz = 1:3
           END DO !iy = 1:3

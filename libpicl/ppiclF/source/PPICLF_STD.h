@@ -27,7 +27,7 @@
 #endif
 
 ! Ghosts carry y and the PPICLF_LRP_GHOST rprop slots listed in
-! PPICLF_GHOST_RPROP (PPICLF_USER.h), which is all the neighbour search
+! PPICLF_GHOST_SLOTS_INDEX (PPICLF_USER.h), which is all the neighbour search
 ! reads. Projection does not use ghosts (it goes through the overlap
 ! grid).
 #ifndef PPICLF_LRP_GP

@@ -560,8 +560,8 @@ ghost now carries `y` and those 6 slots: 16 doubles, 128 bytes instead of 552, i
 and in the ghost transfer.
 
 - The slots are listed once, in `PPICLF_USER.h`:
-  `PPICLF_LRP_GHOST` (how many) and `PPICLF_GHOST_RPROP` (which). Module `ppiclf_data`
-  turns the list into the array `ppiclf_gp_rprop`.
+  `PPICLF_LRP_GHOST` (how many) and `PPICLF_GHOST_SLOTS_INDEX` (which). Module `ppiclf_data`
+  turns the list into the array `ppiclf_ghost_slots`.
 - `ppiclf_comm_CreateGhost` packs those slots after `y`.
 - The neighbour search unpacks a ghost's slots into a full-length local `rpropj` before
   calling the user routine, so the routine's interface is unchanged. Slots a ghost does
@@ -569,7 +569,7 @@ and in the ghost transfer.
 - `ppiclf_cp_map`, the real particles' copy, keeps all of `rprop`: particle `i`'s own
   values (`rpropi`) and the wall contacts read more than these 6 slots.
 - **If the neighbour routine starts reading another slot from `rpropj`, add it to
-  `PPICLF_GHOST_RPROP`.** Otherwise a ghost passes zero for it, and only pairs across a
+  `PPICLF_GHOST_SLOTS_INDEX`.** Otherwise a ghost passes zero for it, and only pairs across a
   rank boundary or a periodic face are wrong.
 
 Checked: all 35 suite cases, plus `AMFORCE 2` versions of the ghost-collision (1, 2 and 4

@@ -87,7 +87,11 @@
 ! of rpropj are zero for a ghost. Add a slot here if that routine
 ! starts reading it from rpropj.
 #define PPICLF_LRP_GHOST 6
-#define PPICLF_GHOST_RPROP PPICLF_R_JDP, PPICLF_R_JRHOP, PPICLF_R_JVOLP, PPICLF_R_WDOTX, PPICLF_R_WDOTY, PPICLF_R_WDOTZ
+! Module ppiclf_data turns the list below into ppiclf_ghost_slots.
+! The macro keeps a different name on purpose: cpp would replace an
+! upper-case PPICLF_GHOST_SLOTS written for the array (Fortran ignores
+! case) with the list.
+#define PPICLF_GHOST_SLOTS_INDEX PPICLF_R_JDP, PPICLF_R_JRHOP, PPICLF_R_JVOLP, PPICLF_R_WDOTX, PPICLF_R_WDOTY, PPICLF_R_WDOTZ
 
 ! map: PPICLF_LRP_PRO
 !--- Particle Volume Fraction Feedback
