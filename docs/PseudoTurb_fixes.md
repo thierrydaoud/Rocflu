@@ -720,7 +720,9 @@ Checked: the suite and 12 variants (`AMFORCE 1` and 2, `VISCOUSUNSTEADY` with `A
 `PGFORCE`, `COLLISIONS 3` and 4, `QSFLUCT` and `PSEUDOTURB` with `OUTMODEL 1`), 44 runs with
 particles. Against 074d58d the flow files are byte-identical and every particle field that is
 still written is bit-identical; the fields no longer written are exactly the ones the table
-leaves out for each case. The goldens were regenerated only to drop those fields. Not run:
+leaves out for each case. The 32 goldens with particles were regenerated: all 7,641 values
+they share with the old ones are unchanged; ∇p is gone where no model uses it; and spin
+(zero) was added where a golden predated spin in the harness's field list. Not run:
 the ∇·τ branch (a Navier–Stokes shock tube stops in Rocflu's start-up, with or without this
 change).
 
