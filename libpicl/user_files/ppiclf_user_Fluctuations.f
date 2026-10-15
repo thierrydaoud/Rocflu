@@ -64,13 +64,6 @@
       v2pmean = v2pmean / denum
       w2pmean = w2pmean / denum
 
-      if (ppiclf_debug==2) then
-         if (ppiclf_nid==0 .and. iStage==1) then
-            write(6,"(2x,E16.8,i5,16(1x,F13.8))") ppiclf_time,
-     >                denum,upmean,vpmean,wpmean
-         endif
-      endif
-
       ! Lattenzi is valid only for incompressible flows,
       !   so here we use the compressible correction of Osnes
       !   Equations (9-12) of Osnes paper, with eqn (9) corrected
@@ -135,28 +128,6 @@
      >           (1.0-aSDE*fac)*ppiclf_rprop(PPICLF_R_FLUCTFZ,i)
      >           + bSDE*dW3
 
-
-      if (ppiclf_debug==2 .and. (iStage==1 .and. ppiclf_nid==0)) then
-         if (ppiclf_time.gt.2.d-8) then
-         if (i<=10) then
-            write(7350+(i-1)*1,*) i,ppiclf_time,             ! 0-1
-     >         rpi,rmu,rkappa,rmass,vmag,rhof,dp,rep,rphip,  ! 2-10
-     >         rphif,asndf,rmachp,rhop,rnu,fac, ! 11-18
-     >         vx,vy,vz,ppiclf_dt,                           ! 19-22
-     >         ppiclf_npart,ppiclf_n_bins(1:3),              ! 23-26
-     >         ppiclf_n_bins(1)*ppiclf_n_bins(2)*ppiclf_n_bins(3), ! 27
-     >         ppiclf_binb(1:6),                             ! 28-33
-     >         upmean,vpmean,wpmean,phipmean,                ! 34-37
-     >         ppiclf_y(PPICLF_JVX:PPICLF_JVZ,i),            ! 38-40
-     >         upflct,vpflct,wpflct,icpmean,                 ! 41-44
-     >         fq,Fs,bq,theta,chi,tF_inv,                    ! 45-50
-     >         aSDE,bSDE,sigF,                               ! 51-53
-     >         fqs_fluct(1:3),                               ! 54-56
-     >         Z1,Z2,Z3,dW1,dW2,dW3,                         ! 57-62
-     >         ppiclf_np
-         endif
-         endif
-      endif
 
 
       return
@@ -240,15 +211,6 @@
       v2pmean = v2pmean / denum
       w2pmean = w2pmean / denum
 
-      if (ppiclf_debug==2) then
-         if (ppiclf_nid==0 .and. iStage==1) then
-            write(6,*) 'FLUC1 ',
-     >          ppiclf_time,denum,upmean,vpmean,wpmean,
-     >          abs(upmean),abs(vpmean),abs(wpmean),
-     >          u2pmean,v2pmean,w2pmean
-         endif
-      endif
-
       ! Equations (9-12) of Osnes paper, with eqn (9) corrected
       ! Note that sigD has units of force; N = Pa-m^2
       fq = 6.52*rphip - 22.56*(rphip**2) + 49.90*(rphip**3)
@@ -316,15 +278,6 @@
       f_CF = 0.39356905*sigmoid_cf + 0.43758848
       sigT  = f_CF*sigD
       bSDE_CL = sigT*sqrt(2.0*tF_inv)
-
-      if (ppiclf_debug==2) then
-      if (i<=4) then
-         if (ppiclf_nid==0 .and. iStage==1) then
-            write(6,*) 'FLUC1 ',i,
-     >        CD_prime,CD_frac,sigD,theta,bSDE_CD,bSDE_CL
-         endif
-      endif
-      endif
 
 
 ! Calculate the three orthogonal unit vectors
@@ -395,33 +348,6 @@
       fqs_fluct(3) = 
      >           (1.0-aSDE*fac)*ppiclf_rprop(PPICLF_R_FLUCTFZ,i)
      >           + bSDE_CD*dW1*avec(3) + bSDE_CL*dW2*dvec(3)
-      endif
-
-      if (ppiclf_debug==2 .and. (iStage==1 .and. ppiclf_nid==0)) then
-         if (ppiclf_time.gt.2.d-8) then
-         if (i<=10) then
-            write(7350+(i-1)*1,*) i,ppiclf_time,             ! 0-1
-     >         rpi,rmu,rkappa,rmass,vmag,rhof,dp,rep,rphip,  ! 2-10
-     >         rphif,asndf,rmachp,rhop,rnu,fac, ! 11-18
-     >         vx,vy,vz,ppiclf_dt,                           ! 19-22
-     >         ppiclf_npart,ppiclf_n_bins(1:3),              ! 23-26
-     >         ppiclf_n_bins(1)*ppiclf_n_bins(2)*ppiclf_n_bins(3), ! 27
-     >         ppiclf_binb(1:6),                             ! 28-33
-     >         upmean,vpmean,wpmean,phipmean,                ! 34-37
-     >         ppiclf_y(PPICLF_JVX:PPICLF_JVZ,i),            ! 38-40
-     >         upflct,vpflct,wpflct,icpmean,                 ! 41-44
-     >         fq,Fs,bq,theta,chi,tF_inv,                    ! 45-50
-     >         aSDE,bSDE_CD,bSDE_CL,                         ! 51-53
-     >         sigD,sigT,                                    ! 54-55
-     >         CD_prime,CD_frac,sigmoid_cf,f_CF,             ! 56-59
-     >         eunit,avec,bvec,                              ! 60-68
-     >         cvec,dvec,rpi,                                ! 69-75
-     >         fqs_fluct(1:3),                               ! 76-78
-     >         Z1,Z2,dW1,dW2,                                ! 79-82
-     >         ppiclf_np,                                    ! 83
-     >         ppiclf_y(PPICLF_JX:PPICLF_JZ,i)               ! 84-86
-         endif
-         endif
       endif
 
 

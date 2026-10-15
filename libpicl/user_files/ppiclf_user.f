@@ -80,26 +80,18 @@
 ! Needed for heat transfer
       real*8 qq, rmass_therm, temp, qq_du, Nuss
 
-! Needed for reactive particles
-      integer*4 burnrate_model
-      real*8    mdot_me, mdot_ox
       real*8    Pres
 
 ! Needed for angular velocity
       real*8 taux, tauy, tauz, rmass_omega,
      >       taux_hydro, tauy_hydro, tauz_hydro 
-      real*8 tau
       real*8 liftx, lifty, liftz
-      real*8 lift
 
 ! Finite Diff Material derivative Variables
       integer*4 nstage, iStage
       integer*4 icallb
       save      icallb
       data      icallb /0/
-      integer*4 idebug
-      save      idebug
-      data      idebug /0/
 
 ! Print Data to file
       LOGICAL I_EXIST 
@@ -128,25 +120,6 @@
       INTEGER*4 i_Bin(3), n_SBin(3), tot_SBin
 
 
-! Unit Test only Code:
-!-----------------------------------------------------------------------
-!
-#ifdef TEST
-      ! unit_test only tests the SB nearest neighbor search in this
-      ! subroutine.  The full subroutine is called to ensure that
-      ! the array initialization is correct.
-      CALL ppiclf_user_subbinMap(i_Bin, n_SBin, tot_SBin 
-     >                           ,SBin_start ,SBin_list)
-      DO i = 1,ppiclf_npart
-        CALL ppiclf_solve_NearestNeighborSB(
-     >         i,tot_SBin,SBin_start,SBin_list,n_SBin,i_Bin)
-      END DO
-      RETURN
-#endif
-
-! 
-!-----------------------------------------------------------------------
-!
 !
 ! Code:
 !
@@ -156,9 +129,6 @@
       iStage = mod(icallb,nstage)
       if (iStage .eq. 0) iStage = 3  
 
-      ! Count every iStage=1 for debug output
-      if (iStage .eq. 1) idebug = idebug + 1
-
       ! Print dt and time every time step
       if (ppiclf_nid==0) then
         if (iStage .eq. 1) then
@@ -167,35 +137,12 @@
         endif
       endif
 
-      burnrate_model = 0
-      if (burnrate_flag .gt. 0) then
-         if ( TRIM(ppiclf_matname)=='AL'.or. 
-     >        TRIM(ppiclf_matname)=='Al' ) then
-            burnrate_model = 1
-         elseif ( TRIM(ppiclf_matname)=='Mg' ) then
-            burnrate_model = 2
-         elseif ( TRIM(ppiclf_matname)=='C' ) then
-            burnrate_model = 3
-         else
-            print*,'Error: no burn rate model'
-            stop
-         endif
-      endif
-
       rpi         = acos(-1.0d0) ! 3.1415...
       rcp_part    = ppiclf_rcp_part 
       rpr         = 0.70d0 ! Prandtl Number
       rcp_fluid   = 1004.64d0 ! Fluid Specific Heat at const pressure
 
       fac = ppiclf_rk3dtrk(iStage)*ppiclf_dt
-      if (1==2) then
-         if (ppiclf_nid==0) print*,'dt,fac=',
-     >      iStage,ppiclf_dt,fac,
-     >      stationary, qs_flag, am_flag, pg_flag,
-     >      collisional_flag, heattransfer_flag, feedback_flag,
-     >      qs_fluct_flag, ppiclf_debug, ppiclf_nTimeBH,
-     >      ppiclf_nUnsteadyData
-      endif
 
       OneThird = 1.0d0/3.0d0
 
@@ -232,27 +179,6 @@
      >      .and. ppiclf_npart>0)
      >     call ppiclf_solve_WallSubbins(i_Bin, n_SBin, tot_SBin)
       endif ! Collisions, QS Fluct, Briney AM, or pseudoTurb flags on
-!
-!-----------------------------------------------------------------------
-!
-      ! Set initial max values - must be done npart loop
-      if (ppiclf_debug >= 1) then
-         phimax    = 0.d0
-         fqsx_max  = 0.d0; fqsy_max  = 0.d0; fqsz_max  = 0.d0
-         famx_max  = 0.d0; famy_max  = 0.d0; famz_max  = 0.d0
-         fdpdx_max = 0.d0; fdpdy_max = 0.d0; fdpdz_max = 0.d0
-         fcx_max   = 0.d0; fcy_max   = 0.d0; fcz_max   = 0.d0
-         fvux_max  = 0.d0; fvuy_max  = 0.d0; fvuz_max  = 0.d0
-         qq_max    = 0.d0;
-         fqsx_fluct_max = 0.d0; fqsy_fluct_max = 0.d0
-         fqsz_fluct_max = 0.d0
-         fqsx_total_max = 0.d0; fqsy_total_max = 0.d0
-         fqsz_total_max = 0.d0
-         fqs_mag = 0.0d0; fam_mag = 0.0d0; fdp_mag = 0.0d0
-         fc_mag  = 0.0d0
-         umean_max = 0.d0; vmean_max = 0.d0; wmean_max = 0.d0
-      endif
-
 
 !
 !-----------------------------------------------------------------------
@@ -340,7 +266,6 @@
          liftx = 0.0d0; lifty = 0.0d0; liftz = 0.0d0;
          fvux = 0.0d0; fvuy = 0.0d0; fvuz = 0.0d0;
          qq=0.0d0; qq_du=0.0d0; Nuss = 0.0d0
-         mdot_me = 0.0d0; mdot_ox = 0.0d0;
          upmean = 0.0; vpmean = 0.0; wpmean = 0.0;
          u2pmean = 0.0; v2pmean = 0.0; w2pmean = 0.0;
          fdpvdx = 0.0d0; fdpvdy = 0.0d0; fdpvdz = 0.0d0;
@@ -594,24 +519,17 @@
          endif
 
 !
-! Step 8a: Combustion model for reactive particles
+! Step 8a: Heat transfer model
 !
          rmass_therm = rmass*rcp_part
          qq = 0.0d0
 
-         if (burnrate_flag >= 1) then
-            call ppiclf_user_BR_driver(i,iStage,
-     >         burnrate_model,qq,mdot_me,mdot_ox)
-         endif
-!
-! Step 8b: Heat transfer model
-!
          if (heattransfer_flag >= 1) then
             call ppiclf_user_HT_driver(i,Nuss,qq)
          endif ! heattransfer_flag >= 1
 
 !
-! Step 8c : Diffusive Unsteady Heat Transfer model
+! Step 8b : Diffusive Unsteady Heat Transfer model
 !           Calculated in same subroutine as Viscous Unsteady
          if (HTUnsteady_flag==0) qq_du = 0.0d0
 !
@@ -682,8 +600,6 @@
          ppiclf_ydot(PPICLF_JOX,i) = taux/rmass_omega
          ppiclf_ydot(PPICLF_JOY,i) = tauy/rmass_omega
          ppiclf_ydot(PPICLF_JOZ,i) = tauz/rmass_omega
-         ppiclf_ydot(PPICLF_JMETAL,i)  = mdot_me
-         ppiclf_ydot(PPICLF_JOXIDE,i)  = mdot_ox
 
 !
 ! Update data for viscous unsteady case at every RK3 stage
@@ -834,18 +750,6 @@
             else
                call ppiclf_exittr('Unknown stationary flag$', 0.0d0, 0)
             endif
-         elseif(stationary .lt. 0) then
-            call ppiclf_user_unit_tests(i,iStage,famx,famy,famz)
-            ppiclf_ydot(PPICLF_JX ,i) = ppiclf_y(PPICLF_JVX,i)
-            ppiclf_ydot(PPICLF_JY ,i) = ppiclf_y(PPICLF_JVY,i)
-            ppiclf_ydot(PPICLF_JZ, i) = ppiclf_y(PPICLF_JVZ,i)
-            ppiclf_ydot(PPICLF_JVX,i) = ppiclf_ydot(PPICLF_JVX,i)+famx
-            ppiclf_ydot(PPICLF_JVY,i) = ppiclf_ydot(PPICLF_JVY,i)+famy
-            ppiclf_ydot(PPICLF_JVZ,i) = ppiclf_ydot(PPICLF_JVZ,i)+famz
-            ppiclf_ydot(PPICLF_JT,i)  = 0.0d0
-            ppiclf_ydot(PPICLF_JOX,i) = 0.0d0
-            ppiclf_ydot(PPICLF_JOY,i) = 0.0d0
-            ppiclf_ydot(PPICLF_JOZ,i) = 0.0d0
          endif
 
 
@@ -878,110 +782,6 @@
            ppiclf_rprop5(PPICLF_R_FPGY,i)  = fdpdy
            ppiclf_rprop5(PPICLF_R_FPGZ,i)  = fdpdz
          END IF
-!
-! Step 14: If debug mode is ON, calculate and print the max values.
-!          The user should not have this ON for production runs.
-!
-         if (ppiclf_debug .ge. 1) then
-            phimax = max(phimax,abs(rphip))
-
-            fqsx_max = max(fqsx_max,abs(fqsx))
-            fqsy_max = max(fqsy_max,abs(fqsy))
-            fqsz_max = max(fqsz_max,abs(fqsz))
-            fqs_mag  = max(fqs_mag,
-     >                 sqrt(fqsx*fqsx+fqsy*fqsy+fqsz*fqsz))
-
-            fqsx_fluct_max = max(fqsx_fluct_max, abs(fqs_fluct(1)))
-            fqsy_fluct_max = max(fqsy_fluct_max, abs(fqs_fluct(2)))
-            fqsz_fluct_max = max(fqsz_fluct_max, abs(fqs_fluct(3)))
-
-            fqsx_total_max = max(fqsx_total_max, abs(fqsx))
-            fqsy_total_max = max(fqsy_total_max, abs(fqsy))
-            fqsz_total_max = max(fqsz_total_max, abs(fqsz))
-
-            umean_max = max(umean_max, abs(upmean))
-            vmean_max = max(vmean_max, abs(vpmean))
-            wmean_max = max(wmean_max, abs(wpmean))
-
-            famx_max = max(famx_max,abs(famx))
-            famy_max = max(famy_max,abs(famy))
-            famz_max = max(famz_max,abs(famz))
-            fam_mag  = max(fam_mag,
-     >                 sqrt(famx*famx+famy*famy+famz*famz))
-
-            fdpdx_max = max(fdpdx_max,abs(fdpdx))
-            fdpdy_max = max(fdpdy_max,abs(fdpdy))
-            fdpdz_max = max(fdpdz_max,abs(fdpdz))
-            fdp_mag   = max(fdp_mag,sqrt(fdpdx*fdpdx+fdpdy*fdpdy
-     >                  +fdpdz*fdpdz))
-
-            fcx_max = max(fcx_max, abs(fcx))
-            fcy_max = max(fcy_max, abs(fcy))
-            fcz_max = max(fcz_max, abs(fcz))
-            fc_mag  = max(fc_mag,sqrt(fcx*fcx+fcy*fcy+fcz*fcz))
-
-            fvux_max = max(fvux_max, abs(fvux))
-            fvuy_max = max(fvuy_max, abs(fvuy))
-            fvuz_max = max(fvuz_max, abs(fvuz))
-
-            qq_max = max(qq_max, abs(qq))
- 
-            tau = sqrt(taux*taux + tauy*tauy + tauz*tauz)
-            tau_max = max(tau_max, abs(tau))
-
-            lift = sqrt(liftx**2 + lifty**2 + liftz**2)
-            lift_max = max(lift_max,lift)
-
-            if (ppiclf_debug.eq.2 .and. ppiclf_nid.eq.0) then
-               if (iStage==3) then
-                  if (i==1) then
-                     write(7010,*) i,ppiclf_time,rmass,vmag,rhof,dp,
-     >                rep,rphip,rphif,rmachp,rhop,rmu,rnu,rkappa
-                  endif
-                  if (i==ppiclf_npart) then
-                     write(7011,*) i,ppiclf_time,rmass,vmag,rhof,dp,
-     >                rep,rphip,rphif,rmachp,rhop,rmu,rnu,rkappa
-                  endif
-               endif
-            endif
-
-         endif ! ppiclf_debug .ge. 1
-          
-         ! write out for debug
-         if (ppiclf_debug==3) then
-         if (ppiclf_nid==0 .and. iStage==1) then
-         if (mod(idebug,1)==0) then
-            if (i<=5) then
-               write(7020+i,*) i, ppiclf_time, rhof,
-     >             ppiclf_rprop(PPICLF_R_JSDRX,i),                   
-     >             ppiclf_rprop(PPICLF_R_JSDRY,i), 
-     >             ppiclf_rprop(PPICLF_R_JSDRZ,i),
-     >             ppiclf_ydot(PPICLF_JVX,i),
-     >             ppiclf_ydot(PPICLF_JVY,i),
-     >             ppiclf_ydot(PPICLF_JVZ,i),
-     >             ppiclf_y(PPICLF_JVX,i),
-     >             ppiclf_y(PPICLF_JVY,i),
-     >             ppiclf_y(PPICLF_JVZ,i),
-     >             ppiclf_y(PPICLF_JOX,i),
-     >             ppiclf_y(PPICLF_JOY,i),
-     >             ppiclf_y(PPICLF_JOZ,i)
-
-               write(7040+i,*) i, ppiclf_time, 
-     >              ppiclf_rprop(PPICLF_R_JSDRX:PPICLF_R_JSDRZ,i), ! Du/Dt
-     >              ppiclf_rprop(PPICLF_R_JSDOX:PPICLF_R_JSDOZ,i)  ! DOmega/Dt
-
-               write(7050+i,*) i, ppiclf_time, 
-     >              fqs_mag,fam_mag,fdp_mag,fc_mag,tau_max
-
-               write(7060+i,*) i, ppiclf_time, 
-     >              fcx,fcy,fcz,
-     >              liftx,lifty,liftz,
-     >              taux,tauy,tauz
-            endif
-         endif
-         endif
-         endif
-
 
       enddo ! do i=1,ppiclf_npart
 
@@ -1037,48 +837,10 @@
      >                vz*SDrho + rhof*ppiclf_rprop(PPICLF_R_JSDRZ,i)
      >              + wg*vgradrhog
      >              - rhof*ppiclf_ydot(PPICLF_JVZ,i)
-          
-            ! write out for debug
-            if (ppiclf_debug==2) then
-            if (ppiclf_nid==0 .and. iStage==1) then
-            if (mod(idebug,10)==0) then
-               if (i<=3) then
-                  write(7020+i,*) i, ppiclf_time, rhof,
-     >                ppiclf_rprop(PPICLF_R_JSDRX,i),                   
-     >                ppiclf_rprop(PPICLF_R_JSDRY,i), 
-     >                ppiclf_rprop(PPICLF_R_JSDRZ,i),
-     >                ppiclf_ydot(PPICLF_JVX,i),
-     >                ppiclf_ydot(PPICLF_JVY,i),
-     >                ppiclf_ydot(PPICLF_JVZ,i),
-     >                ppiclf_y(PPICLF_JVX,i),
-     >                ppiclf_y(PPICLF_JVY,i),
-     >                ppiclf_y(PPICLF_JVZ,i)
-
-                  write(7030+i,*) i, ppiclf_time, 
-     >              ppiclf_rprop(PPICLF_R_WDOTX:PPICLF_R_WDOTZ,i)
-
-               endif
-            endif
-            endif
-            endif
 
          enddo
       endif
 
-!
-! ----------------------------------------------------------------------
-!
-
-      ! Use ppiclf ALLREDUCE to compute values across processors
-      ! Note that ALLREDUCE uses MPI_BARRIER, which is cpu expensive
-      ! Print out every 10th iStage=1 counts
-      if (ppiclf_debug   .ge. 1) then
-      if (iStage         .eq. 1) then
-      if (mod(idebug,10) .eq. 0) then
-         call ppiclf_user_debug
-      endif
-      endif
-      endif
 
 !
 ! ----------------------------------------------------------------------

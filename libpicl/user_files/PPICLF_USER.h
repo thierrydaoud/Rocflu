@@ -1,5 +1,5 @@
 #define PPICLF_LPART 80000
-#define PPICLF_LRS 12
+#define PPICLF_LRS 10
 #define PPICLF_LRP 59
 #define PPICLF_LRP2 0
 #define PPICLF_LRP4 0
@@ -30,8 +30,6 @@
 #define PPICLF_JOX 8
 #define PPICLF_JOY 9
 #define PPICLF_JOZ 10
-#define PPICLF_JMETAL 11
-#define PPICLF_JOXIDE 12
 
 ! rprop: PPICLF_LRP
 #define PPICLF_R_JRHOP 1
@@ -67,8 +65,6 @@
 #define PPICLF_R_JXVOR 31
 #define PPICLF_R_JYVOR 32
 #define PPICLF_R_JZVOR 33
-#define PPICLF_R_JIDP 34
-#define PPICLF_R_JBRNT 35
 #define PPICLF_R_JP 36
 #define PPICLF_R_JRHOGX 37
 #define PPICLF_R_JRHOGY 38

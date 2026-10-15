@@ -427,10 +427,6 @@
      >         - ppiclf_nndist))/ppiclf_nndist)
       END DO
       tempSB = iSBin(1) + iSBin(2)*SBn(1) + iSBin(3)*SBn(1)*SBn(2)
-#ifdef TEST
-      PARTICLE_NN(i) = 0 
-      PPICLF_TOTNNDIST(i) = 0.0D0
-#endif
       ! Loop through real particles
       DO iSB = 1,3     !to look at -1,current,+1 x-dir subbins
         DO jSB = 1,3   !to look at -1,current,+1 x-dir subbins
@@ -452,12 +448,6 @@
                 IF (zdistSQ .GT. distSQ) CYCLE
                 dist_total = dist_total+zdistSQ
                 IF (dist_total .GT. distSQ) CYCLE
-#ifdef TEST
-                PARTICLE_NN(i) = PARTICLE_NN(i) + 1
-                PPICLF_TOTNNDIST(i) = PPICLF_TOTNNDIST(i) + dist_total
-                CYCLE !Don't want to call EvalNN. Just testing
-                      ! nneighbor search
-#endif
                 CALL ppiclf_user_EvalNearestNeighbor(i,j
      >                                   ,ppiclf_cp_map(1,i)
      >                                   ,ppiclf_cp_map(1+PPICLF_LRS,i)
@@ -478,12 +468,6 @@
                 dist_total = dist_total+zdistSQ
                 END IF
                 IF (dist_total .GT. distSQ) CYCLE
-#ifdef TEST
-                PARTICLE_NN(i) = PARTICLE_NN(i) + 1
-                PPICLF_TOTNNDIST(i) = PPICLF_TOTNNDIST(i) + dist_total
-                CYCLE !Don't want to call EvalNN. Just testing
-                      ! nneighbor search
-#endif
                 jp = -1*j
                 CALL ppiclf_user_EvalNearestNeighbor(i,jp
      >                                 ,ppiclf_cp_map(1,i)
@@ -1808,11 +1792,9 @@ c----------------------------------------------------------------------
       ! Internal:
       INTEGER*4 i, j, ip, ie, nCellProj, CellID, nl, nii, njj,
      >          nrr, nkey(2), iee
-      REAL*8    CellVol, GaussianConst, dist, w(27), wsum,
-     >          x_norm, y_norm, z_norm, PI
+      REAL*8    CellVol, GaussianConst, dist, w(27), wsum
       LOGICAL   partl 
  
-      PI = 4*ATAN(1.0D0)
       GaussianConst = 2.305D0 ! Distribution over 2 cell widths
       ppiclf_pro_fld_picl = 0.0d0
       DO ip=1,ppiclf_npart
@@ -1833,19 +1815,6 @@ c----------------------------------------------------------------------
           w(i) = ABS(CellVol*EXP(-GaussianConst*dist))
           wsum = wsum + w(i)
         END DO !i
-#ifdef TEST
-        ! These are same feedback equations used in unit testing
-        x_norm = (ppiclf_y(PPICLF_JX,ip) - ppiclf_binb(1))
-     >           / (ppiclf_binb(2) - ppiclf_binb(1))
-        y_norm = (ppiclf_y(PPICLF_JY, ip) - ppiclf_binb(3))
-     >           / (ppiclf_binb(4) - ppiclf_binb(3))
-        z_norm = (ppiclf_y(PPICLF_JZ, ip) - ppiclf_binb(5))
-     >           / (ppiclf_binb(6) - ppiclf_binb(5))
-
-        ppiclf_feedbk(1,ip) = 1
-        ppiclf_feedbk(2,ip) = SIN(2*PI*x_norm) + 
-     >                        SIN(2*PI*y_norm) + SIN(2*PI*z_norm)
-#endif     
         DO j=1,PPICLF_LRP_PRO
           ! Loop through cells to apply feedback     
           DO i = 1,nCellProj

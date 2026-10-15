@@ -239,38 +239,6 @@
       Fam(2) = famy
       Fam(3) = famz
 
-      if (ppiclf_debug==2) then
-      if (ppiclf_nid .eq. 0 .or. ppiclf_np == 1) then
-      if (i<=5 .and. iStage==1) then  
-         open(unit=7051,file='fort.7051',position='append')
-         open(unit=7052,file='fort.7052',position='append')
-         open(unit=7053,file='fort.7053',position='append')
-         open(unit=7054,file='fort.7054',position='append')
-         open(unit=7055,file='fort.7055',position='append')
-         write(7050+i,*) i, ppiclf_nid, ppiclf_np, ppiclf_time, ! 0-3
-     >      ppiclf_rprop(PPICLF_R_JRHSR,i),        ! 4
-     >      ppiclf_rprop(PPICLF_R_JPGCX,i),        ! 5
-     >      ppiclf_rprop(PPICLF_R_JPGCY,i),        ! 6
-     >      ppiclf_rprop(PPICLF_R_JPGCZ,i),        ! 7
-     >      SDrho,                                 ! 8
-     >      rhof, rphip, rmachp, SDrho,            ! 9-12
-     >      ppiclf_rprop(PPICLF_R_WDOTX,i),        ! 13
-     >      ppiclf_rprop(PPICLF_R_WDOTY,i),        ! 14
-     >      ppiclf_rprop(PPICLF_R_WDOTZ,i),        ! 15
-     >      Wdot_neighbor_mean(1:3), nneighbors,   ! 16-19
-     >      famx, famy, famz,                      ! 20-22
-     >      ppiclf_rprop(PPICLF_R_JVOLP,i)*Fam(1), ! 23
-     >      ppiclf_rprop(PPICLF_R_JVOLP,i)*Fam(2), ! 24
-     >      ppiclf_rprop(PPICLF_R_JVOLP,i)*Fam(3)  ! 25
-         flush(7051)
-         flush(7052)
-         flush(7053)
-         flush(7054)
-         flush(7055)
-      end if  
-      end if  
-      end if  
-
       return
       end
 !
@@ -355,32 +323,6 @@
       famx = Fam(1)
       famy = Fam(2)
       famz = Fam(3)
-        
-      if (ppiclf_debug==2) then
-      if (ppiclf_nid .eq. 0 .or. ppiclf_np == 1) then
-      if (i<=5 .and. iStage==1) then
-         open(unit=7061,file='fort.7061',position='append')
-         open(unit=7062,file='fort.7062',position='append')
-         open(unit=7063,file='fort.7063',position='append')
-         open(unit=7064,file='fort.7064',position='append')
-         open(unit=7065,file='fort.7065',position='append')
-         write(7060+i,*) i,iStage, ppiclf_time,     ! 0-2
-     >      rphip, rmachp,                          ! 3-4
-     >      IA, II,                                 ! 5-6
-     >      ppiclf_rprop(PPICLF_R_WDOTX,i),         ! 7
-     >      ppiclf_rprop(PPICLF_R_WDOTY,i),         ! 8
-     >      ppiclf_rprop(PPICLF_R_WDOTZ,i),         ! 9
-     >      Wdot_neighbor_mean(1:3), nneighbors,    ! 10-13
-     >      famx, famy, famz,                       ! 14-16
-     >      Fam(1), Fam(2), Fam(3)                  ! 17-19
-         flush(7061)
-         flush(7062)
-         flush(7063)
-         flush(7064)
-         flush(7065)
-      end if
-      end if
-      end if
         
 
       return

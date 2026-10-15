@@ -85,7 +85,7 @@ SUBROUTINE PICL_ReadPiclSection( global )
   INTEGER :: nVals
 
   INTEGER :: iReg
-  INTEGER, PARAMETER :: NVALS_MAX = 30
+  INTEGER, PARAMETER :: NVALS_MAX = 29
 
   CHARACTER(20) :: keys(NVALS_MAX)
 
@@ -114,7 +114,7 @@ SUBROUTINE PICL_ReadPiclSection( global )
   keys( 9)  = 'QSFLUCT'
   keys(10)  = 'TEMP'
   keys(11)  = 'FILTERWIDTH'
-  keys(12)  = 'PICLDEBUG'
+  keys(12)  = 'DU HEATTRANSFER'
   keys(13)  = 'NEIGHBORWIDTH'
   keys(14)  = 'KSP'
   keys(15)  = 'EREST'
@@ -132,7 +132,6 @@ SUBROUTINE PICL_ReadPiclSection( global )
   keys(27)  = 'SUBBIN'
   keys(28)  = 'REACTIVE'
   keys(29)  = 'PSEUDOTURB'
-  keys(30)  = 'DU HEATTRANSFER'
  
   CALL ReadSection( global,IF_INPUT,nVals,keys(1:nVals),vals(1:nVals), & 
                     defined(1:nVals) ) 
@@ -163,6 +162,13 @@ SUBROUTINE PICL_ReadPiclSection( global )
   
   IF ( defined(7) .EQV. .TRUE. ) THEN 
     global%piclStationaryFlag = NINT(vals(7))
+! Negative values used to select the ppiclF unit-test problems, now removed
+    IF ( global%piclStationaryFlag < 0 .OR. &
+         global%piclStationaryFlag > 1 ) THEN
+      CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
+        'STATIONARY must be 0 or 1 (the negative unit-test cases '// &
+        'were removed)')
+    END IF
   END IF ! defined 
 
   IF ( defined(8) .EQV. .TRUE. ) THEN 
@@ -188,7 +194,7 @@ SUBROUTINE PICL_ReadPiclSection( global )
   END IF
 
   IF (defined(12) .EQV. .TRUE. ) THEN
-    global%piclDebug = vals(12)
+     global%piclHTUnsteadyFlag = NINT(vals(12))
   END IF
 
   IF (defined(13) .EQV. .TRUE. ) THEN
@@ -251,16 +257,16 @@ SUBROUTINE PICL_ReadPiclSection( global )
     global%piclSBNearFlag = vals(27)
   END IF
 
+! The burn-rate model was removed: stop rather than silently run inert
   IF (defined(28) .EQV. .TRUE. ) THEN
-    global%piclBurnRateFlag = vals(28)
+    IF ( NINT(vals(28)) /= 0 ) THEN
+      CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
+        'REACTIVE: the particle burn-rate model was removed; set 0')
+    END IF
   END IF
   
   IF (defined(29) .EQV. .TRUE. ) THEN
     global%piclPseudoTurbFlag = NINT(vals(29))
-  END IF
-
-  IF (defined(30) .EQV. .TRUE. ) THEN
-     global%piclHTUnsteadyFlag = NINT(vals(30))
   END IF
 
 ! finalize

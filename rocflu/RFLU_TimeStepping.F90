@@ -506,10 +506,6 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 
     ! TLJ - Use below to set for a fixed dt
     !global%dtMin = 4.d-8
-#ifdef PICL
-    ! TLJ: Set dt fixed for unit test problems
-    if (global%piclStationaryFlag<0) global%dtMin = 5.d-8
-#endif
 
 ! ==============================================================================
 !   Move or generate new grid

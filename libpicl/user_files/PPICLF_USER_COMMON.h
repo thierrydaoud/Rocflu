@@ -7,20 +7,20 @@
 !
       integer*4 :: stationary, qs_flag, am_flag, pg_flag,
      >   collisional_flag, heattransfer_flag, feedback_flag,
-     >   qs_fluct_flag, ppiclf_debug, rmu_flag,
+     >   qs_fluct_flag, rmu_flag,
      >   rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag,
      >   qs_fluct_filter_adapt_flag,
      >   ViscousUnsteady_flag, ppiclf_nUnsteadyData,ppiclf_nTimeBH,
-     >   sbNearest_flag, burnrate_flag, flow_model, pseudoTurb_flag,
+     >   sbNearest_flag, flow_model, pseudoTurb_flag,
      >   HTUnsteady_flag
       real*8 :: rmu_ref, tref, suth, ksp, erest
       common /RFLU_ppiclF/ stationary, qs_flag, am_flag, pg_flag,
      >   collisional_flag, heattransfer_flag, feedback_flag,
-     >   qs_fluct_flag, ppiclf_debug, rmu_flag, rmu_ref, tref, suth,
+     >   qs_fluct_flag, rmu_flag, rmu_ref, tref, suth,
      >   rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag,
      >   qs_fluct_filter_adapt_flag, ksp, erest,
      >   ViscousUnsteady_flag, ppiclf_nUnsteadyData,ppiclf_nTimeBH,
-     >   sbNearest_flag, burnrate_flag, flow_model, pseudoTurb_flag,
+     >   sbNearest_flag, flow_model, pseudoTurb_flag,
      >   HTUnsteady_flag
 
       real*8 rpi,rmu,rkappa,rmass,vmag,rhof,dp,rep,rphip,
@@ -54,31 +54,6 @@
       common /user_fluct04/ UnifRnd
 
 
-!
-! For ppiclf_user_debug.f
-!
-      real*8 phimax,
-     >         fqsx_max,fqsy_max,fqsz_max,
-     >         famx_max,famy_max,famz_max,
-     >         fdpdx_max,fdpdy_max,fdpdz_max,
-     >         fcx_max,fcy_max,fcz_max,
-     >         umean_max,vmean_max,wmean_max,
-     >         fqs_mag,fam_mag,fdp_mag,fc_mag,
-     >         fqsx_fluct_max,fqsy_fluct_max,fqsz_fluct_max,
-     >         fqsx_total_max,fqsy_total_max,fqsz_total_max,
-     >         fvux_max,fvuy_max,fvuz_max,
-     >         qq_max,tau_max,lift_max
-      common /user_debug/ phimax,
-     >         fqsx_max,fqsy_max,fqsz_max,
-     >         famx_max,famy_max,famz_max,
-     >         fdpdx_max,fdpdy_max,fdpdz_max,
-     >         fcx_max,fcy_max,fcz_max,
-     >         umean_max,vmean_max,wmean_max,
-     >         fqs_mag,fam_mag,fdp_mag,fc_mag,
-     >         fqsx_fluct_max,fqsy_fluct_max,fqsz_fluct_max,
-     >         fqsx_total_max,fqsy_total_max,fqsz_total_max,
-     >         fvux_max,fvuy_max,fvuz_max,
-     >         qq_max,tau_max,lift_max
 
 !
 ! For ppiclf_user_AddedMass.f

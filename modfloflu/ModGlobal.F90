@@ -499,11 +499,11 @@ MODULE ModGlobal
     
     INTEGER :: piclQsFlag, piclAmFlag, piclPgFlag, piclCollisionFlag,&
                piclHeatTransferFlag, piclFeedbackFlag, piclStationaryFlag, &
-               piclQsFluctFlag, piclDebug, piclQsFluctFilterFlag, &
+               piclQsFluctFlag, piclQsFluctFilterFlag, &
                piclQsFluctFilterAdaptFlag, &
                piclViscousUnsteady, &
                piclPeriodicXFlag, piclPeriodicYFlag, piclPeriodicZFlag, &
-               piclAngularPeriodicFlag, piclSBNearFlag, piclBurnRateFlag, &
+               piclAngularPeriodicFlag, piclSBNearFlag, &
                piclMoveParticles, piclPseudoTurbFlag, piclHTUnsteadyFlag
 
 

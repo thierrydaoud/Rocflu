@@ -30,11 +30,11 @@ c Particle options
      >                           ,PPICLF_IENDIAN, PPICLF_IWALLM
       REAL*8 PPICLF_FILTER(3), PPICLF_RK3COEF(3,3),
      >       PPICLF_DT, PPICLF_TIME, PPICLF_NNDIST,
-     >       PPICLF_INTERP_DCHK(3), PPICLF_TOTNNDIST(PPICLF_LPART)
+     >       PPICLF_INTERP_DCHK(3)
       REAL*8 PPICLF_RK3ARK(3), PPICLF_RK3DTRK(3)
       COMMON /PPICLF_OPT_PARAM_R/ PPICLF_FILTER
      >                           ,PPICLF_RK3COEF, PPICLF_DT
      >                           ,PPICLF_TIME, PPICLF_NNDIST
-     >                           ,PPICLF_RK3ARK, PPICLF_TOTNNDIST
+     >                           ,PPICLF_RK3ARK
      >                           ,PPICLF_INTERP_DCHK
      >                           ,PPICLF_RK3DTRK

@@ -326,9 +326,6 @@ c-----------------------------------------------------------------------
       character*(*) stringi
       integer*4 ilen, idata, ierr
       real*8 rdata
-#ifdef TEST
-      RETURN
-#endif!
       ! Message ends at an optional '$' terminator, else at its length
       ilen = INDEX(stringi,'$') - 1
       if (ilen .lt. 0) ilen = LEN_TRIM(stringi)
@@ -355,9 +352,6 @@ c-----------------------------------------------------------------------
       character*(*) stringi
       integer*4 ilen, idata, ierr
 !
-#ifdef TEST
-      RETURN
-#endif
       ! Message ends at an optional '$' terminator, else at its length
       ilen = INDEX(stringi,'$') - 1
       if (ilen .lt. 0) ilen = LEN_TRIM(stringi)
@@ -385,9 +379,6 @@ c-----------------------------------------------------------------------
       integer*4 ilen, ierr
       real*8 rdata
 !
-#ifdef TEST
-      RETURN
-#endif
       ! Message ends at an optional '$' terminator, else at its length
       ilen = INDEX(stringi,'$') - 1
       if (ilen .lt. 0) ilen = LEN_TRIM(stringi)
@@ -414,9 +405,6 @@ c-----------------------------------------------------------------------
       character*(*) stringi
       integer*4 ilen, ierr
 !
-#ifdef TEST
-      RETURN
-#endif
       ! Message ends at an optional '$' terminator, else at its length
       ilen = INDEX(stringi,'$') - 1
       if (ilen .lt. 0) ilen = LEN_TRIM(stringi)

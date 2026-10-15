@@ -100,7 +100,7 @@ SPHT     840.0              ! Specific heat
 
 # PICL
 USED             1 ! 0 = not used; 1 = used
-STATIONARY       0 ! 1 = particles do not move; negative = unit test cases
+STATIONARY       0 ! 1 = particles do not move
 QSFORCE 	       3 ! 0 = none; 1 = Gidaspow; 2 = Parmar; 3 = Osnes
 AMFORCE 	       0 ! 0 = none; 1 = Parmar; 2 = Briney
 PGFORCE 	       0 ! 0 = none; 1 = on
@@ -116,7 +116,6 @@ FILTERWIDTH      0.002 ! meters
 NEIGHBORWIDTH    0.0 ! Actual neighbor width = max(4*dp_max, neighborwidth)
 KSP              10    ! Number of collisional time steps 
 EREST            0.7    ! Coefficient of restitution
-PICLDEBUG        0      ! 0 = turn off ppiclf-specific print statements
 PERIODICX        0      ! 0 = turn off ; 1 = turn on
 PERIODICY        1      ! 0 = turn off ; 1 = turn on
 PERIODICZ        1      ! 0 = turn off ; 1 = turn on
@@ -124,7 +123,6 @@ ANGULARPERIODIC  0      ! 0=turn off ; 1=Z-Axis
 ANGLE            90.0   ! angle between the two wedge faces, degrees
 XANGLE           0.0    ! angle between x-axis and lower wedge face, CCW +ve, degrees
 SUBBIN           0 ! 0 = Zwick subbin; 1 = Avery subbin
-REACTIVE         0 ! 0 = inert; 1 = reactive particle
 #
 
 # POST 

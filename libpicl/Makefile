@@ -2,9 +2,6 @@ FC               = mpif77 # Valid MPI Fortran compiler
 CC               = mpicc  # Valid MPI C compiler
 FFLAGS          += -cpp -w -O3 -std=legacy -g -fmax-errors=10 -fallow-argument-mismatch -fcheck=all -fbacktrace
 CPFLAGS         += -E
-ifeq ($(TEST),1)
-    FFLAGS += -DTEST
-endif
  	           
 INSTALL_LOCATION = .
 
@@ -24,7 +21,6 @@ GSLIB_IFLAGS+=-I$(SOURCE_ROOT_GSLIB)/include
 
 SRC = $(SOURCE_ROOT_USER)/ppiclf_user.f     \
       $(SOURCE_ROOT_USER)/ppiclf_user_subbinMap.f       \
-      $(SOURCE_ROOT_USER)/ppiclf_user_unitproblems.f     \
       $(SOURCE_ROOT_USER)/ppiclf_user_QuasiSteady.f     \
       $(SOURCE_ROOT_USER)/ppiclf_user_Fluctuations.f     \
       $(SOURCE_ROOT_USER)/ppiclf_user_PseudoTurbulence.f     \
@@ -37,8 +33,6 @@ SRC = $(SOURCE_ROOT_USER)/ppiclf_user.f     \
       $(SOURCE_ROOT_USER)/ppiclf_user_ViscousUnsteady.f     \
       $(SOURCE_ROOT_USER)/ppiclf_user_EvalNearestNeighbor.f     \
       $(SOURCE_ROOT_USER)/ppiclf_user_InitZero.f     \
-      $(SOURCE_ROOT_USER)/ppiclf_user_debug.f     \
-      $(SOURCE_ROOT_USER)/ppiclf_user_BurnRateModel.f   \
       $(SOURCE_ROOT_PPICLF)/ppiclf_comm.f     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_op.f       \
       $(SOURCE_ROOT_PPICLF)/ppiclf_io.f       \
@@ -47,7 +41,6 @@ SRC = $(SOURCE_ROOT_USER)/ppiclf_user.f     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_mxm.f      
 OBJ = $(SOURCE_ROOT_USER)/ppiclf_user.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_subbinMap.o       \
-      $(SOURCE_ROOT_USER)/ppiclf_user_unitproblems.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_QuasiSteady.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_Fluctuations.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_PseudoTurbulence.o     \
@@ -60,8 +53,6 @@ OBJ = $(SOURCE_ROOT_USER)/ppiclf_user.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_ViscousUnsteady.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_EvalNearestNeighbor.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_InitZero.o     \
-      $(SOURCE_ROOT_USER)/ppiclf_user_debug.o     \
-      $(SOURCE_ROOT_USER)/ppiclf_user_BurnRateModel.o   \
       $(SOURCE_ROOT_PPICLF)/ppiclf_comm.o     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_op.o       \
       $(SOURCE_ROOT_PPICLF)/ppiclf_io.o       \
@@ -130,10 +121,4 @@ clean:
 	 rm -r $(SOURCE_ROOT_GSLIB)/lib                         
 	 rm -r $(SOURCE_ROOT_GSLIB)/include                     
 	 rm -r $(SOURCE_ROOT_GSLIB)/*.tar.gz                    
-	 rm -r $(INSTALL_LOCATION)/short_tests/*.pyc            
-	 rm -r $(INSTALL_LOCATION)/short_tests/lib/*.pyc        
-	 rm -r $(INSTALL_LOCATION)/short_tests/test1/test1.log*
-	 rm -r $(INSTALL_LOCATION)/short_tests/test1/*.vtu
-	 cd $(INSTALL_LOCATION)/short_tests/test1/; \
-	make clean
 

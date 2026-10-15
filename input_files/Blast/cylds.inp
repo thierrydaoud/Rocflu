@@ -95,7 +95,7 @@ SPHT     1                  ! Specific heat (not used with ppiclf)
 
 # PICL
 USED             1      ! 0 = not used; 1 = used
-STATIONARY       0      ! 1 = particles do not move; negative = unit test cases
+STATIONARY       0      ! 1 = particles do not move
 QSFORCE          3      ! 0 = none; 1 = Gidaspow; 2 = Parmar; 3 = Osnes
 AMFORCE          2      ! 0 = none; 1 = Parmar; 2 = Briney
 PGFORCE          1      ! 0 = none; 1 = on
@@ -111,7 +111,6 @@ FILTERWIDTH      0.0005 ! meters; roughly 1.5 times cell size
 NEIGHBORWIDTH    0.000  ! Actual neighbor width = max(4*dp_max, neighborwidth)
 KSP              100.0  ! collisional spring constant; [kg/s^2]
 EREST            0.7    ! Coefficient of restitution
-PICLDEBUG        0      ! 0 = turn off ppiclf-specific print statements
 PERIODICX        0      ! 0 = turn off ; 1 = turn on
 PERIODICY        0      ! 0 = turn off ; 1 = turn on
 PERIODICZ        1      ! 0 = turn off ; 1 = turn on

@@ -222,11 +222,6 @@
 
       BinCheck = ppiclf_iglmax(BinCheck,1)
 
-#ifdef TEST
-      ! So that CreateBin can be called repeatedly
-      ! for different number of processors 
-      BinCheck = 1
-#endif
 
       IF(BinCheck .EQ. 0) THEN
         DO i = 1,3

@@ -138,7 +138,6 @@ INTEGER :: errorFlag,icg
    INTEGER, DIMENSION(:), ALLOCATABLE :: triCounts, triDispls, partWallPatch
    REAL(RFREAL), DIMENSION(:,:), ALLOCATABLE :: triLoc, triAll
    REAL(RFREAL) :: xv(3,4)
-   REAL(RFREAL) :: rmass
    ! points.dat line and optional initial velocity
    CHARACTER(512) :: pointsLine
    REAL(RFREAL) :: velp(3)
@@ -148,20 +147,20 @@ INTEGER :: errorFlag,icg
 
    INTEGER :: stationary, qs_flag, am_flag, pg_flag, &
         collisional_flag, heattransfer_flag, feedback_flag, &
-        qs_fluct_flag, ppiclf_debug, rmu_flag, &
+        qs_fluct_flag, rmu_flag, &
         rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag, &
         qs_fluct_filter_adapt_flag, &
         ViscousUnsteady_flag, ppiclf_nUnsteadyData,ppiclf_nTimeBH, &
-        sbNearest_flag, burnrate_flag, flow_model, pseudoTurb_flag, &
+        sbNearest_flag, flow_model, pseudoTurb_flag, &
         HTUnsteady_flag
    REAL(RFREAL) :: rmu_ref, tref, suth, ksp, erest
    COMMON /RFLU_ppiclF/ stationary, qs_flag, am_flag, pg_flag, &
         collisional_flag, heattransfer_flag, feedback_flag, &
-        qs_fluct_flag, ppiclf_debug, rmu_flag, rmu_ref, tref, suth, &
+        qs_fluct_flag, rmu_flag, rmu_ref, tref, suth, &
         rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag, &
         qs_fluct_filter_adapt_flag, ksp, erest, &
         ViscousUnsteady_flag, ppiclf_nUnsteadyData,ppiclf_nTimeBH, &
-        sbNearest_flag, burnrate_flag, flow_model, pseudoTurb_flag, &
+        sbNearest_flag, flow_model, pseudoTurb_flag, &
         HTUnsteady_flag
    REAL(RFREAL) :: ppiclf_rcp_part
    CHARACTER(12) :: ppiclf_matname
@@ -220,9 +219,7 @@ heattransfer_flag = global%piclHeatTransferFlag
 HTUnsteady_flag = global%piclHTUnsteadyFlag
 feedback_flag = global%piclFeedbackFlag
 qs_fluct_flag = global%piclQsFluctFlag
-ppiclf_debug = global%piclDebug
 sbNearest_flag = global%piclSBNearFlag
-burnrate_flag = global%piclBurnRateFlag
 pseudoTurb_flag = global%piclPseudoTurbFlag
 
 rmu_flag = pRegion%mixtInput%viscModel
@@ -431,13 +428,6 @@ IF(global%restartFromScratch) THEN
                                    (0.5_RFREAL*dp)**3 ! particle volume
          ! Super Particle Loading (Real Number of particles = SPL * number of compuational particles)
          rprop(PPICLF_R_JSPL,i) = 1.0_RFREAL
-
-         ! Davin - added for burn rate model 02/22/2025
-         rmass = rprop(PPICLF_R_JVOLP,i)*rhop
-         rprop(PPICLF_R_JIDP,i) = dp           ! Initial diameter
-         rprop(PPICLF_R_JBRNT,i) = 0.0_RFREAL  ! Initial burntime
-         y(PPICLF_JMETAL,i) = rmass            ! Initial AL mass
-         y(PPICLF_JOXIDE,i) = 0.0_RFREAL       ! Initial OX mass
 
          i = i + 1
       END IF
@@ -923,11 +913,9 @@ IF ( global%myProcid == MASTERPROC) then
    print*, 'Average Heat Transfer Flag  = ',global%piclHeatTransferFlag
    print*, 'Unsteady Heat Transfer Flag = ',global%piclHTUnsteadyFlag
    print*, 'Feedback Flag               = ',global%piclFeedbackFlag
-   print*, 'ppiclF DEBUG Flag           = ',global%piclDebug
    print*, 'ppiclf_nUnsteadyData        = ',ppiclf_nUnsteadyData
    print*, 'ppiclf_VU                   = ',PPICLF_VU
    print*, 'SubBin Nearest Flag         = ',global%piclSBNearFlag
-   print*, 'Burn Rate Flag              = ',global%piclBurnRateFlag
 
    IF (global%piclViscousUnsteady >=1) THEN
       print*,'  Using Viscous unsteady history term'
