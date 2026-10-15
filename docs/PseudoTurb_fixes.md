@@ -233,6 +233,18 @@ ranks; the current code passes it. The subbin neighbour search was compared with
 force search over all real and ghost particles (scratch build) and found every pair on
 1, 2, 4 and 8 ranks.
 
+The animation shows ghosts at work in a periodic 8 mm box on 4 ranks (collisions only,
+100 µm particles at 10 m/s each). Three pairs start on opposite edges of the box and
+collide through a periodic boundary: head-on across the x faces (both particles on one
+rank), obliquely across the y faces (the partner is on another rank, since the bins are
+split in y), and along the diagonal through the periodic corner (x, y and z faces at
+once). In the close-ups, each real particle (solid) meets the ghost of its partner
+(dashed): the partner's copy shifted by one box length. Both particles of a pair rebound
+with e ≈ 0.71 (the oblique pair 0.75, leaving with 66,600 rad/s of spin), and each pair's
+momentum is unchanged.
+
+![Collisions through periodic boundaries](figures/anim_periodic_ghosts.gif)
+
 Two robustness fixes came with this:
 - Sending or receiving more ghosts than `PPICLF_LPART_GP` wrote past the end of the ghost
   arrays. The run now stops with a message. Ghosts no longer carry the projection values,
@@ -419,7 +431,8 @@ The collision figures use the same folder: `animate_collisions.py` animates a ru
 (`WALLS=vtk` or `WALLS=patch`, `SHOTS=` a subset) with any built tree, and
 `animate_walls.py` and `wall_summary.py` draw the animation and the summary figure from
 the old (3afd23a) and new (2ff0cd8) probe runs. `shock_interp.py` (planar shock),
-`static_interp.py` (tracers across the cells at one instant) and `sheet.py` (particle
+`static_interp.py` (tracers across the cells at one instant), `periodic_ghosts.py`
+(collisions through periodic boundaries) and `sheet.py` (particle
 sheet, `run`, `runpoly`, `plot2`, `animate`; its runs went to Slurm on hpg-dev, 8 ranks
 each) run and plot the interpolation comparisons in shock-driven flow, with aa3c0b6 as
 the old interpolation.
