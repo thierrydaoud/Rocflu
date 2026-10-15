@@ -106,6 +106,127 @@
       END
 !
 !-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_solve_InitLayout(nstate, nprop)
+      use ppiclf_data
+!
+! Called from rocpicl/PICL_TEMP_InitSolver.F90 once, after the PICL
+! flags are set (/RFLU_ppiclF/) and before any particle is created.
+! ppiclf_user_Layout sets the field sizes (module ppiclf_data) and
+! lists the interpolated and ghost slots; this checks them and returns
+! the sizes of y (nstate) and rprop (nprop), which the caller needs to
+! hand particles to ppiclf_solve_InitParticle.
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+! Output:
+!
+      INTEGER*4 nstate, nprop
+!
+! Internal:
+!
+      INTEGER*4 k
+!
+      IF(ppiclf_lrs .GT. 0)
+     >   CALL ppiclf_exittr('InitLayout called twice$',0.0d0,0)
+
+      CALL ppiclf_user_Layout
+
+      IF(ppiclf_lrs .LT. PPICLF_JVZ)
+     >   CALL ppiclf_exittr('y must hold position and velocity$'
+     >                     ,0.0d0,ppiclf_lrs)
+      IF(ppiclf_lrp .LE. 0)
+     >   CALL ppiclf_exittr('rprop has no slots$',0.0d0,ppiclf_lrp)
+      IF(ppiclf_lrp_pro .LT. 0)
+     >   CALL ppiclf_exittr('Invalid number of projected fields$'
+     >                     ,0.0d0,ppiclf_lrp_pro)
+      ! a layout without interpolated or ghost slots still gets the
+      ! (empty) lists
+      IF(.NOT. ALLOCATED(ppiclf_int_slots))
+     >   ALLOCATE(ppiclf_int_slots(ppiclf_lrp))
+      IF(.NOT. ALLOCATED(ppiclf_ghost_slots))
+     >   ALLOCATE(ppiclf_ghost_slots(ppiclf_lrp))
+      ALLOCATE(ppiclf_int_given(max(ppiclf_lrp_int,1)))
+      ppiclf_int_given  = .FALSE.
+      ppiclf_int_ngiven = 0
+      ppiclf_lrp_gp = ppiclf_lrs + ppiclf_lrp_ghost
+
+      nstate = ppiclf_lrs
+      nprop  = ppiclf_lrp
+
+      IF(ppiclf_nid .EQ. 0) THEN
+        WRITE(6,'(A)') ' ppiclF field sizes (ppiclf_user_Layout):'
+        WRITE(6,'(A,I4)') '   y     (state)        : ', ppiclf_lrs
+        WRITE(6,'(A,I4)') '   rprop (properties)   : ', ppiclf_lrp
+        WRITE(6,'(A,I4)') '   interpolated fields  : ', ppiclf_lrp_int
+        WRITE(6,'(A,I4)') '   projected fields     : ', ppiclf_lrp_pro
+        WRITE(6,'(A,I4)') '   rprop slots of ghosts: ',
+     >                    ppiclf_lrp_ghost
+        WRITE(6,'(A,64I3)') '   interpolated slots   :',
+     >                    (ppiclf_int_slots(k), k=1,ppiclf_lrp_int)
+        WRITE(6,'(A,64I3)') '   ghost slots          :',
+     >                    (ppiclf_ghost_slots(k), k=1,ppiclf_lrp_ghost)
+      END IF
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_solve_AddInterpSlot(jp)
+      use ppiclf_data
+!
+! Called from ppiclf_user_Layout, after ppiclf_lrp is set: rprop slot
+! jp is interpolated from the gas every stage. The fluid solver hands
+! the field over with ppiclf_solve_InterpFieldUser(jp, field).
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+      INTEGER*4 jp, k
+!
+      IF(jp .LE. 0 .OR. jp .GT. ppiclf_lrp)
+     >   CALL ppiclf_exittr('Interpolated slot outside rprop$',0.0d0,jp)
+      IF(.NOT. ALLOCATED(ppiclf_int_slots))
+     >   ALLOCATE(ppiclf_int_slots(ppiclf_lrp))
+      DO k=1,ppiclf_lrp_int
+        IF(ppiclf_int_slots(k) .EQ. jp)
+     >    CALL ppiclf_exittr('Interpolated slot listed twice$',0.0d0,jp)
+      END DO
+      ppiclf_lrp_int = ppiclf_lrp_int + 1
+      ppiclf_int_slots(ppiclf_lrp_int) = jp
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_solve_AddGhostSlot(jp)
+      use ppiclf_data
+!
+! Called from ppiclf_user_Layout, after ppiclf_lrp is set: rprop slot
+! jp is sent with ghost particles, because the neighbour routine
+! (ppiclf_user_EvalNearestNeighbor) reads it from the neighbour
+! (rpropj). A ghost's other rprop slots are zero in that routine.
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+      INTEGER*4 jp, k
+!
+      IF(jp .LE. 0 .OR. jp .GT. ppiclf_lrp)
+     >   CALL ppiclf_exittr('Ghost slot outside rprop$',0.0d0,jp)
+      IF(.NOT. ALLOCATED(ppiclf_ghost_slots))
+     >   ALLOCATE(ppiclf_ghost_slots(ppiclf_lrp))
+      DO k=1,ppiclf_lrp_ghost
+        IF(ppiclf_ghost_slots(k) .EQ. jp)
+     >    CALL ppiclf_exittr('Ghost slot listed twice$',0.0d0,jp)
+      END DO
+      ppiclf_lrp_ghost = ppiclf_lrp_ghost + 1
+      ppiclf_ghost_slots(ppiclf_lrp_ghost) = jp
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
 #ifdef PPICLC
       SUBROUTINE ppiclf_solve_InitParticle(imethod,ndim,iendian,npart,y,
      >                                     rprop,filt2,filt3)
@@ -211,8 +332,8 @@
       ppiclf_lproj        = .FALSE.
       ppiclf_binchanged   = .TRUE.
       ppiclf_printbinvtu  = .TRUE.
-      IF(PPICLF_INTERP .EQ. 1)  ppiclf_lintp = .TRUE.
-      IF(PPICLF_PROJECT .EQ. 1) ppiclf_lproj = .TRUE.
+      IF(ppiclf_lrp_int .GT. 0) ppiclf_lintp = .TRUE.
+      IF(ppiclf_lrp_pro .GT. 0) ppiclf_lproj = .TRUE.
 
       ppiclf_xdrange(1,1) = -1E20
       ppiclf_xdrange(2,1) =  1E20
@@ -254,7 +375,8 @@
       ppiclf_nwall    = 0
       ppiclf_iwallm   = 0
 
-      PPICLF_INT_ICNT = 0
+      ppiclf_int_ngiven = 0
+      IF(ALLOCATED(ppiclf_int_given)) ppiclf_int_given = .FALSE.
 
       RETURN
       END
@@ -345,9 +467,9 @@
 
       CALL ppiclf_copy(ppiclf_y(1,ppiclf_npart+1),
      >                 y,
-     >                 npart*PPICLF_LRS)
+     >                 npart*ppiclf_lrs)
       CALL ppiclf_copy(ppiclf_rprop(1,ppiclf_npart+1),
-     >                 rprop, npart*PPICLF_LRP)
+     >                 rprop, npart*ppiclf_lrp)
 
       ppiclf_npart = ppiclf_npart + npart
 
@@ -406,7 +528,7 @@
      >       dist_total
       ! a ghost's rprop, unpacked to full length (slots a ghost does
       ! not carry stay zero)
-      REAL*8 rpropj(PPICLF_LRP)
+      REAL*8 rpropj(ppiclf_lrp)
       INTEGER*4 k, j, jp, l, iSB, jSB, kSB, loopSB, tempSB, iSBin(3)
 ! 
       distSQ = ppiclf_nndist**2
@@ -445,9 +567,9 @@
                 IF (dist_total .GT. distSQ) CYCLE
                 CALL ppiclf_user_EvalNearestNeighbor(i,j
      >                                   ,ppiclf_cp_map(1,i)
-     >                                   ,ppiclf_cp_map(1+PPICLF_LRS,i)
+     >                                   ,ppiclf_cp_map(1+ppiclf_lrs,i)
      >                                   ,ppiclf_cp_map(1,j)
-     >                                   ,ppiclf_cp_map(1+PPICLF_LRS,j))
+     >                                   ,ppiclf_cp_map(1+ppiclf_lrs,j))
               ELSE IF (j .LT. 0) THEN ! Ghost Particle
                 ! Negative was just use for ghost particle indicator
                 ! in subbin mapping array. Need to flip sign
@@ -464,13 +586,13 @@
                 END IF
                 IF (dist_total .GT. distSQ) CYCLE
                 jp = -1*j
-                DO l = 1,PPICLF_LRP_GHOST
+                DO l = 1,ppiclf_lrp_ghost
                   rpropj(ppiclf_ghost_slots(l)) =
-     >              ppiclf_rprop_gp(PPICLF_LRS+l,j)
+     >              ppiclf_rprop_gp(ppiclf_lrs+l,j)
                 END DO
                 CALL ppiclf_user_EvalNearestNeighbor(i,jp
      >                                 ,ppiclf_cp_map(1,i)
-     >                                 ,ppiclf_cp_map(1+PPICLF_LRS,i)
+     >                                 ,ppiclf_cp_map(1+ppiclf_lrs,i)
      >                                 ,ppiclf_rprop_gp(1,j)
      >                                 ,rpropj)
               END IF
@@ -601,7 +723,7 @@ c----------------------------------------------------------------------
       !   Research Briefs, 1991.
 
       DO i = 1,PPICLF_NPART
-        DO j = 1,PPICLF_LRS
+        DO j = 1,ppiclf_lrs
           ppiclf_y(j,i) =  - ppiclf_rk3coef(1,istage)*ppiclf_y1   (j,i)
      >                     + ppiclf_rk3coef(2,istage)*ppiclf_y    (j,i)
      >                     + ppiclf_rk3coef(3,istage)*ppiclf_ydot (j,i)
@@ -615,7 +737,7 @@ c----------------------------------------------------------------------
 
       !Store Current stage RHS for next stage's use
       DO i= 1,PPICLF_NPART
-        DO j= 1,PPICLF_LRS
+        DO j= 1,ppiclf_lrs
           ppiclf_y1(j,i) =  ppiclf_ydot(j,i)
         END DO
       END DO
@@ -844,6 +966,19 @@ c----------------------------------------------------------------------
 !
       INTEGER*4 j
 !
+      ! Every interpolated field must have been handed over this stage
+      ! (ppiclf_solve_InterpFieldUser), or none: the call from
+      ! ppiclf_solve_InitSolve comes before the fluid solver has given
+      ! any, and then nothing is interpolated
+      IF(ppiclf_int_ngiven .NE. 0 .AND.
+     >   ppiclf_int_ngiven .NE. ppiclf_lrp_int) THEN
+        DO j=1,ppiclf_lrp_int
+          IF(.NOT. ppiclf_int_given(j))
+     >      CALL ppiclf_exittr('Interpolated field not given, slot$'
+     >                        ,0.0d0,ppiclf_int_slots(j))
+        END DO
+      END IF
+
       ! Copies Grid Cell ID for all Rocflu elements that map
       ! to ppiclf domain for GSLIB Transfer.  This copy is from
       ! MapOverlapGrid.
@@ -851,9 +986,11 @@ c----------------------------------------------------------------------
 
       ! Makes array (ppiclf_int_fld_input) of all rprop data
       ! for grid cellss that map to ppiclf domain.
-      DO j=1,PPICLF_INT_ICNT
-         CALL ppiclf_solve_InterpField(j)
-      END DO
+      IF(ppiclf_int_ngiven .GT. 0) THEN
+        DO j=1,ppiclf_lrp_int
+           CALL ppiclf_solve_InterpField(j)
+        END DO
+      END IF
       
       ! Transfers ppiclf_er_mapc & ppiclf_int_fld for all Rocflu Grid
       ! cells that map to ppiclf domain.
@@ -864,7 +1001,8 @@ c----------------------------------------------------------------------
       ! (ppiclf_solve_InterpLS)
       CALL ppiclf_solve_SBParticleToCellMap
 
-      PPICLF_INT_ICNT = 0
+      ppiclf_int_ngiven = 0
+      ppiclf_int_given = .FALSE.
 
 
       RETURN
@@ -873,43 +1011,40 @@ c----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InterpFieldUser(jp,infld)
       use ppiclf_data
 !
-! This is called by rocpicl/PICL_TEMP_Runge.F90
-! There is a call for each quantity that should be interpolated
+! This is called by rocpicl/PICL_TEMP_Runge.F90, once per stage for
+! each interpolated field: the gas field infld (one value per fluid
+! cell) goes to rprop slot jp. jp must be one of the slots listed by
+! ppiclf_user_Layout (ppiclf_int_slots), each given once per stage.
 !
       IMPLICIT NONE
 !
       INCLUDE "PPICLF"
 !
-! Input: 
+! Input:
 !
-
-      INTEGER*4 jp,i !rprop index
+      INTEGER*4 jp !rprop index
       REAL*8 infld(*) !value to set rprop to
 !
 ! Internal:
 !
-      INTEGER*4 n
+      INTEGER*4 n, k, kfld
 !
-      IF(PPICLF_INTERP .EQ. 0)
-     >CALL ppiclf_exittr(
-     >     'No specified interpolated fields, set PPICLF_LRP_INT$',0.0d0
-     >                   ,0)
-
-      PPICLF_INT_ICNT = PPICLF_INT_ICNT + 1
-
-      IF(PPICLF_INT_ICNT .GT. PPICLF_LRP_INT)
-     >   CALL ppiclf_exittr('Interpolating too many fields$'
-     >                     ,0.0d0,PPICLF_INT_ICNT)
-      IF(jp .LE. 0 .OR. jp .GT. PPICLF_LRP)
-     >   CALL ppiclf_exittr('Invalid particle array interp. location$'
+      kfld = 0
+      DO k=1,ppiclf_lrp_int
+        IF(ppiclf_int_slots(k) .EQ. jp) kfld = k
+      END DO
+      IF(kfld .EQ. 0)
+     >   CALL ppiclf_exittr('Slot is not an interpolated field$'
      >                     ,0.0d0,jp)
-
-      ! set up interpolation map
-      PPICLF_INT_MAP(PPICLF_INT_ICNT) = jp
+      IF(ppiclf_int_given(kfld))
+     >   CALL ppiclf_exittr('Interpolated field given twice, slot$'
+     >                     ,0.0d0,jp)
+      ppiclf_int_given(kfld) = .TRUE.
+      ppiclf_int_ngiven = ppiclf_int_ngiven + 1
 
       ! copy to infld internal storage
       n = ppiclf_nFVCells
-      CALL ppiclf_copy(ppiclf_int_fld_input(1,PPICLF_INT_ICNT)
+      CALL ppiclf_copy(ppiclf_int_fld_input(1,kfld)
      >                ,infld(1),n)
 
       RETURN
@@ -930,7 +1065,7 @@ c----------------------------------------------------------------------
      >CALL ppiclf_exittr('Cannot interpolate unless overlap grid$',0.0d0
      >                   ,0)
       IF(.NOT.ppiclf_lintp) 
-     >CALL ppiclf_exittr('To interpolate, set PPICLF_LRP_PRO to ~= 0$'
+     >CALL ppiclf_exittr('No interpolated fields (ppiclf_user_Layout)$'
      >                   ,0.0d0,0)
       ppiclf_nCells_Interp = ppiclf_nCells_FV2PICL_Orig
       DO ie=1,ppiclf_nCells_Interp
@@ -986,7 +1121,7 @@ c----------------------------------------------------------------------
       nl   = 0
       nii  = PPICLF_LRMAX
       njj  = 3
-      nrr  = PPICLF_LRP_INT
+      nrr  = ppiclf_lrp_int
       nkey(1) = 2
       nkey(2) = 1
 
@@ -1485,7 +1620,7 @@ c----------------------------------------------------------------------
 !
 ! Internal:
 !
-      INTEGER*4 i, j, k, l, c, r, nc, ipiv, col(4)
+      INTEGER*4 i, j, k, l, c, r, nc, ipiv, col(4), nfld
       REAL*8    w(n), s(3,n), phi(n), A(4,5), hs(3), wsum, sm(3),
      >          var(3), ak(4), q, val, fmin, fmax, f, tmp, amax
 !
@@ -1590,8 +1725,11 @@ c----------------------------------------------------------------------
         phi(k) = w(k)*tmp
       END DO
 
-      DO i = 1,PPICLF_INT_ICNT
-        j = PPICLF_INT_MAP(i)
+      ! no field given yet (start-up): nothing to interpolate
+      nfld = 0
+      IF(ppiclf_int_ngiven .GT. 0) nfld = ppiclf_lrp_int
+      DO i = 1,nfld
+        j = ppiclf_int_slots(i)
         val  = 0.0D0
         fmin = ppiclf_int_fld(i,id(1))
         fmax = fmin
@@ -1632,21 +1770,21 @@ c----------------------------------------------------------------------
             icount = icount + 1 
             IF(i .NE. icount) THEN
                CALL ppiclf_copy
-     >          (ppiclf_y     (1,icount),     ppiclf_y(1,i), PPICLF_LRS)
+     >          (ppiclf_y     (1,icount),     ppiclf_y(1,i), ppiclf_lrs)
                CALL ppiclf_copy
-     >          (ppiclf_y1    (1,icount),    ppiclf_y1(1,i), PPICLF_LRS)
+     >          (ppiclf_y1    (1,icount),    ppiclf_y1(1,i), ppiclf_lrs)
                CALL ppiclf_copy
-     >          (ppiclf_ydot  (1,icount),  ppiclf_ydot(1,i), PPICLF_LRS)
+     >          (ppiclf_ydot  (1,icount),  ppiclf_ydot(1,i), ppiclf_lrs)
                CALL ppiclf_copy
-     >          (ppiclf_ydotc (1,icount), ppiclf_ydotc(1,i), PPICLF_LRS)
+     >          (ppiclf_ydotc (1,icount), ppiclf_ydotc(1,i), ppiclf_lrs)
                CALL ppiclf_copy
-     >          (ppiclf_rprop (1,icount), ppiclf_rprop(1,i), PPICLF_LRP)
+     >          (ppiclf_rprop (1,icount), ppiclf_rprop(1,i), ppiclf_lrp)
                IF(ppiclf_lrp3 .GT. 1) THEN
                  CALL ppiclf_copy
      >          (ppiclf_rprop3(1,icount),ppiclf_rprop3(1,i),ppiclf_lrp3)
                END IF
                CALL ppiclf_copy(ppiclf_feedbk(1,icount), 
-     >                          ppiclf_feedbk(1,i), PPICLF_LRP_PRO)
+     >                          ppiclf_feedbk(1,i), ppiclf_lrp_pro)
                CALL ppiclf_icopy
      >          (ppiclf_iprop(1,icount) , ppiclf_iprop(1,i), PPICLF_LIP)
             END IF
@@ -1696,7 +1834,7 @@ c----------------------------------------------------------------------
           w(i) = ABS(CellVol*EXP(-GaussianConst*dist))
           wsum = wsum + w(i)
         END DO !i
-        DO j=1,PPICLF_LRP_PRO
+        DO j=1,ppiclf_lrp_pro
           ! Loop through cells to apply feedback     
           DO i = 1,nCellProj
             CellID = ppiclf_Part2Cell_map(ip,i)
@@ -1719,7 +1857,7 @@ c----------------------------------------------------------------------
       nl = 0
       nii = PPICLF_LRMAX
       njj = 2 ! original processor with cell for fluid grid
-      nrr = PPICLF_LRP_PRO
+      nrr = ppiclf_lrp_pro
       nkey(1) = 2
       nkey(2) = 1
       ! Grow the cell arrays to what this rank will receive
@@ -1743,7 +1881,7 @@ c----------------------------------------------------------------------
       ppiclf_pro_fld = 0.0d0
       DO ie=1,ppiclf_nCells_Proj
          iee = ppiclf_cell_map_Proj(1,ie)
-         DO j=1,PPICLF_LRP_PRO
+         DO j=1,ppiclf_lrp_pro
            ! Mapped to the fluid solver domain
            ppiclf_pro_fld(iee,j) = ppiclf_pro_fld(iee,j) +
      >                                    ppiclf_pro_fld_picl(j,ie)

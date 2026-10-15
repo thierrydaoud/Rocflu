@@ -614,8 +614,8 @@
      >                             ppiclf_iprop, j0, nin)
       CALL ppiclf_data_GrowPart(nin)
 
-      rtempLim = PPICLF_LRS*4 + PPICLF_LRP + ppiclf_lrp3
-     >         + PPICLF_LRP_PRO
+      rtempLim = ppiclf_lrs*4 + ppiclf_lrp + ppiclf_lrp3
+     >         + ppiclf_lrp_pro
       IF (ALLOCATED(rtemp)) THEN
         IF (SIZE(rtemp,2) .NE. ppiclf_maxpart .OR.
      >      SIZE(rtemp,1) .NE. rtempLim) DEALLOCATE(rtemp)
@@ -630,23 +630,23 @@
       ! array for communication
       DO i=1,ppiclf_npart
         icount = 1
-        CALL ppiclf_copy(rtemp(icount,i),ppiclf_y(1,i),PPICLF_LRS)
-        icount = icount + PPICLF_LRS
-        CALL ppiclf_copy(rtemp(icount,i),ppiclf_y1(1,i),PPICLF_LRS)
-        icount = icount + PPICLF_LRS
-        CALL ppiclf_copy(rtemp(icount,i),ppiclf_ydot(1,i),PPICLF_LRS)
-        icount = icount + PPICLF_LRS
-        CALL ppiclf_copy(rtemp(icount,i),ppiclf_ydotc(1,i),PPICLF_LRS)
-        icount = icount + PPICLF_LRS
-        CALL ppiclf_copy(rtemp(icount,i),ppiclf_rprop(1,i),PPICLF_LRP)
-        icount = icount + PPICLF_LRP
+        CALL ppiclf_copy(rtemp(icount,i),ppiclf_y(1,i),ppiclf_lrs)
+        icount = icount + ppiclf_lrs
+        CALL ppiclf_copy(rtemp(icount,i),ppiclf_y1(1,i),ppiclf_lrs)
+        icount = icount + ppiclf_lrs
+        CALL ppiclf_copy(rtemp(icount,i),ppiclf_ydot(1,i),ppiclf_lrs)
+        icount = icount + ppiclf_lrs
+        CALL ppiclf_copy(rtemp(icount,i),ppiclf_ydotc(1,i),ppiclf_lrs)
+        icount = icount + ppiclf_lrs
+        CALL ppiclf_copy(rtemp(icount,i),ppiclf_rprop(1,i),ppiclf_lrp)
+        icount = icount + ppiclf_lrp
         IF(ppiclf_lrp3 .GT. 1) THEN
           CALL ppiclf_copy(rtemp(icount,i),
      >                     ppiclf_rprop3(1,i),ppiclf_lrp3)
           icount = icount + ppiclf_lrp3
         END IF
         CALL ppiclf_copy(rtemp(icount,i),
-     >                   ppiclf_feedbk(1,i),PPICLF_LRP_PRO)
+     >                   ppiclf_feedbk(1,i),ppiclf_lrp_pro)
       END DO
 
       CALL pfgslib_crystal_tuple_transfer(ppiclf_cr_hndl
@@ -668,23 +668,23 @@
       ! array from communication
       DO i=1,ppiclf_npart
         icount = 1
-        CALL ppiclf_copy(ppiclf_y(1,i),rtemp(icount,i),PPICLF_LRS)
-        icount = icount + PPICLF_LRS
-        CALL ppiclf_copy(ppiclf_y1(1,i),rtemp(icount,i),PPICLF_LRS)
-        icount = icount + PPICLF_LRS
-        CALL ppiclf_copy(ppiclf_ydot(1,i),rtemp(icount,i),PPICLF_LRS)
-        icount = icount + PPICLF_LRS
-        CALL ppiclf_copy(ppiclf_ydotc(1,i),rtemp(icount,i),PPICLF_LRS)
-        icount = icount + PPICLF_LRS
-        CALL ppiclf_copy(ppiclf_rprop(1,i),rtemp(icount,i),PPICLF_LRP)
-        icount = icount + PPICLF_LRP
+        CALL ppiclf_copy(ppiclf_y(1,i),rtemp(icount,i),ppiclf_lrs)
+        icount = icount + ppiclf_lrs
+        CALL ppiclf_copy(ppiclf_y1(1,i),rtemp(icount,i),ppiclf_lrs)
+        icount = icount + ppiclf_lrs
+        CALL ppiclf_copy(ppiclf_ydot(1,i),rtemp(icount,i),ppiclf_lrs)
+        icount = icount + ppiclf_lrs
+        CALL ppiclf_copy(ppiclf_ydotc(1,i),rtemp(icount,i),ppiclf_lrs)
+        icount = icount + ppiclf_lrs
+        CALL ppiclf_copy(ppiclf_rprop(1,i),rtemp(icount,i),ppiclf_lrp)
+        icount = icount + ppiclf_lrp
         IF(ppiclf_lrp3 .GT. 1) THEN
           CALL ppiclf_copy(ppiclf_rprop3(1,i),rtemp(icount,i),
      >                     ppiclf_lrp3)
           icount = icount + ppiclf_lrp3
         END IF
         CALL ppiclf_copy(ppiclf_feedbk(1,i),rtemp(icount,i),
-     >           PPICLF_LRP_PRO)
+     >           ppiclf_lrp_pro)
       END DO
         
       RETURN
@@ -1021,12 +1021,12 @@
       DO ip=1,ppiclf_npart
         idum = 0
         ! Copy particle solution variables
-        DO j=1,PPICLF_LRS
+        DO j=1,ppiclf_lrs
            idum = idum + 1
            ppiclf_cp_map(idum,ip) = ppiclf_y(j,ip)
         END DO
         ! Copy particle property variables
-        DO j=1,PPICLF_LRP
+        DO j=1,ppiclf_lrp
            idum = idum + 1
            ppiclf_cp_map(idum,ip) = ppiclf_rprop(j,ip)
         END DO
@@ -1147,13 +1147,13 @@
               ppiclf_rprop_gp(2,ppiclf_npart_gp) = GhostPos(2)
               ppiclf_rprop_gp(3,ppiclf_npart_gp) = GhostPos(3)
 
-              DO k=4,PPICLF_LRS
+              DO k=4,ppiclf_lrs
                 ppiclf_rprop_gp(k,ppiclf_npart_gp) = ppiclf_cp_map(k,ip)
               END DO
               ! only the rprop slots the neighbour search reads
-              DO k=1,PPICLF_LRP_GHOST
-                ppiclf_rprop_gp(PPICLF_LRS+k,ppiclf_npart_gp) =
-     >            ppiclf_cp_map(PPICLF_LRS+ppiclf_ghost_slots(k),ip)
+              DO k=1,ppiclf_lrp_ghost
+                ppiclf_rprop_gp(ppiclf_lrs+k,ppiclf_npart_gp) =
+     >            ppiclf_cp_map(ppiclf_lrs+ppiclf_ghost_slots(k),ip)
               END DO
             END DO !iz = 1:3
           END DO !iy = 1:3
@@ -1239,7 +1239,7 @@
      >             ,ppiclf_npart_gp,ppiclf_maxghost ! Setup
      >             ,ppiclf_iprop_gp,PPICLF_LIP_GP   ! Integer Comm
      >             ,partl,0                         ! Logical Comm
-     >             ,ppiclf_rprop_gp,PPICLF_LRP_GP   ! Real Comm
+     >             ,ppiclf_rprop_gp,ppiclf_lrp_gp   ! Real Comm
      >             ,iprop_proc_index)               ! Receiver processor index
 
       ! gslib drops ghosts beyond the capacity and returns the full
@@ -1265,7 +1265,7 @@
 !      real*8 xdlen,ydlen,zdlen,rxdrng(3),rxnew(3), rfac, rxval, ryval,
 !     >       rzval, rxl, ryl, rzl, rxr, ryr, rzr, distchk, dist, gFilt
 !      integer*4 iadd(3),gpsave(27)
-!      real*8 map(PPICLF_LRP_PRO)
+!      real*8 map(ppiclf_lrp_pro)
 !      integer*4  el_face_num(18),el_edge_num(36),el_corner_num(24),
 !     >           nfacegp, nedgegp, ncornergp, iperiodicx, iperiodicy,
 !     >           iperiodicz, jx, jy, jz, ip, idum, iip, jjp, kkp, ii1,
@@ -1345,17 +1345,17 @@
 !c        ppiclf_cp_map(idum,ip) = ppiclf_y(idum,ip)
 !
 !         idum = 0
-!         do j=1,PPICLF_LRS
+!         do j=1,ppiclf_lrs
 !            idum = idum + 1
 !            ppiclf_cp_map(idum,ip) = ppiclf_y(j,ip) ! ppiclf_y(PPICLF_JX/ JY/ JZ/ JVX/ JVY/ JVZ/ JT, ip)
 !         enddo
-!         idum = PPICLF_LRS
-!         do j=1,PPICLF_LRP
+!         idum = ppiclf_lrs
+!         do j=1,ppiclf_lrp
 !            idum = idum + 1
 !            ppiclf_cp_map(idum,ip) = ppiclf_rprop(j,ip) ! ppiclf_rprop(PPICLF_R_JRHOP/ R_JRHOF/ .../ R_WDOTZ, ip)
 !         enddo
-!         idum = PPICLF_LRS+PPICLF_LRP
-!         do j=1,PPICLF_LRP_PRO
+!         idum = ppiclf_lrs+ppiclf_lrp
+!         do j=1,ppiclf_lrp_pro
 !            idum = idum + 1
 !            ppiclf_cp_map(idum,ip) = map(j) ! map(PPICLF_P_JPHIP/ JFX/ .../ JPHIPW) - these are found in ppiclf_user_MapProjPart
 !         enddo
@@ -1538,7 +1538,7 @@
 !            ppiclf_rprop_gp(2,ppiclf_npart_gp) = rxnew(2) ! JY
 !            ppiclf_rprop_gp(3,ppiclf_npart_gp) = rxnew(3) ! JZ
 !            
-!            do k=4,PPICLF_LRP_GP
+!            do k=4,ppiclf_lrp_gp
 !               ppiclf_rprop_gp(k,ppiclf_npart_gp) = ppiclf_cp_map(k,ip)
 !            enddo
 !  111 continue
@@ -1697,7 +1697,7 @@
 !            ppiclf_rprop_gp(2,ppiclf_npart_gp) = rxnew(2) ! JY
 !            ppiclf_rprop_gp(3,ppiclf_npart_gp) = rxnew(3) ! JZ
 !            
-!            do k=4,PPICLF_LRP_GP
+!            do k=4,ppiclf_lrp_gp
 !               ppiclf_rprop_gp(k,ppiclf_npart_gp) = ppiclf_cp_map(k,ip)
 !            enddo
 !  222 continue
@@ -1855,7 +1855,7 @@
 !            ppiclf_rprop_gp(2,ppiclf_npart_gp) = rxnew(2) ! JY
 !            ppiclf_rprop_gp(3,ppiclf_npart_gp) = rxnew(3) ! JZ
 !
-!            do k=4,PPICLF_LRP_GP
+!            do k=4,ppiclf_lrp_gp
 !               ppiclf_rprop_gp(k,ppiclf_npart_gp) = ppiclf_cp_map(k,ip)
 !            enddo
 !  333 continue

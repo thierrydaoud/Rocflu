@@ -29,6 +29,34 @@
       data ppiclf_maxpart, ppiclf_maxghost, ppiclf_maxcell,
      >     ppiclf_maxfv, ppiclf_maxwall /5*0/
 
+! Field sizes: how many entries each particle or cell carries. Set
+! once at start-up by ppiclf_solve_InitLayout (from the user routine
+! ppiclf_user_Layout), before any array below is allocated.
+!   ppiclf_lrs      : y, y1, ydot, ydotc (the integrated state)
+!   ppiclf_lrp      : rprop (properties, gas at the particle, models)
+!   ppiclf_lrp_int  : fields interpolated from the gas to the particles
+!                     (int_fld, int_fld_input); rprop slots
+!                     ppiclf_int_slots(1:ppiclf_lrp_int)
+!   ppiclf_lrp_pro  : fields projected from the particles to the gas
+!                     (feedbk, pro_fld, pro_fld_picl)
+!   ppiclf_lrp_ghost: rprop slots a ghost particle carries,
+!                     ppiclf_ghost_slots(1:ppiclf_lrp_ghost)
+!   ppiclf_lrp_gp   : ghost row length, ppiclf_lrs + ppiclf_lrp_ghost
+      integer*4 ppiclf_lrs, ppiclf_lrp, ppiclf_lrp_int, ppiclf_lrp_pro,
+     >          ppiclf_lrp_ghost, ppiclf_lrp_gp
+      data ppiclf_lrs, ppiclf_lrp, ppiclf_lrp_int, ppiclf_lrp_pro,
+     >     ppiclf_lrp_ghost, ppiclf_lrp_gp /6*0/
+      integer*4, allocatable :: ppiclf_int_slots(:),
+     >                          ppiclf_ghost_slots(:)
+
+! Interpolated fields handed over by the fluid solver this stage
+! (ppiclf_solve_InterpFieldUser): ppiclf_int_given(k) is true once
+! field k (rprop slot ppiclf_int_slots(k)) has arrived; ppiclf_int_ngiven
+! counts them.
+      logical, allocatable :: ppiclf_int_given(:)
+      integer*4 ppiclf_int_ngiven
+      data ppiclf_int_ngiven /0/
+
 ! Real particles
       real*8, allocatable :: ppiclf_y(:,:), ppiclf_y1(:,:),
      >   ppiclf_ydot(:,:), ppiclf_ydotc(:,:), ppiclf_rprop(:,:),
@@ -36,13 +64,11 @@
       integer*4, allocatable :: ppiclf_iprop(:,:)
 
 ! Ghost particles, and the real particles' copy for the neighbour search.
-! cp_map(:,i): y then all of rprop (PPICLF_LRS+PPICLF_LRP).
+! cp_map(:,i): y then all of rprop (ppiclf_lrs+ppiclf_lrp).
 ! rprop_gp(:,j): y then the rprop slots ppiclf_ghost_slots
-! (PPICLF_LRP_GP = PPICLF_LRS+PPICLF_LRP_GHOST).
+! (ppiclf_lrp_gp = ppiclf_lrs+ppiclf_lrp_ghost).
       real*8, allocatable :: ppiclf_rprop_gp(:,:), ppiclf_cp_map(:,:)
       integer*4, allocatable :: ppiclf_iprop_gp(:,:)
-      integer*4, parameter :: ppiclf_ghost_slots(PPICLF_LRP_GHOST) =
-     >   (/ PPICLF_GHOST_SLOTS_INDEX /)
 
 ! Overlap grid. PPICLF_PART2CELL_DIST(ip,i): squared particle-to-cell-
 ! center offset, each direction scaled by that cell's length,
@@ -173,14 +199,16 @@
 !
       integer*4 n, ierr
 !
+      if (ppiclf_lrs .le. 0) call ppiclf_exittr(
+     >   'Call ppiclf_solve_InitLayout before allocating$',0.0d0,0)
       ierr = 0
       if (.not. allocated(ppiclf_y)) then
         n = ppiclf_maxpart
-        allocate(ppiclf_y(PPICLF_LRS,n), ppiclf_y1(PPICLF_LRS,n),
-     >     ppiclf_ydot(PPICLF_LRS,n), ppiclf_ydotc(PPICLF_LRS,n),
-     >     ppiclf_rprop(PPICLF_LRP,n),
-     >     ppiclf_feedbk(PPICLF_LRP_PRO,n), ppiclf_iprop(PPICLF_LIP,n),
-     >     ppiclf_cp_map(PPICLF_LRS+PPICLF_LRP,n),
+        allocate(ppiclf_y(ppiclf_lrs,n), ppiclf_y1(ppiclf_lrs,n),
+     >     ppiclf_ydot(ppiclf_lrs,n), ppiclf_ydotc(ppiclf_lrs,n),
+     >     ppiclf_rprop(ppiclf_lrp,n),
+     >     ppiclf_feedbk(ppiclf_lrp_pro,n), ppiclf_iprop(PPICLF_LIP,n),
+     >     ppiclf_cp_map(ppiclf_lrs+ppiclf_lrp,n),
      >     ppiclf_part2cell_dist(n,27), ppiclf_part2cell_map(n,27),
      >     ppiclf_npart2cell(n), stat=ierr)
         if (ierr .ne. 0) call ppiclf_exittr(
@@ -200,7 +228,7 @@
 
       if (.not. allocated(ppiclf_rprop_gp)) then
         n = ppiclf_maxghost
-        allocate(ppiclf_rprop_gp(PPICLF_LRP_GP,n),
+        allocate(ppiclf_rprop_gp(ppiclf_lrp_gp,n),
      >     ppiclf_iprop_gp(PPICLF_LIP_GP,n), stat=ierr)
         if (ierr .ne. 0) call ppiclf_exittr(
      >     'Cannot allocate the ghost arrays$',0.0d0,n)
@@ -211,8 +239,8 @@
       if (.not. allocated(ppiclf_fluid_grid)) then
         n = ppiclf_maxfv
         allocate(ppiclf_fluid_grid(7,n),
-     >     ppiclf_int_fld_input(n,PPICLF_LRP_INT),
-     >     ppiclf_pro_fld(n,PPICLF_LRP_PRO), stat=ierr)
+     >     ppiclf_int_fld_input(n,ppiclf_lrp_int),
+     >     ppiclf_pro_fld(n,ppiclf_lrp_pro), stat=ierr)
         if (ierr .ne. 0) call ppiclf_exittr(
      >     'Cannot allocate the fluid-cell arrays$',0.0d0,n)
         ppiclf_fluid_grid = 0.0d0
@@ -223,8 +251,8 @@
       if (.not. allocated(ppiclf_picl_grid)) then
         n = ppiclf_maxcell
         allocate(ppiclf_picl_grid(7,n),
-     >     ppiclf_int_fld(PPICLF_LRP_INT,n),
-     >     ppiclf_pro_fld_picl(PPICLF_LRP_PRO,n),
+     >     ppiclf_int_fld(ppiclf_lrp_int,n),
+     >     ppiclf_pro_fld_picl(ppiclf_lrp_pro,n),
      >     ppiclf_cell_map(PPICLF_LRMAX,n),
      >     ppiclf_cell_map_orig(PPICLF_LRMAX,n),
      >     ppiclf_cell_map_interp(PPICLF_LRMAX,n),

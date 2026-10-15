@@ -97,8 +97,8 @@
       npart = max(0, min(npart_min, npt_total - ppiclf_nid*npart_min))
       call ppiclf_data_GrowPart(npart)
       allocate(rout_pos(3*max(npart,1)),
-     >         rout_sln(PPICLF_LRS*max(npart,1)),
-     >         rout_lrp(PPICLF_LRP*max(npart,1)),
+     >         rout_sln(ppiclf_lrs*max(npart,1)),
+     >         rout_lrp(ppiclf_lrp*max(npart,1)),
      >         rout_lip(3*max(npart,1)))
 
       iorank = -1
@@ -110,7 +110,7 @@
       call ppiclf_byte_set_view(idisp_pos,pth)
       call ppiclf_byte_read_mpi(rout_pos,icount_pos,pth,ierr)
 
-      do i=1,PPICLF_LRS
+      do i=1,ppiclf_lrs
          idisp_sln = ivtu_size + isize*(3*npt_total 
      >                         + (i-1)*npt_total
      >                         + (1)*stride_len
@@ -123,12 +123,12 @@
      >                            ,pth,ierr)
       enddo
 
-      do i=1,PPICLF_LRP
+      do i=1,ppiclf_lrp
          idisp_lrp = ivtu_size + isize*(3*npt_total  
-     >                         + PPICLF_LRS*npt_total
+     >                         + ppiclf_lrs*npt_total
      >                         + (i-1)*npt_total
      >                         + (1)*stride_len
-     >                         + 1 + PPICLF_LRS + i)
+     >                         + 1 + ppiclf_lrs + i)
 
          j = 1 + (i-1)*npart
          icount_lrp = npart
@@ -140,11 +140,11 @@
 
       do i=1,3
          idisp_lip = ivtu_size + isize*(3*npt_total  
-     >                         + PPICLF_LRS*npt_total
-     >                         + PPICLF_LRP*npt_total
+     >                         + ppiclf_lrs*npt_total
+     >                         + ppiclf_lrp*npt_total
      >                         + (i-1)*npt_total
      >                         + (1)*stride_len
-     >                         + 1 + PPICLF_LRS + PPICLF_LRP + i)
+     >                         + 1 + ppiclf_lrs + ppiclf_lrp + i)
 
          j = 1 + (i-1)*npart
          icount_lip = npart
@@ -170,13 +170,13 @@
          ppiclf_y(jz,i) = rout_pos(ic_pos)
          endif
       enddo
-      do j=1,PPICLF_LRS
+      do j=1,ppiclf_lrs
       do i=1,npart
          ic_sln = ic_sln + 1
          ppiclf_y(j,i) = rout_sln(ic_sln)
       enddo
       enddo
-      do j=1,PPICLF_LRP
+      do j=1,ppiclf_lrp
       do i=1,npart
          ic_lrp = ic_lrp + 1
          ppiclf_rprop(j,i) = rout_lrp(ic_lrp)
@@ -1079,9 +1079,9 @@ c1511 continue
      >   'AddOutputField: too many output fields$',0.0d0,ppiclf_nout)
 
       if (isource .eq. PPICLF_OUT_Y) then
-         nslot = PPICLF_LRS
+         nslot = ppiclf_lrs
       elseif (isource .eq. PPICLF_OUT_RPROP) then
-         nslot = PPICLF_LRP
+         nslot = ppiclf_lrp
       elseif (isource .eq. PPICLF_OUT_TAG) then
          nslot = PPICLF_LIP
       else

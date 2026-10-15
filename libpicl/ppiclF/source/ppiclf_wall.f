@@ -321,7 +321,7 @@
          IF (isb(l) .LT. 0 .OR. isb(l) .GE. wsb_n(l)) RETURN
       END DO
       sb  = isb(1) + wsb_n(1)*isb(2) + wsb_n(1)*wsb_n(2)*isb(3)
-      rad = 0.5d0*ppiclf_cp_map(PPICLF_LRS+PPICLF_R_JDP,i)
+      rad = 0.5d0*ppiclf_cp_map(ppiclf_lrs+PPICLF_R_JDP,i)
       tol = 1.0d-8*rad
 
       ncon = 0
@@ -443,7 +443,7 @@
       DO n = 1,nkeep
          m = iord(n)
          CALL ppiclf_user_EvalWallContact(i,ppiclf_cp_map(1,i)
-     >        ,ppiclf_cp_map(1+PPICLF_LRS,i),crn(1,m),cdl(m))
+     >        ,ppiclf_cp_map(1+ppiclf_lrs,i),crn(1,m),cdl(m))
       END DO
 
       RETURN

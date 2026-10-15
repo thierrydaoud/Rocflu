@@ -1,7 +1,7 @@
-#define PPICLF_LRS 10
-#define PPICLF_LRP 53
-#define PPICLF_LRP_INT 29
-#define PPICLF_LRP_PRO 31
+! Slot numbers of the per-particle and per-cell field arrays. The array
+! sizes (ppiclf_lrs, ppiclf_lrp, ppiclf_lrp_int, ppiclf_lrp_pro) and
+! the lists of interpolated and ghost slots are set at run time by
+! ppiclf_user_Layout (ppiclf_user_Layout.f).
 
 ! The viscous-unsteady history (PPICLF_VU, PPICLF_LRP3) is sized at run
 ! time from the input (VISCOUSUNSTEADY, VUSTEPS); see ppiclf_unsteady.f
@@ -10,7 +10,7 @@
 ! PPICLF_LPART_GP, PPICLF_LEE, PPICLF_LWALL) are not set here: ppiclF
 ! sizes those arrays at run time and grows them (ppiclf_data.f)
 
-! y, y1, ydot, ydotc: PPICLF_LRS
+! y, y1, ydot, ydotc: ppiclf_lrs
 #define PPICLF_JX 1
 #define PPICLF_JY 2
 #define PPICLF_JZ 3
@@ -22,7 +22,7 @@
 #define PPICLF_JOY 9
 #define PPICLF_JOZ 10
 
-! rprop: PPICLF_LRP, grouped by role
+! rprop: ppiclf_lrp, grouped by role
 !--- Particle properties: set at start-up, used every step
 #define PPICLF_R_JRHOP 1
 #define PPICLF_R_JDP 2
@@ -44,7 +44,8 @@
 #define PPICLF_R_WDOTY 12
 #define PPICLF_R_WDOTZ 13
 !--- Gas at the particle: interpolated from Rocflu every stage
-!    (PPICLF_LRP_INT of them, PICL_TEMP_Runge InterpFieldUser calls)
+!    (the slots ppiclf_user_Layout lists with AddInterpSlot;
+!    PICL_TEMP_Runge hands each over with InterpFieldUser)
 #define PPICLF_R_JRHOF 14
 !    particle volume fraction: the projected particle volume,
 !    interpolated back to the particle
@@ -95,19 +96,7 @@
 #define PPICLF_R_RTerm2Par 52
 #define PPICLF_R_RTerm2Perp 53
 
-! rprop slots sent with ghost particles: the ones the neighbour routine
-! (ppiclf_user_EvalNearestNeighbor) reads from its neighbour (rpropj).
-! A ghost carries y (PPICLF_LRS) and these slots only; the other slots
-! of rpropj are zero for a ghost. Add a slot here if that routine
-! starts reading it from rpropj.
-#define PPICLF_LRP_GHOST 6
-! Module ppiclf_data turns the list below into ppiclf_ghost_slots.
-! The macro keeps a different name on purpose: cpp would replace an
-! upper-case PPICLF_GHOST_SLOTS written for the array (Fortran ignores
-! case) with the list.
-#define PPICLF_GHOST_SLOTS_INDEX PPICLF_R_JDP, PPICLF_R_JRHOP, PPICLF_R_JVOLP, PPICLF_R_WDOTX, PPICLF_R_WDOTY, PPICLF_R_WDOTZ
-
-! map: PPICLF_LRP_PRO
+! Projected fields (feedbk, pro_fld): ppiclf_lrp_pro
 !--- Particle Volume Fraction Feedback
 #define PPICLF_P_JPHIP 1
 !--- x,y,z Forces Feedback

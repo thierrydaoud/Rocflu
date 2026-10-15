@@ -164,6 +164,8 @@ INTEGER :: errorFlag,icg
         sbNearest_flag, flow_model, pseudoTurb_flag, &
         HTUnsteady_flag, out_particle_flag, out_gas_flag, &
         out_gradgas_flag, out_model_flag
+   ! entries per particle in y and rprop (ppiclf_user_Layout)
+   INTEGER :: nStateSlots, nPropSlots
    REAL(RFREAL) :: ppiclf_rcp_part
    CHARACTER(12) :: ppiclf_matname
    COMMON /RFLU_ppiclf_misc01/ ppiclf_rcp_part
@@ -293,6 +295,10 @@ END IF
  ppiclf_nUnsteadyData = 0
  IF (global%piclViscousUnsteady >= 1) ppiclf_nUnsteadyData = global%piclVUSteps
 
+! Field sizes and slot lists of this run (ppiclf_user_Layout, from the
+! flags above)
+CALL ppiclf_solve_InitLayout(nStateSlots, nPropSlots)
+
 ! Needed for fluctuations
 seed = 1
 CALL RANDOM_SEED(put=seed)
@@ -347,8 +353,8 @@ IF(global%restartFromScratch) THEN
    READ(iFile,*) npart ! global number of particles
   
    npart_local = CEILING(REAL(npart)/(REAL(global%nProcs)))
-   ALLOCATE(y(PPICLF_LRS,MAX(npart_local,1)), &
-            rprop(PPICLF_LRP,MAX(npart_local,1)),STAT=errorFlag)
+   ALLOCATE(y(nStateSlots,MAX(npart_local,1)), &
+            rprop(nPropSlots,MAX(npart_local,1)),STAT=errorFlag)
    IF ( errorFlag /= 0 ) THEN
      CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'PPICLF:y,rprop')
    END IF
@@ -706,7 +712,7 @@ END IF
 ! On a restart the particles come from the par file and y, rprop are not
 ! read; ppiclF still takes the arguments
 IF (.NOT. ALLOCATED(y)) THEN
-  ALLOCATE(y(PPICLF_LRS,1),rprop(PPICLF_LRP,1))
+  ALLOCATE(y(nStateSlots,1),rprop(nPropSlots,1))
   y = 0.0_RFREAL
   rprop = 0.0_RFREAL
 END IF

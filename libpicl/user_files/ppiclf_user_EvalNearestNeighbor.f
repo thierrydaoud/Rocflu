@@ -32,10 +32,10 @@
 
       integer*4 i
       integer*4 j
-      real*8 yi    (PPICLF_LRS)    
-      real*8 rpropi(PPICLF_LRP)
-      real*8 yj    (PPICLF_LRS)    
-      real*8 rpropj(PPICLF_LRP)
+      real*8 yi    (ppiclf_lrs)    
+      real*8 rpropi(ppiclf_lrp)
+      real*8 yj    (ppiclf_lrs)    
+      real*8 rpropj(ppiclf_lrp)
 !
 ! Internal:
 !
@@ -311,8 +311,8 @@
 ! Input:
 !
       integer*4 i
-      real*8 yi    (PPICLF_LRS)    
-      real*8 rpropi(PPICLF_LRP)
+      real*8 yi    (ppiclf_lrs)    
+      real*8 rpropi(ppiclf_lrp)
       real*8 rn(3), rdelta
 !
 ! Internal:

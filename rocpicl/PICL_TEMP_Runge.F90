@@ -443,13 +443,9 @@ pGc => pRegion%mixt%gradCell
 ! Interp field calls
 ! TLJ - interpolates various fluid quantities onto the 
 !       the ppiclf particle locations
-! TLJ PPICLF_LRP_INT in PPICLF_USER.h must match the number
-!     of calls to ppiclf_solve_InterpFieldUser
-! (29: the gas pressure added 02/22/2025 was never used and was removed)
-      IF(PPICLF_LRP_INT .NE. 29) THEN
-         WRITE(*,*) "Error: PPICLF_LRP_INT must be set to 29"
-         CALL ErrorStop(global,ERR_INVALID_VALUE ,__LINE__,'PPICLF:LRP_INT')
-      END IF
+! Each slot below must be one of the interpolated slots that
+! ppiclf_user_Layout lists (AddInterpSlot), given once per stage;
+! ppiclF stops if a listed slot is missing or an unlisted one is given.
  
       CALL ppiclf_solve_InterpFieldUser(PPICLF_R_JRHOF,rhoF)
       CALL ppiclf_solve_InterpFieldUser(PPICLF_R_JUX,uxF)
