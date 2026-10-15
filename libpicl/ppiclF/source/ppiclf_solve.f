@@ -280,9 +280,6 @@
         DO j=1,PPICLF_LRP2
            ppiclf_rprop2(j,i) = 0.0D0
         END DO
-        DO j=1,PPICLF_LRP3
-           ppiclf_rprop3(j,i) = 0.0D0
-        END DO
         DO j=1,PPICLF_LRP4
            ppiclf_rprop4(j,i) = 0.0D0
         END DO
@@ -1726,6 +1723,7 @@ c----------------------------------------------------------------------
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_RemoveParticle
 !
+      USE ppiclf_unsteady
       IMPLICIT NONE
 !
       INCLUDE "PPICLF"
@@ -1753,9 +1751,9 @@ c----------------------------------------------------------------------
                  CALL ppiclf_copy
      >          (ppiclf_rprop2(1,icount),ppiclf_rprop2(1,i),PPICLF_LRP2)
                END IF
-               IF(PPICLF_LRP3 .GT. 1) THEN
+               IF(ppiclf_lrp3 .GT. 1) THEN
                  CALL ppiclf_copy
-     >          (ppiclf_rprop3(1,icount),ppiclf_rprop3(1,i),PPICLF_LRP3)
+     >          (ppiclf_rprop3(1,icount),ppiclf_rprop3(1,i),ppiclf_lrp3)
                END IF
                IF(PPICLF_LRP4 .GT. 1) THEN
                  CALL ppiclf_copy

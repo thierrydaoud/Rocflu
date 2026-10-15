@@ -8,12 +8,8 @@
 #define PPICLF_LRP_INT 30
 #define PPICLF_LRP_PRO 31
 
-! number of timesteps kept in history kernels
-
-!Change here when viscous unsteady on
-#define PPICLF_VU 50
-#define PPICLF_LRP3 10*PPICLF_VU
-!#define PPICLF_LRP3 0
+! The viscous-unsteady history (PPICLF_VU, PPICLF_LRP3) is sized at run
+! time from the input (VISCOUSUNSTEADY, VUSTEPS); see ppiclf_unsteady.f
 
 ! maximum number of particle-wall triangles (faces of the PARTWALL
 ! patches; a quadrilateral face is two triangles)

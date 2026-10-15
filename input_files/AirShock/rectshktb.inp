@@ -99,6 +99,7 @@ AMFORCE 	       2      ! 0 = none; 1 = Parmar; 2 = Briney
 PGFORCE 	       1      ! 0 = none; 1 = on
 COLLISIONS 	     4      ! 0 = none; 1 = Fn; 2: +(Ft+Tc); 3: +(Th+Tr); 4: +(Fl+Tu)
 VISCOUSUNSTEADY  1      ! 0 = none; 1 = Rocflu Method
+VUSTEPS          50     ! steps of viscous-unsteady history (when VISCOUSUNSTEADY >= 1)
 HEATTRANSFER 	   0      ! 0 = none; 1 = Stokes; 2 = RM; 3 = Gunn; 4 = Fox
 FEEDBACK         1      ! 0 = none; 1 = particles affecting fluid
 QSFLUCT 	       2      ! 0 = none; 1 = Lattanzi; 2 = Osnes  

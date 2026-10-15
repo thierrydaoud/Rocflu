@@ -19,7 +19,8 @@ SOURCE_ROOT_GSLIB=$(INSTALL_LOCATION)/ppiclF/3rd_party/gslib
 SOURCE_ROOT_GSLIB_OBJ=$(SOURCE_ROOT_GSLIB)/gslib/src
 GSLIB_IFLAGS+=-I$(SOURCE_ROOT_GSLIB)/include
 
-SRC = $(SOURCE_ROOT_USER)/ppiclf_user.f     \
+SRC = $(SOURCE_ROOT_PPICLF)/ppiclf_unsteady.f \
+      $(SOURCE_ROOT_USER)/ppiclf_user.f     \
       $(SOURCE_ROOT_USER)/ppiclf_user_subbinMap.f       \
       $(SOURCE_ROOT_USER)/ppiclf_user_QuasiSteady.f     \
       $(SOURCE_ROOT_USER)/ppiclf_user_Fluctuations.f     \
@@ -39,7 +40,8 @@ SRC = $(SOURCE_ROOT_USER)/ppiclf_user.f     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_solve.f    \
       $(SOURCE_ROOT_PPICLF)/ppiclf_wall.f     \
       $(SOURCE_ROOT_PPICLF)/ppiclf_mxm.f      
-OBJ = $(SOURCE_ROOT_USER)/ppiclf_user.o     \
+OBJ = $(SOURCE_ROOT_PPICLF)/ppiclf_unsteady.o \
+      $(SOURCE_ROOT_USER)/ppiclf_user.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_subbinMap.o       \
       $(SOURCE_ROOT_USER)/ppiclf_user_QuasiSteady.o     \
       $(SOURCE_ROOT_USER)/ppiclf_user_Fluctuations.o     \

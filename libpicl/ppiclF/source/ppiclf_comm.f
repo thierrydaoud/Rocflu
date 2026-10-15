@@ -588,6 +588,7 @@
 !
 ! This subroutine is called from ppiclf_solve_InitSolve
 !
+      USE ppiclf_unsteady
       IMPLICIT NONE
 !
       INCLUDE "PPICLF"
@@ -595,11 +596,20 @@
 ! Internal:
 !
       LOGICAL   partl ! dummy variable    
-      INTEGER*4 rtempLim
-      PARAMETER(rtempLim = PPICLF_LRS*4 + PPICLF_LRP + PPICLF_LRP2
-     >       + PPICLF_LRP3 + PPICLF_LRP4 + PPICLF_LRP5 + PPICLF_LRP_PRO)
-      REAL*8    rtemp(rtempLim,PPICLF_LPART)
+      ! rprop3 is sized at run time, so the send buffer is too
+      INTEGER*4 rtempLim, ierr
+      SAVE      rtempLim
+      DATA      rtempLim /0/
+      REAL*8, ALLOCATABLE, SAVE :: rtemp(:,:)
       INTEGER*4 i, icount, j0
+!
+      IF (.NOT. ALLOCATED(rtemp)) THEN
+        rtempLim = PPICLF_LRS*4 + PPICLF_LRP + PPICLF_LRP2
+     >       + ppiclf_lrp3 + PPICLF_LRP4 + PPICLF_LRP5 + PPICLF_LRP_PRO
+        ALLOCATE(rtemp(rtempLim,PPICLF_LPART), STAT=ierr)
+        IF (ierr .NE. 0) CALL ppiclf_exittr(
+     >     'MoveParticle: cannot allocate the send buffer$',0.0d0,ierr)
+      END IF
 !
       ! copy particle y, rprop, rprop2, rprop3 arrays into rtemp
       ! array for communication
@@ -620,10 +630,10 @@
      >                     ppiclf_rprop2(1,i),PPICLF_LRP2)
           icount = icount + PPICLF_LRP2
         END IF
-        IF(PPICLF_LRP3 .GT. 1) THEN
+        IF(ppiclf_lrp3 .GT. 1) THEN
           CALL ppiclf_copy(rtemp(icount,i),
-     >                     ppiclf_rprop3(1,i),PPICLF_LRP3)
-          icount = icount + PPICLF_LRP3
+     >                     ppiclf_rprop3(1,i),ppiclf_lrp3)
+          icount = icount + ppiclf_lrp3
         END IF
         IF(PPICLF_LRP4 .GT. 1) THEN
           CALL ppiclf_copy(rtemp(icount,i),
@@ -672,10 +682,10 @@
      >                   PPICLF_LRP2)
         icount = icount + PPICLF_LRP2
         END IF
-        IF(PPICLF_LRP3 .GT. 1) THEN
+        IF(ppiclf_lrp3 .GT. 1) THEN
           CALL ppiclf_copy(ppiclf_rprop3(1,i),rtemp(icount,i),
-     >                     PPICLF_LRP3)
-          icount = icount + PPICLF_LRP3
+     >                     ppiclf_lrp3)
+          icount = icount + ppiclf_lrp3
         END IF
         IF(PPICLF_LRP4 .GT. 1) THEN
           CALL ppiclf_copy(ppiclf_rprop4(1,i),rtemp(icount,i),

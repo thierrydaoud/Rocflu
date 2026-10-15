@@ -280,9 +280,11 @@ IF(rmu_ref .LT. 0.0d0) THEN
         'Negative viscosity for ppiclF')
 END IF
 
- ! Initialization for viscous unsteady term
+ ! Initialization for viscous unsteady term: ppiclF allocates this many
+ ! steps of history (none unless VISCOUSUNSTEADY >= 1)
  ppiclf_nTimeBH = 1
- ppiclf_nUnsteadyData = PPICLF_VU
+ ppiclf_nUnsteadyData = 0
+ IF (global%piclViscousUnsteady >= 1) ppiclf_nUnsteadyData = global%piclVUSteps
 
 ! Needed for fluctuations
 seed = 1
@@ -913,14 +915,13 @@ IF ( global%myProcid == MASTERPROC) then
    print*, 'Average Heat Transfer Flag  = ',global%piclHeatTransferFlag
    print*, 'Unsteady Heat Transfer Flag = ',global%piclHTUnsteadyFlag
    print*, 'Feedback Flag               = ',global%piclFeedbackFlag
-   print*, 'ppiclf_nUnsteadyData        = ',ppiclf_nUnsteadyData
-   print*, 'ppiclf_VU                   = ',PPICLF_VU
+   print*, 'Unsteady history steps      = ',ppiclf_nUnsteadyData
    print*, 'SubBin Nearest Flag         = ',global%piclSBNearFlag
 
    IF (global%piclViscousUnsteady >=1) THEN
       print*,'  Using Viscous unsteady history term'
       print*,'    ppiclf_nTimeBH       = ',ppiclf_nTimeBH
-      print*,'    ppiclf_nUnsteadyData = ',ppiclf_nUnsteadyData,PPICLF_VU
+      print*,'    ppiclf_nUnsteadyData = ',ppiclf_nUnsteadyData
    ENDIF
 
    print*, ' '

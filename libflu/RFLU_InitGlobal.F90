@@ -547,6 +547,8 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
   global%piclFilterWidth      = -1.0_RFREAL
   global%piclNeighborWidth    = 0.0_RFREAL
   global%piclViscousUnsteady  = 0
+  global%piclVUSteps          = 50
+  global%piclHTUnsteadyFlag   = 0
   global%piclMoveParticles    = 0
   global%ppiclf_p0            = 101325.0_RFREAL
 

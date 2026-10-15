@@ -85,7 +85,7 @@ SUBROUTINE PICL_ReadPiclSection( global )
   INTEGER :: nVals
 
   INTEGER :: iReg
-  INTEGER, PARAMETER :: NVALS_MAX = 29
+  INTEGER, PARAMETER :: NVALS_MAX = 30
 
   CHARACTER(20) :: keys(NVALS_MAX)
 
@@ -132,6 +132,7 @@ SUBROUTINE PICL_ReadPiclSection( global )
   keys(27)  = 'SUBBIN'
   keys(28)  = 'REACTIVE'
   keys(29)  = 'PSEUDOTURB'
+  keys(30)  = 'VUSTEPS'
  
   CALL ReadSection( global,IF_INPUT,nVals,keys(1:nVals),vals(1:nVals), & 
                     defined(1:nVals) ) 
@@ -267,6 +268,22 @@ SUBROUTINE PICL_ReadPiclSection( global )
   
   IF (defined(29) .EQV. .TRUE. ) THEN
     global%piclPseudoTurbFlag = NINT(vals(29))
+  END IF
+
+  IF (defined(30) .EQV. .TRUE. ) THEN
+    global%piclVUSteps = NINT(vals(30))
+  END IF
+
+! The unsteady history is allocated only when VISCOUSUNSTEADY >= 1, and the
+! diffusive-unsteady heat transfer is computed in the same routines
+  IF ( global%piclViscousUnsteady >= 1 .AND. global%piclVUSteps < 1 ) THEN
+    CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
+      'VUSTEPS (steps of viscous-unsteady history) must be at least 1')
+  END IF
+  IF ( global%piclHTUnsteadyFlag >= 1 .AND. &
+       global%piclViscousUnsteady < 1 ) THEN
+    CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
+      'DU HEATTRANSFER needs VISCOUSUNSTEADY >= 1 (shared history)')
   END IF
 
 ! finalize

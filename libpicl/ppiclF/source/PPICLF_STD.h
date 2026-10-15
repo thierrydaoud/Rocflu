@@ -10,14 +10,6 @@
 #define PPICLF_LRP2 0
 #endif
 
-#ifndef PPICLF_VU
-#define PPICLF_VU 0
-#endif
-
-#ifndef PPICLF_LRP3
-#define PPICLF_LRP3 0 
-#endif
-
 #ifndef PPICLF_LRP4
 #define PPICLF_LRP4 0
 #endif
