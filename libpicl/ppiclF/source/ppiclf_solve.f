@@ -540,13 +540,6 @@ c----------------------------------------------------------------------
       ppiclf_time   = time
 
       ! integerate in time
-!************************************************
-! NOT USING THESE in rocpicl!
-!      if (ppiclf_imethod .EQ. 1) 
-!     >   CALL ppiclf_solve_IntegrateRK3(iout)
-!      if (ppiclf_imethod .EQ. -1) 
-!     >   CALL ppiclf_solve_IntegrateRK3s(iout)
-!************************************************
       IF(ppiclf_imethod .EQ. 2) THEN
         CALL ppiclf_solve_IntegrateRK3s_Rocflu(iout)
       ELSE
@@ -627,8 +620,6 @@ c----------------------------------------------------------------------
         END DO
       END DO
       
-!      PPICLF_READYTOSOLVE = .FALSE.
-!      CALL ppiclf_solve_PostSolve
 
       RETURN
       END
@@ -841,58 +832,6 @@ c----------------------------------------------------------------------
 
       RETURN
       END
-
-!----------------------------------------------------------------------
-
-!      SUBROUTINE ppiclf_solve_PostSolve
-!!
-!      IMPLICIT NONE
-!!
-!      INCLUDE "PPICLF"
-!! 
-!! Internal: 
-!! 
-!      INTEGER*4 :: i, j, ierr
-!
-!      ! ppiclf_binchanged set in CreateBin
-!      ! ppiclf_binchanged .TRUE. means
-!      ! bin coordinates changed
-!      CALL ppiclf_comm_CreateBin
-!   
-!      CALL MPI_BARRIER(ppiclf_comm,ierr)
-!
-!      ! ppiclf_particleMoved set in FindParticle
-!      ! ppiclf_particleMoved .EQ. 0 means all particles
-!      ! stayed in same bin as previous RK Stage.
-!      CALL ppiclf_comm_FindParticle
-!
-!      IF(ppiclf_particleMoved .NE. 0 .OR.
-!     >              ppiclf_binchanged) THEN
-!        CALL ppiclf_comm_MoveParticle
-!      END IF
-!
-!      IF(ppiclf_overlap .AND. ppiclf_binchanged) THEN
-!        CALL ppiclf_comm_MapOverlapGrid
-!      END IF
-!
-!      IF(ppiclf_overlap) THEN
-!        ! Interpolate fluid solver grid to particle
-!        CALL ppiclf_solve_InterpParticleGrid
-!        ! Project particle feedback to fluid solver grid
-!        CALL ppiclf_solve_ProjectParticleGrid
-!      END IF
-!
-!!      IF(ppiclf_gprequired) THEN
-!      ! Ghost particles are needed 
-!        CALL ppiclf_comm_CreateGhost
-!        CALL ppiclf_comm_MoveGhost
-!!      END IF
-!
-!      ! Zero collisions 
-!      ppiclf_ydotc = 0.0D0
-!
-!      RETURN
-!      END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InterpParticleGrid
       use ppiclf_data
@@ -1463,132 +1402,6 @@ c----------------------------------------------------------------------
 
       RETURN
       END
-!
-!______________________________________________________________________
-!
-      SUBROUTINE ppiclf_solve_ParticleToCellMap
-      use ppiclf_data
-
-      IMPLICIT NONE
-
-      INCLUDE "PPICLF"
-
-      ! Local Variables
-      INTEGER*4 i, j, k, l, ix, iy, iz, ip, ie, iee, nxyz, nnearest, 
-     >          CellID_nearest(28), partCount
-      REAL*8    dSQl, dSQi, dSQ(28), xp(3), dSQchk(3), dNSQi, dNSQ(28),
-     >          CellCenter(3,28), w(27),binblength(3),  
-     >          Max_CellLen(3),Max_CellLenSQ(3)
-      LOGICAL   added, farAway
-
-      !***************************************************************
-
-      IF(ppiclf_nCells_Interp .EQ. 0 . AND. ppiclf_npart .GT. 0) THEN
-        PRINT*,'No cells mapped to ppiclf bin. Num Particles/Proc ID:',
-     >  ppiclf_npart, ppiclf_nid
-        CALL ppiclf_exittr('Failure in particle to cell mapping',0.D0,0)
-      END IF
- 
-
-      ! Find bin lengths for linear periodicity calculations
-      DO l = 1,3
-        binblength(l) = ppiclf_binb(2*l) - ppiclf_binb((2*l)-1)
-        dSQchk(l) = (ppiclf_interp_dchk(l))**2
-      END DO
-
-      partCount = 0
-      DO ip=1,ppiclf_npart !Loop all particles in this bin
-        ! particle centers in all directions
-        xp(1) = ppiclf_y(PPICLF_JX, ip)
-        xp(2) = ppiclf_y(PPICLF_JY, ip)
-        xp(3) = ppiclf_y(PPICLF_JZ, ip)
-        nnearest = 0 ! number of nearest elements
-        DO ie = 1,28
-          CellID_nearest(ie) = -1 ! index of nearest elements
-          dSQ(ie) = 1D20 ! distance to center of nearest element
-          dNSQ(ie) = 1D20
-        ENDDO !ie
-        DO ie = 1,ppiclf_nCells_Interp
-          ! get distance from particle to center
-          dSQl     = 0.0D0
-          dSQi     = 0.0D0
-          dNSQi    = 0.0D0
-          farAway = .FALSE.
-          DO l=1,3
-            IF(ppiclf_linperiodic(l) .AND. ppiclf_EqualDomain(l)) THEN
-              dSQl = MIN((ppiclf_picl_grid(l,ie) - xp(l))**2, 
-     >           (binblength(l)-ABS(ppiclf_picl_grid(l,ie) - xp(l)))**2)
-            ELSE
-              dSQl = (ppiclf_picl_grid(l,ie) - xp(l))**2
-            END IF
-            dSQi = dSQi + dSQl
-            ! Offset in units of the cell length (projection)
-            dNSQi = dNSQi + dSQl/ppiclf_picl_grid(3+l,ie)**2
-            IF (dSQl .GT. dSQchk(l)) farAway = .TRUE.
-          END DO !l
-
-          ! skip to next fluid cell if greater than 1.5*max cell
-          ! distance in respective x,y,z direction.
-          IF (farAWAY) CYCLE !ie
-          ! Sort closest fluid cell centers
-          ! *** Slow and should be updated.  
-          ! No need to have closest 27 cells sorted.
-          ! just need to exclude cells farther than 27.***
-          added = .FALSE.
-          DO i=1,27
-            j = 27 - i + 1
-            IF (dSQi .LT. dSQ(j)) THEN
-              dSQ(j+1) = dSQ(j)
-              dNSQ(j+1) = dNSQ(j)
-              CellID_nearest(j+1) = CellID_nearest(j)
-              DO l=1,3
-                CellCenter(l, j+1) = CellCenter(l, j)
-              END DO
-              dSQ(j) = dSQi
-              dNSQ(j) = dNSQi
-              CellID_nearest(j) = ie
-              DO l=1,3
-                CellCenter(l,j) = ppiclf_picl_grid(l,ie)
-              END DO
-              added = .TRUE.
-            ELSE ! If not within closest cell list
-              EXIT !i
-            END IF
-          END DO !i
-          IF (added) nnearest = nnearest + 1
-        END DO ! ie
-        nnearest = MIN(nnearest, 27)
-        IF (nnearest .LT. 1) THEN
-          ! Particle is outside of fluid domain.
-          ! iprop(8,ip) set to -1 means it will be removed
-          ! from ppiclf_y, ppiclf_rprop and rprop3
-          ppiclf_iprop(9,ip) = -1
-          ppiclf_remove_particle = .TRUE.
-          PRINT*, 'part # on proc # removed with postion of:',
-     >            ppiclf_iprop(1,ip),ppiclf_nid,xp(1),xp(2),xp(3) 
-        ELSE
-          partCount = partCount + 1
-          ! use partCount since ip includes possible removed particles
-          ppiclf_nPart2Cell(partCount) = nnearest
-          IF(nnearest .GT. 27) PRINT*,'nn > 27!',partCount
-          DO i = 1,nnearest
-            ppiclf_Part2Cell_map(partCount,i) = CellID_nearest(i) ! Cell ID
-            ! Squared particle to cell center offset, scaled by the
-            ! cell length in each direction
-            ppiclf_Part2Cell_dist(partCount,i) = dNSQ(i)
-           END DO
-        END IF 
-      END DO !ip
-
-      IF(ppiclf_remove_particle) THEN
-        ! Delete particles that are outside of fluid grid
-        CALL ppiclf_solve_RemoveParticle
-        ppiclf_remove_particle = .FALSE.
-      END IF
-
-      RETURN
-      END
-!
 !-----------------------------------------------------------------------
 !
       SUBROUTINE ppiclf_solve_InterpLS(ip,n,id,dx,rs)
@@ -2181,102 +1994,6 @@ c----------------------------------------------------------------------
 !              END SELECT
 !
 !      
-!      RETURN
-!      END
-!!-----------------------------------------------------------------------
-!      SUBROUTINE ppiclf_solve_IntegrateRK3(iout)
-!!
-!      IMPLICIT NONE
-!!
-!      INCLUDE "PPICLF"
-!! 
-!! Internal: 
-!! 
-!      INTEGER*4 i, nstage, istage
-!!
-!! Output:
-!!
-!      LOGICAL iout
-!!
-!      ! save stage 1 solution
-!      DO i = 1, ppiclf_npart
-!        DO j = 1,PPICLF_LRS
-!          ppiclf_y1(j,i) = ppiclf_y(j,i)
-!        END DO
-!      END DO
-!
-!      ! get rk3 coeffs
-!      CALL ppiclf_solve_SetRK3Coeff(ppiclf_dt)
-!
-!      nstage = 3
-!      DO istage=1,nstage
-!         ! evaluate ydot
-!         CALL ppiclf_solve_SetYdot
-!
-!         ! rk3 integrate
-!         DO i= 1,npart
-!           DO j = 1,PPICLF_LRS
-!            ppiclf_y(j,i) =  ppiclf_rk3coef(1,istage)*ppiclf_y1   (j,i)
-!     >                     + ppiclf_rk3coef(2,istage)*ppiclf_y    (j,i)
-!     >                     + ppiclf_rk3coef(3,istage)*ppiclf_ydot (j,i)
-!         END DO
-!      END DO
-!
-!      iout = .TRUE.
-!
-!      RETURN
-!      END
-!c----------------------------------------------------------------------
-!      SUBROUTINE ppiclf_solve_IntegrateRK3s(iout)
-!!
-!      IMPLICIT NONE
-!!
-!      INCLUDE "PPICLF"
-!! 
-!! Internal: 
-!! 
-!      INTEGER*4 i, ndum, nstage, istage
-!      INTEGER*4 icalld
-!      save      icalld
-!      data      icalld /0/
-!!
-!! Output:
-!!
-!      LOGICAL iout
-!!
-!      icalld = icalld + 1
-!
-!
-!      ! get rk3 coeffs
-!      CALL ppiclf_solve_SetRK3Coeff(ppiclf_dt)
-!
-!      nstage = 3
-!      istage = mod(icalld,nstage)
-!      IF(istage .EQ. 0) istage = 3
-!      iout = .FALSE.
-!      IF(istage .EQ. nstage) iout = .TRUE.
-!
-!      ! save stage 1 solution
-!      IF(istage .EQ. 1) THEN
-!        DO i = 1,ppiclf_npart
-!          DO j = 1,PPICLF_LRS
-!           ppiclf_y1(j,i) = ppiclf_y(j,i)
-!          END DO
-!        END DO
-!      END IF
-!
-!      ! evaluate ydot
-!      CALL ppiclf_solve_SetYdot
-!
-!      ! rk3 integrate
-!      DO i = 1,npart
-!        DO j = 1,PPICLF_LRS
-!         ppiclf_y(j,i) =  ppiclf_rk3coef(1,istage)*ppiclf_y1   (j,i)
-!     >                  + ppiclf_rk3coef(2,istage)*ppiclf_y    (j,i)
-!     >                  + ppiclf_rk3coef(3,istage)*ppiclf_ydot (j,i)
-!        END DO
-!      END DO
-!
 !      RETURN
 !      END
 !-----------------------------------------------------------------------
