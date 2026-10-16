@@ -64,15 +64,24 @@ endforeach()
 # --- Dependencies ------------------------------------------------------------
 find_package(MPI REQUIRED COMPONENTS C CXX Fortran)
 
-# METIS 5 and GKlib, prebuilt into 3rd_party/local by 3rd_party/install.sh.
-set(METIS_ROOT ${PROJECT_SOURCE_DIR}/3rd_party/local CACHE PATH "METIS/GKlib install prefix")
-find_library(METIS_LIBRARY metis PATHS ${METIS_ROOT}/lib NO_DEFAULT_PATH REQUIRED)
-find_library(GKLIB_LIBRARY GKlib PATHS ${METIS_ROOT}/lib NO_DEFAULT_PATH REQUIRED)
+# METIS 5 (rflupart only): built from 3rd_party/ unless METIS_ROOT points at
+# an existing install with lib/libmetis.a, lib/libGKlib.a and include/metis.h.
+set(METIS_ROOT "" CACHE PATH "Existing METIS/GKlib install (empty: build the bundled copy)")
 add_library(metis INTERFACE)
-target_link_libraries(metis INTERFACE ${METIS_LIBRARY} ${GKLIB_LIBRARY})
-target_include_directories(metis INTERFACE ${METIS_ROOT}/include)
+if(ROCFLU_UTILITIES)
+  if(METIS_ROOT)
+    find_library(METIS_LIBRARY metis PATHS ${METIS_ROOT}/lib NO_DEFAULT_PATH REQUIRED)
+    find_library(GKLIB_LIBRARY GKlib PATHS ${METIS_ROOT}/lib NO_DEFAULT_PATH REQUIRED)
+    target_link_libraries(metis INTERFACE ${METIS_LIBRARY} ${GKLIB_LIBRARY} m)
+    target_include_directories(metis INTERFACE ${METIS_ROOT}/include)
+  else()
+    add_subdirectory(3rd_party)
+    target_link_libraries(metis INTERFACE metis_bundled)
+  endif()
+endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Applies the Rocflu flags to a target with Fortran and C++ sources.
 function(rocflu_flags target)
@@ -83,8 +92,7 @@ function(rocflu_flags target)
     $<$<COMPILE_LANGUAGE:Fortran>:${ROCFLU_Fortran_FLAGS}>
     $<$<COMPILE_LANGUAGE:CXX>:${ROCFLU_CXX_FLAGS}>)
   target_include_directories(${target} PRIVATE
-    $<$<COMPILE_LANGUAGE:CXX>:${PROJECT_SOURCE_DIR}/include>
-    $<$<COMPILE_LANGUAGE:CXX>:${METIS_ROOT}/include>)
+    $<$<COMPILE_LANGUAGE:CXX>:${PROJECT_SOURCE_DIR}/include>)
   set_target_properties(${target} PROPERTIES
     Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules/${target})
 endfunction()

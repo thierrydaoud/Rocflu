@@ -1,6 +1,9 @@
 # CMake build directory
 /build/
 
+# METIS/GKlib installed by 3rd_party/install.sh (only the make build uses it)
+/3rd_party/local/
+
 # Build products of the make build. Only the Makefile of each build directory is source.
 /build_lib/*
 !/build_lib/Makefile
