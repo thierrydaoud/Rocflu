@@ -102,12 +102,18 @@ endfunction()
 
 # --- Particle field layout -------------------------------------------------
 # Slot numbers of ppiclF's y, rprop and projected arrays (PPICLF_LAYOUT.h),
-# shared by ppiclF and Rocflu. Every group of ppiclf_slots.txt is included.
+# shared by ppiclF and Rocflu, from libpicl/user_files/ppiclf_slots.txt.
+# With ROCFLU_CASE only the slot groups that case's input needs are built.
+set(ROCFLU_CASE "" CACHE FILEPATH
+    "Case input file (.inp) that decides the particle slots (empty: all slots)")
+if(ROCFLU_CASE AND NOT EXISTS "${ROCFLU_CASE}")
+  message(FATAL_ERROR "ROCFLU_CASE: no file ${ROCFLU_CASE}")
+endif()
 set(PPICLF_LAYOUT_DIR ${CMAKE_BINARY_DIR}/generated)
-set(PPICLF_LAYOUT_GROUPS core heat spin props qsfluct pt am2 gas dpdx amvu
-                         divtau ptdiag)
-ppiclf_write_layout(${PROJECT_SOURCE_DIR}/libpicl/user_files/ppiclf_slots.txt
-                    ${PPICLF_LAYOUT_DIR}/PPICLF_LAYOUT.h "${PPICLF_LAYOUT_GROUPS}")
+ppiclf_layout(${PROJECT_SOURCE_DIR}/libpicl/user_files/ppiclf_slots.txt
+              "${ROCFLU_CASE}" ${PPICLF_LAYOUT_DIR}/PPICLF_LAYOUT.h
+              ${PPICLF_LAYOUT_DIR}/PPICLF_LAYOUT_CHECK.inc PPICLF_LAYOUT_GROUPS)
+message(STATUS "Particle slot groups: ${PPICLF_LAYOUT_GROUPS}")
 
 # --- ppiclF ------------------------------------------------------------------
 if(ROCFLU_PICL)

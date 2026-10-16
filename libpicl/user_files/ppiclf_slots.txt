@@ -1,25 +1,43 @@
-# Slots of the per-particle and projected field arrays.
+# Slots of the per-particle and projected field arrays, and when each
+# group of slots is built.
 #
-# CMake reads this table when it configures a build and writes
+# CMake reads this file when it configures a build and writes
 # PPICLF_LAYOUT.h, which defines PPICLF_<name> as the slot number for
-# every name below (PPICLF_JX, PPICLF_R_JRHOF, PPICLF_P_JFX, ...).
+# every slot name below (PPICLF_JX, PPICLF_R_JRHOF, PPICLF_P_JFX, ...).
 # Within each array the slots of the groups a build includes are numbered
-# 1, 2, 3, ... in the order of this file.
+# 1, 2, 3, ... in the order of this file; the slots of the other groups
+# are defined as 0.
 #
-# Columns: array, group, slot names (a line may be continued on the next
-# line by starting it with the same array and group).
+# A build for a case (./rocflu.sh run case.inp, or cmake -DROCFLU_CASE=)
+# includes the groups whose rule holds for that case's input file; a build
+# without a case includes every group.
+#
+# 'rule' lines: group, then a condition on keys of the case's input file.
+#   Keys are those of the PICL section (HEATTRANSFER, COLLISIONS, ...);
+#   FLOWMODEL/MODEL is the flow model (0 Euler, 1 Navier-Stokes). A key
+#   missing from the input counts as 0. Conditions are comparisons
+#   (>=, >, ==, <=, <) joined by 'and' / 'or' ('and' binds first).
+#   A group without a rule is always built.
+# Slot lines: array, group, slot names.
 #   array  y     : ppiclf_y, y1, ydot, ydotc (size ppiclf_lrs)
 #          rprop : ppiclf_rprop (size ppiclf_lrp)
 #          pro   : ppiclf_feedbk and the projected fields (ppiclf_lrp_pro)
-#   group  the physics that needs the slots; every group is built for now
 #
-# A '#' starts a comment; comments directly above a line are copied into
-# PPICLF_LAYOUT.h.
+# A '#' starts a comment; comments directly above a slot line are copied
+# into PPICLF_LAYOUT.h.
 
-# Position and velocity
-y      core     JX JY JZ JVX JVY JVZ
-# Temperature
-y      heat     JT
+rule   spin     COLLISIONS >= 2
+rule   qsfluct  QSFLUCT >= 1 or PSEUDOTURB >= 1
+rule   pt       PSEUDOTURB >= 1
+rule   ptdiag   PSEUDOTURB >= 1 and OUTMODEL >= 1
+rule   am2      AMFORCE == 2
+rule   dpdx     PGFORCE == 1 or AMFORCE == 1
+rule   amvu     AMFORCE >= 1 or VISCOUSUNSTEADY >= 1
+rule   divtau   PGFORCE == 1 and FLOWMODEL/MODEL == 1
+
+# Position, velocity and temperature (the temperature is used without
+# heat transfer too: output field Tp, projected field PHIPT)
+y      core     JX JY JZ JVX JVY JVZ JT
 # Angular velocity
 y      spin     JOX JOY JOZ
 

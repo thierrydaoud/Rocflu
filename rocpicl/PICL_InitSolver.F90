@@ -240,6 +240,10 @@ rmu_suth_param = VISC_SUTHR
 rmu_fixed_param = VISC_FIXED
 flow_model = int(pRegion%mixtInput%flowModel)
 
+! Stop if the input needs particle slots this build does not have (the
+! build's layout comes from libpicl/user_files/ppiclf_slots.txt)
+#include "PPICLF_LAYOUT_CHECK.inc"
+
 ksp = global%piclKsp
 erest = global%piclERest
 
