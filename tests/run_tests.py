@@ -32,6 +32,20 @@ from rocpicl_tests.cases import CASES             # noqa: E402
 import case_validator                             # noqa: E402
 
 TESTS_DIR = rcase.TESTS_DIR
+
+# Colours only on a terminal, and not when NO_COLOR is set (as rocflu.sh)
+COLOURS = (sys.stdout.isatty() and not os.environ.get("NO_COLOR")
+           and os.environ.get("TERM", "") != "dumb")
+STATUS_COLOUR = {"PASS": "32", "FAIL": "1;31", "XFAIL": "33", "XPASS": "36"}
+
+
+def cases_text(n):
+    return "%d case%s" % (n, "" if n == 1 else "s")
+
+
+def paint(text, code):
+    """text in an ANSI colour (e.g. "32" green, "1;31" bold red) on a terminal."""
+    return "\033[%sm%s\033[0m" % (code, text) if COLOURS else text
 GOLDENS = os.path.join(TESTS_DIR, "goldens")
 WORK = os.path.join(TESTS_DIR, "_work", "runs")
 
@@ -188,11 +202,13 @@ def main():
 
     for exe in ("rflumap", "rflupart", "rfluinit", "rflump"):
         if not os.access(os.path.join(args.exe, exe), os.X_OK):
-            print("Missing executable %s in %s (build with ./rocflu.sh build)" % (exe, args.exe))
+            print(paint("Missing executable %s in %s (build with ./rocflu.sh build)"
+                        % (exe, args.exe), "1;31"))
             return 2
 
-    print("Running %d cases with %s (%s)" % (len(selected), args.exe,
-                                            "generate" if args.generate else "compare"))
+    print(paint("Running %s" % cases_text(len(selected)), "1") + " with %s (%s)" % (
+        args.exe, "generate" if args.generate else "compare"))
+    start = datetime.datetime.now()
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         results = list(pool.map(lambda c: run_case(c, args), selected))
     cross_checks(results)
@@ -201,20 +217,27 @@ def main():
     for r in sorted(results, key=lambda r: r["case"].name):
         st = status(r)
         counts[st] = counts.get(st, 0) + 1
-        print("%-5s  %s%s" % (st, r["case"].name,
-                               ("   [" + r["note"] + "]") if r.get("note") else ""))
+        print("%s  %s%s" % (paint("%-5s" % st, STATUS_COLOUR[st]), r["case"].name,
+                             paint("   [" + r["note"] + "]", "2") if r.get("note") else ""))
         if st in ("XFAIL", "XPASS"):
-            print("         known issue: " + r["case"].known_issue)
+            print(paint("         known issue: " + r["case"].known_issue, "33"))
         if st == "XPASS":
-            print("         physics checks now pass: remove known_issue from the case")
+            print(paint("         physics checks now pass: remove known_issue from the case", "36"))
         for e in r["errors"] + r["physics"]:
-            print("         - " + e)
+            print(paint("         - " + e, "31"))
         if st == "PASS" and not args.keep:
             shutil.rmtree(os.path.join(WORK, r["case"].name), ignore_errors=True)
         elif st != "PASS":
-            print("         run dir: " + os.path.join(WORK, r["case"].name))
-    print("\n" + ", ".join("%d %s" % (counts[k], k) for k in ("PASS", "XFAIL", "XPASS", "FAIL")
-                           if k in counts))
+            print(paint("         run dir: " + os.path.join(WORK, r["case"].name), "2"))
+    seconds = (datetime.datetime.now() - start).total_seconds()
+    print("\n" + ", ".join(paint("%d %s" % (counts[k], k), STATUS_COLOUR[k])
+                           for k in ("PASS", "XFAIL", "XPASS", "FAIL") if k in counts))
+    if counts.get("FAIL"):
+        print(paint("✗ %d of %s failed" % (counts["FAIL"], cases_text(len(results))), "1;31")
+              + " (%.0f s)" % seconds)
+    else:
+        print(paint("✔ All %s passed" % cases_text(len(results)) if len(results) > 1
+                    else "✔ The case passed", "1;32") + " in %.0f s" % seconds)
     return 1 if counts.get("FAIL") else 0
 
 

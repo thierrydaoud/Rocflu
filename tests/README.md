@@ -79,7 +79,9 @@ messages are shown next to the case.
 
 ### 3. Read the result
 
-The script prints one line per case and a total, e.g. `34 PASS`. See [Results](#results)
+The script prints one line per case, a total (e.g. `34 PASS`) and a closing line
+(`✔ All 34 cases passed in 29 s`, or `✗ 2 of 34 cases failed`). On a terminal the statuses
+are coloured (PASS green, FAIL red, XFAIL yellow, XPASS cyan); `NO_COLOR=1` turns that off. See [Results](#results)
 for what each status means.
 
 Run directories go to `_work/runs/<case>` (git-ignored). They are deleted for cases
