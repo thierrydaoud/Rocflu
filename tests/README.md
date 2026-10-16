@@ -33,10 +33,12 @@ collisions, walls) and [gas only](#gas-only-cases) (the flow solver without part
 
 ### 1. Build
 
-Build the code in the tree you want to test (`makeall.sh`, or `make RFLU=1 PICL=1
-FOLDER=1 -j16`). The suite runs the executables `rflumap`, `rflupart`, `rfluinit` and
-`rflump` from the top of that tree. By default that is the tree that holds this
-`tests/` directory; `--exe` points at another one.
+Build the code in the tree you want to test (see the top-level README:
+`cmake -S . -B build && cmake --build build -j 16`). The suite runs the executables
+`rflumap`, `rflupart`, `rfluinit` and `rflump` from the directory given with `--exe`;
+for a CMake build that is `--exe ../build/bin`. Without `--exe` it uses the top of the
+tree that holds this `tests/` directory, where the old make build (`makeall.sh`) puts
+them.
 
 ### 2. Run
 

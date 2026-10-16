@@ -1,4 +1,7 @@
-# Build products. Only the Makefile of each build directory is source.
+# CMake build directory
+/build/
+
+# Build products of the make build. Only the Makefile of each build directory is source.
 /build_lib/*
 !/build_lib/Makefile
 /build_std/*
