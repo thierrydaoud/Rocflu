@@ -336,7 +336,8 @@ c-----------------------------------------------------------------------
 
       call mpi_barrier(ppiclf_comm,ierr)
 
-      if (ppiclf_nid.eq.0) write(6,1) stringi(1:ilen), rdata, idata
+      if (ppiclf_nid.eq.0 .and. ppiclf_verbose.gt.0)
+     >   write(6,1) stringi(1:ilen), rdata, idata
     1 format('PPICLF: ',a,1x,1p1e14.6,i10)
 
       call mpi_barrier(ppiclf_comm,ierr)
@@ -363,7 +364,8 @@ c-----------------------------------------------------------------------
 
       call mpi_barrier(ppiclf_comm,ierr)
 
-      if (ppiclf_nid.eq.0) write(6,1) stringi(1:ilen), idata
+      if (ppiclf_nid.eq.0 .and. ppiclf_verbose.gt.0)
+     >   write(6,1) stringi(1:ilen), idata
     1 format('PPICLF: ',a,1x,i9)
 
       call mpi_barrier(ppiclf_comm,ierr)
@@ -391,7 +393,8 @@ c-----------------------------------------------------------------------
 
       call mpi_barrier(ppiclf_comm,ierr)
 
-      if (ppiclf_nid.eq.0) write(6,1) stringi(1:ilen), rdata
+      if (ppiclf_nid.eq.0 .and. ppiclf_verbose.gt.0)
+     >   write(6,1) stringi(1:ilen), rdata
     1 format('PPICLF: ',a,1x,1p1e14.6)
 
       call mpi_barrier(ppiclf_comm,ierr)
@@ -418,7 +421,8 @@ c-----------------------------------------------------------------------
 
       call mpi_barrier(ppiclf_comm,ierr)
 
-      if (ppiclf_nid.eq.0) write(6,1) stringi(1:ilen)
+      if (ppiclf_nid.eq.0 .and. ppiclf_verbose.gt.0)
+     >   write(6,1) stringi(1:ilen)
     1 format('PPICLF: ',a)
 
       call mpi_barrier(ppiclf_comm,ierr)

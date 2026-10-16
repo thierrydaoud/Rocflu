@@ -1,9 +1,9 @@
 !-----------------------------------------------------------------------
 #ifdef PPICLC
-      SUBROUTINE ppiclf_comm_InitMPI(comm,id,np)
+      SUBROUTINE ppiclf_comm_InitMPI(comm,id,np,verbose)
      > bind(C, name="ppiclc_comm_InitMPI")
 #else
-      SUBROUTINE ppiclf_comm_InitMPI(comm,id,np)
+      SUBROUTINE ppiclf_comm_InitMPI(comm,id,np,verbose)
 #endif
       use ppiclf_data
 !
@@ -18,6 +18,7 @@
       INTEGER*4 comm
       INTEGER*4 id
       INTEGER*4 np
+      INTEGER*4 verbose
 !
 ! Code:
 !
@@ -29,6 +30,7 @@
       ppiclf_comm = comm
       ppiclf_nid  = id
       ppiclf_np   = np
+      ppiclf_verbose = verbose
 
       ! GSlib call
       CALL ppiclf_prints('   *Begin InitCrystal$')

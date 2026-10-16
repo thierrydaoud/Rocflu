@@ -48,7 +48,7 @@
       nstate = ppiclf_lrs
       nprop  = ppiclf_lrp
 
-      IF(ppiclf_nid .EQ. 0) THEN
+      IF(ppiclf_nid .EQ. 0 .AND. ppiclf_verbose .GT. 0) THEN
         WRITE(6,'(A)') ' ppiclF field sizes (ppiclf_user_Layout):'
         WRITE(6,'(A,I4)') '   y     (state)        : ', ppiclf_lrs
         WRITE(6,'(A,I4)') '   rprop (properties)   : ', ppiclf_lrp

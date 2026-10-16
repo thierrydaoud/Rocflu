@@ -662,9 +662,12 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
        global%verbLevel /= VERBOSE_NONE ) THEN
     WRITE(STDOUT,'(A)') SOLVER_NAME    
     WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,'Finalization done.'
+  END IF ! global%myProcid
+
+! The run log's last line at every verbosity; tests/ look for it
+  IF ( global%myProcid == MASTERPROC ) THEN
     WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,'Program finished.'
-    WRITE(STDOUT,'(A)') SOLVER_NAME         
-  END IF ! global%myProcid 
+  END IF ! global%myProcid
 
 
   CALL DeregisterFunction(global)

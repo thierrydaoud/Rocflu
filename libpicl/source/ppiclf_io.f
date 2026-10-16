@@ -55,7 +55,7 @@
       indx1 = ppiclf_indx1(filein1,'.')
       indx1 = indx1 + 3 ! v (1) t (2) u (3)
       filein2 = ppiclf_chstr(filein1(1:indx1),indx1)
-      if (ppiclf_nid == 0) then
+      if (ppiclf_nid == 0 .and. ppiclf_verbose > 0) then
          print*,'   * ParticleVTU filein2 ',trim(filein2)
       endif
 

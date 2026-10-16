@@ -3,9 +3,11 @@
 c Communication
       COMMON /PPICLF_PARALLEL_COMM_I/ PPICLF_COMM, PPICLF_NP, PPICLF_NID
      >                               ,PPICLF_CR_HNDL, PPICLF_FP_HNDL
-     >                               ,PPICLF_COMM_NID
+     >                               ,PPICLF_COMM_NID, PPICLF_VERBOSE
       INTEGER*4 PPICLF_COMM, PPICLF_NP, PPICLF_NID, PPICLF_CR_HNDL
      >         ,PPICLF_FP_HNDL, PPICLF_COMM_NID
+c Rocflu's verbosity: 0 run log only, 1 detailed messages, 2 debugging
+      INTEGER*4 PPICLF_VERBOSE
       DATA PPICLF_NID /0/
 
 c Bins

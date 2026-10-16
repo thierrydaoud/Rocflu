@@ -6,7 +6,8 @@ extern"C" {
     // ppiclf_comm.f
     void ppiclc_comm_InitMPI            (int     *comm   , 
                                          int     *id     , 
-					 int     *np     );
+					 int     *np     ,
+					 int     *verbose);
     void ppiclc_comm_InitOverlapMesh    (int     *ncell  , 
                                          int     *lx1    , 
 					 int     *ly1    , 

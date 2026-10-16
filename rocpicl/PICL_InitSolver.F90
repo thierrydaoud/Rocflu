@@ -171,6 +171,8 @@ INTEGER :: errorFlag,icg
    ! Fluid domain extent (min, max in x, y, z) and periodic directions
    REAL(RFREAL) :: domainRange(2,3)
    LOGICAL :: periodic(3)
+   ! Detailed set-up messages: master rank, from -v 2 on
+   LOGICAL :: showDetail
 
    REAL(RFREAL), DIMENSION(3) :: MaxPoint, MinPoint, CellLen, Max_CellLen, &
                                  filter, filter_local
@@ -188,6 +190,9 @@ INTEGER :: errorFlag,icg
   global => pRegion%global !pRegion%global
 
   CALL RegisterFunction( global,'PICL_InitSolver',__FILE__ )
+
+  showDetail = ( global%myProcid == MASTERPROC ) .AND. &
+               ( global%verbLevel > VERBOSE_NONE )
 
 
 ! Set pointers ----------------------------------------------------------------
@@ -275,12 +280,12 @@ CALL RANDOM_SEED(size=isize)
 global%restartFromScratch = .true.
 vtuFile1 = 'par00002.vtu'
 INQUIRE(FILE=trim(vtuFile1), EXIST=fexists)
-IF( global%myProcid == MASTERPROC) then
+IF( showDetail ) then
    write(*,*) fexists, "fexists"
 ENDIF
 IF(fexists) THEN
    global%restartFromScratch = .false.
-   IF ( global%myProcid == MASTERPROC) THEN
+   IF ( showDetail ) THEN
       PRINT*, " "
       PRINT*, " ======================================="
       PRINT*, " "
@@ -289,7 +294,7 @@ IF(fexists) THEN
 END IF
 
 IF(global%restartFromScratch) THEN
-   IF ( global%myProcid == MASTERPROC) then
+   IF ( showDetail ) then
       WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,'Reading points.dat file...'
    END IF
   
@@ -376,7 +381,7 @@ IF(global%restartFromScratch) THEN
          y(PPICLF_JOZ,i) = 0.0D0
 #endif
   
-         IF ( global%myProcid == MASTERPROC) then
+         IF ( showDetail ) then
             IF (i==1) THEN
                print*
                print*,'   Density: ',rhop
@@ -417,7 +422,7 @@ IF(global%restartFromScratch) THEN
    CALL MPI_ALLREDUCE(zp_max,zp_max,1,MPI_RFREAL,MPI_MAX, &
         global%mpiComm,global%mpierr)
 
-   IF(global%myProcid == MASTERPROC) THEN
+   IF( showDetail ) THEN
       print*
       print*,'Particle domain boundaries at t=0'
       print*,'x - min, max, dx', xp_min, xp_max, xp_max - xp_min
@@ -459,14 +464,14 @@ ELSE
       vtuFile = ''
       WRITE(vtuFile,'(A3,I5.5,A4)') 'par',ii,'.vtu'
       INQUIRE(FILE=trim(vtuFile), EXIST=fexists)
-      IF( global%myProcid == MASTERPROC) THEN
+      IF( showDetail ) THEN
          WRITE(*,*) 'PPICLF par file: ',TRIM(vtuFile),ii,'  ',fexists
       END IF
    END DO
    ii = ii - 1
    vtuFile = ''
    WRITE(vtuFile,'(A3,I5.5,A4)') 'par',ii,'.vtu'
-   IF( global%myProcid == MASTERPROC) THEN
+   IF( showDetail ) THEN
       WRITE(*,*) 'Reading ', vtuFile, len(vtuFile)
    ENDIF
 
@@ -486,8 +491,8 @@ ELSE
    CALL ppiclf_io_ReadParticleVTU(trim(vtuFile), ii, npart, dp_max)
    CALL MPI_Allreduce(dp_max,dp_max,1,MPI_RFREAL,MPI_MAX, &
       global%mpiComm,global%mpierr )
-   print*,global%myProcid,npart,dp_max,dp_max
-   IF( global%myProcid == MASTERPROC) THEN
+   IF( global%verbLevel > VERBOSE_NONE ) print*,global%myProcid,npart,dp_max
+   IF( showDetail ) THEN
       print*, " "
       WRITE(*,*) 'Finished PPICLF Restart'
       print*, " "
@@ -629,17 +634,12 @@ DO l = 1,3
       global%mpiComm,global%mpierr )
 END DO
 
-neighborWidth = 4.0_RFREAL*dp_max ! Minimum value. User can entire larger if desired
-IF((neighborWidth .GT. global%piclNeighborWidth) &
-    .AND. (global%myProcid == MASTERPROC)) THEN
-    WRITE(STDOUT, '(A)') &
-        '*** WARNING *** PICL NEIGHBORWIDTH too small, defaulting to 4*dp_max'
-END IF
-neighborWidth = MAX(neighborWidth, global%piclNeighborWidth)
+! At least 4 diameters of the largest particle; NEIGHBORWIDTH can widen it
+neighborWidth = MAX(4.0_RFREAL*dp_max, global%piclNeighborWidth)
 
 !CALL MPI_Barrier(global%mpiComm,errorFlag)
 
-IF(global%myProcid == MASTERPROC) THEN
+IF( showDetail ) THEN
    PRINT*,' '
    PRINT*,'PPICLF: '
    PRINT*,'  Inputs NEIGHBORWIDTH  : ',global%piclNeighborWidth
@@ -661,7 +661,7 @@ IF (.NOT. ALLOCATED(y)) THEN
   rprop = 0.0_RFREAL
 END IF
 CALL ppiclf_solve_InitParticle(2,3,0,npart_local,y,rprop,filter,neighborWidth) 
-IF(global%myProcid == MASTERPROC) THEN
+IF( showDetail ) THEN
   PRINT*, 'x fluid min/max', domainRange(:,1)
   PRINT*, 'y fluid min/max', domainRange(:,2)
   PRINT*, 'z fluid min/max', domainRange(:,3)
@@ -754,17 +754,19 @@ CALL MPI_Allreduce(MPI_IN_PLACE,partWallPatch,global%nPatches,MPI_INTEGER, &
                    MPI_MAX,global%mpiComm,errorFlag)
 IF ( global%myProcid == MASTERPROC ) THEN
   IF ( nTriTot > 0 ) THEN
-    WRITE(*,'(A,I8,A)') ' Particle walls: ',nTriTot, &
-      ' triangles from the patches with PARTWALL 1'
-    WRITE(*,'(A)',ADVANCE='NO') '   patches:'
-    DO k = 1,global%nPatches
-      IF ( partWallPatch(k) == 1 ) WRITE(*,'(I5)',ADVANCE='NO') k
-    END DO
-    WRITE(*,*)
+    IF ( showDetail ) THEN
+      WRITE(*,'(A,I8,A)') ' Particle walls: ',nTriTot, &
+        ' triangles from the patches with PARTWALL 1'
+      WRITE(*,'(A)',ADVANCE='NO') '   patches:'
+      DO k = 1,global%nPatches
+        IF ( partWallPatch(k) == 1 ) WRITE(*,'(I5)',ADVANCE='NO') k
+      END DO
+      WRITE(*,*)
+    END IF
     IF ( global%piclCollisionFlag == 0 ) THEN
       WRITE(*,*) '*** WARNING *** particle walls have no effect with COLLISIONS 0'
     END IF
-  ELSE
+  ELSE IF ( showDetail ) THEN
     WRITE(*,*) 'Particle walls: none (no wall patch has PARTWALL 1)'
   END IF
 END IF
@@ -811,7 +813,7 @@ DO i=1,pGrid%nCellsTot
         pRegion%mixt%piclVF(i) = 0.0_RFREAL
 END DO
 
-IF ( global%myProcid == MASTERPROC) WRITE(*,*) "PFINIT: Calc Init VolP"
+IF ( showDetail ) WRITE(*,*) "PFINIT: Calc Init VolP"
 DO i = 1, nCells
        CALL ppiclf_solve_GetProFld(i, PPICLF_P_JPHIP, volp(i))
        volp(i) = volp(i)/pRegion%grid%vol(i)
@@ -860,7 +862,7 @@ DEALLOCATE(volp,STAT=errorFlag)
 
 #endif
 
-IF ( global%myProcid == MASTERPROC) then
+IF ( showDetail ) then
    print*, ' '
    print*, '***********************************************'
    print*, 'Starting PICL_InitSolver.F90'

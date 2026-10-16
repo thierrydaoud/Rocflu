@@ -67,11 +67,11 @@ extern "C" {
 void
 Usage(const string &pn)
 {
-  cout << endl << "Usage: " << pn << " -c <casename> [-v 0-2]" << endl << endl
+  cout << endl << "Usage: " << pn << " -c <casename> [-v 1-3]" << endl << endl
        << "   -c | --casename     :     Specifies the casename." << endl
-       << "   -v | --verbosity    :     0 - Quiet" << endl
-       << "                             1 - Moderately verbose" << endl
-       << "                             2 - Ridiculously verbose" << endl
+       << "   -v | --verbosity    :     1 - Run log only (default)" << endl
+       << "                             2 - Detailed messages of every stage" << endl
+       << "                             3 - Debugging detail" << endl
        << endl;
 }
 
@@ -132,7 +132,7 @@ main(int argc,char *argv[])
     }
     istringstream Istr(sverb);
     Istr >> verbosity;
-    if(verbosity < 0 || verbosity > 2){ // Some jerk specified a non numeric or negative
+    if(verbosity < 1 || verbosity > 3){
       cerr << program_name
 	   << ": Invalid verbosity value.  Use -h for usage "
 	   << "instructions." << endl;
@@ -143,6 +143,9 @@ main(int argc,char *argv[])
     verbosity = 1;
   }
 
-  RFLUMP(casename.c_str(),&verbosity,casename.length());
+  // Rocflu's own levels are one lower: -v 1 is VERBOSE_NONE, -v 2
+  // VERBOSE_LOW, -v 3 VERBOSE_HIGH.
+  int verbLevel = verbosity - 1;
+  RFLUMP(casename.c_str(),&verbLevel,casename.length());
 }
 

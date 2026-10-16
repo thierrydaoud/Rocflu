@@ -282,7 +282,8 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 
 
 #ifdef PICL
-  call ppiclf_comm_InitMPI(global%mpiComm,global%myProcid,global%nProcAlloc)
+  call ppiclf_comm_InitMPI(global%mpiComm,global%myProcid,global%nProcAlloc, &
+                           verbLevel)
   global%timingSubRout(1) = MPI_WTIME()
 #endif
 

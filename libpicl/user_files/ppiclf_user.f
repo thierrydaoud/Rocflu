@@ -129,8 +129,8 @@
       iStage = mod(icallb,nstage)
       if (iStage .eq. 0) iStage = 3  
 
-      ! Print dt and time every time step
-      if (ppiclf_nid==0) then
+      ! Print dt and time every time step (from -v 2 on)
+      if (ppiclf_nid==0 .and. ppiclf_verbose>0) then
         if (iStage .eq. 1) then
           write(6,'(a,2x,2(1pe14.6),2x,i3)') '*** PPICLF dt, time = ',
      >      ppiclf_dt,ppiclf_time

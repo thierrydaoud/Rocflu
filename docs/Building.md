@@ -261,6 +261,10 @@ $B/rfluinit -c <case> -v 1
 srun -n N $B/rflump -c <case> -v 1      # or mpirun -n N
 ```
 
+`rflump -v` sets how much the run log shows: `1` (default) only the run's progress,
+warnings and errors; `2` the detailed messages of every stage (Rocflu and ppiclF);
+`3` debugging detail as well. The pre-processing tools keep their own levels.
+
 A case build stops at start-up if the input asks for a model whose slots it does not
 have, with a message such as *Input needs ppiclF slots 'qsfluct' (QSFLUCT >= 1 or
 PSEUDOTURB >= 1), not in this build: use ./rocflu.sh run*.
