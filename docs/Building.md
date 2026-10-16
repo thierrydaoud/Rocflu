@@ -198,7 +198,11 @@ with particles, `points.dat`. `run` then:
    boundary conditions or the grid stops here, before anything is queued.
 3. **Writes `<case>.sbatch`** in the case directory and **submits it**: the job runs
    only `rflump`, with `srun` on N nodes x n ranks per node. The solver's output goes to
-   `<case>.<job id>.out`.
+   `<case>.<job id>.out`: a header box from the job script (start time, partition,
+   account, walltime, nodes and ranks, job ID, build and commit, modules), the Setup box,
+   one progress line per `PRNTIME` (percent done, t, dt, step, time per step, ETA) and a
+   footer box (total time, peak memory against the Slurm request, end time). `rflump -v 2`
+   adds the detailed messages of every stage.
 
 | Option | Meaning | Default |
 |---|---|---|

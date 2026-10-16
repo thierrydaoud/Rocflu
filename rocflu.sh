@@ -491,7 +491,13 @@ cmd_run() {
   fi
 
   # 3. Job script
-  local script="$case_dir/$case_name.sbatch"
+  local script="$case_dir/$case_name.sbatch" build title path
+  build="$name, commit $(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  git -C "$ROOT" diff --quiet HEAD 2>/dev/null || build="$build with uncommitted changes"
+  title="Rocflu+ppiclF case $case_name @ "
+  path="$inp"
+  [ $((${#title} + ${#path})) -gt 105 ] && path="...${path: -$((102 - ${#title}))}"
+  title="$title$path"
   {
     echo "#!/bin/bash"
     echo "# Written by rocflu.sh run on $(date '+%Y-%m-%d %H:%M'): $case_name, $nodes node(s) x $tasks rank(s)"
@@ -514,6 +520,26 @@ cmd_run() {
     echo
     [ -n "$ROCFLU_MODULES" ] && echo "module purge; module load $ROCFLU_MODULES"
     echo "cd $case_dir"
+    # Header box of the run log (rflump prints the Setup box and the footer)
+    cat << EOF
+
+rule() { printf '+%s+\n' "\$(printf -- '-%.0s' \$(seq 107))"; }
+row()  { printf '| * %-15s%-35.35s* %-15s%-35.35s  |\n' "\$1" "\$2" "\$3" "\$4"; }
+wide() { printf '| * %-15s%-88.88s |\n' "\$1" "\$2"; }
+modules=\$(echo "\${LOADEDMODULES:-N/A}" | tr ':' ' ')
+rule
+printf '| %-105.105s |\n' "$title"
+rule
+row "Start-time" "\$(date +%T)"                    "Start-date" "\$(date +%F)"
+row "Partition"  "\${SLURM_JOB_PARTITION:-N/A}"    "Walltime"   "$walltime"
+row "Account"    "\${SLURM_JOB_ACCOUNT:-N/A}"      "Nodes"      "\${SLURM_JOB_NUM_NODES:-1} (\${SLURM_NTASKS:-$nranks} ranks)"
+row "Job Name"   "\${SLURM_JOB_NAME:-$case_name}"  "Job ID"     "\${SLURM_JOB_ID:-N/A}"
+row "Engine"     "batch"                           "Email"      "${email:-N/A}"
+wide "Build"     "$build"
+wide "Modules"   "\$modules"
+rule
+EOF
+    echo
     echo "srun --mpi=pmix $bin/rflump -c $case_name -v 1"
   } > "$script"
   say "job script: $script"
