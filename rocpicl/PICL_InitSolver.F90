@@ -335,6 +335,7 @@ IF(global%restartFromScratch) THEN
 
    rprop = 0.0_RFREAL
    dp_max = 0.0D0
+   dp_min = HUGE(1.0_RFREAL)
    xp_min =  17400000.0
    yp_min =  17400000.0
    zp_min =  17400000.0
@@ -359,6 +360,7 @@ IF(global%restartFromScratch) THEN
 
       ! These are global max/min's since in 1:npart loop
       dp_max = max(dp_max,dp)
+      dp_min = min(dp_min,dp)
       xp_min = min(xp_min,xyzp(1)-dp/2.0)
       xp_max = max(xp_max,xyzp(1)+dp/2.0)
       yp_min = min(yp_min,xyzp(2)-dp/2.0)
@@ -672,6 +674,14 @@ END IF
 CALL ppiclf_comm_InitOverlapGrid(nCells,rocGrid,domainRange,periodic)
 !CALL MPI_Barrier(global%mpiComm,errorFlag)
 CALL ppiclf_solve_InitSolve
+
+! For the Setup box of the run log (RFLU_PrintSetup)
+global%piclNParticles        = npart
+global%piclDpMin             = dp_min
+global%piclDpMax             = dp_max
+global%piclFilterWidth       = filter
+global%piclNeighborWidthUsed = neighborWidth
+CALL ppiclf_solve_GetNBins(global%piclNBins)
 
 ! Particle walls used to be read from filein.vtk. They now come only from
 ! the fluid wall patches, so stop rather than silently run without walls.

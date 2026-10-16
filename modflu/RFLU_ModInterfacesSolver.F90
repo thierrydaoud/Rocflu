@@ -270,6 +270,11 @@ MODULE RFLU_ModInterfacesSolver
     TYPE(t_global), POINTER :: global
   END SUBROUTINE RFLU_OpenTotalMassFile
 
+  SUBROUTINE RFLU_PrintSetup(regions)
+    USE ModDataStruct, ONLY: t_region
+    TYPE(t_region), POINTER :: regions(:)
+  END SUBROUTINE RFLU_PrintSetup
+
   SUBROUTINE RFLU_PrintWriteConvergence(global)
     USE ModGlobal, ONLY: t_global
     TYPE(t_global), POINTER :: global

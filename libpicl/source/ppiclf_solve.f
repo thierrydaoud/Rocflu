@@ -1815,6 +1815,22 @@ c----------------------------------------------------------------------
 
       RETURN
       END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_solve_GetNBins(nbins)
+      use ppiclf_data
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+! Output: number of bins in x, y, z (set by ppiclf_comm_CreateBin)
+!
+      INTEGER*4 nbins(3)
+!
+      nbins = ppiclf_n_bins
+
+      RETURN
+      END
 
 !-----------------------------------------------------------------------
 !       SUBROUTINE ppiclf_solve_InvokeAngularPeriodic(i,flag,

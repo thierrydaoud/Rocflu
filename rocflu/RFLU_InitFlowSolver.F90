@@ -180,6 +180,7 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
                            RFLU_MoveGridWrapper, &
                            !begin BBR
                            RFLU_OpenPMFile, &
+                           RFLU_PrintSetup, &
                            RFLU_OpenIntegFile, &
                            !end BBR
                            RFLU_OpenStatsFileOLES, &
@@ -1728,6 +1729,8 @@ END if !global%piclused
  !CALL MPI_Barrier(global%mpiComm,errorFlag)
  !WRITE(6,*) "BBR: Line 1756...so far so good"
  !BBR - end
+
+  CALL RFLU_PrintSetup(pLevel%regions)
 
   IF ( global%myProcid == MASTERPROC .AND. & 
        global%verbLevel /= VERBOSE_NONE ) THEN

@@ -503,6 +503,11 @@ MODULE ModGlobal
     REAL(RFREAL) :: piclTemp, piclNeighborWidth, piclKsp, &
                     piclERest, ppiclf_p0, piclDensity, piclSpecificHeat
 
+    ! Set by PICL_InitSolver for the Setup box of the run log
+    INTEGER :: piclNParticles, piclNBins(3)
+    REAL(RFREAL) :: piclDpMin, piclDpMax, piclFilterWidth(3), &
+                    piclNeighborWidthUsed
+
   END TYPE t_global
 
 END MODULE ModGlobal

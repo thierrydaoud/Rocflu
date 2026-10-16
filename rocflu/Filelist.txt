@@ -51,6 +51,7 @@ SRCF90+=        BuildVersionString.F90\
                 RFLU_OpenTotalMassFile.F90\
                 RFLU_PrintChangeInfo.F90\
                 RFLU_PrintHeader.F90\
+		RFLU_PrintSetup.F90\
 		RFLU_PrintWriteConvergence.F90\
                 RFLU_ReadIntegrals1245OLES.F90\
                 RFLU_ResidualNorm.F90\
