@@ -30,7 +30,7 @@ The input file and `points.dat` are described in [InputFile.md](InputFile.md).
 On HiPerGator:
 
 ```bash
-./rocflu.sh build        # optimised build of everything, about 2-3 minutes
+./rocflu.sh build        # optimised build of everything (about 30 s on 16 cores)
 ./rocflu.sh test         # regression suite (34 cases, about a minute)
 ./rocflu.sh run /path/to/case/rectshktb.inp -n 4   # build for the case, pre-process, submit
 ```
@@ -103,6 +103,19 @@ specific configuration, use its `install/` directory, for example
 `build/install/debug/bin/rflump`. If you build only some targets (`-t simulation`),
 only those are in that configuration's `bin/`; build the others too before running
 `rocflu.sh test` with it.
+
+**Build times.** A build from scratch with `-j 16` (the default), on 16 cores of a
+HiPerGator compute node (`srun -A bala1s -p hpg-dev -n 1 -c 16 --mem=16gb`), measured
+on 745fb70 in a clean checkout:
+
+| Command | Time | Warnings |
+|---|---|---|
+| `./rocflu.sh build` | 31 s | 0 |
+| `./rocflu.sh build --no-picl` | 27 s | 0 |
+
+The parallel build needs nothing built beforehand: CMake orders the Fortran modules
+itself. On a login node, with fewer free cores, it takes longer; use `-j` with the number
+of cores you have.
 
 **Rebuilding after an edit.** Run the same `./rocflu.sh build` line again. Only the
 changed files and the files that depend on them are recompiled. A change to one
