@@ -1,7 +1,9 @@
 #!/bin/bash
 # rocflu.sh: build and test Rocflu + ppiclF (a small front end to CMake).
 #
-#   ./rocflu.sh build [options]     configure and compile
+#   ./rocflu.sh build [options]     configure and compile (every particle slot)
+#   ./rocflu.sh run <case>.inp ...  build for that case, pre-process it here and
+#                                   submit the simulation to Slurm
 #   ./rocflu.sh test  [options]     run the regression suite (tests/run_tests.py)
 #   ./rocflu.sh clean               remove build/
 #   source ./rocflu.sh load         load the HiPerGator modules into your shell
@@ -38,7 +40,7 @@ if [ "$1" == "load" ]; then
 fi
 
 usage() {
-  sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 usage_build() {
@@ -113,32 +115,214 @@ cmd_build() {
   [ $picl == 0 ]   && name+="-nopicl"
   [ $folder == 0 ] && name+="-nofolder"
   [ -n "$metis_root" ] && name+="-metis"
-  local dir="$BUILD_ROOT/staging/$name"      # CMake's files and the objects
-  local inst="$BUILD_ROOT/install/$name"     # the executables
 
   on_off() { [ "$1" == 1 ] && echo ON || echo OFF; }
   load_modules || fail "could not load modules: $ROCFLU_MODULES"
+  build_config "$name" "$jobs" "$fresh" "$verbose" "${cmake_targets[*]}" \
+    -DCMAKE_BUILD_TYPE=$type -DROCFLU_CASE= \
+    -DROCFLU_PICL=$(on_off $picl) -DROCFLU_SPEC=$(on_off $spec) \
+    -DROCFLU_PLAG=$(on_off $plag) -DROCFLU_FOLDER=$(on_off $folder) \
+    -DMETIS_ROOT="$metis_root"
+  ln -sfn "install/$name/bin" "$BUILD_ROOT/bin"
+  say "done: executables in build/install/$name/bin (build/bin points there)"
+}
+
+# Configures, builds and installs one configuration:
+#   build_config <name> <jobs> <fresh 0|1> <verbose 0|1> "<targets>" <cmake -D options...>
+# CMake's files go to build/staging/<name>, the executables to
+# build/install/<name>/bin.
+build_config() {
+  local name="$1" jobs="$2" fresh="$3" verbose="$4" targets="$5"
+  shift 5
+  local dir="$BUILD_ROOT/staging/$name"      # CMake's files and the objects
+  local inst="$BUILD_ROOT/install/$name"     # the executables
   command -v cmake > /dev/null || fail "cmake not found"
 
-  [ $fresh == 1 ] && rm -rf "$dir" "$inst"
+  [ "$fresh" == 1 ] && rm -rf "$dir" "$inst"
   mkdir -p "$BUILD_ROOT/staging"
   say "configuring $name in build/staging/$name"
-  cmake -S "$ROOT" -B "$dir" -DCMAKE_BUILD_TYPE=$type -DCMAKE_INSTALL_PREFIX="$inst" \
-        -DROCFLU_PICL=$(on_off $picl) -DROCFLU_SPEC=$(on_off $spec) \
-        -DROCFLU_PLAG=$(on_off $plag) -DROCFLU_FOLDER=$(on_off $folder) \
-        -DMETIS_ROOT="$metis_root" > "$dir.configure.log" 2>&1 \
+  cmake -S "$ROOT" -B "$dir" -DCMAKE_INSTALL_PREFIX="$inst" "$@" \
+        > "$dir.configure.log" 2>&1 \
     || { cat "$dir.configure.log"; fail "configure failed"; }
   rm -f "$dir.configure.log"
 
-  say "building ${cmake_targets[*]} with $jobs processes"
+  say "building $targets with $jobs processes"
   local extra=()
-  [ $verbose == 1 ] && extra=(--verbose)
-  cmake --build "$dir" -j "$jobs" --target "${cmake_targets[@]}" "${extra[@]}" \
+  [ "$verbose" == 1 ] && extra=(--verbose)
+  # shellcheck disable=SC2086
+  cmake --build "$dir" -j "$jobs" --target $targets "${extra[@]}" \
     || fail "build failed"
-
   cmake --install "$dir" > /dev/null || fail "copying the executables to build/install/$name failed"
-  ln -sfn "install/$name/bin" "$BUILD_ROOT/bin"
-  say "done: executables in build/install/$name/bin (build/bin points there)"
+}
+
+usage_run() {
+  cat << EOF
+Usage: ./rocflu.sh run <dir>/<case>.inp [options]
+
+Builds the code for this case (only the particle slots its input needs),
+pre-processes the case here (rflumap, rflupart, rfluinit, one process each:
+an error in the .inp, .bc or grid shows up now, before anything is queued),
+then writes <dir>/<case>.sbatch and submits the simulation (rflump) to Slurm.
+The case directory must hold <case>.inp, <case>.bc, the grid and, with
+particles, points.dat.
+
+Job:
+  -N, --nodes N         nodes (default: 1)
+  -n, --tasks-per-node N
+                        MPI ranks per node (default: 1); the case is split
+                        into N x n regions, one per rank
+  -p, --partition P     Slurm partition (default: hpg-default)
+  -a, --account A       Slurm account (default: bala1s)
+  -w, --walltime T      wall time, HH:MM:SS (default: 01:00:00)
+  --mem M               memory per node, e.g. 64gb (default: 2gb per rank,
+                        --mem-per-cpu=2gb)
+  -@, --email ADDRESS   send all Slurm notifications to ADDRESS
+What to do:
+  -t, --targets T       pre_process: build and pre-process only, no job
+                        simulation: build and submit only (the case was
+                        pre-processed before with the same N x n)
+                        (default: both)
+  --dry-run             build, pre-process and write the job script, but
+                        do not submit it
+Build:
+  --debug               debug build (-g -O0 -fcheck=all)
+  -j, --jobs N          compile with N processes (default: 16)
+
+The build is named after the slot groups (e.g. release-case-qsfluct): cases
+with the same physics share it. build/bin is not changed (it stays the
+build used by ./rocflu.sh test).
+EOF
+}
+
+cmd_run() {
+  local inp="" nodes=1 tasks=1 partition=hpg-default account=bala1s
+  local walltime=01:00:00 mem="" email="" targets=() dry=0 debug=0 jobs=16
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -N|--nodes)          nodes="$2"; shift ;;
+      -n|--tasks-per-node) tasks="$2"; shift ;;
+      -p|--partition)      partition="$2"; shift ;;
+      -a|--account)        account="$2"; shift ;;
+      -w|--walltime)       walltime="$2"; shift ;;
+      --mem)               mem="$2"; shift ;;
+      -@|--email)          email="$2"; shift ;;
+      -t|--targets) shift
+        while [ $# -gt 0 ] && [ "${1:0:1}" != "-" ]; do targets+=("$1"); shift; done
+        [ ${#targets[@]} -gt 0 ] || fail "-t needs pre_process and/or simulation"
+        continue ;;
+      --dry-run)           dry=1 ;;
+      --debug)             debug=1 ;;
+      -j|--jobs)           jobs="$2"; shift ;;
+      -h|--help)           usage_run; exit 0 ;;
+      -*)                  usage_run; fail "unknown option $1" ;;
+      *) [ -z "$inp" ] || fail "more than one case given ($inp, $1)"; inp="$1" ;;
+    esac
+    shift
+  done
+  [ -n "$inp" ] || { usage_run; fail "no case given"; }
+  [ -f "$inp" ] || fail "no file $inp"
+  case "$inp" in *.inp) ;; *) fail "$inp: the case file must end in .inp" ;; esac
+  [[ "$nodes" =~ ^[1-9][0-9]*$ ]] || fail "-N must be a positive integer"
+  [[ "$tasks" =~ ^[1-9][0-9]*$ ]] || fail "-n must be a positive integer"
+
+  local pre=1 sim=1 t
+  if [ ${#targets[@]} -gt 0 ]; then
+    pre=0; sim=0
+    for t in "${targets[@]}"; do
+      case "$t" in
+        pre_process) pre=1 ;;
+        simulation)  sim=1 ;;
+        *) fail "unknown target $t (pre_process or simulation)" ;;
+      esac
+    done
+  fi
+
+  local case_dir case_name nranks
+  case_dir="$(cd "$(dirname "$inp")" && pwd)"
+  case_name="$(basename "$inp" .inp)"
+  inp="$case_dir/$case_name.inp"
+  nranks=$((nodes * tasks))
+  [ -f "$case_dir/$case_name.bc" ] || fail "no $case_name.bc in $case_dir"
+
+  load_modules || fail "could not load modules: $ROCFLU_MODULES"
+
+  # 1. Build for the case. A quick configure finds the slot groups its
+  #    input needs; the build is named after them.
+  local type=Release prefix=release
+  if [ $debug == 1 ]; then type=Debug; prefix=debug; fi
+  local probe="$BUILD_ROOT/staging/.probe-$prefix" groups
+  mkdir -p "$BUILD_ROOT/staging"
+  groups=$(cmake -S "$ROOT" -B "$probe" -DCMAKE_BUILD_TYPE=$type -DROCFLU_CASE="$inp" 2>&1 \
+           | sed -n 's/^-- Particle slot groups: //p')
+  [ -n "$groups" ] || fail "could not read the slot groups of $inp (try: cmake -S $ROOT -B $probe -DROCFLU_CASE=$inp)"
+  local physics
+  physics=$(echo "$groups" | tr ';' '\n' | grep -vxE 'core|props|gas' | paste -sd- -)
+  [ -n "$physics" ] || physics=base
+  local name="$prefix-case-$physics"
+  say "case $case_name needs slot groups: $groups"
+  build_config "$name" "$jobs" 0 0 "rflump rflumap rflupart rfluinit" \
+    -DCMAKE_BUILD_TYPE=$type -DROCFLU_CASE="$inp"
+  local bin="$BUILD_ROOT/install/$name/bin"
+  say "executables: build/install/$name/bin"
+
+  # 2. Pre-process here, one process each
+  if [ $pre == 1 ]; then
+    say "pre-processing $case_name into $nranks regions in $case_dir"
+    local tool args
+    for tool in rflumap rflupart rfluinit; do
+      args=(-c "$case_name" -v 1)
+      [ $tool == rflumap ] && args=(-c "$case_name" -m 1 -p "$nranks" -r "$nranks" -v 1)
+      if ! (cd "$case_dir" && "$bin/$tool" "${args[@]}" > "$tool.log" 2>&1) \
+         || grep -q "ERROR" "$case_dir/$tool.log"; then
+        echo "---- last lines of $case_dir/$tool.log:" >&2
+        tail -15 "$case_dir/$tool.log" >&2
+        fail "$tool failed; nothing was submitted"
+      fi
+      say "  $tool done ($tool.log)"
+    done
+  fi
+  if [ $sim == 0 ]; then
+    say "pre-processing done; no job submitted (-t pre_process)"
+    return
+  fi
+
+  # 3. Job script
+  local script="$case_dir/$case_name.sbatch"
+  {
+    echo "#!/bin/bash"
+    echo "# Written by rocflu.sh run on $(date '+%Y-%m-%d %H:%M'): $case_name, $nodes node(s) x $tasks rank(s)"
+    echo "#SBATCH --job-name=$case_name"
+    echo "#SBATCH --account=$account"
+    echo "#SBATCH --partition=$partition"
+    echo "#SBATCH --nodes=$nodes"
+    echo "#SBATCH --ntasks-per-node=$tasks"
+    if [ -n "$mem" ]; then
+      echo "#SBATCH --mem=$mem"
+    else
+      echo "#SBATCH --mem-per-cpu=2gb"
+    fi
+    echo "#SBATCH --time=$walltime"
+    echo "#SBATCH --output=$case_name.%j.out"
+    if [ -n "$email" ]; then
+      echo "#SBATCH --mail-user=$email"
+      echo "#SBATCH --mail-type=ALL"
+    fi
+    echo
+    [ -n "$ROCFLU_MODULES" ] && echo "module purge; module load $ROCFLU_MODULES"
+    echo "cd $case_dir"
+    echo "srun --mpi=pmix $bin/rflump -c $case_name -v 1"
+  } > "$script"
+  say "job script: $script"
+
+  # 4. Submit
+  if [ $dry == 1 ]; then
+    say "dry run: not submitted (submit with: sbatch $script)"
+    return
+  fi
+  command -v sbatch > /dev/null || fail "sbatch not found"
+  local out
+  out=$(cd "$case_dir" && sbatch "$script" 2>&1) || { echo "$out" >&2; fail "sbatch failed"; }
+  say "$out (output: $case_dir/$case_name.<job id>.out)"
 }
 
 usage_test() {
@@ -173,6 +357,7 @@ cmd_test() {
 
 case "$1" in
   build) shift; cmd_build "$@" ;;
+  run)   shift; cmd_run "$@" ;;
   test)  shift; cmd_test "$@" ;;
   clean) rm -rf "$BUILD_ROOT"; say "removed build/" ;;
   ""|-h|--help|help) usage ;;

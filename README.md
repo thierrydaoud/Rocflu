@@ -73,7 +73,14 @@ MFC's `mfc.sh`:
 ./rocflu.sh build --help                 # all options
 ```
 
-See [`docs/Building.md`](docs/Building.md) for all options, running a case, using CMake
+To run a case, `rocflu.sh run` builds the code for that case's physics, pre-processes it
+and submits the simulation:
+
+```bash
+./rocflu.sh run /path/to/case/rectshktb.inp -N 1 -n 4 -p hpg-default -w 02:00:00
+```
+
+See [`docs/Building.md`](docs/Building.md) for all options, `rocflu.sh run`, using CMake
 directly, and how the build is organised.
 
 ## 🧪 Testing

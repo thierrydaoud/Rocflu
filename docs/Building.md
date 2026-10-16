@@ -11,13 +11,15 @@ the modules, configures, compiles and keeps each configuration in its own direct
 - [What gets built](#what-gets-built)
 - [`rocflu.sh build`](#rocflush-build)
 - [`rocflu.sh test`, `clean` and `load`](#rocflush-test-clean-and-load)
-- [Running a case](#running-a-case)
+- [Running a case: `rocflu.sh run`](#running-a-case-rocflush-run)
+  - [Running the steps by hand](#running-the-steps-by-hand)
 - [Using CMake directly](#using-cmake-directly)
 - [How the build is organised](#how-the-build-is-organised)
   - [Adding a source file](#adding-a-source-file)
   - [Compiler flags](#compiler-flags)
   - [ppiclF](#ppiclf)
   - [METIS](#metis)
+  - [Particle slots: `ppiclf_slots.txt`](#particle-slots-ppiclf_slotstxt)
 - [Troubleshooting](#troubleshooting)
 
 ## Quick start
@@ -27,6 +29,7 @@ On HiPerGator:
 ```bash
 ./rocflu.sh build        # optimised build of everything, about 2-3 minutes
 ./rocflu.sh test         # regression suite (35 cases, about a minute)
+./rocflu.sh run /path/to/case/rectshktb.inp -n 4   # build for the case, pre-process, submit
 ```
 
 The executables are in `build/bin`. There is nothing to set up first: the script loads
@@ -123,11 +126,51 @@ The modules the script loads can be changed with the environment variable
 `ROCFLU_MODULES=""` loads nothing (for machines without `module`, or when your shell
 is already set up).
 
-## Running a case
+## Running a case: `rocflu.sh run`
 
-A case directory holds `<case>.inp`, `<case>.bc`, the grid `<case>.hyb.asc` and, with
-particles, `points.dat`. With the modules loaded (`source ./rocflu.sh load`) and N MPI
-ranks:
+```bash
+./rocflu.sh run /path/to/case/rectshktb.inp -N 1 -n 4 -p hpg-default -w 02:00:00 -@ you@ufl.edu
+```
+
+The case directory must hold `<case>.inp`, `<case>.bc`, the grid (`<case>.hyb.asc`) and,
+with particles, `points.dat`. `run` then:
+
+1. **Builds the code for this case.** It reads the PICL and FLOWMODEL sections of the
+   input and builds only the particle slots the models that are on need (see
+   [Particle slots](#particle-slots-ppiclf_slotstxt)). The build is named after those
+   slot groups, e.g. `build/install/release-case-qsfluct/bin`; every case with the same
+   physics shares it, so a second case usually compiles nothing.
+2. **Pre-processes the case here**, on the login node: `rflumap` (into N x n regions),
+   `rflupart`, `rfluinit`, one process each, with their output in `rflumap.log`,
+   `rflupart.log` and `rfluinit.log` in the case directory. A mistake in the input, the
+   boundary conditions or the grid stops here, before anything is queued.
+3. **Writes `<case>.sbatch`** in the case directory and **submits it**: the job runs
+   only `rflump`, with `srun` on N nodes x n ranks per node. The solver's output goes to
+   `<case>.<job id>.out`.
+
+| Option | Meaning | Default |
+|---|---|---|
+| `-N, --nodes N` | nodes | 1 |
+| `-n, --tasks-per-node N` | MPI ranks **per node**; the case is split into N x n regions | 1 |
+| `-p, --partition P` | Slurm partition | `hpg-default` |
+| `-a, --account A` | Slurm account | `bala1s` |
+| `-w, --walltime T` | wall time `HH:MM:SS` | `01:00:00` |
+| `--mem M` | memory per node, e.g. `64gb` | 2 GB per rank (`--mem-per-cpu=2gb`) |
+| `-@, --email A` | send all Slurm notifications (start, end, failure) to A | none |
+| `-t pre_process` | build and pre-process only, no job | |
+| `-t simulation` | build and submit only; the case was pre-processed before with the same N x n | |
+| `--dry-run` | build, pre-process and write the job script, but do not submit | |
+| `--debug` | debug build of the case | |
+| `-j, --jobs N` | compile with N processes | 16 |
+
+`run` does not change `build/bin`, which stays the full build `rocflu.sh test` uses.
+Pre-processing runs on the login node, which is fine for test-size grids; very large
+grids (a million cells and more) can take long there (to be improved).
+
+### Running the steps by hand
+
+With the modules loaded (`source ./rocflu.sh load`) and N MPI ranks, using a full build
+(`build/bin`) or a case build (`build/install/<name>/bin`):
 
 ```bash
 B=/path/to/repo/build/bin
@@ -136,6 +179,10 @@ $B/rflupart -c <case> -v 1
 $B/rfluinit -c <case> -v 1
 srun -n N $B/rflump -c <case> -v 1      # or mpirun -n N
 ```
+
+A case build stops at start-up if the input asks for a model whose slots it does not
+have, with a message such as *Input needs ppiclF slots 'qsfluct' (QSFLUCT >= 1 or
+PSEUDOTURB >= 1), not in this build: use ./rocflu.sh run*.
 
 ## Using CMake directly
 
@@ -156,6 +203,7 @@ cmake --build build/staging/mine -j 16 --target rflump   # executables in build/
 | `ROCFLU_FOLDER` | `ON` | `--no-folder` |
 | `ROCFLU_UTILITIES` | `ON` | (off: only `rflump`) |
 | `METIS_ROOT` | empty (bundled) | `--metis-root` |
+| `ROCFLU_CASE` | empty (every particle slot) | set by `rocflu.sh run` |
 
 ## How the build is organised
 
@@ -213,6 +261,41 @@ build (32-bit integers and reals). The partitions are identical, file for file, 
 those of the prebuilt libraries used before. To use another installation instead, pass
 `--metis-root DIR` (or `-DMETIS_ROOT=DIR`), where `DIR` holds `lib/libmetis.a`,
 `lib/libGKlib.a` and `include/metis.h`.
+
+### Particle slots: `ppiclf_slots.txt`
+
+ppiclF stores each particle's state in `ppiclf_y` (position, velocity, temperature,
+spin) and its properties and the gas values at the particle in `ppiclf_rprop`; the
+fields it projects to the gas are in `ppiclf_feedbk`. Every entry ("slot") has a name,
+`PPICLF_JX`, `PPICLF_R_JRHOF`, `PPICLF_P_JFX`, ..., used in ppiclF and Rocflu.
+
+The slots are listed in `libpicl/user_files/ppiclf_slots.txt`, in groups by the
+physics that needs them, with a rule for each optional group:
+
+```
+rule   spin     COLLISIONS >= 2
+rule   qsfluct  QSFLUCT >= 1 or PSEUDOTURB >= 1
+rule   ptdiag   PSEUDOTURB >= 1 and OUTMODEL >= 1
+...
+y      core     JX JY JZ JVX JVY JVZ JT
+y      spin     JOX JOY JOZ
+rprop  qsfluct  R_FLUCTFX R_FLUCTFY R_FLUCTFZ
+...
+```
+
+CMake numbers the slots of the groups a build includes and writes `PPICLF_LAYOUT.h`
+into the build directory (`PPICLF_USER.h` includes it). A build without a case
+(`rocflu.sh build`) includes every group; a case build (`rocflu.sh run`, or
+`-DROCFLU_CASE=<case>.inp`) only the groups whose rule holds for that input, so a
+drag-only case carries 7 values in `y` and 11 in `rprop` per particle instead of 10 and 53.
+Slots a build does not have are defined as 0: code that only runs with a model is never
+reached, and the few places that always write a slot are compiled out
+(`#if PPICLF_JOX > 0`). A generated check in `PICL_InitSolver` stops a run whose input
+needs a group the build lacks.
+
+To add a slot, add its name to a line of `ppiclf_slots.txt` (a new group needs a `rule`
+line too; groups without a rule are always built) and rebuild: CMake reconfigures by
+itself and recompiles the files that use the slots.
 
 ## Troubleshooting
 
