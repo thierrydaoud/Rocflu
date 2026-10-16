@@ -1,8 +1,8 @@
 # ppiclF and gslib (replaces libpicl/Makefile and gslib's install script).
 
-set(PPICLF_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ppiclF/source)
+set(PPICLF_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/source)
 set(PPICLF_USER_DIR   ${CMAKE_CURRENT_SOURCE_DIR}/user_files)
-set(GSLIB_DIR         ${CMAKE_CURRENT_SOURCE_DIR}/ppiclF/3rd_party/gslib)
+set(GSLIB_DIR         ${CMAKE_CURRENT_SOURCE_DIR}/3rd_party/gslib)
 
 # --- gslib -------------------------------------------------------------------
 # The objects gslib's own Makefile puts in libgs.a, with the options ppiclF's
@@ -49,7 +49,7 @@ set(PPICLF_SOURCES
     ${PPICLF_SOURCE_DIR}/ppiclf_wall.f
     ${PPICLF_SOURCE_DIR}/ppiclf_mxm.f)
 
-# The user's headers come first so they win over any copy in ppiclF/source.
+# The user's headers come first so they win over any copy in source/.
 set(PPICLF_HEADERS
     ${PPICLF_SOURCE_DIR}/PPICLF_SOLN.h
     ${PPICLF_SOURCE_DIR}/PPICLF_GRID.h

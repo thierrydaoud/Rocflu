@@ -13,7 +13,7 @@
 !   INRT_CalcDragUnsteady_AMExplicit.F90
 !
 ! The number of time steps kept for the history
-!   kernel is set in libpicl/ppiclF/source/PPICLF_STD.h
+!   kernel is set in libpicl/source/PPICLF_STD.h
 !
 !
 ! Below we include several schemes for the integration

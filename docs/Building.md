@@ -203,7 +203,7 @@ ppiclF is compiled as a single file: CMake concatenates the core and user files 
 `PPICLF_STD.h`, as the old ppiclF makefile did. It also generates the include file
 `PPICLF` (all ppiclF common blocks) by running the C preprocessor over the
 `PPICLF_*.h` headers. The user's headers in `libpicl/user_files/` take precedence over
-the copies in `libpicl/ppiclF/source/`.
+the copies in `libpicl/source/`.
 
 ### METIS
 

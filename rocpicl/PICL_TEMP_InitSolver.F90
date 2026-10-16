@@ -755,7 +755,7 @@ END IF
 ! file. Every rank gets every face (ppiclF bins do not follow the Rocflu
 ! regions); quadrilaterals are split in two. The normal -fn points into the
 ! fluid, so these walls push particles back even after their centre has
-! crossed the wall (see libpicl/ppiclF/source/ppiclf_wall.f).
+! crossed the wall (see libpicl/source/ppiclf_wall.f).
 nTriLoc = 0
 DO iPatch = 1,pGrid%nPatches
   pPatch => pRegion%patches(iPatch)
