@@ -37,6 +37,13 @@ def golden_dir(case):
     return os.path.join(GOLDENS, case.name)
 
 
+def default_exe_dir():
+    # CMake build (./rocflu.sh build) first, else where the old make build puts them
+    tree = os.path.dirname(TESTS_DIR)
+    cmake_bin = os.path.join(tree, "build", "bin")
+    return cmake_bin if os.access(os.path.join(cmake_bin, "rflump"), os.X_OK) else tree
+
+
 def git_info(exe_dir):
     def git(*args):
         try:
@@ -152,7 +159,9 @@ def main():
     p.add_argument("-o", "--only", nargs="*", default=[], help="name substrings to select")
     p.add_argument("--generate", action="store_true", help="write goldens instead of comparing")
     p.add_argument("--force", action="store_true", help="with --generate: write even if checks fail")
-    p.add_argument("--exe", default=os.path.dirname(TESTS_DIR), help="tree with rflu* executables")
+    p.add_argument("--exe", default=default_exe_dir(),
+                   help="directory with the rflu* executables (default: build/bin of this tree, "
+                        "else the top of the tree)")
     p.add_argument("-j", "--jobs", type=int, default=8, help="cases run concurrently")
     p.add_argument("--account", default=os.environ.get("ROCPICL_TEST_ACCOUNT", "bala1s"))
     p.add_argument("--partition", default=os.environ.get("ROCPICL_TEST_PARTITION", "hpg-dev"))

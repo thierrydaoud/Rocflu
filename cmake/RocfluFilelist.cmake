@@ -8,6 +8,9 @@
 
 function(rocflu_read_filelist dir out_var)
   file(STRINGS "${dir}/Filelist.txt" lines)
+  # Editing a Filelist makes the next build reconfigure.
+  set_property(DIRECTORY ${PROJECT_SOURCE_DIR} APPEND PROPERTY
+               CMAKE_CONFIGURE_DEPENDS "${dir}/Filelist.txt")
 
   set(sources "")
   set(active_stack "")   # one entry per open ifdef: 1 = taken, 0 = skipped

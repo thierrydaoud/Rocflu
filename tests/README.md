@@ -33,12 +33,11 @@ collisions, walls) and [gas only](#gas-only-cases) (the flow solver without part
 
 ### 1. Build
 
-Build the code in the tree you want to test (see the top-level README:
-`cmake -S . -B build && cmake --build build -j 16`). The suite runs the executables
-`rflumap`, `rflupart`, `rfluinit` and `rflump` from the directory given with `--exe`;
-for a CMake build that is `--exe ../build/bin`. Without `--exe` it uses the top of the
-tree that holds this `tests/` directory, where the old make build (`makeall.sh`) puts
-them.
+Build the code in the tree you want to test: `./rocflu.sh build` (see
+[`docs/Building.md`](../docs/Building.md)). The suite runs the executables `rflumap`,
+`rflupart`, `rfluinit` and `rflump` from `build/bin` (the last configuration built), or
+from the directory given with `--exe`. `./rocflu.sh test [options]` runs
+`./run_tests.py run` with the modules loaded and passes the options on.
 
 ### 2. Run
 

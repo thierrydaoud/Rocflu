@@ -57,39 +57,24 @@ cd your-repo-name
 
 ## 🔨 Building
 
-The code builds with CMake (3.20 or newer). On HiPerGator:
-
 ```bash
-module purge; module load gcc/14.2.0 openmpi/5.0.7
-cmake -S . -B build
-cmake --build build -j 16
+./rocflu.sh build        # optimised build of everything (loads the HiPerGator modules itself)
+./rocflu.sh test         # regression suite
 ```
 
-The executables go to `build/bin`: the solver `rflump` and the three
-pre-processing utilities `rflumap`, `rflupart` and `rfluinit` that set up a case.
-A clean build takes about 3 minutes with 16 cores. After an edit, run the
-`cmake --build` line again: only the changed files and the files that depend on
-them are recompiled.
+The executables `rflump` (solver), `rflumap`, `rflupart` and `rfluinit` (case set-up)
+are in `build/bin`. Choose targets and options on the command line, in the style of
+MFC's `mfc.sh`:
 
-Options are set with `-D` on the first `cmake` line:
+```bash
+./rocflu.sh build -t simulation          # only the solver rflump
+./rocflu.sh build --debug                # debug build (-g -O0 -fcheck=all)
+./rocflu.sh build --spec                 # with species transport (JWL gas model)
+./rocflu.sh build --help                 # all options
+```
 
-| Option | Default | Meaning |
-|---|---|---|
-| `CMAKE_BUILD_TYPE` | `Release` | `Debug`: `-g -O0 -fbacktrace -fcheck=all` everywhere |
-| `ROCFLU_PICL` | `ON` | couple the ppiclF particle solver |
-| `ROCFLU_SPEC` | `OFF` | species transport (also needed by the JWL gas model, `GASMODEL 7`) |
-| `ROCFLU_PLAG` | `OFF` | Rocpart Lagrangian particles |
-| `ROCFLU_FOLDER` | `ON` | write output into per-kind folders |
-| `ROCFLU_UTILITIES` | `ON` | build `rflumap`, `rflupart` and `rfluinit` |
-| `METIS_ROOT` | `3rd_party/local` | METIS 5 and GKlib install (`3rd_party/install.sh` builds them) |
-
-For example, a debug build with species in its own directory:
-`cmake -S . -B build-debug -DCMAKE_BUILD_TYPE=Debug -DROCFLU_SPEC=ON`.
-
-Release builds compile Rocflu with `-O` and ppiclF with `-O3 -fcheck=all`.
-The sources each part compiles are listed in the `Filelist.txt` of its
-directory. The old make build (`makeall.sh`) still works; its executables give
-results identical to the CMake ones, byte for byte.
+See [`docs/Building.md`](docs/Building.md) for all options, running a case, using CMake
+directly, and how the build is organised.
 
 ## 🧪 Testing
 
@@ -98,9 +83,7 @@ code on 1, 2 and 4 MPI ranks. It compares each one with a stored result and chec
 physics (conservation, interpolation, collisions, walls). After building:
 
 ```bash
-cd tests
-module purge; module load gcc/14.2.0 openmpi/5.0.7
-./run_tests.py run --exe ../build/bin
+./rocflu.sh test
 ```
 
 See [`tests/README.md`](tests/README.md) for the list of cases and how to run them on
