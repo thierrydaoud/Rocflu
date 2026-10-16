@@ -4,6 +4,7 @@ project(Rocflu LANGUAGES C CXX Fortran)
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 include(RocfluFilelist)
+include(PpiclfLayout)
 
 # --- Options -----------------------------------------------------------------
 option(ROCFLU_PICL      "Couple the ppiclF particle solver"                ON)
@@ -99,6 +100,15 @@ function(rocflu_flags target)
     Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules/${target})
 endfunction()
 
+# --- Particle field layout -------------------------------------------------
+# Slot numbers of ppiclF's y, rprop and projected arrays (PPICLF_LAYOUT.h),
+# shared by ppiclF and Rocflu. Every group of ppiclf_slots.txt is included.
+set(PPICLF_LAYOUT_DIR ${CMAKE_BINARY_DIR}/generated)
+set(PPICLF_LAYOUT_GROUPS core heat spin props qsfluct pt am2 gas dpdx amvu
+                         divtau ptdiag)
+ppiclf_write_layout(${PROJECT_SOURCE_DIR}/libpicl/user_files/ppiclf_slots.txt
+                    ${PPICLF_LAYOUT_DIR}/PPICLF_LAYOUT.h "${PPICLF_LAYOUT_GROUPS}")
+
 # --- ppiclF ------------------------------------------------------------------
 if(ROCFLU_PICL)
   add_subdirectory(libpicl)
@@ -131,7 +141,8 @@ target_include_directories(flu INTERFACE ${CMAKE_BINARY_DIR}/modules/flu)
 # The ppiclF layout macros (PPICLF_USER.h, PPICLF_STD.h); the user's copy first.
 target_include_directories(flu PRIVATE
   $<$<COMPILE_LANGUAGE:Fortran>:${PROJECT_SOURCE_DIR}/libpicl/user_files>
-  $<$<COMPILE_LANGUAGE:Fortran>:${PROJECT_SOURCE_DIR}/libpicl/source>)
+  $<$<COMPILE_LANGUAGE:Fortran>:${PROJECT_SOURCE_DIR}/libpicl/source>
+  $<$<COMPILE_LANGUAGE:Fortran>:${PPICLF_LAYOUT_DIR}>)
 target_link_libraries(flu PUBLIC MPI::MPI_Fortran)
 
 # Links like the Makefiles: C++ linker, own objects, then libflu.

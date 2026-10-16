@@ -72,11 +72,12 @@ add_custom_command(
   OUTPUT ${PPICLF_GEN_DIR}/PPICLF
   COMMAND ${CMAKE_COMMAND} -DCPP=${CMAKE_C_COMPILER}
           -DOUTPUT=${PPICLF_GEN_DIR}/PPICLF
-          "-DINCLUDES=${PPICLF_USER_DIR}|${PPICLF_SOURCE_DIR}"
+          "-DINCLUDES=${PPICLF_USER_DIR}|${PPICLF_SOURCE_DIR}|${PPICLF_LAYOUT_DIR}"
           "-DHEADERS=${headers_arg}"
           -P ${PROJECT_SOURCE_DIR}/cmake/PpiclfCommonBlocks.cmake
   DEPENDS ${PPICLF_HEADERS} ${PROJECT_SOURCE_DIR}/cmake/PpiclfCommonBlocks.cmake
           ${PPICLF_USER_DIR}/PPICLF_USER.h ${PPICLF_SOURCE_DIR}/PPICLF_STD.h
+          ${PPICLF_LAYOUT_DIR}/PPICLF_LAYOUT.h
   COMMENT "Generating ppiclF common-block include file PPICLF"
   VERBATIM)
 
@@ -96,6 +97,7 @@ set_target_properties(ppiclF PROPERTIES
   Fortran_PREPROCESS ON
   Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules/ppiclF)
 target_include_directories(ppiclF PRIVATE
-  ${PPICLF_USER_DIR} ${PPICLF_SOURCE_DIR} ${PPICLF_GEN_DIR} ${GSLIB_DIR}/include)
+  ${PPICLF_USER_DIR} ${PPICLF_SOURCE_DIR} ${PPICLF_GEN_DIR} ${PPICLF_LAYOUT_DIR}
+  ${GSLIB_DIR}/include)
 target_compile_options(ppiclF PRIVATE ${PPICLF_Fortran_FLAGS})
 target_link_libraries(ppiclF PUBLIC gs MPI::MPI_Fortran)

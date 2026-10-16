@@ -1,0 +1,70 @@
+# Slots of the per-particle and projected field arrays.
+#
+# CMake reads this table when it configures a build and writes
+# PPICLF_LAYOUT.h, which defines PPICLF_<name> as the slot number for
+# every name below (PPICLF_JX, PPICLF_R_JRHOF, PPICLF_P_JFX, ...).
+# Within each array the slots of the groups a build includes are numbered
+# 1, 2, 3, ... in the order of this file.
+#
+# Columns: array, group, slot names (a line may be continued on the next
+# line by starting it with the same array and group).
+#   array  y     : ppiclf_y, y1, ydot, ydotc (size ppiclf_lrs)
+#          rprop : ppiclf_rprop (size ppiclf_lrp)
+#          pro   : ppiclf_feedbk and the projected fields (ppiclf_lrp_pro)
+#   group  the physics that needs the slots; every group is built for now
+#
+# A '#' starts a comment; comments directly above a line are copied into
+# PPICLF_LAYOUT.h.
+
+# Position and velocity
+y      core     JX JY JZ JVX JVY JVZ
+# Temperature
+y      heat     JT
+# Angular velocity
+y      spin     JOX JOY JOZ
+
+# --- Particle properties: set at start-up, used every step
+#     (JSPL: superparticle loading, always 1 for now)
+rprop  props    R_JRHOP R_JDP R_JVOLP R_JSPL
+# --- Model state carried from step to step
+#     fluctuating quasi-steady force (QSFLUCT)
+rprop  qsfluct  R_FLUCTFX R_FLUCTFY R_FLUCTFZ
+#     pseudo-turbulence stochastic variables (PSEUDOTURB)
+rprop  pt       R_XIPAR R_XIPERP R_XIT
+#     density-weighted relative acceleration, read from neighbours
+#     (AMFORCE 2); must stay contiguous (x, y, z)
+rprop  am2      R_WDOTX R_WDOTY R_WDOTZ
+# --- Gas at the particle: interpolated from Rocflu every stage
+#     (the slots ppiclf_user_Layout lists with AddInterpSlot; PICL_Runge
+#     hands each over with InterpFieldUser). JPHIP: the projected particle
+#     volume fraction, interpolated back to the particle
+rprop  gas      R_JRHOF R_JPHIP R_JUX R_JUY R_JUZ R_JCS R_JT
+#     pressure gradient
+rprop  dpdx     R_JDPDX R_JDPDY R_JDPDZ
+#     substantial derivative of the gas velocity Du/Dt, d(rho phi_g)/dt
+#     and grad(rho phi_g)
+rprop  amvu     R_JSDRX R_JSDRY R_JSDRZ R_JRHSR R_JPGCX R_JPGCY R_JPGCZ
+#     vorticity
+rprop  spin     R_JXVOR R_JYVOR R_JZVOR
+#     gas density gradient
+rprop  amvu     R_JRHOGX R_JRHOGY R_JRHOGZ
+#     divergence of the viscous stress
+rprop  divtau   R_JDPVDX R_JDPVDY R_JDPVDZ
+#     substantial derivative of the vorticity
+rprop  spin     R_JSDOX R_JSDOY R_JSDOZ
+# --- Pseudo-turbulence diagnostics (PSEUDOTURB), output only
+rprop  ptdiag   R_RTildePar R_RTildePerp R_R11 R_R22 R_R33 R_KMehra
+rprop  ptdiag   R_KOsnes R_RparMehra R_RperpMehra R_RTerm2Par R_RTerm2Perp
+
+# Particle volume fraction, force and energy feedback, and the fields the
+# probes read (PHIPD to PHIPT)
+pro    core     P_JPHIP P_JFX P_JFY P_JFZ P_JE
+pro    core     P_JPHIPD P_JPHIPU P_JPHIPV P_JPHIPW P_JPHIPT
+# Pseudo-turbulence: Reynolds subgrid stress, pseudo-turbulent kinetic
+# energy, heat-flux term
+pro    pt       P_JRSG11 P_JRSG12 P_JRSG13 P_JRSG21 P_JRSG22 P_JRSG23
+pro    pt       P_JRSG31 P_JRSG32 P_JRSG33
+pro    pt       P_JTSG1 P_JTSG2 P_JTSG3
+pro    pt       P_JAlphaPT11 P_JAlphaPT12 P_JAlphaPT13 P_JAlphaPT21
+pro    pt       P_JAlphaPT22 P_JAlphaPT23 P_JAlphaPT31 P_JAlphaPT32
+pro    pt       P_JAlphaPT33
