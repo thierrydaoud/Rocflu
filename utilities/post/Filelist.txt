@@ -18,8 +18,7 @@ SRCF90=		RFLU_ModENSIGHT.F90\
 		RFLU_ModENSIGHTUtils.F90\
 		RFLU_ModExtractFlowData.F90\
 		RFLU_ModExtractFlowDataUtils.F90\
-		RFLU_ModMergeRegions.F90\
-		FFT_2d.F90
+		RFLU_ModMergeRegions.F90
 
 SRCF90+= 	BuildVersionString.F90\
 		RFLU_AllocateMemoryVert.F90\

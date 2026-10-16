@@ -2952,7 +2952,7 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux2_MTCP(pRegion)
 
                       OPEN(5432,file='PressureFlux_457_1.dat',form='formatted',status='old' &
                                ,position='append')
-                      WRITE(5432,'(E23.16,1X,I8,1X,I8,1X,I8,1X,E23.16,1X,E23.16,1X,E23.16,1X,E23.16)'), &
+                      WRITE(5432,'(E23.16,1X,I8,1X,I8,1X,I8,1X,E23.16,1X,E23.16,1X,E23.16,1X,E23.16)') &
                                       global%currentTime,c1,c2,ifg,nx,nm,pf,pf*nx
                       CLOSE(5432)
  
@@ -2965,7 +2965,7 @@ SUBROUTINE RFLU_AUSMPlusUp_ComputeFlux2_MTCP(pRegion)
 
                       OPEN(5432,file='PressureFlux_457_1.dat',form='formatted',status='old' &
                                ,position='append')
-                      WRITE(5432,'(E23.16,1X,I8,1X,I8,1X,I8,1X,E23.16,1X,E23.16,1X,E23.16,1X,E23.16)'), &
+                      WRITE(5432,'(E23.16,1X,I8,1X,I8,1X,I8,1X,E23.16,1X,E23.16,1X,E23.16,1X,E23.16)') &
                                       global%currentTime,c1,c2,ifg,nx,nm,pf,pf*nx
                       CLOSE(5432)
  

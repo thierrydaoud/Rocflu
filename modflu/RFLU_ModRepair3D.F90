@@ -656,15 +656,17 @@ MODULE RFLU_ModRepair3D
 !
 !     INITIALIZE NPOINT AND SET STARTING VALUES FOR NPTET AND IPROT
 !
-      DO 55 L=1,NCELL
+      DO L=1,NCELL
       NPOINT(L) = 0
       IPROT(L)  = L
-      DO 55 K=1,4
+      DO K=1,4
       N         = NDC(K,L)
       IF (N.LT.0) GO TO 55
       IF (NPTET(N).GT.0) GO TO 55
       NPTET(N)  = L
    55 CONTINUE
+      END DO
+      END DO
 !
 !     CREATE NBH ARRAY CONTAINING ADDRESSES OF NEIGHBORING TETRAHEDRA
 !
@@ -725,19 +727,22 @@ MODULE RFLU_ModRepair3D
   125 CONTINUE
       IF (NCHG.EQ.0) GO TO 140
       NLOOK     = NCHG
-      DO 130 LK=1,NLOOK
+      DO LK=1,NLOOK
       L         = IPROT(LK)
-      DO 130 K=1,4
+      DO K=1,4
       N         = NDC(K,L)
       IF (N.GT.0) NPTET(N) = 0
-  130 CONTINUE
-      DO 135 LK=1,NLOOK
+      END DO
+      END DO
+      DO LK=1,NLOOK
       L         = IPROT(LK)
-      DO 135 K=1,4
+      DO K=1,4
       N         = NDC(K,L)
       IF (N.LT.0) GO TO 135
       IF (NPTET(N).EQ.0) NPTET(N)  = L
   135 CONTINUE
+      END DO
+      END DO
       GO TO 60
 !
 !     ALL CELL NEIGHBORS HAVE BEEN FOUND. CHECK WHETHER EVERY CELL HAS
@@ -990,8 +995,8 @@ MODULE RFLU_ModRepair3D
 !
 !     COMPUTE BOUNDARY POINT DISPLACEMENTS
 !
-      DO 90 I=1,NBFACE
-      DO 90 K=1,3
+      DO I=1,NBFACE
+      DO K=1,3
       N          = NFCE(K,I)
       IF (N.LT.0) GO TO 90
       IF (ITYP(N).LT.0) GO TO 90
@@ -999,6 +1004,8 @@ MODULE RFLU_ModRepair3D
       IPOINT(N)  = 1
       XC(LOOP,N) = (XNEWBN(LOOP,N)  -X(LOOP,N))*L*FAC
    90 CONTINUE
+      END DO
+      END DO
       IF (LOOP.GT.1) GO TO 105
 !
 !     COMPUTE VERTEX DEGREE AND ITS RECIPROCAL AT EACH NODE
@@ -1434,19 +1441,21 @@ MODULE RFLU_ModRepair3D
 !     OCTANT NOW CONTAINS NINE POINTS. FORM EIGHT NEW OCTANTS
 !     AND AMEND TREE STRUCTURE.
 !
-   30 DO 35 K=1,8
+   30 DO K=1,8
       IOCTR      = IOCTR  +1
       IF (IOCTR.GT.MXOCTR) GO TO 210
       NOCTR(2,IOCTR) = I
-   35 NOCTR(1,IOCTR) = 0
+      NOCTR(1,IOCTR) = 0
+      END DO
 !
 !     ASSIGN POINTS TO NEW OCTANTS
 !
       NEXT       = NOCTR(1,I)
-      DO 40 L=1,8
+      DO L=1,8
       NSTORE(L)  = NEXT
       NEXT       = NLINK(NEXT)
-   40 JJ(L)      = 0
+      JJ(L)      = 0
+      END DO
       DO 45 K=1,8
       J          = NSTORE(K)
       XSHIFT     = X(1,J)  -.5*(XLOW  +XHIGH)
@@ -1720,9 +1729,9 @@ MODULE RFLU_ModRepair3D
       KC          = 1
       KSRCH(1)    = I
    75 IC          = 0
-      DO 90 J=1,KC
+      DO J=1,KC
       II          = KSRCH(J)
-      DO 90 K=1,8
+      DO K=1,8
       ITRY        = -NOCTR(1,II)  +K  -1
       IF (ITRY.EQ.IFLAG) GO TO 90
       XHALF      = .5*(XOCTR(1,J)  +XOCTR(2,J))
@@ -1774,6 +1783,8 @@ MODULE RFLU_ModRepair3D
       ZL          = ZPT  -DMIN
       ZU          = ZPT  +DMIN
    90 CONTINUE
+      END DO
+      END DO
       IF (IC.GT.0) GO TO 92
       XLOW        = XKEEP(1)
       XHIGH       = XKEEP(2)
@@ -2323,13 +2334,14 @@ MODULE RFLU_ModRepair3D
 !
 !     INITIALIZE FVCNT TO -1 FOR BOUNDARY POINTS
 !
-      DO 15 J=1,NBFACE
-      DO 15 K=1,3
+      DO J=1,NBFACE
+      DO K=1,3
       N         = NFCE(K,J)
       IF (N.GT.0) THEN
          FVCNT(N)  = -1.
       ENDIF
-   15 CONTINUE
+      END DO
+      END DO
 !
 !     ESTABLISH INITIAL GUESS FOR DENSITY FUNCTION FOR ALL MESH POINTS
 !
@@ -2758,14 +2770,15 @@ MODULE RFLU_ModRepair3D
       IPOINT(N)   = 0
       IF (ITYP(N).GE.0) NVOLPT = NVOLPT  +1
    80 CONTINUE
-      DO 85 J=1,NBFACE
-      DO 85 K=1,3
+      DO J=1,NBFACE
+      DO K=1,3
       N           = NFCE(K,J)
       IF (IPOINT(N).EQ.0) THEN
          IPOINT(N)   = 1
          NSURPT      = NSURPT  +1
       ENDIF
-   85 CONTINUE
+      END DO
+      END DO
       DO 90 N=1,NNODE
       IPOINT(N)   = 0
    90 CONTINUE
@@ -3360,27 +3373,31 @@ MODULE RFLU_ModRepair3D
 !     CHECK WHETHER A CAVITY BOUNDARY POINT IS BURIED IN THE CAVITY
 !
       NTOT1     = 0
-      DO 44 L=1,NDEL
+      DO L=1,NDEL
       J         = LDEL(L)
-      DO 44 I=1,4
+      DO I=1,4
       NCPNT     = NDC(I,J)
       IF (NFLAG(NCPNT).EQ.1) GO TO 44
       NTOT1     = NTOT1  +1
       IFLAG(NTOT1) = NCPNT
       NFLAG(NCPNT) = 1
    44 CONTINUE
+      END DO
+      END DO
       DO 46 K=1,NTOT1
       NFLAG(IFLAG(K)) = 0
    46 CONTINUE
       NTOT2     = 0
-      DO 48 K=1,NCNT
-      DO 48 I=1,3
+      DO K=1,NCNT
+      DO I=1,3
       NCPNT     = NTRI(I,K)
       IF (NFLAG(NCPNT).EQ.1) GO TO 48
       NTOT2     = NTOT2  +1
       IFLAG(NTOT2) = NCPNT
       NFLAG(NCPNT) = 1
    48 CONTINUE
+      END DO
+      END DO
       DO 50 K=1,NTOT2
       NFLAG(IFLAG(K)) = 0
    50 CONTINUE
@@ -3389,7 +3406,7 @@ MODULE RFLU_ModRepair3D
 !     UPDATE NEIGHBORING TETRAHEDRON INFORMATION FOR UNDELETED
 !     TETRAHEDRA
 !
-      DO 60 K=1,NCNT
+      DO K=1,NCNT
       L         = NEWNBH(1,K)
       DO 55 M=1,4
       MM        = M
@@ -3397,6 +3414,7 @@ MODULE RFLU_ModRepair3D
    55 CONTINUE
       GO TO 380
    60 NSHAKE(K) = MM
+      END DO
 !
 !     GENERATE LIST OF CAVITY EDGES AND CONSTRUCT ARRAY NCAV
 !
@@ -3411,9 +3429,11 @@ MODULE RFLU_ModRepair3D
 !     SET NBH ARRAY TO ZERO FOR THE DELETED TETRAHEDRA PRIOR TO
 !     OVERWRITING WITH THE NEW TETRAHEDRON LIST
 !
-      DO 70 J=1,NDEL
-      DO 70 I=1,4
-   70 NBH(I,LDEL(J)) = 0
+      DO J=1,NDEL
+      DO I=1,4
+      NBH(I,LDEL(J)) = 0
+      END DO
+      END DO
       DO 80 I=1,NEDG
       N1        = NCAV(1,I)
       N2        = NCAV(2,I)
@@ -3625,9 +3645,9 @@ MODULE RFLU_ModRepair3D
 !
 !     TREE SEARCH THROUGH NEIGHBORING TETRAHEDRA
 !
-      DO 20 LCHK=1,LCNT
+      DO LCHK=1,LCNT
       L         = NFILL(LCHK)
-      DO 20 K=1,4
+      DO K=1,4
       LSEEK     = NBH(K,L)
       N1        = NDC(1,LSEEK)
       N2        = NDC(2,LSEEK)
@@ -3658,6 +3678,8 @@ MODULE RFLU_ModRepair3D
       IFLAG(NMON) = LSEEK
       NFLAG(LSEEK) = 1
    20 CONTINUE
+      END DO
+      END DO
       IF (NCNT.GT.0.AND.NPROX.EQ.0) GO TO 25
       IF (NPROX.EQ.0) GO TO 45
       IF (NPROX.EQ.15) GO TO 320
@@ -3865,9 +3887,9 @@ MODULE RFLU_ModRepair3D
 !
 !     SEARCH THROUGH NEIGHBORING TETRAHEDRA
 !
-      DO 20 LCHK=1,LCNT
+      DO LCHK=1,LCNT
       L         = NFILL(LCHK)
-      DO 20 K=1,4
+      DO K=1,4
       LSEEK     = NBH(K,L)
 !
 !     CHECK WHETHER NEIGHBORING TETRAHEDRON LSEEK HAS ALREADY
@@ -3929,6 +3951,8 @@ MODULE RFLU_ModRepair3D
       IF (NDEL.GT.MXTEST) GO TO 320
       LDEL(NDEL) = LSEEK
    20 CONTINUE
+      END DO
+      END DO
       IF (NCNT.EQ.0) GO TO 40
       LCNT      = NCNT
       DO 30 K=1,LCNT
@@ -4086,9 +4110,9 @@ MODULE RFLU_ModRepair3D
       IFLAG(1)  = LCONT
       NFLAG(LCONT) = 2
    80 NCNT      = 0
-      DO 85 LCHK=1,LCNT
+      DO LCHK=1,LCNT
       L         = NFILL(LCHK)
-      DO 85 K=1,4
+      DO K=1,4
       LTRY      = NBH(K,L)
       IF (NFLAG(LTRY).NE.1) GO TO 85
       NFLAG(LTRY) = 2
@@ -4098,6 +4122,8 @@ MODULE RFLU_ModRepair3D
       IF (NMON.GT.MXNODE) GO TO 335
       IFLAG(NMON) = LTRY
    85 CONTINUE
+      END DO
+      END DO
       IF (NCNT.EQ.0) GO TO 95
       LCNT      = NCNT
       DO 90 K=1,NCNT
@@ -4142,13 +4168,14 @@ MODULE RFLU_ModRepair3D
   998 FORMAT('NP ',I6,' NDEL ',I4,' LDEL ',I7,' N1,N2,N3,N4 ',4I6/ &
        'V1 ',E13.5,' V2 ',E13.5,' V3 ',E13.5,' V4 ',E13.5/ &
        ' VTET ',E13.5,' VDIFF ',E13.5,' NCONT ',I2)
-      DO 996 K=1,NDEL
+      DO K=1,NDEL
       LL      = LDEL(K)
       N1      = NDC(1,LL)
       N2      = NDC(2,LL)
       N3      = NDC(3,LL)
       N4      = NDC(4,LL)
-  996 WRITE (6,997) LL,NFLAG(LL),N1,N2,N3,N4,VOL(LL)
+      WRITE (6,997) LL,NFLAG(LL),N1,N2,N3,N4,VOL(LL)
+      END DO
   997 FORMAT('CELL ',I7,' NFLAG ',I2,' N1,N2,N3,N4 ',4I6,' VOL ',E13.5)
       STOP
   335 CONTINUE
@@ -4422,8 +4449,9 @@ MODULE RFLU_ModRepair3D
 !     FROM EDGE LIST,FIND REMAINING THREE NEIGHBORING
 !     TETRAHEDRA TO EACH NEW VERTEX
 !
-      DO 70 K=1,NCNT
-   70 NPOINT(K) = 1
+      DO K=1,NCNT
+      NPOINT(K) = 1
+      END DO
       DO 80 I=1,NEDG
       J1        = NCAV(3,I)
       J2        = NCAV(4,I)
@@ -4749,9 +4777,9 @@ MODULE RFLU_ModRepair3D
       IF (IPROT(LC).EQ.1.AND.NP.EQ.NA) NABDY = 1
       IF (IPROT(LC).EQ.1.AND.NP.EQ.NB) NBBDY = 1
    70 NCNT      = 0
-      DO 75 K=1,KCNT
+      DO K=1,KCNT
       L         = KSRCH(K)
-      DO 75 M=1,4
+      DO M=1,4
       LC        = NBH(M,L)
       IF (LC.LE.0) GO TO 300
       IF (NFLAG(LC).GT.0) GO TO 75
@@ -4770,6 +4798,8 @@ MODULE RFLU_ModRepair3D
       IF (IPROT(LC).EQ.1.AND.NP.EQ.NA) NABDY = 1
       IF (IPROT(LC).EQ.1.AND.NP.EQ.NB) NBBDY = 1
    75 CONTINUE
+      END DO
+      END DO
       IF (NCNT.EQ.0) GO TO 85
       KCNT      = NCNT
       DO 80 K=1,KCNT
@@ -5471,8 +5501,8 @@ MODULE RFLU_ModRepair3D
       IF (VTET1*VTET2.GE.0.0) GO TO 100
    30 CONTINUE
       DO 39 LOOP=1,2
-      DO 38 K=1,KHALF
-      DO 38 I=1,3
+      DO K=1,KHALF
+      DO I=1,3
       L       = NBHKP(I,K)
       IF (L.LT.0) GO TO 38
       J2      = LNBR(L)
@@ -5520,6 +5550,8 @@ MODULE RFLU_ModRepair3D
                                          +RNZ*(X(3,M5)  -X(3,M1))
       IF (VTET1*VTET2.GE.0.) GO TO 100
    38 CONTINUE
+      END DO
+      END DO
    39 CONTINUE
 !
 !     ASSIGN ADDRESSES OF NEW CELLS
@@ -5760,11 +5792,12 @@ MODULE RFLU_ModRepair3D
 !
 !     UPDATE NPTET ARRAY
 !
-      DO 155 K=1,KCNT
-      DO 155 I=1,4
+      DO K=1,KCNT
+      DO I=1,4
       N           = NDC(I,NEWC(K))
       NPTET(N)   = NEWC(K)
-  155 CONTINUE
+      END DO
+      END DO
       RETURN
   200 NFAIL       = 1
 !     WRITE (6,920)

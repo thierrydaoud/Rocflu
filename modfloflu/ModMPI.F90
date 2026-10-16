@@ -69,10 +69,10 @@
 
 MODULE ModMPI
 
+  USE mpi
+
   INTEGER, PARAMETER :: MASTERPROC   = 0, &   ! master process
                         MPI_PATCHOFF = 100    ! offset for patch numbers (tag)
-
-  INCLUDE 'mpif.h'
 
   INTEGER, PARAMETER :: MPI_RFREAL = MPI_DOUBLE_PRECISION  ! goes with RFREAL
 

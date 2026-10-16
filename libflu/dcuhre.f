@@ -1039,11 +1039,13 @@ C
 C
 C   Make copies of the generators for each processor.
 C
-          DO 190 I = 2,2*NDIV
-              DO 190 J = 1,NDIM
-                  DO 190 K = 1,WTLENG
+          DO I = 2,2*NDIV
+              DO J = 1,NDIM
+                  DO K = 1,WTLENG
                       G(J,K,I) = G(J,K,1)
-190       CONTINUE
+                  END DO
+              END DO
+          END DO
 C
 C   Apply basic rule.
 C
@@ -1380,17 +1382,19 @@ C***FIRST EXECUTABLE STATEMENT D132RE
 C
 C   Assign values to W.
 C
-      DO 10 I = 1,14
-          DO 10 J = 1,5
+      DO I = 1,14
+          DO J = 1,5
               W(J,I) = DIM2W(I,J)
-10    CONTINUE
+          END DO
+      END DO
 C
 C   Assign values to G.
 C
-      DO 20 I = 1,2
-          DO 20 J = 1,14
+      DO I = 1,2
+          DO J = 1,14
               G(I,J) = 0
-20    CONTINUE
+          END DO
+      END DO
       G(1,2) = DIM2G(1)
       G(1,3) = DIM2G(2)
       G(1,4) = DIM2G(3)
@@ -1550,17 +1554,19 @@ C***FIRST EXECUTABLE STATEMENT D113RE
 C
 C   Assign values to W.
 C
-      DO 10 I = 1,13
-          DO 10 J = 1,5
+      DO I = 1,13
+          DO J = 1,5
               W(J,I) = DIM3W(I,J)
-10    CONTINUE
+          END DO
+      END DO
 C
 C   Assign values to G.
 C
-      DO 20 I = 1,3
-          DO 20 J = 1,13
+      DO I = 1,3
+          DO J = 1,13
               G(I,J) = 0
-20    CONTINUE
+          END DO
+      END DO
       G(1,2) = DIM3G(1)
       G(1,3) = DIM3G(2)
       G(1,4) = DIM3G(3)

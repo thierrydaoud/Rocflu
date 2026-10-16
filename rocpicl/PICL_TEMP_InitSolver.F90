@@ -155,11 +155,12 @@ INTEGER :: errorFlag,icg
         HTUnsteady_flag, out_particle_flag, out_gas_flag, &
         out_gradgas_flag, out_model_flag
    REAL(RFREAL) :: rmu_ref, tref, suth, ksp, erest
-   COMMON /RFLU_ppiclF/ stationary, qs_flag, am_flag, pg_flag, &
+   COMMON /RFLU_ppiclF/ rmu_ref, tref, suth, ksp, erest, &
+        stationary, qs_flag, am_flag, pg_flag, &
         collisional_flag, heattransfer_flag, feedback_flag, &
-        qs_fluct_flag, rmu_flag, rmu_ref, tref, suth, &
+        qs_fluct_flag, rmu_flag, &
         rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag, &
-        qs_fluct_filter_adapt_flag, ksp, erest, &
+        qs_fluct_filter_adapt_flag, &
         ViscousUnsteady_flag, ppiclf_nUnsteadyData,ppiclf_nTimeBH, &
         sbNearest_flag, flow_model, pseudoTurb_flag, &
         HTUnsteady_flag, out_particle_flag, out_gas_flag, &

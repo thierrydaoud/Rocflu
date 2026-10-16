@@ -328,19 +328,21 @@ MODULE RFLU_ModOctree
 !     OCTANT NOW CONTAINS NINE POINTS. FORM EIGHT NEW OCTANTS
 !     AND AMEND TREE STRUCTURE.
 !
-   30 DO 35 K=1,8
+   30 DO K=1,8
       IOCTR      = IOCTR  +1
       IF (IOCTR.GT.MOCTR) GO TO 210
       NOCTR(2,IOCTR) = I
-   35 NOCTR(1,IOCTR) = 0
+      NOCTR(1,IOCTR) = 0
+      END DO
 !
 !     ASSIGN POINTS TO NEW OCTANTS
 !
       NEXT       = NOCTR(1,I)
-      DO 40 L=1,8
+      DO L=1,8
       NSTORE(L)  = NEXT
       NEXT       = NLINK(NEXT)      
-   40 JJ(L)      = 0
+      JJ(L)      = 0
+      END DO
       DO 45 K=1,8
       J          = NSTORE(K)
       XSHIFT     = X(J)  -.5_RFREAL*(XLOW  +XHIGH)
@@ -621,9 +623,9 @@ MODULE RFLU_ModOctree
       KC          = 1
       KSRCH(1)    = I
    75 IC          = 0
-      DO 90 J=1,KC
+      DO J=1,KC
       II          = KSRCH(J)
-      DO 90 K=1,8
+      DO K=1,8
       ITRY        = -NOCTR(1,II)  +K  -1
       IF (ITRY.EQ.IFLAG) GO TO 90
       XHALF      = .5_RFREAL*(XOCTR(1,J)  +XOCTR(2,J))
@@ -670,6 +672,8 @@ MODULE RFLU_ModOctree
       ZL          = ZPT  -DMIN
       ZU          = ZPT  +DMIN
    90 CONTINUE
+      END DO
+      END DO
       IF (IC.EQ.0) THEN
          XLOW        = XKEEP(1)
          XHIGH       = XKEEP(2)
