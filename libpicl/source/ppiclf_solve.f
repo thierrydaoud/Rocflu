@@ -1457,8 +1457,8 @@ c----------------------------------------------------------------------
           ! from ppiclf_y, ppiclf_rprop and rprop3
           ppiclf_iprop(9,ip) = -1
           ppiclf_remove_particle = .TRUE.
-          PRINT*, 'part # on proc # removed.', ppiclf_iprop(1,ip),
-     >            ppiclf_nid
+          ! Removed silently for now; whether this should stop the run
+          ! instead is an open decision
           remove = .FALSE.
         ELSE
           partCount = partCount + 1
