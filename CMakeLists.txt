@@ -10,7 +10,7 @@ option(ROCFLU_PICL      "Couple the ppiclF particle solver"                ON)
 option(ROCFLU_SPEC      "Species transport (also needed by the JWL gas model, GASMODEL 7)" OFF)
 option(ROCFLU_PLAG      "Rocpart Lagrangian particles"                     OFF)
 option(ROCFLU_FOLDER    "Write output into per-kind folders"               ON)
-option(ROCFLU_UTILITIES "Build the pre- and post-processing utilities"     ON)
+option(ROCFLU_UTILITIES "Build the pre-processing utilities (map, part, init)" ON)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Release or Debug" FORCE)
@@ -137,12 +137,11 @@ else()
   rocflu_executable(rflump standalone)
 endif()
 
-# --- Utilities ---------------------------------------------------------------
+# --- Pre-processing utilities ---------------------------------------------------------------
 if(ROCFLU_UTILITIES)
-  foreach(utility clone conv extr init map pick post)
-    rocflu_executable(rflu${utility} utilities/${utility})
-  endforeach()
+  rocflu_executable(rflumap utilities/map)
   rocflu_executable(rflupart utilities/part metis)
+  rocflu_executable(rfluinit utilities/init)
 endif()
 
 message(STATUS "Rocflu ${CMAKE_BUILD_TYPE}: defines ${ROCFLU_DEFINES}")

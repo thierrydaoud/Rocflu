@@ -8,15 +8,10 @@
 !/build_std/Makefile
 /build_util/*/*
 !/build_util/*/Makefile
-/rfluclone
-/rfluconv
-/rfluextr
 /rfluinit
 /rflumap
 /rflump
 /rflupart
-/rflupick
-/rflupost
 
 # ppiclF and gslib build products (libpicl/Makefile)
 libpicl/build/

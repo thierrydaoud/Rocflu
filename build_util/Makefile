@@ -13,24 +13,14 @@
 ################################################################################
 
 all:
-	$(MAKE) -C conv UTIL=yes
-	$(MAKE) -C clone UTIL=yes
-	$(MAKE) -C extr UTIL=yes        
 	$(MAKE) -C init UTIL=yes
 	$(MAKE) -C map UTIL=yes
 	$(MAKE) -C part UTIL=yes
-	$(MAKE) -C pick UTIL=yes
-	$(MAKE) -C post UTIL=yes
 
 clean install:
-	$(MAKE) -C conv $@
-	$(MAKE) -C clone $@
-	$(MAKE) -C extr $@        
 	$(MAKE) -C init $@
 	$(MAKE) -C map $@
 	$(MAKE) -C part $@
-	$(MAKE) -C pick $@
-	$(MAKE) -C post $@
 
 ################################################################################
 #

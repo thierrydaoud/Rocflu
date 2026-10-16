@@ -65,8 +65,8 @@ cmake -S . -B build
 cmake --build build -j 16
 ```
 
-The executables (`rflump` and the utilities `rflumap`, `rflupart`, `rfluinit`,
-`rflupost`, `rflupick`, `rfluclone`, `rfluconv`, `rfluextr`) go to `build/bin`.
+The executables go to `build/bin`: the solver `rflump` and the three
+pre-processing utilities `rflumap`, `rflupart` and `rfluinit` that set up a case.
 A clean build takes about 3 minutes with 16 cores. After an edit, run the
 `cmake --build` line again: only the changed files and the files that depend on
 them are recompiled.
@@ -80,7 +80,7 @@ Options are set with `-D` on the first `cmake` line:
 | `ROCFLU_SPEC` | `OFF` | species transport (also needed by the JWL gas model, `GASMODEL 7`) |
 | `ROCFLU_PLAG` | `OFF` | Rocpart Lagrangian particles |
 | `ROCFLU_FOLDER` | `ON` | write output into per-kind folders |
-| `ROCFLU_UTILITIES` | `ON` | build the pre- and post-processing utilities |
+| `ROCFLU_UTILITIES` | `ON` | build `rflumap`, `rflupart` and `rfluinit` |
 | `METIS_ROOT` | `3rd_party/local` | METIS 5 and GKlib install (`3rd_party/install.sh` builds them) |
 
 For example, a debug build with species in its own directory:
