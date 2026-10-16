@@ -1,110 +1,3 @@
-      SUBROUTINE ppiclf_solve_Initialize(xi1,xpmin,xpmax,
-     >           yi1,ypmin,ypmax,zi1,zpmin,zpmax)
-      use ppiclf_data
-!
-      IMPLICIT NONE
-!
-      INCLUDE "PPICLF"
-!
-! Input:
-!
-      INTEGER*4 xi1, yi1, zi1
-      REAL*8    xpmin,xpmax,ypmin,ypmax,zpmin,zpmax
-
-      ! Called by rocpicl/PICL_InitSolver.F90
-      ! xdrange adjusts the bin boundaries to ensure they aren't 
-      ! larger than the cartesian fluid domain extremes.
-
-      ! Linear X-Periodicity
-      ppiclf_xdrange(1,1) = xpmin
-      ppiclf_xdrange(2,1) = xpmax
-      x_per_flag = xi1
-      IF(x_per_flag.EQ.1) THEN
-        IF(xpmin .ge. xpmax) THEN
-          PRINT*,'Failed in Initialize.'
-          PRINT*,'xpMin > xpMax'
-          CALL ppiclf_exittr('PeriodicX must have xmin < xmax$',xpmin,0)
-        END IF
-        ppiclf_linperiodic(1) = .TRUE.
-      END IF
-
-      ! Linear Y-Periodicity
-      y_per_flag = yi1
-      ppiclf_xdrange(1,2) = ypmin
-      ppiclf_xdrange(2,2) = ypmax
-      IF(y_per_flag.EQ.1) THEN
-        IF(ypmin .ge. ypmax) THEN
-          PRINT*,'Failed in Initialize.'
-          PRINT*,'ypMin > ypMax'
-          CALL ppiclf_exittr('PeriodicX must have ymin < ymax$',ypmin,0)
-        END IF
-        ppiclf_linperiodic(2) = .TRUE.
-      END IF
-
-      ! Linear Z-Periodicity
-      z_per_flag = zi1
-      ppiclf_xdrange(1,3) = zpmin
-      ppiclf_xdrange(2,3) = zpmax
-      IF(z_per_flag.EQ.1) THEN
-        IF(zpmin .ge. zpmax) THEN
-          PRINT*,'Failed in Initialize.'
-          PRINT*,'ypMin > ypMax'
-          CALL ppiclf_exittr('PeriodicZ must have zmin < zmax$',zpmin,0)
-        END IF
-        ppiclf_linperiodic(3) = .TRUE.
-      END IF
-
-!*** THIS CODE WILL CHANGE
-! Angular periodicity is not in the input any more: bringing it back
-! needs input keys and the arguments ai1,apa,apxa,aprin,aprout again.
-!      ! Angular Periodicity
-!      ang_per_flag = ai1
-!      IF(ang_per_flag.EQ.1) THEN
-!        ppiclf_linperiodic(1) = .TRUE. ! X-Periodicity
-!        ppiclf_linperiodic(2) = .TRUE. ! Y-Periodicity
-!        ang_per_angle  = apa
-!        ang_per_xangle = apxa
-!        ang_per_rin    = aprin
-!        ang_per_rout   = aprout
-!      END IF
-!
-!      ! User cannot initialize X/Y-Periodicity with Angular Periodicity
-!      IF(((x_per_flag.EQ.1).OR.(y_per_flag.EQ.1))
-!     >                     .AND.(ang_per_flag.EQ.1))
-!     >   CALL ppiclf_exittr('PPICLF: Invalid Periodicity choice$',0,0)
-!
-!      ! Thierry - compute ang_case
-!
-!      pi = ACOS(-1.0)
-!      angled = ang_per_angle * 180.0d0 / pi ! store angle value in degrees
-!
-!      IF(ang_per_flag.EQ.0) THEN
-!         ang_case = 0 ! standard geometry
-!      ELSE
-!         IF(angled .lt. 90.0)        ang_case = 1 ! general wedge
-!         IF(NINT(angled) .EQ. 90.0)  ang_case = 2 ! quarter cylinder
-!         IF(NINT(angled) .EQ. 180.0) ang_case = 3 ! half cylinder
-!      END IF
-!
-!      IF(ppiclf_nid.EQ.0 .AND. ang_case.NE.0) THEN
-!         PRINT*, " "
-!         PRINT*, " ======================================="
-!         PRINT*, " "
-!         PRINT*, "!!! PPICLF Angular Periodicity Initialized !!!!"
-!         PRINT*, "  Angular periodicity flag =", ang_per_flag
-!         PRINT*, "  Init Angular- angle =", ang_per_angle
-!         PRINT*, "  Init Angular- angled =", angled
-!         PRINT*, "  Init Angular- nint(angled) =", NINT(angled)
-!         PRINT*, "  Init Angular- ang_case =", ang_case
-!         PRINT*, " "
-!         PRINT*, " ======================================="
-!         PRINT*, " "
-!      END IF
-!! *** END CHANGE ***
-!
-      RETURN
-      END
-!
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InitLayout(nstate, nprop)
       use ppiclf_data
@@ -814,8 +707,8 @@ c----------------------------------------------------------------------
 !
 
 ! Case 1 - Linear Periodicity in any of 3 directions
-      IF((x_per_flag.EQ.1).OR.(y_per_flag.EQ.1).OR.(z_per_flag.EQ.1))
-     >   THEN
+      IF(ppiclf_linperiodic(1) .OR. ppiclf_linperiodic(2) .OR.
+     >   ppiclf_linperiodic(3)) THEN
 
         DO j= 1,3
           ! particle leaving min. periodic face -> move it relative to 
@@ -2133,6 +2026,59 @@ c----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
 !
+!
+! Angular part of the former ppiclF_solve_Initialize (it set the
+! linear periodicity, now done in ppiclf_comm_InitOverlapGrid).
+!*** THIS CODE WILL CHANGE
+! Angular periodicity is not in the input any more: bringing it back
+! needs input keys and the arguments ai1,apa,apxa,aprin,aprout again.
+!      ! Angular Periodicity
+!      ang_per_flag = ai1
+!      IF(ang_per_flag.EQ.1) THEN
+!        ppiclf_linperiodic(1) = .TRUE. ! X-Periodicity
+!        ppiclf_linperiodic(2) = .TRUE. ! Y-Periodicity
+!        ang_per_angle  = apa
+!        ang_per_xangle = apxa
+!        ang_per_rin    = aprin
+!        ang_per_rout   = aprout
+!      END IF
+!
+!      ! User cannot initialize X/Y-Periodicity with Angular Periodicity
+!      IF(((x_per_flag.EQ.1).OR.(y_per_flag.EQ.1))
+!     >                     .AND.(ang_per_flag.EQ.1))
+!     >   CALL ppiclf_exittr('PPICLF: Invalid Periodicity choice$',0,0)
+!
+!      ! Thierry - compute ang_case
+!
+!      pi = ACOS(-1.0)
+!      angled = ang_per_angle * 180.0d0 / pi ! store angle value in degrees
+!
+!      IF(ang_per_flag.EQ.0) THEN
+!         ang_case = 0 ! standard geometry
+!      ELSE
+!         IF(angled .lt. 90.0)        ang_case = 1 ! general wedge
+!         IF(NINT(angled) .EQ. 90.0)  ang_case = 2 ! quarter cylinder
+!         IF(NINT(angled) .EQ. 180.0) ang_case = 3 ! half cylinder
+!      END IF
+!
+!      IF(ppiclf_nid.EQ.0 .AND. ang_case.NE.0) THEN
+!         PRINT*, " "
+!         PRINT*, " ======================================="
+!         PRINT*, " "
+!         PRINT*, "!!! PPICLF Angular Periodicity Initialized !!!!"
+!         PRINT*, "  Angular periodicity flag =", ang_per_flag
+!         PRINT*, "  Init Angular- angle =", ang_per_angle
+!         PRINT*, "  Init Angular- angled =", angled
+!         PRINT*, "  Init Angular- nint(angled) =", NINT(angled)
+!         PRINT*, "  Init Angular- ang_case =", ang_case
+!         PRINT*, " "
+!         PRINT*, " ======================================="
+!         PRINT*, " "
+!      END IF
+!! *** END CHANGE ***
+!
+!
+!-----------------------------------------------------------------------
 !
 !!
 !!

@@ -172,12 +172,9 @@ INTEGER :: errorFlag,icg
    COMMON /RFLU_ppiclf_misc01/ ppiclf_rcp_part
    COMMON /RFLU_ppiclf_misc02/ ppiclf_matname
 
-   ! 08/19/24 - Thierry - added for Periodicity - begins here
-   INTEGER :: x_per_flag, y_per_flag, z_per_flag
-   REAL(RFREAL) :: x_per_min, x_per_max, & 
-                   y_per_min, y_per_max, & 
-                   z_per_min, z_per_max
-   ! 08/19/24 - Thierry - added for Periodicity - ends here
+   ! Fluid domain extent (min, max in x, y, z) and periodic directions
+   REAL(RFREAL) :: domainRange(2,3)
+   LOGICAL :: periodic(3)
 
    REAL(RFREAL), DIMENSION(3) :: MaxPoint, MinPoint, CellLen, Max_CellLen, &
                                  filter, filter_local
@@ -248,32 +245,18 @@ erest = global%piclERest
 qs_fluct_filter_flag = global%piclQsFluctFilterFlag
 qs_fluct_filter_adapt_flag = global%piclQsFluctFilterAdaptFlag
 
-x_per_flag = global%piclPeriodicXFlag 
-! Find min/max grid coordinates across MPI ranks
-gridmin = MINVAL(pGrid%xyz(XCOORD,1:pGrid%nVert))
-gridmax = MAXVAL(pGrid%xyz(XCOORD,1:pGrid%nVert))
-CALL MPI_AllReduce(gridmin,x_per_min,1,MPI_RFREAL,MPI_MIN, &
-        global%mpiComm,errorFlag)
-CALL MPI_AllReduce(gridmax,x_per_max,1,MPI_RFREAL,MPI_MAX, &
-        global%mpiComm,errorFlag)
-
-y_per_flag = global%piclPeriodicYFlag    
-! Find min/max grid coordinates across MPI ranks
-gridmin = MINVAL(pGrid%xyz(YCOORD,1:pGrid%nVert))
-gridmax = MAXVAL(pGrid%xyz(YCOORD,1:pGrid%nVert))
-CALL MPI_AllReduce(gridmin,y_per_min,1,MPI_RFREAL,MPI_MIN, &
-        global%mpiComm,errorFlag)
-CALL MPI_AllReduce(gridmax,y_per_max,1,MPI_RFREAL,MPI_MAX, &
-        global%mpiComm,errorFlag)
-
-z_per_flag = global%piclPeriodicZFlag 
-! Find min/max grid coordinates across MPI ranks
-gridmin = MINVAL(pGrid%xyz(ZCOORD,1:pGrid%nVert))
-gridmax = MAXVAL(pGrid%xyz(ZCOORD,1:pGrid%nVert))
-CALL MPI_AllReduce(gridmin,z_per_min,1,MPI_RFREAL,MPI_MIN, &
-        global%mpiComm,errorFlag)
-CALL MPI_AllReduce(gridmax,z_per_max,1,MPI_RFREAL,MPI_MAX, &
-        global%mpiComm,errorFlag)
+periodic(1) = global%piclPeriodicXFlag == 1
+periodic(2) = global%piclPeriodicYFlag == 1
+periodic(3) = global%piclPeriodicZFlag == 1
+! Min/max grid coordinates across MPI ranks (l = XCOORD, YCOORD, ZCOORD)
+DO l = 1,3
+  gridmin = MINVAL(pGrid%xyz(l,1:pGrid%nVert))
+  gridmax = MAXVAL(pGrid%xyz(l,1:pGrid%nVert))
+  CALL MPI_AllReduce(gridmin,domainRange(1,l),1,MPI_RFREAL,MPI_MIN, &
+          global%mpiComm,errorFlag)
+  CALL MPI_AllReduce(gridmax,domainRange(2,l),1,MPI_RFREAL,MPI_MAX, &
+          global%mpiComm,errorFlag)
+END DO
 
 
 ! Sanity check for viscosity
@@ -478,18 +461,18 @@ IF(global%restartFromScratch) THEN
    END IF
 
 
-   IF(xp_min < x_per_min .OR. xp_max > x_per_max .OR. &
-      yp_min < y_per_min .OR. yp_max > y_per_max .OR. &
-      zp_min < z_per_min .OR. zp_max > z_per_max) THEN
+   IF(xp_min < domainRange(1,1) .OR. xp_max > domainRange(2,1) .OR. &
+      yp_min < domainRange(1,2) .OR. yp_max > domainRange(2,2) .OR. &
+      zp_min < domainRange(1,3) .OR. zp_max > domainRange(2,3)) THEN
      IF(global%myProcid == MASTERPROC) THEN
        WRITE(*,*) 'WARNING - Particles initalized outside of fluid domain'
        WRITE(*,*) 'Particle domain boundaries at t=0'
        WRITE(*,*) 'x - min, max, dx', xp_min, xp_max, xp_max - xp_min
        WRITE(*,*) 'y - min, max, dx', yp_min, yp_max, yp_max - yp_min
        WRITE(*,*) 'z - min, max, dx', zp_min, zp_max, zp_max - zp_min
-       WRITE(*,*) 'x fluid min/max', x_per_min, x_per_max
-       WRITE(*,*) 'y fluid min/max', y_per_min, y_per_max
-       WRITE(*,*) 'z fluid min/max', z_per_min, z_per_max
+       WRITE(*,*) 'x fluid min/max', domainRange(:,1)
+       WRITE(*,*) 'y fluid min/max', domainRange(:,2)
+       WRITE(*,*) 'z fluid min/max', domainRange(:,3)
      END IF
      CALL MPI_Barrier(global%mpiComm,errorFlag)
      !CALL ErrorStop(global,0,459,"rocpicl Init: Particles outside fluid domain")
@@ -713,18 +696,14 @@ IF (.NOT. ALLOCATED(y)) THEN
 END IF
 CALL ppiclf_solve_InitParticle(2,3,0,npart_local,y,rprop,filter,neighborWidth) 
 IF(global%myProcid == MASTERPROC) THEN
-  PRINT*, 'x fluid min/max', x_per_min, x_per_max
-  PRINT*, 'y fluid min/max', y_per_min, y_per_max
-  PRINT*, 'z fluid min/max', z_per_min, z_per_max
+  PRINT*, 'x fluid min/max', domainRange(:,1)
+  PRINT*, 'y fluid min/max', domainRange(:,2)
+  PRINT*, 'z fluid min/max', domainRange(:,3)
 END IF
 
-CALL ppiclf_solve_Initialize( & 
-           x_per_flag, x_per_min, x_per_max, &
-           y_per_flag, y_per_min, y_per_max, &
-           z_per_flag, z_per_min, z_per_max)
-
-! Creates OverlapGrid and Calls Init Solve
-CALL ppiclf_comm_InitOverlapGrid(nCells,rocGrid)
+! Creates OverlapGrid (fluid cells, domain extent, periodicity) and Calls
+! Init Solve
+CALL ppiclf_comm_InitOverlapGrid(nCells,rocGrid,domainRange,periodic)
 !CALL MPI_Barrier(global%mpiComm,errorFlag)
 CALL ppiclf_solve_InitSolve
 
@@ -957,15 +936,9 @@ IF ( global%myProcid == MASTERPROC) then
    print*, 'rho_dens       = ', rhop
    print*, 'cv_particle    = ', ppiclf_rcp_part
    
-   if(x_per_flag.eq.1) then
-     print*, "ppiclF X-periodic (min, max) ", x_per_min, x_per_max
-   endif  
-   if(y_per_flag.eq.1) then
-     print*, "ppiclF Y-periodic (min, max) ", y_per_min, y_per_max
-   endif  
-   if(z_per_flag.eq.1) then
-     print*, "ppiclF Z-periodic (min, max) ", z_per_min, z_per_max
-   endif  
+   if(periodic(1)) print*, "ppiclF X-periodic (min, max) ", domainRange(:,1)
+   if(periodic(2)) print*, "ppiclF Y-periodic (min, max) ", domainRange(:,2)
+   if(periodic(3)) print*, "ppiclF Z-periodic (min, max) ", domainRange(:,3)
 
    print*, ' '
    print*, 'Ending PICL_InitSolver.F90'

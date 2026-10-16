@@ -69,16 +69,4 @@
       common /user_AddedMass02/ Fam, FamUnary, FamBinary,
      >                          Wdot_neighbor_mean, R_pair
 
-!
-! Linear periodicity (ppiclf_solve_Initialize). Angular periodicity
-! was removed from the input; its routines are kept commented out in
-! ppiclf_solve.f and ppiclf_comm.f and need new input keys to return.
-!
-      integer*4 x_per_flag, y_per_flag, z_per_flag
-      real*8 x_per_min, x_per_max,
-     >  y_per_min, y_per_max, z_per_min, z_per_max
-
-      common /solve_Periodic01/ x_per_flag, y_per_flag, z_per_flag
-      common /solve_Periodic03/ x_per_min, x_per_max,
-     >  y_per_min, y_per_max, z_per_min, z_per_max
      

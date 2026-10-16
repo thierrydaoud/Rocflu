@@ -62,10 +62,12 @@
       END
 !-----------------------------------------------------------------------
 #ifdef PPICLC
-      SUBROUTINE ppiclf_comm_InitOverlapGrid(ncell,fluidGrid)
+      SUBROUTINE ppiclf_comm_InitOverlapGrid(ncell,fluidGrid,
+     >                                       domainRange,periodic)
      > bind(C, name="ppiclc_comm_InitOverlapGrid")
 #else
-      SUBROUTINE ppiclf_comm_InitOverlapGrid(ncell,fluidGrid)
+      SUBROUTINE ppiclf_comm_InitOverlapGrid(ncell,fluidGrid,
+     >                                       domainRange,periodic)
 #endif
       use ppiclf_data
 !
@@ -83,6 +85,10 @@
       ! Indicies 1-3: Centroid x,y,z position
       ! Indicies 4-6: Max cell dx,dy,dz based on any vertex combination
       ! Index      7: Cell Volume 
+      REAL*8    domainRange(2,3)
+      ! min, max of the whole fluid domain in x, y, z
+      LOGICAL   periodic(3)
+      ! .TRUE.: the domain is periodic in x, y, z
 !
 ! External:
 !
@@ -99,6 +105,19 @@
       IF(ncell .LT. 0)
      >  CALL ppiclf_exittr('InitOverlap: negative cell count$',0.0d0,
      >                     ncell)
+      ! Domain extent: limits the bins, and the periodic shift
+      ! (InitParticle set no limits and no periodicity)
+      DO i = 1,3
+        ppiclf_xdrange(1,i) = domainRange(1,i)
+        ppiclf_xdrange(2,i) = domainRange(2,i)
+        IF(periodic(i)) THEN
+          IF(domainRange(1,i) .GE. domainRange(2,i))
+     >      CALL ppiclf_exittr('Periodic direction needs min < max$',
+     >                         domainRange(1,i),i)
+          ppiclf_linperiodic(i) = .TRUE.
+        END IF
+      END DO
+
       ! Arrays indexed by the fluid solver's cells: exactly ncell
       CALL ppiclf_data_GrowFV(ncell)
 
