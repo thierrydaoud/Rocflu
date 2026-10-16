@@ -45,7 +45,7 @@
 #define PPICLF_R_WDOTZ 13
 !--- Gas at the particle: interpolated from Rocflu every stage
 !    (the slots ppiclf_user_Layout lists with AddInterpSlot;
-!    PICL_TEMP_Runge hands each over with InterpFieldUser)
+!    PICL_Runge hands each over with InterpFieldUser)
 #define PPICLF_R_JRHOF 14
 !    particle volume fraction: the projected particle volume,
 !    interpolated back to the particle

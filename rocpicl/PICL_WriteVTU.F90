@@ -70,7 +70,7 @@
 !
 !******************************************************************************
 
-SUBROUTINE PICL_TEMP_WriteVTU( pRegion)
+SUBROUTINE PICL_WriteVTU( pRegion)
 
 !  USE 
 
@@ -122,11 +122,11 @@ TYPE(t_grid), POINTER :: pGrid
    
 !******************************************************************************
 
-  RCSIdentString = '$RCSfile: PICL_TEMP_WriteVTU.F90,v $ $Revision: 1.0 $'
+  RCSIdentString = '$RCSfile: PICL_WriteVTU.F90,v $ $Revision: 1.0 $'
  
   global => pRegion%global
   
-  CALL RegisterFunction( global, 'PICL_TEMP_WriteVTU',__FILE__ )
+  CALL RegisterFunction( global, 'PICL_WriteVTU',__FILE__ )
 
 
 
@@ -144,7 +144,7 @@ TYPE(t_grid), POINTER :: pGrid
 
   CALL DeregisterFunction( global )
 
-END SUBROUTINE PICL_TEMP_WriteVTU
+END SUBROUTINE PICL_WriteVTU
 
 !******************************************************************************
 !

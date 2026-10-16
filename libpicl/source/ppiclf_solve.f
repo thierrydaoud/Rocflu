@@ -13,7 +13,7 @@
       REAL*8    xpmin,xpmax,ypmin,ypmax,zpmin,zpmax,
      >          apa,apxa,aprin,aprout, pi, angled
 
-      ! Called by rocpicl/PICL_TEMP_InitSolver.F90
+      ! Called by rocpicl/PICL_InitSolver.F90
       ! xdrange adjusts the bin boundaries to ensure they aren't 
       ! larger than the cartesian fluid domain extremes.
 
@@ -109,7 +109,7 @@
       SUBROUTINE ppiclf_solve_InitLayout(nstate, nprop)
       use ppiclf_data
 !
-! Called from rocpicl/PICL_TEMP_InitSolver.F90 once, after the PICL
+! Called from rocpicl/PICL_InitSolver.F90 once, after the PICL
 ! flags are set (/RFLU_ppiclF/) and before any particle is created.
 ! ppiclf_user_Layout sets the field sizes (module ppiclf_data) and
 ! lists the interpolated and ghost slots; this checks them and returns
@@ -237,7 +237,7 @@
 #endif
       use ppiclf_data
 !
-! Called from rocpicl/PICL_TEMP_InitSolver.F90
+! Called from rocpicl/PICL_InitSolver.F90
 
       IMPLICIT NONE
 !
@@ -770,7 +770,7 @@ c----------------------------------------------------------------------
 !           ! particle angle w/ x-axis
 !           ! per_alpha here is obtained in radians
 !           ! ang_per_angle & ang_per_xangle are transformed 
-!           !   to radians in PICL_TEMP_InitFlowSolver.F90
+!           !   to radians in PICL_InitFlowSolver.F90
 !           per_alpha = 
 !     >         atan2(ppiclf_y(PPICLF_JY,i), ppiclf_y(PPICLF_JX,i))
 !
@@ -1011,7 +1011,7 @@ c----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_InterpFieldUser(jp,infld)
       use ppiclf_data
 !
-! This is called by rocpicl/PICL_TEMP_Runge.F90, once per stage for
+! This is called by rocpicl/PICL_Runge.F90, once per stage for
 ! each gas field: infld (one value per fluid cell) is interpolated to
 ! rprop slot jp if ppiclf_user_Layout listed jp (ppiclf_int_slots), and
 ! ignored otherwise, because no model that is on reads it. Each listed

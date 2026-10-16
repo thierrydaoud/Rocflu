@@ -108,7 +108,7 @@ SUBROUTINE RungeKuttaMP( regions )
                            RFLU_UpdateBoundaryValues
 
 #ifdef PICL
-  USE PICL_ModInterfaces, ONLY: PICL_TEMP_Runge
+  USE PICL_ModInterfaces, ONLY: PICL_Runge
 #endif
 
 #ifdef SPEC
@@ -260,7 +260,7 @@ SUBROUTINE RungeKuttaMP( regions )
 #ifdef PICL
         pRegion => regions(iReg)
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
-          CALL PICL_TEMP_Runge(pRegion)!(regions)
+          CALL PICL_Runge(pRegion)!(regions)
         END IF
 #endif
 
@@ -284,7 +284,7 @@ SUBROUTINE RungeKuttaMP( regions )
 #ifdef PICL
 IF ( global%piclUsed .EQV. .true. ) THEN
 ! Update virtual cells with the particle volume fraction (and the
-! pseudo-turbulent kinetic energy) set by PICL_TEMP_Runge in this stage.
+! pseudo-turbulent kinetic energy) set by PICL_Runge in this stage.
 ! Must precede the dependent variables of virtual cells, computed after
 ! the RK update below: the pressure uses 1/(1-phi) (and ksg), and stale
 ! virtual-cell values made the two sides of a region border disagree.
@@ -349,7 +349,7 @@ END IF
 !This may not be suppsoed to be here
 !#ifdef PICL
 !        IF ( global%piclUsed .EQV. .TRUE. ) THEN
-!          CALL PICL_TEMP_Runge(pRegion)!(regions)
+!          CALL PICL_Runge(pRegion)!(regions)
 !        END IF
 !#endif
 
@@ -396,7 +396,7 @@ if (1.eq.2) then
 IF ( global%piclUsed .EQV. .false. ) THEN
 !Figure out where this should go
 !Going to attempt to move this up the code
-!  CALL PICL_TEMP_Runge(regions)
+!  CALL PICL_Runge(regions)
 
 !Update virtual cells with picl_vf
       DO iReg = 1,global%nRegionsLocal

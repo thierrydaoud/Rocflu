@@ -596,7 +596,7 @@ bins, as before. (Restart itself is still unverified; see [Still open](#still-op
   bins overlapped more than 120,000 fluid cells lost the extra cells, so particles near
   them interpolated from, and projected onto, an incomplete stencil. Now the cell arrays
   grow before the transfer.
-- **`points.dat` read one column past the rank's share (`PICL_TEMP_InitSolver`).** Every
+- **`points.dat` read one column past the rank's share (`PICL_InitSolver`).** Every
   line of `points.dat` is read on every rank, to get the global bounding box, but the
   position was read straight into the rank's particle buffer `y(:,i)`. Once a rank had its
   share, the remaining lines went into column `npart_local + 1`. That was harmless while the
@@ -663,12 +663,12 @@ when the run starts.
 - **One user routine sets them.** `ppiclf_user_Layout`
   (`libpicl/user_files/ppiclf_user_Layout.f`) sets `ppiclf_lrs`, `ppiclf_lrp` and
   `ppiclf_lrp_pro`. It lists the interpolated slots (`ppiclf_solve_AddInterpSlot`) and
-  the slots ghosts carry (`ppiclf_solve_AddGhostSlot`). `PICL_TEMP_InitSolver` calls it
+  the slots ghosts carry (`ppiclf_solve_AddGhostSlot`). `PICL_InitSolver` calls it
   once through `ppiclf_solve_InitLayout`, after the PICL flags are read and before any
   particle exists, and gets back the sizes of `y` and `rprop` to create the particles.
   Rank 0 prints the sizes and both lists.
 - **ppiclF counts the interpolated fields itself.** The count is the length of the
-  list. The check in `PICL_TEMP_Runge*.F90` that the number of fields was 29 is gone.
+  list. The check in `PICL_Runge*.F90` that the number of fields was 29 is gone.
   Instead ppiclF stops with the slot number if, in a stage, Rocflu gives a slot that is
   not on the list, gives one twice, or leaves one out. (At start-up ppiclF interpolates
   once before Rocflu has given any field; then nothing is interpolated, as before.)
@@ -740,7 +740,7 @@ moved with the particle, went to every ghost, were written to every `par*.vtu` f
 
 | Job | Slots (old numbering) | Needed |
 |---|---|---|
-| Particle properties | 1 ρp, 3 dp, 4 Vp, 22 superparticle loading | Every step, and on restart. Set once in `PICL_TEMP_InitSolver` |
+| Particle properties | 1 ρp, 3 dp, 4 Vp, 22 superparticle loading | Every step, and on restart. Set once in `PICL_InitSolver` |
 | Carried from step to step | 25–27 quasi-steady force fluctuation, 46–48 ξ∥, ξ⊥, ξT | Every step, and on restart: each step updates the previous value |
 | Gas values at the particle | 2, 5–19, 24, 31–33, 36–45 (30 slots) | During the step only: Rocflu interpolates them before every stage. Slot 36 (gas pressure) is never read |
 | Read from neighbours | 28–30 Ẇ | Added mass (`AMFORCE 2`) reads it from neighbouring particles, ghosts included |
@@ -883,7 +883,7 @@ Removed:
   computes it from `vp_x vp_y vp_z`.
 - `JP`, the gas pressure: Rocflu computed it and ppiclF interpolated it every stage,
   and nothing read it. Its array (`ppF`) and its `InterpFieldUser` call are gone from
-  `PICL_TEMP_Runge.F90` and `PICL_TEMP_Runge_EulerPT.F90`. (The check there that the
+  `PICL_Runge.F90` and `PICL_Runge_EulerPT.F90`. (The check there that the
   number of interpolated fields was 29 has since been replaced by ppiclF's own check; see
   [Field sizes set at run time](#field-sizes-set-at-run-time).)
 - Slots 34 and 35, empty since the burn-rate model was removed.
@@ -898,7 +898,7 @@ and the blocks after it; nothing in the code uses slot numbers directly, only th
 (`PPICLF_R_RTerm2Perp`) and lists the gas block `PPICLF_R_JRHOF` to `PPICLF_R_JSDOZ` as
 interpolated, so a slot added inside the gas block is interpolated without further change;
 Rocflu then has to hand it over with an `InterpFieldUser` call in both
-`PICL_TEMP_Runge*.F90` files.
+`PICL_Runge*.F90` files.
 
 Checked: 35 PASS twice; in all 39 cases with particles (the suite, `AMFORCE 2` variants,
 and `QSFLUCT` and `PSEUDOTURB` variants with `OUTMODEL 1`, 62 fields) every named field is
@@ -936,7 +936,7 @@ are byte-identical.
 These fixes have no figure. Each is checked by a regression case that compares 1, 2 and
 4 ranks and checks the conservation budgets.
 
-- **Stale virtual cells at rank borders (e3ed370).** `PICL_TEMP_InitSolver` converted the
+- **Stale virtual cells at rank borders (e3ed370).** `PICL_InitSolver` converted the
   conserved variables before virtual cells had φ, and did not exchange them again. A
   quiescent particle cloud set the gas in motion, and results differed by 1% between 1 and
   2 ranks. φ and k_sg are now exchanged before the virtual-cell state is computed in every

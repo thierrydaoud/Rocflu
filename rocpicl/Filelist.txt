@@ -13,9 +13,9 @@
 ################################################################################
 
 SRCF90+=	PICL_ReadPiclSection.F90\
-		PICL_TEMP_Runge.F90\
-		PICL_TEMP_WriteVTU.F90\
-		PICL_TEMP_InitSolver.F90\
+		PICL_Runge.F90\
+		PICL_WriteVTU.F90\
+		PICL_InitSolver.F90\
 		PICL_ModInterfaces.F90
 
 ################################################################################

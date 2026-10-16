@@ -14,7 +14,7 @@
 !   ppiclf_lrp     : rprop
 !   ppiclf_lrp_pro : projected fields (PPICLF_P_*)
 !   ppiclf_solve_AddInterpSlot(jp): rprop slot jp is interpolated from
-!       the gas every stage; rocpicl/PICL_TEMP_Runge*.F90 hands it over
+!       the gas every stage; rocpicl/PICL_Runge*.F90 hands it over
 !       with ppiclf_solve_InterpFieldUser(jp, field). A slot that is not
 !       listed is not interpolated and stays zero: list every slot a
 !       model that is on reads.

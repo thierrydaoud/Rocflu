@@ -153,7 +153,7 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 #endif    
  
 #ifdef PICL
-  USE PICL_ModInterfaces, ONLY: PICL_TEMP_InitSolver
+  USE PICL_ModInterfaces, ONLY: PICL_InitSolver
 #endif
 
 #ifdef PICL
@@ -1516,7 +1516,7 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 #ifdef PICL
 IF ( global%piclUsed) THEN
         pRegion => pLevel%regions(1)       
-        CALL PICL_TEMP_InitSolver(pRegion)!(pLevel%regions)
+        CALL PICL_InitSolver(pRegion)!(pLevel%regions)
 
 ! Moved endif picl from this line because it should be moved
 ! else this causes seg fault #endif
@@ -1545,7 +1545,7 @@ IF ( global%piclUsed) THEN
       CALL RFLU_MPI_ClearRequestWrapper(pRegion)
     END DO ! iReg
 
-! Virtual cells: PICL_TEMP_InitSolver converted cv to phi_g-weighted
+! Virtual cells: PICL_InitSolver converted cv to phi_g-weighted
 ! conserved variables in actual cells only, so copy them again
     DO iReg = 1,global%nRegionsLocal
       pRegion => pLevel%regions(iReg)

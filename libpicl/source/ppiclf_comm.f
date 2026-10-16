@@ -69,7 +69,7 @@
 #endif
       use ppiclf_data
 !
-! This subroutine is called from rocpicl/PICL_TEMP_InitSolver.F90
+! This subroutine is called from rocpicl/PICL_InitSolver.F90
 !
       IMPLICIT NONE
 !
@@ -920,7 +920,7 @@
         CALL ppiclf_copy(ppiclf_picl_grid(1,ie)
      >                 ,ppiclf_fluid_grid(1,iee),7)
  
-        ! ppiclf_filter initially set in PICL_TEMP_InitSolver
+        ! ppiclf_filter initially set in PICL_InitSolver
         ! Want to only consider cells that reside in the particle domain
         ! Update ppiclf_filter for next binning cycle 2.1*dx since next
         ! layer of cells in a growing particle domain may be slightly larger

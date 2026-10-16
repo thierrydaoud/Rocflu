@@ -70,7 +70,7 @@
 !
 !******************************************************************************
 
-SUBROUTINE PICL_TEMP_InitSolver( pRegion)
+SUBROUTINE PICL_InitSolver( pRegion)
 
 !  USE 
 
@@ -192,11 +192,11 @@ INTEGER :: errorFlag,icg
    
 !******************************************************************************
 
-  RCSIdentString = '$RCSfile: PICL_TEMP_InitSolver.F90,v $ $Revision: 1.1.1.1 $'
+  RCSIdentString = '$RCSfile: PICL_InitSolver.F90,v $ $Revision: 1.1.1.1 $'
   
   global => pRegion%global !pRegion%global
 
-  CALL RegisterFunction( global,'PICL_TEMP_InitSolver',__FILE__ )
+  CALL RegisterFunction( global,'PICL_InitSolver',__FILE__ )
 
 
 ! Set pointers ----------------------------------------------------------------
@@ -920,7 +920,7 @@ DO icg = 1,pGrid%nCells
     pRegion%mixt%cv(CV_MIXT_ENER,icg) = vFrac*pRegion%mixt%cv(CV_MIXT_ENER,icg)
     IF(pRegion%mixt%cv(CV_MIXT_DENS,icg) .le. 0.0) THEN
          WRITE(*,*) "Error: negative density: ",pRegion%mixt%cv(CV_MIXT_DENS,icg)     
-         PRINT*, 'From rocpicl/PICL_TEMP_InitSolver.F90' 
+         PRINT*, 'From rocpicl/PICL_InitSolver.F90' 
          CALL ErrorStop(global,ERR_INVALID_VALUE,__LINE__,'PPICLF:init')
     END IF    
 END DO ! icg
@@ -936,7 +936,7 @@ DEALLOCATE(volp,STAT=errorFlag)
 IF ( global%myProcid == MASTERPROC) then
    print*, ' '
    print*, '***********************************************'
-   print*, 'Starting PICL_TEMP_InitSolver.F90'
+   print*, 'Starting PICL_InitSolver.F90'
    print*, ' '
    print*, 'Stationary                  = ',global%piclStationaryFlag
    print*, 'QS Flag                     = ',global%piclQsFlag
@@ -987,7 +987,7 @@ IF ( global%myProcid == MASTERPROC) then
    endif  
 
    print*, ' '
-   print*, 'Ending PICL_TEMP_InitSolver.F90'
+   print*, 'Ending PICL_InitSolver.F90'
    print*, '***********************************************'
 ENDIF
 
@@ -998,7 +998,7 @@ ENDIF
 
   CALL DeregisterFunction( global )
 
-END SUBROUTINE PICL_TEMP_InitSolver
+END SUBROUTINE PICL_InitSolver
 
 !******************************************************************************
 !

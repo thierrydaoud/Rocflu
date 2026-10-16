@@ -76,23 +76,23 @@ MODULE PICL_ModInterfaces
 ! PICL specific library
 ! =============================================================================
 
-  SUBROUTINE PICL_TEMP_Runge( pRegion)
+  SUBROUTINE PICL_Runge( pRegion)
     USE ModDataStruct, ONLY : t_region
     TYPE(t_region), POINTER :: pRegion    
-  END SUBROUTINE PICL_TEMP_Runge
+  END SUBROUTINE PICL_Runge
 
-  SUBROUTINE PICL_TEMP_WriteVTU( pRegion)
+  SUBROUTINE PICL_WriteVTU( pRegion)
     USE ModDataStruct, ONLY : t_region
     TYPE(t_region), POINTER :: pRegion    
-  END SUBROUTINE PICL_TEMP_WriteVTU
+  END SUBROUTINE PICL_WriteVTU
        
-  SUBROUTINE PICL_TEMP_InitSolver( pRegion)!,global )
+  SUBROUTINE PICL_InitSolver( pRegion)!,global )
     USE ModDataStruct, ONLY : t_region!,t_global
      !TYPE(t_region), INTENT(INOUT) :: pRegion
      TYPE(t_region), POINTER :: pRegion   
      !TYPE(t_global), INTENT(INOUT) :: global
      !TYPE(t_region), DIMENSION(:), POINTER :: regions
-  END SUBROUTINE PICL_TEMP_InitSolver
+  END SUBROUTINE PICL_InitSolver
 
   SUBROUTINE PICL_ReadPiclSection(global)
     USE ModGlobal, ONLY     : t_global

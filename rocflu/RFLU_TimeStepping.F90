@@ -153,7 +153,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 #endif
 
 #ifdef PICL
-  USE PICL_ModInterfaces, ONLY: PICL_TEMP_WriteVTU
+  USE PICL_ModInterfaces, ONLY: PICL_WriteVTU
 #endif
 
 #ifdef PICL
@@ -315,7 +315,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 
 #ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
-           CALL PICL_TEMP_WriteVTU(pRegion)
+           CALL PICL_WriteVTU(pRegion)
         END IF
 #endif
      END DO
@@ -1006,7 +1006,7 @@ END IF
 
 !#ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
-           CALL PICL_TEMP_WriteVTU(pRegion)
+           CALL PICL_WriteVTU(pRegion)
         END IF
 !#endif
       END DO ! iReg
