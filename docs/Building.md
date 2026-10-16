@@ -12,6 +12,7 @@ the modules, configures, compiles and keeps each configuration in its own direct
 - [`rocflu.sh build`](#rocflush-build)
 - [`rocflu.sh test`, `clean` and `load`](#rocflush-test-clean-and-load)
 - [Running a case: `rocflu.sh run`](#running-a-case-rocflush-run)
+  - [Checking a case: `rocflu.sh validate`](#checking-a-case-rocflush-validate)
   - [Running the steps by hand](#running-the-steps-by-hand)
 - [Using CMake directly](#using-cmake-directly)
 - [How the build is organised](#how-the-build-is-organised)
@@ -28,7 +29,7 @@ On HiPerGator:
 
 ```bash
 ./rocflu.sh build        # optimised build of everything, about 2-3 minutes
-./rocflu.sh test         # regression suite (35 cases, about a minute)
+./rocflu.sh test         # regression suite (34 cases, about a minute)
 ./rocflu.sh run /path/to/case/rectshktb.inp -n 4   # build for the case, pre-process, submit
 ```
 
@@ -135,6 +136,8 @@ is already set up).
 The case directory must hold `<case>.inp`, `<case>.bc`, the grid (`<case>.hyb.asc`) and,
 with particles, `points.dat`. `run` then:
 
+0. **Checks the case** ([`rocflu.sh validate`](#checking-a-case-rocflush-validate)). An
+   error stops here, before anything is built.
 1. **Builds the code for this case.** It reads the PICL and FLOWMODEL sections of the
    input and builds only the particle slots the models that are on need (see
    [Particle slots](#particle-slots-ppiclf_slotstxt)). The build is named after those
@@ -166,6 +169,28 @@ with particles, `points.dat`. `run` then:
 `run` does not change `build/bin`, which stays the full build `rocflu.sh test` uses.
 Pre-processing runs on the login node, which is fine for test-size grids; very large
 grids (a million cells and more) can take long there (to be improved).
+
+### Checking a case: `rocflu.sh validate`
+
+```bash
+./rocflu.sh validate /path/to/case/rectshktb.inp
+```
+
+`utilities/scripts/case_validator.py` reads the input file the way Rocflu does and
+reports every problem at once, with the line it is on:
+
+- keys in `# PICL` that Rocflu would ignore or misread: unknown keys (with the closest
+  known key), removed keys (with what replaces them), a key after a space, a key given
+  twice, and `QSFLUCTFILT` before `QSFLUCT` (Rocflu reads it as `QSFLUCT`);
+- flags that are not whole numbers or out of range;
+- particle models that do not work together, e.g. `QSFLUCT` without `QSFORCE`;
+- with `USED 1`: `RKSCHEME 2` in `# TIMESTEP`, `VISCOSITY` in `# VISCMODEL`, no
+  `AXIFLAG 1`, a `points.dat` in the case directory, and no `filein.vtk` or
+  `par00002.vtu` (which would start a particle restart).
+
+Settings of a model that is off (e.g. `KSP` without collisions) are ignored. `rocflu.sh
+run` and the regression suite run the same checks. The validator's own tests:
+`python3 tests/test_case_validator.py`.
 
 ### Running the steps by hand
 

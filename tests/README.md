@@ -25,7 +25,7 @@ on needs them (`ppiclf_user_Layout`), so cases without pressure-gradient, added-
 viscous-unsteady or rotational-collision models have no `dpdx_g` and similar fields. A
 field that is in a golden but no longer written fails the comparison.
 
-The 35 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
+The 34 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
 collisions, walls) and [gas only](#gas-only-cases) (the flow solver without particles).
 
@@ -68,13 +68,18 @@ script. The solver runs through `srun`:
   the whole suite takes ~5 min). Without `--bind-to none`, concurrent cases all pin
   to the first cores and run ~10x slower.
 
+Each case's input file goes through the case validator
+(`utilities/scripts/case_validator.py`, see docs/Building.md) before it runs; a case
+it rejects fails with the validator's messages. The validator has its own tests,
+which need no cluster: `python3 tests/test_case_validator.py`.
+
 A case whose solver run fails is set up again and retried once; `srun` on a shared
 partition can fail when the Slurm controller is unresponsive. The retry and any Slurm
 messages are shown next to the case.
 
 ### 3. Read the result
 
-The script prints one line per case and a total, e.g. `35 PASS`. See [Results](#results)
+The script prints one line per case and a total, e.g. `34 PASS`. See [Results](#results)
 for what each status means.
 
 Run directories go to `_work/runs/<case>` (git-ignored). They are deleted for cases
@@ -171,7 +176,6 @@ They run to 20 µs.
 | `shocktube/one-way/1-particle` | 1, 2 | One particle, `FEEDBACK 0` | `particles_moved`, `same_as` | ppiclF bins around a single particle (this once gave a filter width of 0) |
 | `shocktube/one-way/4-particles` | 1, 2 | Four particles, `FEEDBACK 0` | `particles_moved`, `same_as` | Interpolation and drag with several particles |
 | `shocktube/two-way/4-particles` | 1, 2 | Four particles, `FEEDBACK 1` | `particles_moved`, `same_as` | Feedback to the gas, across a rank border |
-| `shocktube/two-way/added-mass` | 2 | + `AMFORCE 2` | `particles_moved` | Added-mass force (Briney) |
 | `shocktube/two-way/pressure-gradient` | 2 | + `PGFORCE 1` | `particles_moved` | Pressure-gradient force |
 | `shocktube/two-way/viscous-unsteady` | 2 | + `VISCOUSUNSTEADY 1` | `particles_moved` | History force |
 | `shocktube/two-way/heat-transfer` | 2 | + `HEATTRANSFER 3` | `particles_moved` | Heat-transfer closure |

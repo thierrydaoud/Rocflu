@@ -3,3 +3,6 @@
 
 # Vim swap files
 *.swp
+
+# Python byte code (utilities/scripts/case_validator.py)
+__pycache__/

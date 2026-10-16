@@ -23,10 +23,13 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "..", "utilities", "scripts"))
 
 from rocpicl_tests import case as rcase          # noqa: E402
 from rocpicl_tests import checks, state           # noqa: E402
 from rocpicl_tests.cases import CASES             # noqa: E402
+import case_validator                             # noqa: E402
 
 TESTS_DIR = rcase.TESTS_DIR
 GOLDENS = os.path.join(TESTS_DIR, "goldens")
@@ -67,6 +70,11 @@ def run_case(case, args):
         # dumps that a rerun in the same directory would restart from
         for attempt in (1, 2):
             rcase.setup(case, rundir, args.exe)
+            # The case's input must pass the checks a user's case gets
+            invalid = case_validator.validate(os.path.join(rundir, rcase.CASENAME + ".inp"))
+            if invalid:
+                res["errors"] += ["case validator: " + e for e in invalid]
+                return res
             try:
                 rcase.run_solver(case, rundir, args.exe, {"account": args.account,
                                                           "partition": args.partition,

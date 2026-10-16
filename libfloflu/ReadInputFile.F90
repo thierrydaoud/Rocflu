@@ -139,9 +139,9 @@ SUBROUTINE ReadInputFile(regions)
   CHARACTER(256) :: line
   INTEGER :: errorFlag
   TYPE(t_global), POINTER :: global
-#ifndef SPEC
+#if !defined(SPEC) || !defined(PICL)
   CHARACTER(256) :: key
-  INTEGER :: specUsedVal
+  INTEGER :: usedVal
 #endif
 
 ! ******************************************************************************
@@ -235,11 +235,25 @@ SUBROUTINE ReadInputFile(regions)
           READ(IF_INPUT,'(A256)',ERR=10,END=86) line
           line = ADJUSTL(line)
           IF ( line(1:1) == '#' ) EXIT
-          READ(line,*,IOSTAT=errorFlag) key, specUsedVal
+          READ(line,*,IOSTAT=errorFlag) key, usedVal
           IF ( errorFlag == 0 .AND. TRIM(key) == 'USED' .AND. &
-               specUsedVal /= 0 ) THEN
+               usedVal /= 0 ) THEN
             CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
               'SPECIES USED requires a build with SPEC=1')
+          END IF ! key
+        END DO ! <empty>
+#endif
+#ifndef PICL
+! Built without PICL, the particles would be silently left out: stop instead
+      CASE ('# PICL')
+        DO
+          READ(IF_INPUT,'(A256)',ERR=10,END=86) line
+          IF ( line(1:1) == '#' ) EXIT
+          READ(line,*,IOSTAT=errorFlag) key, usedVal
+          IF ( errorFlag == 0 .AND. TRIM(key) == 'USED' .AND. &
+               usedVal /= 0 ) THEN
+            CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
+              'PICL USED 1 requires a build with ppiclF (without --no-picl)')
           END IF ! key
         END DO ! <empty>
 #endif

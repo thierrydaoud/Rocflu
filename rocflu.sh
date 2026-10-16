@@ -2,8 +2,9 @@
 # rocflu.sh: build and test Rocflu + ppiclF (a small front end to CMake).
 #
 #   ./rocflu.sh build [options]     configure and compile (every particle slot)
-#   ./rocflu.sh run <case>.inp ...  build for that case, pre-process it here and
-#                                   submit the simulation to Slurm
+#   ./rocflu.sh run <case>.inp ...  check the case, build for it, pre-process it
+#                                   here and submit the simulation to Slurm
+#   ./rocflu.sh validate <case>.inp check a case's input and files only
 #   ./rocflu.sh test  [options]     run the regression suite (tests/run_tests.py)
 #   ./rocflu.sh clean               remove build/
 #   source ./rocflu.sh load         load the HiPerGator modules into your shell
@@ -40,7 +41,29 @@ if [ "$1" == "load" ]; then
 fi
 
 usage() {
-  sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+}
+
+VALIDATOR="$ROOT/utilities/scripts/case_validator.py"
+
+usage_validate() {
+  cat << EOF
+Usage: ./rocflu.sh validate <dir>/<case>.inp
+
+Checks the case before it runs and reports every problem at once:
+unknown, removed or misplaced keys in # PICL, values out of range, particle
+models that do not work together, the time-stepping and viscosity input
+particles need, and files in the case directory that would stop the run
+(no points.dat, filein.vtk, par00002.vtu from an earlier run).
+./rocflu.sh run does this first. See utilities/scripts/case_validator.py.
+EOF
+}
+
+cmd_validate() {
+  case "$1" in -h|--help|"") usage_validate; [ -n "$1" ]; exit $? ;; esac
+  [ $# == 1 ] || fail "validate takes one case file"
+  [ -f "$1" ] || fail "no file $1"
+  exec python3 "$VALIDATOR" "$1"
 }
 
 usage_build() {
@@ -159,8 +182,8 @@ usage_run() {
   cat << EOF
 Usage: ./rocflu.sh run <dir>/<case>.inp [options]
 
-Builds the code for this case (only the particle slots its input needs),
-pre-processes the case here (rflumap, rflupart, rfluinit, one process each:
+Checks the case (./rocflu.sh validate), builds the code for it (only the
+particle slots its input needs), pre-processes the case here (rflumap, rflupart, rfluinit, one process each:
 an error in the .inp, .bc or grid shows up now, before anything is queued),
 then writes <dir>/<case>.sbatch and submits the simulation (rflump) to Slurm.
 The case directory must hold <case>.inp, <case>.bc, the grid and, with
@@ -243,6 +266,9 @@ cmd_run() {
   inp="$case_dir/$case_name.inp"
   nranks=$((nodes * tasks))
   [ -f "$case_dir/$case_name.bc" ] || fail "no $case_name.bc in $case_dir"
+
+  # 0. Check the case before building anything
+  python3 "$VALIDATOR" "$inp" || fail "the case has errors; nothing was built or submitted"
 
   load_modules || fail "could not load modules: $ROCFLU_MODULES"
 
@@ -358,6 +384,7 @@ cmd_test() {
 case "$1" in
   build) shift; cmd_build "$@" ;;
   run)   shift; cmd_run "$@" ;;
+  validate) shift; cmd_validate "$@" ;;
   test)  shift; cmd_test "$@" ;;
   clean) rm -rf "$BUILD_ROOT"; say "removed build/" ;;
   ""|-h|--help|help) usage ;;
