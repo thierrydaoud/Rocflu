@@ -248,11 +248,6 @@ MODULE RFLU_ModInterfacesSolver
     TYPE(t_region), POINTER :: regions(:)
   END SUBROUTINE RFLU_MoveGridXyz
 
-  SUBROUTINE RFLU_OpenConverFile(global)
-    USE ModGlobal, ONLY: t_global
-    TYPE(t_global), POINTER :: global
-  END SUBROUTINE RFLU_OpenConverFile
-
 ! begin BBR
   SUBROUTINE RFLU_OpenPMFile(global)
     USE ModGlobal, ONLY: t_global

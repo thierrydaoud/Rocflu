@@ -45,7 +45,6 @@ SRCF90+=        BuildVersionString.F90\
                 RFLU_MoveGridDisp.F90\
                 RFLU_MoveGridWrapper.F90\
                 RFLU_MoveGridXyz.F90\
-                RFLU_OpenConverFile.F90\
                 RFLU_OpenPMFile.F90\
                 RFLU_OpenIntegFile.F90\
                 RFLU_OpenStatsFileOLES.F90\

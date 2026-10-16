@@ -571,16 +571,8 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
   END IF ! global%solverType
 
 ! ******************************************************************************
-! Close convergence, mass, and probe files
+! Close mass and probe files
 ! ******************************************************************************
-
-  IF ( global%myProcid == MASTERPROC ) THEN
-    CLOSE(IF_CONVER,IOSTAT=errorFlag)
-    global%error = errorFlag
-    IF ( global%error /= 0 ) THEN 
-      CALL ErrorStop(global,ERR_FILE_CLOSE,__LINE__)
-    END IF ! global%error
-  END IF ! global%myProcid
 
   IF ( (global%myProcid == MASTERPROC) .AND. (moveGrid .EQV. .TRUE.) ) THEN
     CLOSE(IF_MASS,IOSTAT=errorFlag)

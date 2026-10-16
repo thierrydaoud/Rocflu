@@ -298,11 +298,6 @@ MODULE ModInterfacesIO
     TYPE(t_region), POINTER :: regions(:)
   END SUBROUTINE ReadViscositySection
 
-  SUBROUTINE WriteConvergence( global )
-    USE ModGlobal, ONLY     : t_global
-    TYPE(t_global), POINTER :: global
-  END SUBROUTINE WriteConvergence
-
   SUBROUTINE WriteTotalMass(regions)
     USE ModDataStruct, ONLY: t_region
     TYPE(t_region), POINTER :: regions(:)

@@ -178,7 +178,6 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
                            RFLU_GetUserInput, & 
                            RFLU_InitGlobal, &
                            RFLU_MoveGridWrapper, &
-                           RFLU_OpenConverFile, &
                            !begin BBR
                            RFLU_OpenPMFile, &
                            RFLU_OpenIntegFile, &
@@ -1611,11 +1610,9 @@ END if !global%piclused
   END IF ! global 
 
 ! ******************************************************************************
-! Open files for convergence data, probe data, and OLES output
+! Open files for total mass, probe data, and OLES output
 ! ******************************************************************************
 
-  CALL RFLU_OpenConverFile(global)
-  
   IF ( moveGrid .EQV. .TRUE. ) THEN 
     CALL RFLU_OpenTotalMassFile(global)
   END IF ! moveGrid

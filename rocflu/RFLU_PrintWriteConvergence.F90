@@ -52,7 +52,8 @@
 !*********************************************************************
 ! ******************************************************************************
 !
-! Purpose: Print and write convergence history.
+! Purpose: Sum the global forces, mass flow and stop flag over all ranks and
+!   print the convergence line.
 !
 ! Description: None.
 !
@@ -156,11 +157,6 @@ SUBROUTINE RFLU_PrintWriteConvergence(global)
         global%massIn,global%massOut
     END IF ! global%verbLevel
 
-    WRITE(IF_CONVER,'(I6,1PE13.4,5E13.4)') & 
-      global%currentIter,LOG10(resNorm), &
-      global%forceX,global%forceY,global%forceZ, &
-      global%massIn,global%massOut
-
 ! ==============================================================================
 ! Unsteady flow 
 ! ==============================================================================
@@ -174,11 +170,6 @@ SUBROUTINE RFLU_PrintWriteConvergence(global)
         global%forceX,global%forceY,global%forceZ, &
         global%massIn,global%massOut
 !    END IF ! global%verbLevel
-
-    WRITE(IF_CONVER,'(1PE12.5,6E13.4)') & 
-      global%currentTime,global%dtMin, &
-      global%forceX,global%forceY,global%forceZ, &
-      global%massIn,global%massOut
   END IF ! global%flowType
 
 ! ******************************************************************************

@@ -102,7 +102,6 @@ SRCF90+=	AfterUpdateMP.F90\
 		UpdateTbcWhitenoise.F90\
 		ViscousFluxes.F90\
 		ViscousFluxesMP.F90\
-		WriteConvergence.F90\
 		WriteProbe.F90\
 		WriteTotalMass.F90\
 		ZeroDummyCellsMP.F90\

@@ -792,7 +792,6 @@ MODULE ModParameters
                         IF_GRID       = 11, &
                         IF_TOPOL      = 12, &
                         IF_SOLUT      = 13, &
-                        IF_CONVER     = 14, &
                         IF_DISTR      = 15, &
                         IF_PLOT       = 16, &
                         IF_REGMAP     = 17, &
