@@ -53,7 +53,7 @@
 ! ******************************************************************************
 !
 ! Purpose: Sum the global forces, mass flow and stop flag over all ranks and
-!   print the convergence line.
+!   print the progress line (unsteady) or convergence line (steady).
 !
 ! Description: None.
 !
@@ -98,8 +98,10 @@ SUBROUTINE RFLU_PrintWriteConvergence(global)
 ! Locals
 ! ==============================================================================
 
-  INTEGER :: errorFlag
-  REAL(RFREAL) :: resNorm
+  CHARACTER(CHRLEN) :: timing
+  INTEGER :: errorFlag,percent,stepsSinceLast
+  REAL(RFREAL) :: endTime,eta,resNorm,secAverage,secElapsed,secPerStep, &
+                  timeDone,wallNow
   REAL(RFREAL), DIMENSION(6) :: localVals,globalVals
 
 ! ******************************************************************************
@@ -161,15 +163,47 @@ SUBROUTINE RFLU_PrintWriteConvergence(global)
 ! Unsteady flow 
 ! ==============================================================================
 
+! Progress line, e.g.
+!  [ 41%] t =  2.0306E-04 dt =  8.4559E-08 @ step     3179
+!         t/step  1.19E-01 s (avg  1.15E-01 s)  ETA 0:06:43 (total 0:11:20)
+! (one line). Progress is the simulated time done in this run over the time
+! it has to do; the ETA assumes the rest runs at the average rate so far.
+! The first line has no timing yet.
+
   ELSE IF ( (global%flowType == FLOW_UNSTEADY) .AND. & 
             (global%myProcid==MASTERPROC) ) THEN
-! BBR - temporary - letting the code talk a bit when verbose=0
-!    IF ( global%verbLevel /= VERBOSE_NONE ) THEN 
-      WRITE(STDOUT,'(A,1X,1PE12.5,6E13.4)') SOLVER_NAME, & 
-        global%currentTime,global%dtMin, &
-        global%forceX,global%forceY,global%forceZ, &
-        global%massIn,global%massOut
-!    END IF ! global%verbLevel
+    endTime  = global%restartTime &
+             + MIN(global%maxTime - global%restartTime,global%runTime)
+    timeDone = global%currentTime - global%restartTime
+    percent  = 100
+    IF ( endTime > global%restartTime ) THEN
+      percent = INT(100.0_RFREAL*timeDone/(endTime - global%restartTime))
+      percent = MAX(0,MIN(100,percent))
+    END IF ! endTime
+
+    wallNow        = MPI_Wtime()
+    stepsSinceLast = global%iterSinceRestart - global%progressStepLast
+    timing = ''
+    IF ( global%progressStepLast > 0 .AND. stepsSinceLast > 0 ) THEN
+      secElapsed = wallNow - global%progressWallStart
+      secPerStep = (wallNow - global%progressWallLast)/stepsSinceLast
+      secAverage = secElapsed/global%iterSinceRestart
+      eta        = 0.0_RFREAL
+      IF ( timeDone > 0.0_RFREAL ) THEN
+        eta = MAX(0.0_RFREAL,secElapsed*(endTime - global%currentTime)/timeDone)
+      END IF ! timeDone
+      WRITE(timing,'(A,ES9.2,A,ES9.2,A)') '  t/step',secPerStep,' s (avg', &
+                                          secAverage,' s)'
+      timing = TRIM(timing)//'  ETA '//TRIM(FormatWallTime(eta))// &
+               ' (total '//TRIM(FormatWallTime(secElapsed + eta))//')'
+    END IF ! global%progressStepLast
+
+    WRITE(STDOUT,'(A,I3,A,ES11.4,A,ES11.4,A,I8,A)') ' [',percent,'%] t =', &
+      global%currentTime,' dt =',global%dtMin,' @ step',global%iterSinceRestart, &
+      TRIM(timing)
+
+    global%progressWallLast = wallNow
+    global%progressStepLast = global%iterSinceRestart
   END IF ! global%flowType
 
 ! ******************************************************************************
@@ -177,6 +211,19 @@ SUBROUTINE RFLU_PrintWriteConvergence(global)
 ! ******************************************************************************
 
   CALL DeregisterFunction(global)
+
+CONTAINS
+
+! Wall time in seconds as H:MM:SS
+  FUNCTION FormatWallTime(seconds) RESULT(hms)
+    REAL(RFREAL), INTENT(IN) :: seconds
+    CHARACTER(16) :: hms
+    INTEGER :: total
+
+    total = NINT(seconds)
+    WRITE(hms,'(I0,A,I2.2,A,I2.2)') total/3600,':',MOD(total/60,60),':', &
+                                    MOD(total,60)
+  END FUNCTION FormatWallTime
 
 END SUBROUTINE RFLU_PrintWriteConvergence
 

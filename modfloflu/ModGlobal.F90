@@ -185,6 +185,10 @@ MODULE ModGlobal
     !begin BBR
     REAL(RFREAL) :: halftimeSinceWrite,wallTime,safeWriteTime,previousTime
     REAL(RFREAL) :: timeruninit 
+    ! Progress line: wall-clock time at the start of time stepping and at
+    ! the last progress line, and the step of the last progress line
+    REAL(RFREAL) :: progressWallStart,progressWallLast
+    INTEGER :: progressStepLast
     INTEGER :: printEndTime
     !end BBR
     ! begin TLJ

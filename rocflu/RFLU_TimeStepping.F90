@@ -360,6 +360,10 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
  END IF
 !CRN - end
 
+ global%progressWallStart = MPI_Wtime()
+ global%progressWallLast  = global%progressWallStart
+ global%progressStepLast  = global%iterSinceRestart
+
   DO
 
 ! BBR - begin
