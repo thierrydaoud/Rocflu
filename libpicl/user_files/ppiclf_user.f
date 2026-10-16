@@ -245,6 +245,7 @@
          fdpdx = 0.0d0; fdpdy = 0.0d0; fdpdz = 0.0d0;
          fcx = 0.0d0; fcy = 0.0d0; fcz = 0.0d0;
          taux = 0.0d0; tauy = 0.0d0; tauz = 0.0d0;
+         taux_hydro = 0.0d0; tauy_hydro = 0.0d0; tauz_hydro = 0.0d0;
          liftx = 0.0d0; lifty = 0.0d0; liftz = 0.0d0;
          fvux = 0.0d0; fvuy = 0.0d0; fvuz = 0.0d0;
          qq=0.0d0; qq_du=0.0d0; Nuss = 0.0d0
