@@ -81,11 +81,12 @@ and submits the simulation:
 ```
 
 See [`docs/Building.md`](docs/Building.md) for all options, `rocflu.sh run`, using CMake
-directly, and how the build is organised.
+directly, and how the build is organised, and [`docs/InputFile.md`](docs/InputFile.md)
+for the input file, `points.dat` and the checks `./rocflu.sh validate` makes before a run.
 
 ## 🧪 Testing
 
-The regression suite in [`tests/`](tests/README.md) runs 35 small cases of the coupled
+The regression suite in [`tests/`](tests/README.md) runs 34 small cases of the coupled
 code on 1, 2 and 4 MPI ranks. It compares each one with a stored result and checks the
 physics (conservation, interpolation, collisions, walls). After building:
 

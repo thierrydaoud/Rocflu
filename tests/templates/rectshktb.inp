@@ -96,10 +96,10 @@ VELOCITYMODEL    1 ! 0 = particles keep position and velocity; 1 = particles mov
 QSFORCE 	       3 ! 0 = none; 1 = Gidaspow; 2 = Parmar; 3 = Osnes
 AMFORCE 	       0 ! 0 = none; 1 = Parmar; 2 = Briney
 PGFORCE 	       0 ! 0 = none; 1 = on
-COLLISIONS 	     0 ! 0 = none; 1 = Fn; 2: +(Ft+Tc+Tr); 3: +(Th+Tu); 4: +(Fl)
-VISCOUSUNSTEADY  0 ! 0 = none; 1 = Rocflu Method
+COLLISIONS 	     0 ! 0 = none; 1 = Fn; 2: +(Ft+Tc); 3: +(Tr+Th+Tu); 4: +(Fl)
+VISCOUSUNSTEADY  0 ! 0 = none; 1-2 = trapezoidal (uniform, variable dt); 3 = modified trapezoidal; 4 = Hinsberg
 VUSTEPS          50     ! steps of viscous-unsteady history (when VISCOUSUNSTEADY >= 1)
-HEATTRANSFER 	   0 ! 0 = none; 1 = Stokes; 2 = RM; 3 = Gunn; 4 = Fox
+HEATTRANSFER 	   0 ! 0 = none; 1 = Stokes; 2 = RM; 3 = Gunn; 4 = Fox; 5 = Sun
 FEEDBACK         0 ! 0 = none; 1 = particles affecting fluid
 QSFLUCT 	       0 ! 0 = none; 1 = Lattanzi; 2 = Osnes  
 QSFLUCTFILT      0 ! 0 = box filter; 1 = gaussian. For fluctuation QS force only.
@@ -109,7 +109,7 @@ TEMP             296.40 ! temperature; must be consistent with Ambient air condi
 DENSITY          1880.0 ! particle density [kg/m^3]
 SPECIFICHEAT     840.0  ! particle specific heat [J/(kg K)]
 NEIGHBORWIDTH    0.0 ! Actual neighbor width = max(4*dp_max, neighborwidth)
-KSP              10    ! Number of collisional time steps 
+KSP              10    ! a contact lasts KSP time steps (collisions only)
 EREST            0.7    ! Coefficient of restitution
 PERIODICX        0      ! 0 = turn off ; 1 = turn on
 PERIODICY        1      ! 0 = turn off ; 1 = turn on

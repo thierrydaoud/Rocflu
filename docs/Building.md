@@ -5,6 +5,8 @@ wraps CMake, in the style of MFC's `mfc.sh`. You pick what to build (targets) an
 how to build it (flags) on one command line, and the script does the rest: it loads
 the modules, configures, compiles and keeps each configuration in its own directory.
 
+The input file and `points.dat` are described in [InputFile.md](InputFile.md).
+
 ## Contents
 
 - [Quick start](#quick-start)
