@@ -69,7 +69,7 @@ MFC's `mfc.sh`:
 ```bash
 ./rocflu.sh build -t simulation          # only the solver rflump
 ./rocflu.sh build --debug                # debug build (-g -O0 -fcheck=all)
-./rocflu.sh build --spec                 # with species transport (JWL gas model)
+./rocflu.sh build --no-picl              # gas only, without the particle solver
 ./rocflu.sh build --help                 # all options
 ```
 

@@ -13,6 +13,15 @@ option(ROCFLU_PLAG      "Rocpart Lagrangian particles"                     OFF)
 option(ROCFLU_FOLDER    "Write output into per-kind folders"               ON)
 option(ROCFLU_UTILITIES "Build the pre-processing utilities (map, part, init)" ON)
 
+# Species transport and Rocpart have not been tested or maintained for a
+# while: building them is disabled. Their sources and #ifdef SPEC/PLAG
+# branches are kept; to re-enable one, remove it from this check.
+if(ROCFLU_SPEC OR ROCFLU_PLAG)
+  message(FATAL_ERROR "ROCFLU_SPEC and ROCFLU_PLAG are disabled for now: species "
+                      "transport and Rocpart have not been tested for a while "
+                      "(see the check in CMakeLists.txt)")
+endif()
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Release or Debug" FORCE)
 endif()

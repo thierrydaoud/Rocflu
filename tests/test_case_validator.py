@@ -202,6 +202,12 @@ class CaseValidatorTest(unittest.TestCase):
         self.assertError(self.errors(grid=(0.0, 0.005)), "points.dat:4",
                          "outside the fluid domain")
 
+    def test_species_and_mixtures_disabled(self):
+        self.assertError(self.errors({("SPECIES", "USED"): 1}), "species transport is disabled")
+        self.assertError(self.errors({("MIXTURE", "GASMODEL"): 7}), "GASMODEL 7")
+        self.assertError(self.errors({("PICL", "USED"): 0, ("MIXTURE", "GASMODEL"): 3},
+                                     files=()), "GASMODEL 3")
+
     def test_files_in_case_directory(self):
         self.assertError(self.errors(files=()), "no points.dat")
         self.assertError(self.errors(files=("points.dat", "filein.vtk")), "filein.vtk")

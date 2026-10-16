@@ -79,8 +79,8 @@ accept more.
 | `# INITFLOW` | `FLAG` | 1 from scratch, 2 from file, 3 hard-coded, 4-6 combinations | initial gas state |
 | | `RVAL1`…, `IVAL1`… | | parameters of the initial state; with `FLAG 3` their meaning depends on the case name (`utilities/init/RFLU_InitFlowHardCode.F90`; for `rectshktb`: shock position, post- and pre-shock state) |
 | `# REFERENCE` | `GAMMA`, `CP` | | ratio of specific heats; specific heat at constant pressure [J/(kg K)] |
-| `# MIXTURE` | `GASMODEL` | 1 calorically perfect gas; 3-7 mixtures (7 JWL) | 3-7 need a build with `--spec` |
-| `# SPECIES` | `USED` | 0, 1 | species transport; needs a build with `--spec`. Species materials are given in `# MATERIAL` sections (not used by the particles) |
+| `# MIXTURE` | `GASMODEL` | 1 calorically perfect gas; 3-7 mixtures (7 JWL) | 3-7 need species transport, **disabled for now** (rejected) |
+| `# SPECIES` | `USED` | 0 | species transport, **disabled for now**: `USED 1` is rejected. Species materials are given in `# MATERIAL` sections (not used by the particles) |
 | `# VISCMODEL` | `MODEL` | 0 Sutherland, 1 fixed | |
 | | `VISCOSITY` | Pa s | reference viscosity; **required with particles** |
 | | `REFTEMP`, `SUTHCOEF` | K | Sutherland's law |
@@ -184,6 +184,7 @@ before building, and the regression suite runs it on every case. It checks:
   and 0 < `EREST` ≤ 1; with viscous-unsteady `VUSTEPS` ≥ 1;
 - the [combinations](#models-that-need-other-models) above, and the gas-side settings
   particles need;
+- `# SPECIES USED 1` and `GASMODEL` 3-7: species transport is disabled for now;
 - the case directory: `points.dat` is present and in the [format](#pointsdat-the-particles-initial-state)
   above (the count matches the lines, `dp` > 0); no `filein.vtk` (particle walls come from
   `PARTWALL 1` in the `.bc` file); no `par00002.vtu` from an earlier run (it would start a

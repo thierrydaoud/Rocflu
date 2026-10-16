@@ -239,7 +239,7 @@ SUBROUTINE ReadInputFile(regions)
           IF ( errorFlag == 0 .AND. TRIM(key) == 'USED' .AND. &
                usedVal /= 0 ) THEN
             CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
-              'SPECIES USED requires a build with SPEC=1')
+              'SPECIES USED 1: species transport is disabled for now')
           END IF ! key
         END DO ! <empty>
 #endif
@@ -270,7 +270,7 @@ SUBROUTINE ReadInputFile(regions)
        regions(1)%mixtInput%gasModel == GAS_MODEL_MIXT_GASLIQ .OR. &
        regions(1)%mixtInput%gasModel == GAS_MODEL_MIXT_JWL ) THEN
     CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
-      'This GASMODEL (mixture or JWL) requires a build with SPEC=1')
+      'GASMODEL 3-7 (mixtures, JWL) need species transport, disabled for now')
   END IF ! gasModel
 #endif
 

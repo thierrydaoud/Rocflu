@@ -106,9 +106,9 @@ ${HEADING}Targets${PLAIN} ${DEFAULT}(default: all)${PLAIN}:
                           rflump rflumap rflupart rfluinit
 ${HEADING}Build type and physics:${PLAIN}
   ${OPTION}--debug${PLAIN}               -g -O0 -fcheck=all ${DEFAULT}(default: optimised release build)${PLAIN}
-  ${OPTION}--spec${PLAIN}                species transport, needed by the JWL gas model
-                        (GASMODEL 7) ${DEFAULT}(default: off)${PLAIN}
-  ${OPTION}--plag${PLAIN}                Rocpart Lagrangian particles ${DEFAULT}(default: off)${PLAIN}
+  ${OPTION}--spec, --plag${PLAIN}        species transport (needed by the mixture and JWL
+                        gas models) and Rocpart Lagrangian particles:
+                        ${DEFAULT}disabled for now${PLAIN}, not tested for a while
   ${OPTION}--no-picl${PLAIN}             without the ppiclF particle solver ${DEFAULT}(default: with ppiclF)${PLAIN}
   ${OPTION}--no-folder${PLAIN}           write all output in the run directory
                         ${DEFAULT}(default: one folder per kind of output)${PLAIN}
@@ -120,7 +120,7 @@ ${HEADING}Other:${PLAIN}
   ${OPTION}-v, --verbose${PLAIN}         print every compile command ${DEFAULT}(default: off)${PLAIN}
 
 Each combination of build type and physics options has its own name (for
-example release, debug-spec): it is compiled in build/staging/<name> and its
+example release, debug-nopicl): it is compiled in build/staging/<name> and its
 executables are copied to build/install/<name>/bin. Switching between
 combinations recompiles nothing. build/bin points at the last one built.
 EOF
@@ -138,8 +138,8 @@ cmd_build() {
       -j|--jobs)    jobs="$2"; shift ;;
       -j*)          jobs="${1#-j}" ;;
       --debug)      debug=1 ;;
-      --spec)       spec=1 ;;
-      --plag)       plag=1 ;;
+      --spec|--plag)
+        fail "$1 is disabled for now: species transport and Rocpart have not been tested for a while (see CMakeLists.txt)" ;;
       --no-picl)    picl=0 ;;
       --no-folder)  folder=0 ;;
       --metis-root) metis_root="$(cd "$2" && pwd)" || fail "no directory $2"; shift ;;

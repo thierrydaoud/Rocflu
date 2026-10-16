@@ -313,6 +313,20 @@ class Validator:
                       "starts a particle restart, which is not available yet. Remove "
                       "the par*.vtu files (and the .rin file) to start a new run")
 
+    # -- physics that cannot be built for now ----------------------------------
+
+    def check_disabled(self, sections):
+        """Species transport (and so the mixture and JWL gas models) is not
+        built for now (CMakeLists.txt): Rocflu would stop on these."""
+        number, used = simple_value(sections.get("SPECIES", []), "USED")
+        self.prohibit(used is not None and round(used) != 0,
+                      "# SPECIES USED 1: species transport is disabled for now "
+                      "(not tested for a while)", number)
+        number, model = simple_value(sections.get("MIXTURE", []), "GASMODEL")
+        self.prohibit(model is not None and 3 <= round(model) <= 7,
+                      "GASMODEL %d (mixture or JWL) needs species transport, which is "
+                      "disabled for now" % round(model or 0), number)
+
     # -- points.dat -----------------------------------------------------------------
 
     def read_points(self):
@@ -413,6 +427,7 @@ class Validator:
             self.prohibit(True, "cannot read: %s" % e)
             return self.errors
         sections = read_sections(lines)
+        self.check_disabled(sections)
         picl = self.check_picl(sections)
         if picl is not None and picl["USED"] == 1:
             self.check_with_particles(sections)

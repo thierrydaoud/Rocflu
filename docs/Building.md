@@ -66,8 +66,7 @@ pre-processing tools are built from `utilities/map`, `utilities/part` and
 |---|---|
 | `-t, --targets T ...` | build only these targets: `simulation`, `pre_process`, or executable names (`rflump rflumap rflupart rfluinit`). Default: all |
 | `--debug` | debug build: `-g -O0 -fbacktrace -fcheck=all` everywhere |
-| `--spec` | species transport (also needed by the JWL gas model, `GASMODEL 7`) |
-| `--plag` | Rocpart Lagrangian particles |
+| `--spec`, `--plag` | species transport (needed by the mixture and JWL gas models, `GASMODEL` 3-7) and Rocpart Lagrangian particles: **disabled for now**, see below |
 | `--no-picl` | without the ppiclF particle solver |
 | `--no-folder` | write all output files in the run directory instead of sub-folders |
 | `-j, --jobs N` | compile with N processes (default 16) |
@@ -80,11 +79,18 @@ Examples:
 ```bash
 ./rocflu.sh build -t simulation -j 8     # only rflump
 ./rocflu.sh build --debug                # debug build of everything
-./rocflu.sh build --debug --spec         # debug build with species
+./rocflu.sh build --debug --no-picl      # debug build without particles
 ```
 
+**Species transport and Rocpart are disabled for now.** They have not been tested or
+maintained for a while, so `--spec` and `--plag` stop with a message, and CMake refuses
+`ROCFLU_SPEC=ON` and `ROCFLU_PLAG=ON`. Their sources and `#ifdef SPEC`/`PLAG` branches
+are still in the code; to re-enable one, remove it from the check near the top of
+`CMakeLists.txt`. Inputs that need species (`# SPECIES USED 1`, `GASMODEL` 3-7) stop in
+pre-processing and are reported by the case validator.
+
 **One directory per configuration.** Each combination of build type and physics
-options has a name: `release`, `debug`, `debug-spec`, `release-nopicl`, and so on.
+options has a name: `release`, `debug`, `release-nopicl`, `debug-nopicl`, and so on.
 Everything lives under `build/`:
 
 ```
@@ -92,10 +98,10 @@ build/
   bin -> install/release/bin     the last configuration built (used by rocflu.sh test)
   install/
     release/bin/                 rflump rflumap rflupart rfluinit
-    debug-spec/bin/              ...
+    debug/bin/                   ...
   staging/                       CMake's files and the compiled objects; no need to look here
     release/
-    debug-spec/
+    debug/
 ```
 
 Switching between configurations recompiles nothing that is already built. To run a
@@ -242,7 +248,7 @@ PSEUDOTURB >= 1), not in this build: use ./rocflu.sh run*.
 
 ```bash
 module purge; module load gcc/14.2.0 openmpi/5.0.7
-cmake -S . -B build/staging/mine -DCMAKE_BUILD_TYPE=Debug -DROCFLU_SPEC=ON
+cmake -S . -B build/staging/mine -DCMAKE_BUILD_TYPE=Debug -DROCFLU_PICL=OFF
 cmake --build build/staging/mine -j 16 --target rflump   # executables in build/staging/mine/bin
 ```
 
@@ -250,8 +256,8 @@ cmake --build build/staging/mine -j 16 --target rflump   # executables in build/
 |---|---|---|
 | `CMAKE_BUILD_TYPE` | `Release` | `--debug` (= `Debug`) |
 | `ROCFLU_PICL` | `ON` | `--no-picl` |
-| `ROCFLU_SPEC` | `OFF` | `--spec` |
-| `ROCFLU_PLAG` | `OFF` | `--plag` |
+| `ROCFLU_SPEC` | `OFF` (`ON` refused for now) | `--spec` (disabled) |
+| `ROCFLU_PLAG` | `OFF` (`ON` refused for now) | `--plag` (disabled) |
 | `ROCFLU_FOLDER` | `ON` | `--no-folder` |
 | `ROCFLU_UTILITIES` | `ON` | (off: only `rflump`) |
 | `METIS_ROOT` | empty (bundled) | `--metis-root` |
@@ -272,7 +278,7 @@ cmake --build build/staging/mine -j 16 --target rflump   # executables in build/
 Rocflu's source lists are the `Filelist.txt` files in each directory. To add a routine, put the file in the right directory and add
 its name to that directory's `Filelist.txt`. The next build notices the changed
 Filelist and reconfigures by itself. `ifdef SPEC`-style blocks in a Filelist are
-honoured, so a file listed under `ifdef SPEC` is compiled only with `--spec`.
+honoured, so a file listed under `ifdef SPEC` is compiled only with `ROCFLU_SPEC` (disabled for now).
 
 A new ppiclF user file goes into the list `PPICLF_SOURCES` in
 `libpicl/CMakeLists.txt`.
