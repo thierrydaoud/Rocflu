@@ -163,11 +163,6 @@ SUBROUTINE PICL_ReadPiclSection( global )
 ! 0: particles keep their position and velocity; 1: they move
   IF ( defined(7) .EQV. .TRUE. ) THEN 
     global%piclVelocityModel = NINT(vals(7))
-    IF ( global%piclVelocityModel < 0 .OR. &
-         global%piclVelocityModel > 1 ) THEN
-      CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
-        'VELOCITYMODEL must be 0 (particles fixed) or 1 (particles move)')
-    END IF
   END IF ! defined 
 
   IF ( defined(8) .EQV. .TRUE. ) THEN 
@@ -241,17 +236,8 @@ SUBROUTINE PICL_ReadPiclSection( global )
   IF (defined(26) .EQV. .TRUE. ) global%piclOutGradGas  = NINT(vals(26))
   IF (defined(27) .EQV. .TRUE. ) global%piclOutModel    = NINT(vals(27))
 
-! The unsteady history is allocated only when VISCOUSUNSTEADY >= 1, and the
-! diffusive-unsteady heat transfer is computed in the same routines
-  IF ( global%piclViscousUnsteady >= 1 .AND. global%piclVUSteps < 1 ) THEN
-    CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
-      'VUSTEPS (steps of viscous-unsteady history) must be at least 1')
-  END IF
-  IF ( global%piclHTUnsteadyFlag >= 1 .AND. &
-       global%piclViscousUnsteady < 1 ) THEN
-    CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
-      'DU HEATTRANSFER needs VISCOUSUNSTEADY >= 1 (shared history)')
-  END IF
+! Values and combinations are checked before the run by
+! utilities/scripts/case_validator.py (./rocflu.sh validate)
 
 ! finalize
 

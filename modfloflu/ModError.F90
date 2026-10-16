@@ -419,14 +419,6 @@ MODULE ModError
                         ERR_HYPRE_SOLVER_INVALID = 7004 
 
 ! ==============================================================================
-! PICL specific errors
-! ==============================================================================
-
-  INTEGER, PARAMETER :: ERR_PICL_WRONG_RK              = 8001
-  INTEGER, PARAMETER :: ERR_PICL_INVALID_VISC          = 8003
-  INTEGER, PARAMETER :: ERR_PICL_INVALID_PTFLAG   = 8005
-
-! ==============================================================================
 ! Program burn specific errors
 ! ==============================================================================
 
@@ -677,16 +669,6 @@ MODULE ModError
 
         CASE (ERR_GRAD_MISMATCH)
           message = 'mismatch of no of variables and gradients'
-
-! ------------------------------------------------------------------------------
-!       PICL
-! ------------------------------------------------------------------------------
-        CASE (ERR_PICL_WRONG_RK)
-          message = 'Must use RK3 when PICL is used.'
-        CASE (ERR_PICL_INVALID_VISC)
-          message = 'VISCMODEL section must be defined if PICL is used.'
-        CASE(ERR_PICL_INVALID_PTFLAG)
-          message = 'Must use Fluctuation Flag 2 with Pseudo Turbulence'
 
 ! ------------------------------------------------------------------------------
 !       Posivity/validity checking

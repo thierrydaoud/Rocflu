@@ -203,11 +203,8 @@ INTEGER :: errorFlag,icg
 !MOVING PICL HERE TO AVOID SEG FAULT OF ROCFLU STORED VF
 #ifdef PICL
 
-IF (global%rkscheme /= RK_SCHEME_3_WRAY) THEN
-  CALL ErrorStop(global,ERR_PICL_WRONG_RK,__LINE__,'Wrong RK Scheme for ppiclf. Needs RK3')
-END IF
-
-! Setting flags from input file
+! Setting flags from input file (checked before the run by
+! utilities/scripts/case_validator.py: RK3, viscosity, flag values)
 ! ************************************************************
 velocity_model = global%piclVelocityModel
 qs_flag = global%piclQsFlag
@@ -258,12 +255,6 @@ DO l = 1,3
           global%mpiComm,errorFlag)
 END DO
 
-
-! Sanity check for viscosity
-IF(rmu_ref .LT. 0.0d0) THEN
-    CALL ErrorStop(global,ERR_PICL_INVALID_VISC,__LINE__,&
-        'Negative viscosity for ppiclF')
-END IF
 
  ! Initialization for viscous unsteady term: ppiclF allocates this many
  ! steps of history (none unless VISCOUSUNSTEADY >= 1)
@@ -848,10 +839,6 @@ END DO
 IF ( global%myProcid == MASTERPROC) WRITE(*,*) "PFINIT: Calc Init VolP"
 DO i = 1, nCells
        CALL ppiclf_solve_GetProFld(i, PPICLF_P_JPHIP, volp(i))
-       IF (pRegion%mixtInput%axiFlag) THEN
-           WRITE(*,*) "Need to properly implement axi-sym for phip init."
-           CALL ErrorStop(global,ERR_OPTION_TYPE,__LINE__,'PPICLF:axi')
-       END IF
        volp(i) = volp(i)/pRegion%grid%vol(i)
        pRegion%mixt%piclVF(i) = volp(i) 
 END DO
