@@ -78,7 +78,10 @@ MODULE RFLU_ModMetisInterface
   PUBLIC :: RFLU_PART_METIS_NOPTIONS, &
       RFLU_PART_METIS_OPTION_NUMBERING, &
       RFLU_PART_METIS_OPTION_CONTIG, &
-      RFLU_PART_METIS_OPTION_DBGLVL
+      RFLU_PART_METIS_OPTION_DBGLVL, &
+      METIS_SetDefaultOptions, &
+      METIS_PartGraphRecursive, &
+      METIS_PartGraphKway
 
   interface
       subroutine RFLU_PART_METIS_NOPTIONS(output) bind(c, name="rflu_part_metis_noptions")
@@ -110,6 +113,41 @@ MODULE RFLU_ModMetisInterface
           implicit none
           integer(C_INT) :: output
       end subroutine rflu_part_metis_option_dbglvl
+  end interface
+
+! METIS 5 entry points (metis.h, 32-bit idx_t and real_t). The weight and
+! target arrays are pointers so C_NULL_PTR selects METIS's defaults.
+  interface
+      function METIS_SetDefaultOptions(options) bind(c, name="METIS_SetDefaultOptions")
+          use iso_c_binding
+          implicit none
+          integer(C_INT) :: METIS_SetDefaultOptions
+          integer(C_INT) :: options(*)
+      end function METIS_SetDefaultOptions
+
+      function METIS_PartGraphRecursive(nvtxs, ncon, xadj, adjncy, vwgt, vsize, &
+                                        adjwgt, nparts, tpwgts, ubvec, options, &
+                                        edgecut, part) &
+                                        bind(c, name="METIS_PartGraphRecursive")
+          use iso_c_binding
+          implicit none
+          integer(C_INT) :: METIS_PartGraphRecursive
+          integer(C_INT) :: nvtxs, ncon, xadj(*), adjncy(*), nparts, options(*), &
+                            edgecut, part(*)
+          type(C_PTR), value :: vwgt, vsize, adjwgt, tpwgts, ubvec
+      end function METIS_PartGraphRecursive
+
+      function METIS_PartGraphKway(nvtxs, ncon, xadj, adjncy, vwgt, vsize, &
+                                   adjwgt, nparts, tpwgts, ubvec, options, &
+                                   edgecut, part) &
+                                   bind(c, name="METIS_PartGraphKway")
+          use iso_c_binding
+          implicit none
+          integer(C_INT) :: METIS_PartGraphKway
+          integer(C_INT) :: nvtxs, ncon, xadj(*), adjncy(*), nparts, options(*), &
+                            edgecut, part(*)
+          type(C_PTR), value :: vwgt, vsize, adjwgt, tpwgts, ubvec
+      end function METIS_PartGraphKway
   end interface
 
 END MODULE RFLU_ModMetisInterface

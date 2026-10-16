@@ -2990,11 +2990,7 @@ MODULE RFLU_ModPartitionRegion
     INTEGER(c_int) :: metis_var
     !INTEGER, DIMENSION(0:39) :: options
     INTEGER, ALLOCATABLE :: options(:)
-    INTEGER, POINTER :: vwgt(:) => NULL()
-    INTEGER, POINTER :: vsize(:) => NULL()
-    INTEGER, POINTER :: adjwgt(:) => NULL()
-    REAL, POINTER :: tpwgts(:) => NULL()
-    REAL, POINTER :: ubvec(:) => NULL()
+    INTEGER(c_int) :: metisStatus
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: cellStatus,c2cCSR,f2cCSR,f2cCSRInfo
 
@@ -3142,7 +3138,7 @@ MODULE RFLU_ModPartitionRegion
         CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'options')
       END IF ! global%error
 
-      CALL METIS_SetDefaultOptions(options)
+      metisStatus = METIS_SetDefaultOptions(options)
 
       CALL RFLU_PART_METIS_OPTION_NUMBERING(metis_var)
       options(metis_var) = 1 ! set numbering to 1 (FORTRAN indexing instead of the default c)
@@ -3153,27 +3149,23 @@ MODULE RFLU_ModPartitionRegion
       CALL RFLU_PART_METIS_OPTION_DBGLVL(metis_var)
       options(metis_var) = 1 ! turn on debug output
 
-      IF ( global%nRegionsLocal < 8) THEN 
-          ! Sam - METIS 4
-        !CALL METIS_PartGraphRecursive(pGrid%nCellsTot,f2cCSRInfo,f2cCSR,vwgt, &
-        !                              adjwgt,wgtFlag,1,global%nRegionsLocal, &
-        !                              options,pGrid%nFacesCut,pGrid%sc2r)
-
-        ! Sam - METIS 5
-        CALL METIS_PartGraphRecursive(pGrid%nCellsTot,1,f2cCSRInfo,f2cCSR,vwgt, & 
-                                 vsize,adjwgt,global%nRegionsLocal,tpwgts,ubvec, & 
-                                 options,pGrid%nFacesCut,pGrid%sc2r)      
-      ELSE 
-        ! Sam - replacing METIS 4 call with METIS 5 call
-        !CALL METIS_PartGraphKway(pGrid%nCellsTot,f2cCSRInfo,f2cCSR,vwgt, & 
-        !                         adjwgt,wgtFlag,1,global%nRegionsLocal, & 
-        !                         options,pGrid%nFacesCut,pGrid%sc2r)      
-
-        CALL METIS_PartGraphKway(pGrid%nCellsTot,1,f2cCSRInfo,f2cCSR,vwgt, & 
-                                 vsize,adjwgt,global%nRegionsLocal,tpwgts,ubvec, & 
-                                 options,pGrid%nFacesCut,pGrid%sc2r)      
-
+      ! One constraint, no vertex or edge weights, equal parts (C_NULL_PTR
+      ! makes METIS use its defaults)
+      IF ( global%nRegionsLocal < 8) THEN
+        metisStatus = METIS_PartGraphRecursive(pGrid%nCellsTot,1,f2cCSRInfo, &
+                        f2cCSR,C_NULL_PTR,C_NULL_PTR,C_NULL_PTR, &
+                        global%nRegionsLocal,C_NULL_PTR,C_NULL_PTR,options, &
+                        pGrid%nFacesCut,pGrid%sc2r)
+      ELSE
+        metisStatus = METIS_PartGraphKway(pGrid%nCellsTot,1,f2cCSRInfo, &
+                        f2cCSR,C_NULL_PTR,C_NULL_PTR,C_NULL_PTR, &
+                        global%nRegionsLocal,C_NULL_PTR,C_NULL_PTR,options, &
+                        pGrid%nFacesCut,pGrid%sc2r)
       END IF ! global%nRegionsLocal
+
+      IF ( metisStatus /= 1 ) THEN ! METIS_OK
+        CALL ErrorStop(global,ERR_EXTERNAL_FUNCT,__LINE__,'METIS partitioning')
+      END IF ! metisStatus
 
       ! Sam - comment out METIS 4 stuff
       !DEALLOCATE(vwgt,STAT=errorFlag)
