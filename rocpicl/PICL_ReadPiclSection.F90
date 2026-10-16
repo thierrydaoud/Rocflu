@@ -85,7 +85,7 @@ SUBROUTINE PICL_ReadPiclSection( global )
   INTEGER :: nVals
 
   INTEGER :: iReg
-  INTEGER, PARAMETER :: NVALS_MAX = 34
+  INTEGER, PARAMETER :: NVALS_MAX = 27
 
   CHARACTER(20) :: keys(NVALS_MAX)
 
@@ -109,36 +109,29 @@ SUBROUTINE PICL_ReadPiclSection( global )
   keys( 4)  = 'COLLISIONS'
   keys( 5)  = 'HEATTRANSFER'
   keys( 6)  = 'FEEDBACK'
-  keys( 7)  = 'STATIONARY'
+  keys( 7)  = 'VELOCITYMODEL'
   keys( 8)  = 'USED'
   keys( 9)  = 'QSFLUCT'
   keys(10)  = 'TEMP'
-  keys(11)  = 'FILTERWIDTH'
-  keys(12)  = 'DU HEATTRANSFER'
-  keys(13)  = 'NEIGHBORWIDTH'
-  keys(14)  = 'KSP'
-  keys(15)  = 'EREST'
-  keys(16)  = 'QSFLUCTFILT'
-  keys(17)  = 'QSFLUCTFILTADAPT'
-  keys(18)  = 'VISCOUSUNSTEADY'
-  keys(19)  = 'PERIODICX'
-  keys(20)  = 'PERIODICY'
-  keys(21)  = 'PERIODICZ'
-  keys(22)  = 'ANGULARPERIODIC'
-  keys(23)  = 'ANGLE'
-  keys(24)  = 'XANGLE'
-  keys(25)  = 'RIN'
-  keys(26)  = 'ROUT'
-  keys(27)  = 'SUBBIN'
-  keys(28)  = 'REACTIVE'
-  keys(29)  = 'PSEUDOTURB'
-  keys(30)  = 'VUSTEPS'
+  keys(11)  = 'DU HEATTRANSFER'
+  keys(12)  = 'NEIGHBORWIDTH'
+  keys(13)  = 'KSP'
+  keys(14)  = 'EREST'
+  keys(15)  = 'QSFLUCTFILT'
+  keys(16)  = 'QSFLUCTFILTADAPT'
+  keys(17)  = 'VISCOUSUNSTEADY'
+  keys(18)  = 'PERIODICX'
+  keys(19)  = 'PERIODICY'
+  keys(20)  = 'PERIODICZ'
+  keys(21)  = 'SUBBIN'
+  keys(22)  = 'PSEUDOTURB'
+  keys(23)  = 'VUSTEPS'
 ! Optional groups of fields in the particle files (ppiclf_user_OutputFields).
 ! No key may be the start of another: ReadSection matches the start of a line.
-  keys(31)  = 'OUTPARTICLE'
-  keys(32)  = 'OUTGAS'
-  keys(33)  = 'OUTGRADGAS'
-  keys(34)  = 'OUTMODEL'
+  keys(24)  = 'OUTPARTICLE'
+  keys(25)  = 'OUTGAS'
+  keys(26)  = 'OUTGRADGAS'
+  keys(27)  = 'OUTMODEL'
  
   CALL ReadSection( global,IF_INPUT,nVals,keys(1:nVals),vals(1:nVals), & 
                     defined(1:nVals) ) 
@@ -167,14 +160,13 @@ SUBROUTINE PICL_ReadPiclSection( global )
     global%piclFeedbackFlag = NINT(vals(6))
   END IF ! defined
   
+! 0: particles keep their position and velocity; 1: they move
   IF ( defined(7) .EQV. .TRUE. ) THEN 
-    global%piclStationaryFlag = NINT(vals(7))
-! Negative values used to select the ppiclF unit-test problems, now removed
-    IF ( global%piclStationaryFlag < 0 .OR. &
-         global%piclStationaryFlag > 1 ) THEN
+    global%piclVelocityModel = NINT(vals(7))
+    IF ( global%piclVelocityModel < 0 .OR. &
+         global%piclVelocityModel > 1 ) THEN
       CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
-        'STATIONARY must be 0 or 1 (the negative unit-test cases '// &
-        'were removed)')
+        'VELOCITYMODEL must be 0 (particles fixed) or 1 (particles move)')
     END IF
   END IF ! defined 
 
@@ -192,98 +184,62 @@ SUBROUTINE PICL_ReadPiclSection( global )
     global%piclTemp = vals(10)
   END IF
 
-  IF (defined(11) .EQV. .TRUE.) THEN
-    global%piclFilterWidth = vals(11)
-  ELSE
-    IF (global%piclUsed) THEN
-      CAll ErrorStop(global,ERR_PICL_FWIDTH_UNDEF,__LINE__,'')
-    END IF
+  IF (defined(11) .EQV. .TRUE. ) THEN
+     global%piclHTUnsteadyFlag = NINT(vals(11))
   END IF
 
   IF (defined(12) .EQV. .TRUE. ) THEN
-     global%piclHTUnsteadyFlag = NINT(vals(12))
+    global%piclNeighborWidth = vals(12)
   END IF
 
   IF (defined(13) .EQV. .TRUE. ) THEN
-    global%piclNeighborWidth = vals(13)
+    global%piclKsp = vals(13)
   END IF
 
   IF (defined(14) .EQV. .TRUE. ) THEN
-    global%piclKsp = vals(14)
+    global%piclERest = vals(14)
   END IF
 
   IF (defined(15) .EQV. .TRUE. ) THEN
-    global%piclERest = vals(15)
+    global%piclQsFluctFilterFlag = vals(15)
   END IF
 
   IF (defined(16) .EQV. .TRUE. ) THEN
-    global%piclQsFluctFilterFlag = vals(16)
+    global%piclQsFluctFilterAdaptFlag = vals(16)
   END IF
 
   IF (defined(17) .EQV. .TRUE. ) THEN
-    global%piclQsFluctFilterAdaptFlag = vals(17)
+    global%piclViscousUnsteady = vals(17)
   END IF
 
   IF (defined(18) .EQV. .TRUE. ) THEN
-    global%piclViscousUnsteady = vals(18)
+    global%piclPeriodicXFlag = NINT(vals(18))
   END IF
-
+  
   IF (defined(19) .EQV. .TRUE. ) THEN
-    global%piclPeriodicXFlag = NINT(vals(19))
+    global%piclPeriodicYFlag = NINT(vals(19))
   END IF
   
   IF (defined(20) .EQV. .TRUE. ) THEN
-    global%piclPeriodicYFlag = NINT(vals(20))
+    global%piclPeriodicZFlag = NINT(vals(20))
   END IF
-  
+
   IF (defined(21) .EQV. .TRUE. ) THEN
-    global%piclPeriodicZFlag = NINT(vals(21))
+    global%piclSBNearFlag = vals(21)
   END IF
-  
+
   IF (defined(22) .EQV. .TRUE. ) THEN
-    global%piclAngularPeriodicFlag = NINT(vals(22))
+    global%piclPseudoTurbFlag = NINT(vals(22))
   END IF
-  
+
   IF (defined(23) .EQV. .TRUE. ) THEN
-    global%piclAngularPeriodicAngle = vals(23)
-  END IF
-  
-  IF (defined(24) .EQV. .TRUE. ) THEN
-    global%piclAngularPeriodicXAngle = vals(24)
+    global%piclVUSteps = NINT(vals(23))
   END IF
 
-  IF (defined(25) .EQV. .TRUE. ) THEN
-    global%piclAngularPeriodicRin = vals(25)
-  END IF
-  
-  IF (defined(26) .EQV. .TRUE. ) THEN
-    global%piclAngularPeriodicRout = vals(26)
-  END IF
-
-  IF (defined(27) .EQV. .TRUE. ) THEN
-    global%piclSBNearFlag = vals(27)
-  END IF
-
-! The burn-rate model was removed: stop rather than silently run inert
-  IF (defined(28) .EQV. .TRUE. ) THEN
-    IF ( NINT(vals(28)) /= 0 ) THEN
-      CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
-        'REACTIVE: the particle burn-rate model was removed; set 0')
-    END IF
-  END IF
-  
-  IF (defined(29) .EQV. .TRUE. ) THEN
-    global%piclPseudoTurbFlag = NINT(vals(29))
-  END IF
-
-  IF (defined(30) .EQV. .TRUE. ) THEN
-    global%piclVUSteps = NINT(vals(30))
-  END IF
-
-  IF (defined(31) .EQV. .TRUE. ) global%piclOutParticle = NINT(vals(31))
-  IF (defined(32) .EQV. .TRUE. ) global%piclOutGas      = NINT(vals(32))
-  IF (defined(33) .EQV. .TRUE. ) global%piclOutGradGas  = NINT(vals(33))
-  IF (defined(34) .EQV. .TRUE. ) global%piclOutModel    = NINT(vals(34))
+  IF (defined(24) .EQV. .TRUE. ) global%piclOutParticle = NINT(vals(24))
+  IF (defined(25) .EQV. .TRUE. ) global%piclOutGas      = NINT(vals(25))
+  IF (defined(26) .EQV. .TRUE. ) global%piclOutGradGas  = NINT(vals(26))
+  IF (defined(27) .EQV. .TRUE. ) global%piclOutModel    = NINT(vals(27))
 
 ! The unsteady history is allocated only when VISCOUSUNSTEADY >= 1, and the
 ! diffusive-unsteady heat transfer is computed in the same routines

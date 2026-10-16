@@ -485,22 +485,19 @@ MODULE ModGlobal
 ! ==============================================================================
     
     INTEGER :: piclQsFlag, piclAmFlag, piclPgFlag, piclCollisionFlag,&
-               piclHeatTransferFlag, piclFeedbackFlag, piclStationaryFlag, &
+               piclHeatTransferFlag, piclFeedbackFlag, piclVelocityModel, &
                piclQsFluctFlag, piclQsFluctFilterFlag, &
                piclQsFluctFilterAdaptFlag, &
                piclViscousUnsteady, &
                piclPeriodicXFlag, piclPeriodicYFlag, piclPeriodicZFlag, &
-               piclAngularPeriodicFlag, piclSBNearFlag, &
+               piclSBNearFlag, &
                piclMoveParticles, piclPseudoTurbFlag, piclHTUnsteadyFlag, &
                piclVUSteps, piclOutParticle, piclOutGas, piclOutGradGas, &
                piclOutModel
 
 
-    REAL(RFREAL) :: piclTemp, piclFilterWidth, piclNeighborWidth, piclKsp, &
-                    piclERest, &
-                    piclAngularPeriodicAngle, piclAngularPeriodicXAngle, & 
-                    piclAngularPeriodicRin, piclAngularPeriodicRout, &
-                    ppiclf_p0
+    REAL(RFREAL) :: piclTemp, piclNeighborWidth, piclKsp, &
+                    piclERest, ppiclf_p0
 
   END TYPE t_global
 

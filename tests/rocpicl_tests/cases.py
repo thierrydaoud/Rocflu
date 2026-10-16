@@ -134,7 +134,7 @@ for n in (2, 4):
         description="Fixed, unevenly spaced particles in gas at rest at uniform "
                     "pressure; the gas must stay at rest",
         nranks=n, grid=BOX, bc="periodic",
-        inp={**uniform_gas(0.0), **TWO_WAY, ("PICL", "STATIONARY"): 1,
+        inp={**uniform_gas(0.0), **TWO_WAY, ("PICL", "VELOCITYMODEL"): 0,
              ("PICL", "PGFORCE"): 1},
         particles=cloud(30, 3.0e-4, lo=0.0021, hi=0.0045),
         checks=["quiescent", "mass"])
@@ -160,7 +160,7 @@ add(name="box/resting-heat-exchange/np1",
 LINEAR_RHO = {("INITFLOW", "IVAL1"): 1, ("INITFLOW", "RVAL7"): "25.0",
               ("INITFLOW", "RVAL8"): "-15.0", ("INITFLOW", "RVAL9"): "10.0",
               ("PICL", "PERIODICX"): 0, ("PICL", "PERIODICY"): 0,
-              ("PICL", "PERIODICZ"): 0, ("PICL", "STATIONARY"): 1}
+              ("PICL", "PERIODICZ"): 0, ("PICL", "VELOCITYMODEL"): 0}
 for n in (1, 2, 4):
     add(name="box/linear-interp/np%d" % n,
         description="Gas density linear in x, y, z at rest in a slip-wall box; "
@@ -184,7 +184,7 @@ for n in (1, 2):
         nranks=n, grid=ELONGATED, bc="closed",
         inp={**uniform_gas(0.0), **ONE_WAY, ("PICL", "PERIODICX"): 0,
              ("PICL", "PERIODICY"): 0, ("PICL", "PERIODICZ"): 0,
-             ("PICL", "STATIONARY"): 1},
+             ("PICL", "VELOCITYMODEL"): 0},
         particles=[(0.0066, 0.0044, 0.0037, 1.0e-4)],
         checks=["projection_shape", "mass"])
 

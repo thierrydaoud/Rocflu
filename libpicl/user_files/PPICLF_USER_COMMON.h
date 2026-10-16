@@ -5,7 +5,7 @@
 !
 ! General useage
 !
-      integer*4 :: stationary, qs_flag, am_flag, pg_flag,
+      integer*4 :: velocity_model, qs_flag, am_flag, pg_flag,
      >   collisional_flag, heattransfer_flag, feedback_flag,
      >   qs_fluct_flag, rmu_flag,
      >   rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag,
@@ -16,7 +16,7 @@
      >   out_gradgas_flag, out_model_flag
       real*8 :: rmu_ref, tref, suth, ksp, erest
       common /RFLU_ppiclF/ rmu_ref, tref, suth, ksp, erest,
-     >   stationary, qs_flag, am_flag, pg_flag,
+     >   velocity_model, qs_flag, am_flag, pg_flag,
      >   collisional_flag, heattransfer_flag, feedback_flag,
      >   qs_fluct_flag, rmu_flag,
      >   rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag,
@@ -70,24 +70,15 @@
      >                          Wdot_neighbor_mean, R_pair
 
 !
-! For ppiclf_solve_InitAngularPeriodic
+! Linear periodicity (ppiclf_solve_Initialize). Angular periodicity
+! was removed from the input; its routines are kept commented out in
+! ppiclf_solve.f and ppiclf_comm.f and need new input keys to return.
 !
-      integer*4 x_per_flag, y_per_flag, z_per_flag, ang_per_flag,
-     >          ang_case 
-      real*8 ang_per_angle, ang_per_xangle,
-     >       ang_per_rin, ang_per_rout,
-     >       xrot(3) , vrot(3)
+      integer*4 x_per_flag, y_per_flag, z_per_flag
       real*8 x_per_min, x_per_max,
      >  y_per_min, y_per_max, z_per_min, z_per_max
 
-      common /solve_InitAngularPeriodic01/ x_per_flag, y_per_flag, 
-     >                                z_per_flag, ang_per_flag,
-     >                                ang_case
-      common /solve_InitAngularPeriodic02/ ang_per_angle, 
-     >                                ang_per_xangle,
-     >                                ang_per_rin, 
-     >                                ang_per_rout,
-     >                                xrot, vrot
-      common /solve_InitAngularPeriodic03/ x_per_min, x_per_max,
+      common /solve_Periodic01/ x_per_flag, y_per_flag, z_per_flag
+      common /solve_Periodic03/ x_per_min, x_per_max,
      >  y_per_min, y_per_max, z_per_min, z_per_max
      

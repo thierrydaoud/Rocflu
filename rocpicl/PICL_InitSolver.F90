@@ -131,7 +131,7 @@ INTEGER :: errorFlag,icg
    REAL(RFREAL),ALLOCATABLE,DIMENSION(:) :: xData,yData,zData,rData,dumData    
    REAL(RFREAL), DIMENSION(:), ALLOCATABLE :: volp,SPL 
    REAL(RFREAL), DIMENSION(3) :: tpw1,tpw2,tpw3         
-   REAL(RFREAL) :: xin, wout, pi
+   REAL(RFREAL) :: xin, wout
    ! Particle walls from PARTWALL patches
    TYPE(t_patch), POINTER :: pPatch
    INTEGER :: iPatch, ifc, iv, nv, iTri, nTriLoc, nTriTot, nProcs
@@ -145,7 +145,7 @@ INTEGER :: errorFlag,icg
 
    INTEGER :: seed(33), isize, CellVertices
 
-   INTEGER :: stationary, qs_flag, am_flag, pg_flag, &
+   INTEGER :: velocity_model, qs_flag, am_flag, pg_flag, &
         collisional_flag, heattransfer_flag, feedback_flag, &
         qs_fluct_flag, rmu_flag, &
         rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag, &
@@ -156,7 +156,7 @@ INTEGER :: errorFlag,icg
         out_gradgas_flag, out_model_flag
    REAL(RFREAL) :: rmu_ref, tref, suth, ksp, erest
    COMMON /RFLU_ppiclF/ rmu_ref, tref, suth, ksp, erest, &
-        stationary, qs_flag, am_flag, pg_flag, &
+        velocity_model, qs_flag, am_flag, pg_flag, &
         collisional_flag, heattransfer_flag, feedback_flag, &
         qs_fluct_flag, rmu_flag, &
         rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag, &
@@ -173,12 +173,10 @@ INTEGER :: errorFlag,icg
    COMMON /RFLU_ppiclf_misc02/ ppiclf_matname
 
    ! 08/19/24 - Thierry - added for Periodicity - begins here
-   INTEGER :: x_per_flag, y_per_flag, z_per_flag, ang_per_flag 
+   INTEGER :: x_per_flag, y_per_flag, z_per_flag
    REAL(RFREAL) :: x_per_min, x_per_max, & 
                    y_per_min, y_per_max, & 
-                   z_per_min, z_per_max, & 
-                   ang_per_angle, ang_per_xangle, &
-                   ang_per_rin, ang_per_rout
+                   z_per_min, z_per_max
    ! 08/19/24 - Thierry - added for Periodicity - ends here
 
    REAL(RFREAL), DIMENSION(3) :: MaxPoint, MinPoint, CellLen, Max_CellLen, &
@@ -214,7 +212,7 @@ END IF
 
 ! Setting flags from input file
 ! ************************************************************
-stationary = global%piclStationaryFlag
+velocity_model = global%piclVelocityModel
 qs_flag = global%piclQsFlag
 am_flag = global%piclAmFlag
 pg_flag = global%piclPgFlag
@@ -276,16 +274,6 @@ CALL MPI_AllReduce(gridmin,z_per_min,1,MPI_RFREAL,MPI_MIN, &
         global%mpiComm,errorFlag)
 CALL MPI_AllReduce(gridmax,z_per_max,1,MPI_RFREAL,MPI_MAX, &
         global%mpiComm,errorFlag)
-
-ang_per_flag   = global%piclAngularPeriodicFlag
-ang_per_angle  = global%piclAngularPeriodicAngle
-ang_per_xangle = global%piclAngularPeriodicXAngle
-ang_per_rin    = global%piclAngularPeriodicRin
-ang_per_rout   = global%piclAngularPeriodicRout
-
-pi = acos(-1.0D0)
-ang_per_angle  = global%piclAngularPeriodicAngle * pi / 180.0D0
-ang_per_xangle = global%piclAngularPeriodicXAngle * pi / 180.0D0
 
 
 ! Sanity check for viscosity
@@ -733,15 +721,7 @@ END IF
 CALL ppiclf_solve_Initialize( & 
            x_per_flag, x_per_min, x_per_max, &
            y_per_flag, y_per_min, y_per_max, &
-           z_per_flag, z_per_min, z_per_max, &
-           ang_per_flag, ang_per_angle, ang_per_xangle, ang_per_rin, ang_per_rout)
-
-! *** AVERY - Update when general ang per is done ***
-IF(((ang_per_flag.eq.1) .and. (x_per_flag.eq.1 .or. y_per_flag.eq.1)) .or. & 
-    (ang_per_flag .gt. 1)) THEN
-    CALL ErrorStop(global,ERR_PICL_INVALID_PERIODICITY,__LINE__,&
-      'Wrong periodicity choices for ppiclF')
-END IF 
+           z_per_flag, z_per_min, z_per_max)
 
 ! Creates OverlapGrid and Calls Init Solve
 CALL ppiclf_comm_InitOverlapGrid(nCells,rocGrid)
@@ -944,7 +924,7 @@ IF ( global%myProcid == MASTERPROC) then
    print*, '***********************************************'
    print*, 'Starting PICL_InitSolver.F90'
    print*, ' '
-   print*, 'Stationary                  = ',global%piclStationaryFlag
+   print*, 'Velocity Model              = ',global%piclVelocityModel
    print*, 'QS Flag                     = ',global%piclQsFlag
    print*, 'QS Fluct Flag               = ',global%piclQsFluctFlag
    print*, 'Pseudo Turbulence Flag      = ',pseudoTurb_flag
@@ -985,11 +965,6 @@ IF ( global%myProcid == MASTERPROC) then
    endif  
    if(z_per_flag.eq.1) then
      print*, "ppiclF Z-periodic (min, max) ", z_per_min, z_per_max
-   endif  
-   if(ang_per_flag.eq.1) then
-     print*, "ppiclF Angular-periodic (axis, rin, rout, angle, x-angle) ", &
-     ang_per_flag, ang_per_rin, ang_per_rout, &
-     ang_per_angle, ang_per_xangle
    endif  
 
    print*, ' '

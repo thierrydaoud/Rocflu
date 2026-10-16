@@ -100,7 +100,7 @@ SPHT     840.0              ! Specific heat
 
 # PICL
 USED             1 ! 0 = not used; 1 = used
-STATIONARY       0 ! 1 = particles do not move
+VELOCITYMODEL    1 ! 0 = particles keep position and velocity; 1 = particles move
 QSFORCE 	       3 ! 0 = none; 1 = Gidaspow; 2 = Parmar; 3 = Osnes
 AMFORCE 	       0 ! 0 = none; 1 = Parmar; 2 = Briney
 PGFORCE 	       0 ! 0 = none; 1 = on
@@ -114,16 +114,12 @@ QSFLUCTFILT      0 ! 0 = box filter; 1 = gaussian. For fluctuation QS force only
 QSFLUCTFILTADAPT 0 ! 0 = not adaptive; 1 = adaptive
 PSEUDOTURB       0 ! 0 = none; 1 = pseudo-turbulence model
 TEMP             296.40 ! temperature; must be consistent with Ambient air conditions
-FILTERWIDTH      0.002 ! meters
 NEIGHBORWIDTH    0.0 ! Actual neighbor width = max(4*dp_max, neighborwidth)
 KSP              10    ! Number of collisional time steps 
 EREST            0.7    ! Coefficient of restitution
 PERIODICX        0      ! 0 = turn off ; 1 = turn on
 PERIODICY        1      ! 0 = turn off ; 1 = turn on
 PERIODICZ        1      ! 0 = turn off ; 1 = turn on
-ANGULARPERIODIC  0      ! 0=turn off ; 1=Z-Axis
-ANGLE            90.0   ! angle between the two wedge faces, degrees
-XANGLE           0.0    ! angle between x-axis and lower wedge face, CCW +ve, degrees
 SUBBIN           0 ! 0 = Zwick subbin; 1 = Avery subbin
 OUTPARTICLE      1 ! particle files: also Tp, spin, rhop, volp
 OUTGAS           1 ! particle files: also gas density, velocity, sound speed, T at the particle

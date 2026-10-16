@@ -536,10 +536,9 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
   global%piclCollisionFlag    = 0
   global%piclHeatTransferFlag = 0
   global%piclFeedbackFlag     = 0
-  global%piclStationaryFlag   = 0
+  global%piclVelocityModel    = 1
   global%piclQSFluctFlag      = 0
   global%piclTemp             = 0.0_RFREAL
-  global%piclFilterWidth      = -1.0_RFREAL
   global%piclNeighborWidth    = 0.0_RFREAL
   global%piclViscousUnsteady  = 0
   global%piclVUSteps          = 50

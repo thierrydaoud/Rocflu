@@ -95,7 +95,7 @@ SPHT     1                  ! Specific heat (not used with ppiclf)
 
 # PICL
 USED             1      ! 0 = not used; 1 = used
-STATIONARY       0      ! 1 = particles do not move
+VELOCITYMODEL    1      ! 0 = particles keep position and velocity; 1 = particles move
 QSFORCE          3      ! 0 = none; 1 = Gidaspow; 2 = Parmar; 3 = Osnes
 AMFORCE          2      ! 0 = none; 1 = Parmar; 2 = Briney
 PGFORCE          1      ! 0 = none; 1 = on
@@ -108,18 +108,12 @@ QSFLUCT          2      ! 0 = none; 1 = Lattanzi; 2 = Osnes
 QSFLUCTFILT      0      ! 0 = box filter; 1 = gaussian. For fluctuation QS force only.
 QSFLUCTFILTADAPT 0      ! 0 = not adaptive; 1 = adaptive
 TEMP             288.15 ! temperature; must be consistent with ambient air conditions
-FILTERWIDTH      0.0005 ! meters; roughly 1.5 times cell size
 NEIGHBORWIDTH    0.000  ! Actual neighbor width = max(4*dp_max, neighborwidth)
 KSP              100.0  ! collisional spring constant; [kg/s^2]
 EREST            0.7    ! Coefficient of restitution
 PERIODICX        0      ! 0 = turn off ; 1 = turn on
 PERIODICY        0      ! 0 = turn off ; 1 = turn on
 PERIODICZ        1      ! 0 = turn off ; 1 = turn on
-ANGULARPERIODIC  0      ! 0=turn off ; 1=Z-Axis
-ANGLE            90.0   ! angle between the two wedge faces, degrees
-XANGLE           0.0    ! angle between x-axis and lower wedge face, CCW +ve, degrees
-RIN              0.0    ! inner wedge radius
-ROUT             0.3    ! outer wedge radius
 SUBBIN           1      ! 0 = Zwick subbin; 1 = Avery subbin
 #
 

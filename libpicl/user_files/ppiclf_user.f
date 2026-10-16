@@ -6,7 +6,7 @@
 !   These flags allows the user to turn on or
 !      off various force terms, or to select
 !      between different versions of each force model
-!   To turn off all particle motion, set stationary = 0
+!   To keep particles where they are, set velocity_model = 0
 !   To turn off a force set the flag to zero
 !   For two-way coupling set collisional_flag = 0
 !   For four-way coupling set collisional_flag = 1
@@ -14,9 +14,10 @@
 !   To use fluctuations turn corresponding flag = 1
 !
 !
-!   stationary = 0 if 1, do not move particles but do
-!         calculate drag forces; feedback force can also
-!         be turned on
+!   velocity_model = 0: particles keep their position and velocity
+!         (and temperature); forces are still computed and the
+!         feedback force can be on
+!                  = 1: particles move under the forces
 !
 !   qs_flag = 3  ! none = 0; Gidaspow = 1; Parmar = 2; Osnes = 3
 !   am_flag = 1  ! Parmar = 1; Briney = 2
@@ -727,26 +728,22 @@
      >   ppiclf_rprop(PPICLF_R_JVOLP,i)*ppiclf_y(PPICLF_JT,i)
 
 
-! Step 12: If stationary, don't move particles. Feedback can still be on
-! though.
+! Step 12: Velocity model 0: particles keep their position, velocity,
+! temperature and spin. Feedback can still be on though.
 !
-         if (stationary .gt. 0) then
-            if (stationary==1) then
-               ppiclf_ydot(PPICLF_JX ,i)  = 0.0d0
-               ppiclf_ydot(PPICLF_JY ,i)  = 0.0d0
-               ppiclf_ydot(PPICLF_JZ, i)  = 0.0d0
-               ppiclf_ydot(PPICLF_JVX,i)  = 0.0d0
-               ppiclf_ydot(PPICLF_JVY,i)  = 0.0d0
-               ppiclf_ydot(PPICLF_JVZ,i)  = 0.0d0
-               ppiclf_ydot(PPICLF_JT,i)   = 0.0d0
+         if (velocity_model == 0) then
+            ppiclf_ydot(PPICLF_JX ,i)  = 0.0d0
+            ppiclf_ydot(PPICLF_JY ,i)  = 0.0d0
+            ppiclf_ydot(PPICLF_JZ, i)  = 0.0d0
+            ppiclf_ydot(PPICLF_JVX,i)  = 0.0d0
+            ppiclf_ydot(PPICLF_JVY,i)  = 0.0d0
+            ppiclf_ydot(PPICLF_JVZ,i)  = 0.0d0
+            ppiclf_ydot(PPICLF_JT,i)   = 0.0d0
 #if PPICLF_JOX > 0
-               ppiclf_ydot(PPICLF_JOX,i)  = 0.0d0
-               ppiclf_ydot(PPICLF_JOY,i)  = 0.0d0
-               ppiclf_ydot(PPICLF_JOZ,i)  = 0.0d0
+            ppiclf_ydot(PPICLF_JOX,i)  = 0.0d0
+            ppiclf_ydot(PPICLF_JOY,i)  = 0.0d0
+            ppiclf_ydot(PPICLF_JOZ,i)  = 0.0d0
 #endif
-            else
-               call ppiclf_exittr('Unknown stationary flag$', 0.0d0, 0)
-            endif
          endif
 
 

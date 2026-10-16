@@ -1,6 +1,5 @@
       SUBROUTINE ppiclf_solve_Initialize(xi1,xpmin,xpmax,
-     >           yi1,ypmin,ypmax,zi1,zpmin,zpmax,
-     >           ai1,apa,apxa,aprin,aprout)
+     >           yi1,ypmin,ypmax,zi1,zpmin,zpmax)
       use ppiclf_data
 !
       IMPLICIT NONE
@@ -9,9 +8,8 @@
 !
 ! Input:
 !
-      INTEGER*4 xi1, yi1, zi1, ai1
-      REAL*8    xpmin,xpmax,ypmin,ypmax,zpmin,zpmax,
-     >          apa,apxa,aprin,aprout, pi, angled
+      INTEGER*4 xi1, yi1, zi1
+      REAL*8    xpmin,xpmax,ypmin,ypmax,zpmin,zpmax
 
       ! Called by rocpicl/PICL_InitSolver.F90
       ! xdrange adjusts the bin boundaries to ensure they aren't 
@@ -57,6 +55,8 @@
       END IF
 
 !*** THIS CODE WILL CHANGE
+! Angular periodicity is not in the input any more: bringing it back
+! needs input keys and the arguments ai1,apa,apxa,aprin,aprout again.
 !      ! Angular Periodicity
 !      ang_per_flag = ai1
 !      IF(ang_per_flag.EQ.1) THEN
@@ -813,9 +813,9 @@ c----------------------------------------------------------------------
       INTEGER*4 i, j
 !
 
-! Case 1 - Linear Periodicity in any of 3 directions ; NO Anuglar Periodicity
-      IF(((x_per_flag.EQ.1).OR.(y_per_flag.EQ.1).OR.(z_per_flag.EQ.1))
-     >   .AND.(ang_per_flag.EQ.0)) THEN
+! Case 1 - Linear Periodicity in any of 3 directions
+      IF((x_per_flag.EQ.1).OR.(y_per_flag.EQ.1).OR.(z_per_flag.EQ.1))
+     >   THEN
 
         DO j= 1,3
           ! particle leaving min. periodic face -> move it relative to 
