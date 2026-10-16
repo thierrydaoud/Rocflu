@@ -2,7 +2,7 @@
 #
 # $Id: Makefile,v 1.1.1.1 2015/01/23 22:57:50 tbanerjee Exp $
 #
-# Purpose: Makefile for RocfluidMP standalone codes
+# Purpose: Makefile for the solver executable rflump
 #
 # Copyright: (c) 2003 by the University of Illinois
 #
@@ -32,14 +32,14 @@ endif
 vpath Mod%.F90 		../modfloflu
 vpath RFLU_Mod%.F90	../modflu
 vpath RFLU_%.F90	../libflu
-vpath %.F90		../libfloflu:../rocflu:../standalone
+vpath %.F90		../libfloflu:../rocflu:../simulation
 vpath %.f		../libflu
-vpath %.C		../standalone
+vpath %.C		../simulation
 
 vpath %.o .:../$(BUILDLIB_DIR)
 
 ### Define SRCF90 and SRCF77 ###################################################
-include ../standalone/$(FILELIST)
+include ../simulation/$(FILELIST)
 
 include ../Makefile.dep
 

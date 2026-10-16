@@ -132,9 +132,9 @@ endfunction()
 
 # --- Solver ------------------------------------------------------------------
 if(ROCFLU_PICL)
-  rocflu_executable(rflump standalone ppiclF)
+  rocflu_executable(rflump simulation ppiclF)
 else()
-  rocflu_executable(rflump standalone)
+  rocflu_executable(rflump simulation)
 endif()
 
 # --- Pre-processing utilities ---------------------------------------------------------------

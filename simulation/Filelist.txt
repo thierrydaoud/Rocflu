@@ -2,7 +2,7 @@
 #
 # $Id: Filelist.txt,v 1.1.1.1 2015/01/23 22:57:50 tbanerjee Exp $
 #
-# Purpose: Filelist for standalone routines of RocfluMP and RocfloMP.
+# Purpose: Filelist for the solver executable rflump (main program and driver).
 #
 # Description: None.
 #
