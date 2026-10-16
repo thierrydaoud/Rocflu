@@ -46,9 +46,11 @@ fi
 colours_on() { [ -t "$1" ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-}" != dumb ]; }
 if colours_on 1; then
   HEADING=$'\033[1m'; OPTION=$'\033[36m'; DEFAULT=$'\033[33m'
-  PROGRESS=$'\033[32m'; PLAIN=$'\033[0m'
+  PROGRESS=$'\033[32m'; DIM=$'\033[2m'; COMPLETED=$'\033[1;36m'; PLAIN=$'\033[0m'
 fi
-if colours_on 2; then ERROR_MARK=$'\033[1;31m'; ERROR_PLAIN=$'\033[0m'; fi
+if colours_on 2; then
+  ERROR_MARK=$'\033[1;31m'; DEFAULT_ERR=$'\033[33m'; ERROR_PLAIN=$'\033[0m'
+fi
 
 usage() {
   cat << EOF
@@ -179,35 +181,159 @@ cmd_build() {
     -DROCFLU_PLAG=$(on_off $plag) -DROCFLU_FOLDER=$(on_off $folder) \
     -DMETIS_ROOT="$metis_root"
   ln -sfn "install/$name/bin" "$BUILD_ROOT/bin"
-  say "done: executables in build/install/$name/bin (build/bin points there)"
+  say "executables in build/install/$name/bin (build/bin points there)"
 }
 
 # Configures, builds and installs one configuration:
 #   build_config <name> <jobs> <fresh 0|1> <verbose 0|1> "<targets>" <cmake -D options...>
 # CMake's files go to build/staging/<name>, the executables to
-# build/install/<name>/bin.
+# build/install/<name>/bin. The compiler output goes to
+# build/staging/<name>/build.log; the terminal shows a progress bar and a
+# line per finished part (plain lines when the output is not a terminal,
+# every line with -v).
 build_config() {
   local name="$1" jobs="$2" fresh="$3" verbose="$4" targets="$5"
   shift 5
   local dir="$BUILD_ROOT/staging/$name"      # CMake's files and the objects
   local inst="$BUILD_ROOT/install/$name"     # the executables
+  local log="$dir/build.log" start=$SECONDS
   command -v cmake > /dev/null || fail "cmake not found"
 
   [ "$fresh" == 1 ] && rm -rf "$dir" "$inst"
-  mkdir -p "$BUILD_ROOT/staging"
-  say "configuring $name in build/staging/$name"
-  cmake -S "$ROOT" -B "$dir" -DCMAKE_INSTALL_PREFIX="$inst" "$@" \
-        > "$dir.configure.log" 2>&1 \
-    || { cat "$dir.configure.log"; fail "configure failed"; }
-  rm -f "$dir.configure.log"
+  mkdir -p "$dir"
+  say "building ${OPTION:-}$name${PLAIN:-} ($jobs jobs), log: ${log#$ROOT/}"
 
-  say "building $targets with $jobs processes"
-  local extra=()
+  # Configure
+  if ! cmake -S "$ROOT" -B "$dir" -DCMAKE_INSTALL_PREFIX="$inst" "$@" \
+         > "$dir/configure.log" 2>&1; then
+    build_failed configure "" "$dir/configure.log"
+  fi
+  checkpoint "configure" $((SECONDS - start))
+
+  # Compile, reading CMake's lines as they come
+  local extra=() line percent=0 file="" status="" programs=() seen=" "
   [ "$verbose" == 1 ] && extra=(--verbose)
+  : > "$log"
   # shellcheck disable=SC2086
-  cmake --build "$dir" -j "$jobs" --target $targets "${extra[@]}" \
-    || fail "build failed"
+  while IFS= read -r line; do
+    case "$line" in
+      "__rocflu_status__ "*) status="${line#__rocflu_status__ }"; continue ;;
+    esac
+    echo "$line" >> "$log"
+    [ "$verbose" == 1 ] && echo "$line"
+    if [[ "$line" =~ ^\[\ *([0-9]+)%\]\ (Building|Linking|Generating)\ .*[\ /]([^ /]+)$ ]]; then
+      percent="${BASH_REMATCH[1]}"; file="${BASH_REMATCH[3]%.o}"
+    elif [[ "$line" =~ Built\ target\ ([A-Za-z0-9_]+) ]] \
+         && [[ "$seen" != *" ${BASH_REMATCH[1]} "* ]]; then
+      # make reports a target again for each target that needs it: once is enough
+      seen+="${BASH_REMATCH[1]} "
+      case "${BASH_REMATCH[1]}" in
+        gs)            checkpoint "gslib" $((SECONDS - start)) ;;
+        metis_bundled) checkpoint "METIS + GKlib" $((SECONDS - start)) ;;
+        ppiclF)        checkpoint "ppiclF" $((SECONDS - start)) ;;
+        flu)           checkpoint "Rocflu library" $((SECONDS - start)) ;;
+        rflump|rflumap|rflupart|rfluinit) programs+=("${BASH_REMATCH[1]}") ;;
+      esac
+    fi
+    [ "$verbose" == 1 ] || progress_bar "$percent" "$file" $((SECONDS - start))
+  done < <(cmake --build "$dir" -j "$jobs" --target $targets "${extra[@]}" 2>&1
+           echo "__rocflu_status__ $?")
+  clear_bar
+  [ "$status" == 0 ] || build_failed compile "$file" "$log"
+  [ ${#programs[@]} -gt 0 ] && checkpoint "${programs[*]}" ""
+
   cmake --install "$dir" > /dev/null || fail "copying the executables to build/install/$name failed"
+  local warnings
+  warnings=$(grep -c "Warning:" "$log")
+  printf '%s✔ Build completed:%s %s in %d s, ' "${COMPLETED:-}" "${PLAIN:-}" "$name" $((SECONDS - start))
+  if [ "$warnings" == 0 ]; then
+    printf '%s0 warnings%s\n' "${PROGRESS:-}" "${PLAIN:-}"
+  else
+    printf '%s%d warnings%s (grep -B4 Warning: %s)\n' "${DEFAULT:-}" "$warnings" "${PLAIN:-}" "${log#$ROOT/}"
+  fi
+}
+
+# Progress display for build_config. On a terminal the bar is redrawn in
+# place; elsewhere only the checkpoint lines are printed.
+on_terminal() { [ -t 1 ]; }
+progress_bar() {   # <percent> <file> <seconds>
+  on_terminal || return 0
+  local percent="$1" width=20 filled bar=""
+  filled=$((percent * width / 100))
+  printf -v bar '%*s' "$filled" ''; bar="${bar// /█}"
+  local rest; printf -v rest '%*s' $((width - filled)) ''; rest="${rest// /░}"
+  printf '\r\033[K  [%s%s%s%s] %3d%%  %s%-28.28s %d:%02d%s' \
+    "${OPTION:-}" "$bar" "${PLAIN:-}" "$rest" "$percent" "${DIM:-}" "$2" \
+    $(($3 / 60)) $(($3 % 60)) "${PLAIN:-}"
+}
+clear_bar() { on_terminal && printf '\r\033[K'; return 0; }
+checkpoint() {     # <what> <seconds or "">
+  clear_bar
+  if [ -n "$2" ]; then
+    printf '  %s✓%s %-32s %s%3d s%s\n' "${PROGRESS:-}" "${PLAIN:-}" "$1" "${DIM:-}" "$2" "${PLAIN:-}"
+  else
+    printf '  %s✓%s %s\n' "${PROGRESS:-}" "${PLAIN:-}" "$1"
+  fi
+}
+
+# Reports a failed configure or compile step in red, with the compiler's
+# messages, and stops. <step> configure|compile, <file> last file started.
+build_failed() {   # <step> <file> <log>
+  local step="$1" file="$2" log="$3" part="" object=""
+  clear_bar
+  if [ "$step" == configure ]; then
+    part="configure (CMake)"
+  else
+    # make names the object it could not build: [...dir/<target>.dir/.../x.o] Error 1
+    object=$(grep -m1 -E '\] Error [0-9]+' "$log" | sed -E 's/.*[[ ]([^][ ]+)\] Error [0-9]+.*/\1/')
+    case "$object" in
+      *CMakeFiles/gs.dir/*)                 part="gslib" ;;
+      *GKlib.dir/*|*metis_bundled.dir/*)    part="METIS + GKlib" ;;
+      *ppiclF.dir/*)                        part="ppiclF" ;;
+      *CMakeFiles/flu.dir/*)                part="Rocflu library" ;;
+      *rflump.dir/*|bin/rflump)             part="rflump" ;;
+      *rflumap.dir/*|bin/rflumap)           part="rflumap" ;;
+      *rflupart.dir/*|bin/rflupart)         part="rflupart" ;;
+      *rfluinit.dir/*|bin/rfluinit)         part="rfluinit" ;;
+      *)                                    part="build" ;;
+    esac
+    [ -n "$object" ] && file="$(basename "${object%.o}")"
+    [ "$file" == "$part" ] && file=""
+  fi
+  {
+    printf '  %s✗ %s%s%s\n' "${ERROR_MARK:-}" "$part" "${file:+: $file}" "${ERROR_PLAIN:-}"
+    echo
+    # The compiler's and linker's messages with the lines before them
+    # (gfortran prints file:line:column, the source line and a marker first)
+    awk -v red="${ERROR_MARK:-}" -v plain="${ERROR_PLAIN:-}" '
+      /(^|[^A-Za-z])(Error|Fatal Error|error):|undefined reference|CMake Error/ {
+        if (shown >= 8) { more++; next }
+        for (i = n - 4; i < n; i++) if (i >= 0 && !(i in printed)) { print "    " buf[i % 5]; printed[i] = 1 }
+        print "    " red $0 plain; printed[n] = 1; shown++; after = 3
+      }
+      { buf[n % 5] = $0 }
+      after > 0 && !(n in printed) { print "    " $0; printed[n] = 1; after-- }
+      { n++ }
+      END { if (more) printf "    ... and %d more messages\n", more }
+    ' "$log" | grep -v "gmake\[[0-9]*\]: \*\*\*\|^    gmake: \*\*\*\|^    \[ *[0-9]*%\]\|^    -- " \
+      | sed "s|$ROOT/||g"
+    echo
+    # What these messages usually mean in this code
+    local hint=""
+    if grep -q "has no IMPLICIT type" "$log"; then
+      hint="a variable is not declared, or its declaration is inside an #ifdef that is off in this build"
+    elif grep -q "undefined reference" "$log"; then
+      hint="a routine is called but not compiled into this build: is its file in the directory's Filelist.txt, or behind an #ifdef that is off?"
+    elif grep -q "Cannot open module file" "$log"; then
+      hint="a module is used that this build does not compile (an #ifdef, or a missing Filelist.txt entry)"
+    elif grep -q "Rank mismatch\|Type mismatch\|Shape mismatch" "$log"; then
+      hint="a call does not match the routine's arguments; check declarations that differ between #ifdef branches"
+    elif [ "$step" == configure ]; then
+      hint="the build options or CMakeLists.txt; the message above names the line"
+    fi
+    [ -n "$hint" ] && printf '  %shint:%s %s\n\n' "${DEFAULT_ERR:-}" "${ERROR_PLAIN:-}" "$hint"
+  } >&2
+  fail "the $part step failed; the full output is in ${log#$ROOT/}"
 }
 
 usage_run() {
@@ -302,7 +428,16 @@ cmd_run() {
   [ -f "$case_dir/$case_name.bc" ] || fail "no $case_name.bc in $case_dir"
 
   # 0. Check the case before building anything
-  python3 "$VALIDATOR" "$inp" || fail "the case has errors; nothing was built or submitted"
+  local check
+  if check=$(python3 "$VALIDATOR" "$inp" 2>&1); then
+    checkpoint "case checked (./rocflu.sh validate)" ""
+  else
+    printf '  %s✗ case check%s\n\n' "${ERROR_MARK:-}" "${ERROR_PLAIN:-}" >&2
+    echo "$check" | grep -v "^case_validator: [0-9]* errors\? in" \
+      | sed "s/^case_validator: ERROR: /    /" >&2
+    echo >&2
+    fail "the case has errors (above); nothing was built or submitted"
+  fi
 
   load_modules || fail "could not load modules: $ROCFLU_MODULES"
 
@@ -328,17 +463,26 @@ cmd_run() {
   # 2. Pre-process here, one process each
   if [ $pre == 1 ]; then
     say "pre-processing $case_name into $nranks regions in $case_dir"
-    local tool args
+    local tool args start=$SECONDS
     for tool in rflumap rflupart rfluinit; do
       args=(-c "$case_name" -v 1)
       [ $tool == rflumap ] && args=(-c "$case_name" -m 1 -p "$nranks" -r "$nranks" -v 1)
       if ! (cd "$case_dir" && "$bin/$tool" "${args[@]}" > "$tool.log" 2>&1) \
          || grep -q "ERROR" "$case_dir/$tool.log"; then
-        echo "---- last lines of $case_dir/$tool.log:" >&2
-        tail -15 "$case_dir/$tool.log" >&2
-        fail "$tool failed; nothing was submitted"
+        {
+          printf '  %s✗ %s%s\n\n' "${ERROR_MARK:-}" "$tool" "${ERROR_PLAIN:-}"
+          # Rocflu's error block (ERROR, Function, Called from), else the last lines
+          if grep -q "ERROR" "$case_dir/$tool.log"; then
+            grep -A4 "ERROR" "$case_dir/$tool.log" | head -12 \
+              | sed "s/^/    /; s/\(.*ERROR.*\)/${ERROR_MARK:-}\1${ERROR_PLAIN:-}/"
+          else
+            tail -15 "$case_dir/$tool.log" | sed "s/^/    /"
+          fi
+          echo
+        } >&2
+        fail "$tool failed (log: $case_dir/$tool.log); nothing was submitted"
       fi
-      say "  $tool done ($tool.log)"
+      checkpoint "$tool ($tool.log)" $((SECONDS - start))
     done
   fi
   if [ $sim == 0 ]; then
@@ -382,7 +526,7 @@ cmd_run() {
   command -v sbatch > /dev/null || fail "sbatch not found"
   local out
   out=$(cd "$case_dir" && sbatch "$script" 2>&1) || { echo "$out" >&2; fail "sbatch failed"; }
-  say "$out (output: $case_dir/$case_name.<job id>.out)"
+  checkpoint "$out (output: $case_dir/$case_name.<job id>.out)" ""
 }
 
 usage_test() {

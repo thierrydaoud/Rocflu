@@ -110,6 +110,29 @@ specific configuration, use its `install/` directory, for example
 only those are in that configuration's `bin/`; build the others too before running
 `rocflu.sh test` with it.
 
+**What a build shows.** On a terminal, a progress bar with the file being compiled, and a
+line for each part as it finishes, then the summary:
+
+```
+rocflu: building release (16 jobs), log: build/staging/release/build.log
+  ✓ configure                          3 s
+  ✓ gslib                              4 s
+  ✓ METIS + GKlib                      9 s
+  ✓ ppiclF                            21 s
+  ✓ Rocflu library                    24 s
+  ✓ rflump rflumap rflupart rfluinit
+✔ Build completed: release in 31 s, 0 warnings
+```
+
+The compiler's full output is in `build/staging/<name>/build.log` (`configure.log` for
+CMake). If a step fails, the script names it in red with the file (`✗ Rocflu library:
+RFLU_ModMPI.F90`), prints the compiler's or linker's messages with the source lines they
+point at, and, for the usual cases (undeclared variable, undefined reference, missing
+module, argument mismatch), a hint at what they mean in this code. When the output is
+not a terminal (`srun`, a log file) the same lines are printed without the bar; `-v`
+prints every line of the build instead. `./rocflu.sh run` shows the same, plus a line for
+the case check, each pre-processing tool and the submitted job.
+
 **Build times.** A build from scratch with `-j 16` (the default), on 16 cores of a
 HiPerGator compute node (`srun -A bala1s -p hpg-dev -n 1 -c 16 --mem=16gb`), measured
 on 745fb70 in a clean checkout:
