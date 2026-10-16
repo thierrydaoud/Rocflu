@@ -126,6 +126,10 @@ endforeach()
 add_library(flu STATIC ${FLU_SOURCES})
 rocflu_flags(flu)
 target_include_directories(flu INTERFACE ${CMAKE_BINARY_DIR}/modules/flu)
+# The ppiclF layout macros (PPICLF_USER.h, PPICLF_STD.h); the user's copy first.
+target_include_directories(flu PRIVATE
+  $<$<COMPILE_LANGUAGE:Fortran>:${PROJECT_SOURCE_DIR}/libpicl/user_files>
+  $<$<COMPILE_LANGUAGE:Fortran>:${PROJECT_SOURCE_DIR}/libpicl/ppiclF/source>)
 target_link_libraries(flu PUBLIC MPI::MPI_Fortran)
 
 # Links like the Makefiles: C++ linker, own objects, then libflu.

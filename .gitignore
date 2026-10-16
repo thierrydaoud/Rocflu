@@ -1,32 +1,5 @@
-# CMake build directory
+# Build directory (./rocflu.sh build, or cmake -B build/...)
 /build/
-
-# METIS/GKlib installed by 3rd_party/install.sh (only the make build uses it)
-/3rd_party/local/
-
-# Build products of the make build. Only the Makefile of each build directory is source.
-/build_lib/*
-!/build_lib/Makefile
-/build_std/*
-!/build_std/Makefile
-/build_util/*/*
-!/build_util/*/Makefile
-/rfluinit
-/rflumap
-/rflump
-/rflupart
-
-# ppiclF and gslib build products (libpicl/Makefile)
-libpicl/build/
-libpicl/ppiclF/source/ppiclf.f
-libpicl/ppiclF/source/PPICLF
-libpicl/ppiclF/source/*.o
-libpicl/ppiclF/source/*.a
-libpicl/ppiclF/source/*.gch
-libpicl/user_files/**/*.mod
-libpicl/ppiclF/3rd_party/gslib/gslib/src/*.o
-libpicl/ppiclF/3rd_party/gslib/gslib/src/*.a
-libpicl/ppiclF/3rd_party/gslib/lib/*.a
 
 # Vim swap files
 *.swp

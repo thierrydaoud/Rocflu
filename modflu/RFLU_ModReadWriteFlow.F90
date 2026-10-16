@@ -2786,8 +2786,8 @@ MODULE RFLU_ModReadWriteFlow
 ! ******************************************************************************
 
 #ifdef PICL
-#include "../libpicl/ppiclF/source/PPICLF_USER.h"
-#include "../libpicl/ppiclF/source/PPICLF_STD.h"
+#include "PPICLF_USER.h"
+#include "PPICLF_STD.h"
 #endif
 
 ! ==============================================================================

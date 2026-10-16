@@ -5,7 +5,7 @@
     ./run_tests.py run                       # run all, compare to goldens
     ./run_tests.py run -o shocktube/two-way  # cases whose name contains a pattern
     ./run_tests.py run --generate            # (re)write goldens from this build
-    ./run_tests.py run --exe ../../other_tree
+    ./run_tests.py run --exe ../../other_tree/build/bin
 
 Runs from a login node submit one short srun job per case (-A/-p below);
 inside an allocation (salloc) they run as job steps. Set-up is serial.
@@ -38,10 +38,8 @@ def golden_dir(case):
 
 
 def default_exe_dir():
-    # CMake build (./rocflu.sh build) first, else where the old make build puts them
-    tree = os.path.dirname(TESTS_DIR)
-    cmake_bin = os.path.join(tree, "build", "bin")
-    return cmake_bin if os.access(os.path.join(cmake_bin, "rflump"), os.X_OK) else tree
+    # The last configuration built by ./rocflu.sh build
+    return os.path.join(os.path.dirname(TESTS_DIR), "build", "bin")
 
 
 def git_info(exe_dir):
@@ -51,11 +49,9 @@ def git_info(exe_dir):
                                   text=True).stdout.strip()
         except OSError:
             return ""
-    # Build products are tracked in git, so only report modified sources
+    # Sources changed since the last commit
     changed = git("diff", "--name-only", "HEAD").split("\n")
-    # build_*/ holds preprocessed copies and ppiclf.f is concatenated at build time
-    sources = [f for f in changed if f.endswith((".F90", ".f", ".F", ".h", ".C"))
-               and not f.startswith("build_") and not f.endswith("ppiclF/source/ppiclf.f")]
+    sources = [f for f in changed if f.endswith((".F90", ".f", ".F", ".h", ".C"))]
     return {"commit": git("rev-parse", "HEAD"), "branch": git("rev-parse", "--abbrev-ref", "HEAD"),
             "modified_sources": sources}
 
@@ -160,8 +156,7 @@ def main():
     p.add_argument("--generate", action="store_true", help="write goldens instead of comparing")
     p.add_argument("--force", action="store_true", help="with --generate: write even if checks fail")
     p.add_argument("--exe", default=default_exe_dir(),
-                   help="directory with the rflu* executables (default: build/bin of this tree, "
-                        "else the top of the tree)")
+                   help="directory with the rflu* executables (default: build/bin of this tree)")
     p.add_argument("-j", "--jobs", type=int, default=8, help="cases run concurrently")
     p.add_argument("--account", default=os.environ.get("ROCPICL_TEST_ACCOUNT", "bala1s"))
     p.add_argument("--partition", default=os.environ.get("ROCPICL_TEST_PARTITION", "hpg-dev"))
@@ -185,7 +180,7 @@ def main():
 
     for exe in ("rflumap", "rflupart", "rfluinit", "rflump"):
         if not os.access(os.path.join(args.exe, exe), os.X_OK):
-            print("Missing executable %s in %s" % (exe, args.exe))
+            print("Missing executable %s in %s (build with ./rocflu.sh build)" % (exe, args.exe))
             return 2
 
     print("Running %d cases with %s (%s)" % (len(selected), args.exe,

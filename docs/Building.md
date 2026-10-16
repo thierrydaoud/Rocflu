@@ -18,7 +18,6 @@ the modules, configures, compiles and keeps each configuration in its own direct
   - [Compiler flags](#compiler-flags)
   - [ppiclF](#ppiclf)
   - [METIS](#metis)
-- [The old make build](#the-old-make-build)
 - [Troubleshooting](#troubleshooting)
 
 ## Quick start
@@ -156,14 +155,13 @@ cmake --build build/mine -j 16 --target rflump
 
 ### Adding a source file
 
-Rocflu's source lists are the `Filelist.txt` files in each directory (the same files
-the old make build read). To add a routine, put the file in the right directory and add
+Rocflu's source lists are the `Filelist.txt` files in each directory. To add a routine, put the file in the right directory and add
 its name to that directory's `Filelist.txt`. The next build notices the changed
 Filelist and reconfigures by itself. `ifdef SPEC`-style blocks in a Filelist are
 honoured, so a file listed under `ifdef SPEC` is compiled only with `--spec`.
 
 A new ppiclF user file goes into the list `PPICLF_SOURCES` in
-`libpicl/CMakeLists.txt` (and into `libpicl/Makefile` while the make build is kept).
+`libpicl/CMakeLists.txt`.
 
 ### Compiler flags
 
@@ -175,8 +173,8 @@ A new ppiclF user file goes into the list `PPICLF_SOURCES` in
 | gslib | `-O2` | `-g -O0` |
 | METIS, GKlib | `-O3 -std=c99` | `-O3 -std=c99` |
 
-These are the flags of the old make build, so a release build gives results identical,
-byte for byte, to it. `-fcheck=all` stays on in ppiclF in release builds: it costs about
+These are the flags the code was always built with (the make build used until
+October 2026), and a release build gives results identical to it, byte for byte. `-fcheck=all` stays on in ppiclF in release builds: it costs about
 2% and has caught real bugs. `-ffpe-trap` has no effect because the main program is C++
 (see `simulation/rflump.F90` to trap floating-point errors).
 
@@ -188,7 +186,7 @@ Fortran `.F90` files are preprocessed by gfortran itself (`-cpp`). The defines a
 
 ppiclF is compiled as a single file: CMake concatenates the core and user files into
 `build/<config>/libpicl/generated/ppiclf.f`, behind the headers `PPICLF_USER.h` and
-`PPICLF_STD.h`, exactly as `libpicl/Makefile` did. It also generates the include file
+`PPICLF_STD.h`, as the old ppiclF makefile did. It also generates the include file
 `PPICLF` (all ppiclF common blocks) by running the C preprocessor over the
 `PPICLF_*.h` headers. The user's headers in `libpicl/user_files/` take precedence over
 the copies in `libpicl/ppiclF/source/`.
@@ -201,13 +199,6 @@ build (32-bit integers and reals). The partitions are identical, file for file, 
 those of the prebuilt libraries used before. To use another installation instead, pass
 `--metis-root DIR` (or `-DMETIS_ROOT=DIR`), where `DIR` holds `lib/libmetis.a`,
 `lib/libGKlib.a` and `include/metis.h`.
-
-## The old make build
-
-The make build (`makeall.sh`, `make RFLU=1 PICL=1 FOLDER=1`) still works and writes
-the executables at the top of the repository. It needs METIS installed into
-`3rd_party/local` first: `cd 3rd_party && bash install.sh`. It will be removed once
-everyone has moved to CMake; please use `rocflu.sh`.
 
 ## Troubleshooting
 

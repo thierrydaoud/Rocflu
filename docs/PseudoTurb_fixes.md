@@ -234,7 +234,7 @@ waiting on a slower rank. Times are for the whole run, per rank.
 
 With pressure gradient, added mass, QS fluctuations and pseudo-turbulence on, the forces take
 4.8 s and Rocflu spends another 15.4 s after ppiclF reading back and using the pseudo-turbulence
-projections. Turning off bounds checking (`-fcheck=all` in `libpicl/Makefile`) changes the run
+projections. Turning off bounds checking (`-fcheck=all` in ppiclF's flags, set in `CMakeLists.txt`) changes the run
 time by about 2%, so it is not worth losing. `perf` on one rank put 52% of all samples in
 `SBParticleToCellMap`.
 

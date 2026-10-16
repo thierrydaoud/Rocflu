@@ -158,8 +158,8 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 
 #ifdef PICL
 !DEC$ NOFREEFORM
-#include "../libpicl/ppiclF/source/PPICLF_USER.h"
-#include "../libpicl/ppiclF/source/PPICLF_STD.h"
+#include "PPICLF_USER.h"
+#include "PPICLF_STD.h"
 !DEC$ FREEFORM
 #endif
 
