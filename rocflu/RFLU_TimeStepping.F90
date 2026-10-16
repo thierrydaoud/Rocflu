@@ -1004,11 +1004,11 @@ END IF
         ENDIF
 #endif
 
-!#ifdef PICL
+#ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
            CALL PICL_WriteVTU(pRegion)
         END IF
-!#endif
+#endif
       END DO ! iReg
 
     

@@ -455,6 +455,12 @@ SUBROUTINE RFLU_DeallocateMemorySolCv(pRegion)
     CALL ErrorStop(global,ERR_DEALLOCATE,__LINE__,'pRegion%mixt%cvInfo')
   END IF ! global%error
 
+  DEALLOCATE(pRegion%mixt%piclKsg,STAT=errorFlag)
+  global%error = errorFlag
+  IF (global%error /= ERR_NONE) THEN
+    CALL ErrorStop(global,ERR_DEALLOCATE,__LINE__,'pRegion%mixt%piclKsg')
+  END IF ! global%error
+
 #ifdef PICL
 !  IF ( global%piclUsed .EQV. .TRUE. ) THEN
     DEALLOCATE(pRegion%mixt%piclVF,STAT=errorFlag)
@@ -463,7 +469,6 @@ SUBROUTINE RFLU_DeallocateMemorySolCv(pRegion)
     DEALLOCATE(pRegion%mixt%piclgradRhog,STAT=errorFlag)
     DEALLOCATE(pRegion%mixt%piclPhiRsg,STAT=errorFlag)
     DEALLOCATE(pRegion%mixt%piclGradPhiRsg,STAT=errorFlag)
-    DEALLOCATE(pRegion%mixt%piclKsg,STAT=errorFlag)
     DEALLOCATE(pRegion%mixt%piclPhiQsg,STAT=errorFlag)
     DEALLOCATE(pRegion%mixt%piclGradPhiQsg,STAT=errorFlag)
     DEALLOCATE(pRegion%mixt%piclgradTg,STAT=errorFlag)

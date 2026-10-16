@@ -3867,6 +3867,7 @@ MODULE RFLU_ModMPI
 
 ! ******************************************************************************
 ! 09/24/2025 - Thierry Daoud
+#ifdef PICL
 ! Adding Sequenceo of MPI calls to update Total Energy in ghost cells after
 ! adding Pseudo-Turbulent Kinetic Energy (Ksg array)
 ! *************************************************************************
@@ -4140,6 +4141,7 @@ MODULE RFLU_ModMPI
     CALL DeregisterFunction(global)
 
   END SUBROUTINE RFLU_MPI_Ksg_RecvWrapper
+#endif
 
 
 

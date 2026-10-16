@@ -435,9 +435,9 @@ MODULE RFLU_ModConvertCv
     REAL(RFREAL) :: r_pure !Varaible to hold pure (non-vf weighted) density for conversions/EoS calls
 #endif                    
 
+    REAL(RFREAL) :: ksg ! Variable for Pseudo-turbulent kinetic energy
 #ifdef PICL    
     REAL(RFREAL) :: r_pure !Varaible to hold pure (non-vf weighted) density for conversions/EoS calls
-    REAL(RFREAL) :: ksg ! Variable for Pseudo-turbulent kinetic energy
 #endif
 
     REAL(RFREAL), DIMENSION(:,:), POINTER :: pCv,pDv,pGv

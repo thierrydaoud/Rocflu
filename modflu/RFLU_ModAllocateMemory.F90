@@ -482,6 +482,15 @@ SUBROUTINE RFLU_AllocateMemorySolCv(pRegion)
     CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'pRegion%mixt%cvInfo')
   END IF ! global%error
 
+! Pseudo-turbulent kinetic energy: part of the gas energy in every build
+! (the flux, boundary and conversion routines read it), 0 without particles
+  ALLOCATE(pRegion%mixt%piclKsg(pGrid%nCellsTot),STAT=errorFlag)
+  global%error = errorFlag
+  IF (global%error /= ERR_NONE) THEN
+    CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'pRegion%mixt%piclKsg')
+  END IF ! global%error
+  pRegion%mixt%piclKsg = 0.0_RFREAL
+
 #ifdef PICL
 !  IF ( global%piclUsed .EQV. .TRUE. ) THEN
      ALLOCATE(pRegion%mixt%piclVF(pGrid%nCellsTot),STAT=errorFlag)
@@ -491,7 +500,6 @@ SUBROUTINE RFLU_AllocateMemorySolCv(pRegion)
      ! Particle PseudoTurbulence - Reynolds Stress Tensor 
      ALLOCATE(pRegion%mixt%piclPhiRsg(9,pGrid%nCellsTot),STAT=errorFlag)
      ALLOCATE(pRegion%mixt%piclGradPhiRsg(3,9,pGrid%nCellsTot),STAT=errorFlag)
-     ALLOCATE(pRegion%mixt%piclKsg(pGrid%nCellsTot),STAT=errorFlag)
      ALLOCATE(pRegion%mixt%piclPhiQsg(3,pGrid%nCellsTot),STAT=errorFlag)
      ALLOCATE(pRegion%mixt%piclGradPhiQsg(3,3,pGrid%nCellsTot),STAT=errorFlag)
      ! 03/18/2026 - Thierry - Added gradient of T_g
@@ -512,14 +520,13 @@ SUBROUTINE RFLU_AllocateMemorySolCv(pRegion)
         CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'pRegion%mixt%piclFeedback')
      END IF ! global%error
 
-     ! Zero all PICL/pseudo-turbulence fields: several (e.g. piclKsg) are
-     ! read every step even when the model that sets them is off
+     ! Zero all PICL/pseudo-turbulence fields: some are read every step
+     ! even when the model that sets them is off
      pRegion%mixt%piclVF            = 0.0_RFREAL
      pRegion%mixt%piclVFg           = 0.0_RFREAL
      pRegion%mixt%piclgradRhog      = 0.0_RFREAL
      pRegion%mixt%piclPhiRsg        = 0.0_RFREAL
      pRegion%mixt%piclGradPhiRsg    = 0.0_RFREAL
-     pRegion%mixt%piclKsg           = 0.0_RFREAL
      pRegion%mixt%piclPhiQsg        = 0.0_RFREAL
      pRegion%mixt%piclGradPhiQsg    = 0.0_RFREAL
      pRegion%mixt%piclgradTg        = 0.0_RFREAL
