@@ -62,9 +62,10 @@ Other:
   --fresh               reconfigure from scratch
   -v, --verbose         print every compile command
 
-Each combination of build type and physics options has its own directory,
-build/<name> (for example build/release, build/debug-spec), so switching
-between them recompiles nothing. build/bin points at the last one built.
+Each combination of build type and physics options has its own name (for
+example release, debug-spec): it is compiled in build/staging/<name> and its
+executables are copied to build/install/<name>/bin. Switching between
+combinations recompiles nothing. build/bin points at the last one built.
 EOF
 }
 
@@ -112,16 +113,17 @@ cmd_build() {
   [ $picl == 0 ]   && name+="-nopicl"
   [ $folder == 0 ] && name+="-nofolder"
   [ -n "$metis_root" ] && name+="-metis"
-  local dir="$BUILD_ROOT/$name"
+  local dir="$BUILD_ROOT/staging/$name"      # CMake's files and the objects
+  local inst="$BUILD_ROOT/install/$name"     # the executables
 
   on_off() { [ "$1" == 1 ] && echo ON || echo OFF; }
   load_modules || fail "could not load modules: $ROCFLU_MODULES"
   command -v cmake > /dev/null || fail "cmake not found"
 
-  [ $fresh == 1 ] && rm -rf "$dir"
-  mkdir -p "$BUILD_ROOT"
-  say "configuring $name in build/$name"
-  cmake -S "$ROOT" -B "$dir" -DCMAKE_BUILD_TYPE=$type \
+  [ $fresh == 1 ] && rm -rf "$dir" "$inst"
+  mkdir -p "$BUILD_ROOT/staging"
+  say "configuring $name in build/staging/$name"
+  cmake -S "$ROOT" -B "$dir" -DCMAKE_BUILD_TYPE=$type -DCMAKE_INSTALL_PREFIX="$inst" \
         -DROCFLU_PICL=$(on_off $picl) -DROCFLU_SPEC=$(on_off $spec) \
         -DROCFLU_PLAG=$(on_off $plag) -DROCFLU_FOLDER=$(on_off $folder) \
         -DMETIS_ROOT="$metis_root" > "$dir.configure.log" 2>&1 \
@@ -134,8 +136,9 @@ cmd_build() {
   cmake --build "$dir" -j "$jobs" --target "${cmake_targets[@]}" "${extra[@]}" \
     || fail "build failed"
 
-  ln -sfn "$name/bin" "$BUILD_ROOT/bin"
-  say "done: executables in build/$name/bin (build/bin points there)"
+  cmake --install "$dir" > /dev/null || fail "copying the executables to build/install/$name failed"
+  ln -sfn "install/$name/bin" "$BUILD_ROOT/bin"
+  say "done: executables in build/install/$name/bin (build/bin points there)"
 }
 
 usage_test() {
@@ -154,7 +157,10 @@ EOF
 
 cmd_test() {
   case "$1" in -h|--help) usage_test; exit 0 ;; esac
-  [ -x "$BUILD_ROOT/bin/rflump" ] || fail "no build/bin/rflump: run ./rocflu.sh build first"
+  local exe
+  for exe in rflumap rflupart rfluinit rflump; do
+    [ -x "$BUILD_ROOT/bin/$exe" ] || fail "no $exe in build/bin ($(readlink "$BUILD_ROOT/bin" 2>/dev/null)): the last build had -t; build again with the same options and no -t"
+  done
   load_modules || fail "could not load modules: $ROCFLU_MODULES"
   local sub=run
   if [ "$1" == "--list" ]; then sub=list; shift; fi

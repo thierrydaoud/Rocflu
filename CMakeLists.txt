@@ -82,6 +82,8 @@ endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Installed executables keep the library paths they were linked with (MPI)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
 # Applies the Rocflu flags to a target with Fortran and C++ sources.
 function(rocflu_flags target)
@@ -139,7 +141,8 @@ function(rocflu_executable name dir)
   rocflu_flags(${name})
   set_target_properties(${name} PROPERTIES LINKER_LANGUAGE CXX)
   target_link_libraries(${name} PRIVATE flu ${ARGN} MPI::MPI_Fortran MPI::MPI_CXX)
-  install(TARGETS ${name} RUNTIME DESTINATION bin)
+  # OPTIONAL: installing after building only some targets copies those
+  install(TARGETS ${name} RUNTIME DESTINATION bin OPTIONAL)
 endfunction()
 
 # --- Solver ------------------------------------------------------------------

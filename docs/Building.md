@@ -78,11 +78,25 @@ Examples:
 ```
 
 **One directory per configuration.** Each combination of build type and physics
-options gets its own directory: `build/release`, `build/debug`, `build/debug-spec`,
-`build/release-nopicl`, and so on. Switching between them recompiles nothing that is
-already built. `build/bin` is a link to the `bin/` of the last configuration built,
-which is what `rocflu.sh test` and `tests/run_tests.py` use. To run a specific
-configuration, point at its directory, for example `build/debug/bin/rflump`.
+options has a name: `release`, `debug`, `debug-spec`, `release-nopicl`, and so on.
+Everything lives under `build/`:
+
+```
+build/
+  bin -> install/release/bin     the last configuration built (used by rocflu.sh test)
+  install/
+    release/bin/                 rflump rflumap rflupart rfluinit
+    debug-spec/bin/              ...
+  staging/                       CMake's files and the compiled objects; no need to look here
+    release/
+    debug-spec/
+```
+
+Switching between configurations recompiles nothing that is already built. To run a
+specific configuration, use its `install/` directory, for example
+`build/install/debug/bin/rflump`. If you build only some targets (`-t simulation`),
+only those are in that configuration's `bin/`; build the others too before running
+`rocflu.sh test` with it.
 
 **Rebuilding after an edit.** Run the same `./rocflu.sh build` line again. Only the
 changed files and the files that depend on them are recompiled. A change to one
@@ -129,8 +143,8 @@ srun -n N $B/rflump -c <case> -v 1      # or mpirun -n N
 
 ```bash
 module purge; module load gcc/14.2.0 openmpi/5.0.7
-cmake -S . -B build/mine -DCMAKE_BUILD_TYPE=Debug -DROCFLU_SPEC=ON
-cmake --build build/mine -j 16 --target rflump
+cmake -S . -B build/staging/mine -DCMAKE_BUILD_TYPE=Debug -DROCFLU_SPEC=ON
+cmake --build build/staging/mine -j 16 --target rflump   # executables in build/staging/mine/bin
 ```
 
 | CMake option | Default | `rocflu.sh` flag |
@@ -185,7 +199,7 @@ Fortran `.F90` files are preprocessed by gfortran itself (`-cpp`). The defines a
 ### ppiclF
 
 ppiclF is compiled as a single file: CMake concatenates the core and user files into
-`build/<config>/libpicl/generated/ppiclf.f`, behind the headers `PPICLF_USER.h` and
+`build/staging/<config>/libpicl/generated/ppiclf.f`, behind the headers `PPICLF_USER.h` and
 `PPICLF_STD.h`, as the old ppiclF makefile did. It also generates the include file
 `PPICLF` (all ppiclF common blocks) by running the C preprocessor over the
 `PPICLF_*.h` headers. The user's headers in `libpicl/user_files/` take precedence over
@@ -209,4 +223,4 @@ those of the prebuilt libraries used before. To use another installation instead
   `./rocflu.sh build --fresh ...` reconfigures that configuration from scratch;
   `./rocflu.sh clean` removes all of them.
 - **To see the exact compile commands:** `./rocflu.sh build -v`, or
-  `build/<config>/compile_commands.json`.
+  `build/staging/<config>/compile_commands.json`.
