@@ -1,5 +1,5 @@
 {
-"uuid": "1D87205F",
+"uuid": "CF319753",
 "spec": {
 "nranks": 2,
 "grid": {
@@ -33,7 +33,7 @@
 "INITFLOW/RVAL7": "25.0",
 "INITFLOW/RVAL8": "-15.0",
 "INITFLOW/RVAL9": "10.0",
-"PICL/STATIONARY": 1
+"PICL/VELOCITYMODEL": 0
 },
 "particles": [
 [

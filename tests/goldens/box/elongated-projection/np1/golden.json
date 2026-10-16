@@ -1,5 +1,5 @@
 {
-"uuid": "6ADE2539",
+"uuid": "687D2E84",
 "spec": {
 "nranks": 1,
 "grid": {
@@ -29,7 +29,7 @@
 "TIMESTEP/WRITIME": "5.0E-05",
 "TIMESTEP/PRNTIME": "5.0E-05",
 "PICL/FEEDBACK": 0,
-"PICL/STATIONARY": 1
+"PICL/VELOCITYMODEL": 0
 },
 "particles": [
 [
