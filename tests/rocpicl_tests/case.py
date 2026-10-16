@@ -211,7 +211,7 @@ def run_solver(case, rundir, exe_dir, slurm):
     rc = _run(cmd, rundir, "rflump.log", timeout=60 * (case.timeout_min + 5))
     with open(os.path.join(rundir, "rflump.log"), errors="replace") as f:
         log = f.read()
-    if rc != 0 or "Program finished" not in log:
+    if rc != 0 or "| Finished" not in log:
         # srun on a shared partition can fail for reasons unrelated to the
         # code; report its messages so such failures are recognisable
         slurm_lines = [l.strip() for l in log.splitlines()

@@ -172,10 +172,13 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
   INTEGER :: icg
   REAL(KIND=8) :: vFrac, ir
 
-  REAL(KIND=8) :: timerStart
-  REAL(KIND=8) :: timerEnd
-  REAL(KIND=8) :: elapsedtime
-  REAL(KIND=8) :: elapsedtime_hour
+  ! Run log footer
+  CHARACTER(8) :: endDate
+  CHARACTER(10) :: endTime
+  CHARACTER(105) :: boxLine
+  CHARACTER(52) :: leftColumn
+  CHARACTER(53) :: rightColumn
+  REAL(KIND=8) :: totalSeconds
 
 ! ******************************************************************************
 ! Start, initialize some variables
@@ -609,17 +612,11 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
 !end BBR
 
 ! ******************************************************************************
-! Print Simulation (rflump only) Run Time
+! Total run time for the footer (MPI_Wtime is not available after
+! MPI_Finalize)
 ! ******************************************************************************
 
-  IF(global%myProcid == MASTERPROC) THEN
-     timerStart  = global%timingSubRout(1)
-     timerEnd    = MPI_Wtime()
-     elapsedtime = (timerEnd - timerStart) / 60.0_RFREAL
-     elapsedtime_hour = elapsedtime / 60.0_RFREAL
-     print*,"*** Total rflump timing = ",elapsedtime," minutes"
-     print*,"*** Total rflump timing = ",elapsedtime_hour," hours"
-  ENDIF
+  totalSeconds = MPI_Wtime() - global%timingSubRout(1)
 
 ! ******************************************************************************
 ! Print info about warnings
@@ -664,9 +661,26 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
     WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,'Finalization done.'
   END IF ! global%myProcid
 
-! The run log's last line at every verbosity; tests/ look for it
+! Footer: the run log's last lines at every verbosity; tests/ look for
+! '| Finished'. A run that stops on an error does not get here.
   IF ( global%myProcid == MASTERPROC ) THEN
-    WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,'Program finished.'
+    CALL DATE_AND_TIME(DATE=endDate,TIME=endTime)
+
+    WRITE(STDOUT,'(A)') ''
+    WRITE(STDOUT,'(3A)') '+',REPEAT('-',107),'+'
+    boxLine = 'Finished '//TRIM(global%casename)//':'
+    WRITE(STDOUT,'(3A)') '| ',boxLine,' |'
+
+    WRITE(leftColumn,'(A,I0,A)') '* Total-time:    ',NINT(totalSeconds),'s'
+    rightColumn = '* Exit Code:     0'
+    WRITE(STDOUT,'(4A)') '| ',leftColumn,rightColumn,' |'
+
+    leftColumn  = '* End-time:      '//endTime(1:2)//':'//endTime(3:4)//':'// &
+                  endTime(5:6)
+    rightColumn = '* End-date:      '//endDate(1:4)//'-'//endDate(5:6)//'-'// &
+                  endDate(7:8)
+    WRITE(STDOUT,'(4A)') '| ',leftColumn,rightColumn,' |'
+    WRITE(STDOUT,'(3A)') '+',REPEAT('-',107),'+'
   END IF ! global%myProcid
 
 

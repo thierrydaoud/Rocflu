@@ -281,10 +281,12 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
   END IF ! global%error
 
 
+! Start of the run, for the total time in the run log's footer
+  global%timingSubRout(1) = MPI_WTIME()
+
 #ifdef PICL
   call ppiclf_comm_InitMPI(global%mpiComm,global%myProcid,global%nProcAlloc, &
                            verbLevel)
-  global%timingSubRout(1) = MPI_WTIME()
 #endif
 
   CALL RFLU_SetModuleType(global,MODULE_TYPE_SOLVER)
