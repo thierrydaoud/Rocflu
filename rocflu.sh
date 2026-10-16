@@ -364,8 +364,13 @@ ${HEADING}What to do:${PLAIN}
                         simulation: build and submit only (the case was
                         pre-processed before with the same N x n)
                         ${DEFAULT}(default: both)${PLAIN}
+  ${OPTION}-e, --engine${PLAIN} E        batch: submit the job script to Slurm (sbatch)
+                        interactive: run it here, on a node you have already
+                        allocated (srun --pty bash or salloc); the output is
+                        shown and saved in <case>.interactive.out
+                        ${DEFAULT}(default: batch)${PLAIN}
   ${OPTION}--dry-run${PLAIN}             build, pre-process and write the job script, but
-                        do not submit it ${DEFAULT}(default: submit)${PLAIN}
+                        do not submit or run it ${DEFAULT}(default: submit)${PLAIN}
 ${HEADING}Build:${PLAIN}
   ${OPTION}--debug${PLAIN}               debug build (-g -O0 -fcheck=all)
                         ${DEFAULT}(default: optimised release build)${PLAIN}
@@ -380,6 +385,7 @@ EOF
 cmd_run() {
   local inp="" nodes=1 tasks=1 partition=hpg-default account=bala1s
   local walltime=01:00:00 mem="" email="" targets=() dry=0 debug=0 jobs=16
+  local engine=batch
   while [ $# -gt 0 ]; do
     case "$1" in
       -N|--nodes)          nodes="$2"; shift ;;
@@ -393,6 +399,7 @@ cmd_run() {
         while [ $# -gt 0 ] && [ "${1:0:1}" != "-" ]; do targets+=("$1"); shift; done
         [ ${#targets[@]} -gt 0 ] || fail "-t needs pre_process and/or simulation"
         continue ;;
+      -e|--engine)         engine="$2"; shift ;;
       --dry-run)           dry=1 ;;
       --debug)             debug=1 ;;
       -j|--jobs)           jobs="$2"; shift ;;
@@ -407,6 +414,13 @@ cmd_run() {
   case "$inp" in *.inp) ;; *) fail "$inp: the case file must end in .inp" ;; esac
   [[ "$nodes" =~ ^[1-9][0-9]*$ ]] || fail "-N must be a positive integer"
   [[ "$tasks" =~ ^[1-9][0-9]*$ ]] || fail "-n must be a positive integer"
+  case "$engine" in
+    batch) ;;
+    interactive)
+      # Only on a node already allocated: never run a simulation on a login node
+      [ -n "$SLURM_JOB_ID" ] || [ $dry == 1 ] || fail "-e interactive runs on a node you have allocated; get one first, e.g. srun -A $account -p $partition -n $((nodes * tasks)) -t $walltime --pty bash (or salloc), then run this again there" ;;
+    *) fail "unknown engine $engine (batch or interactive)" ;;
+  esac
 
   local pre=1 sim=1 t
   if [ ${#targets[@]} -gt 0 ]; then
@@ -534,19 +548,30 @@ row "Start-time" "\$(date +%T)"                    "Start-date" "\$(date +%F)"
 row "Partition"  "\${SLURM_JOB_PARTITION:-N/A}"    "Walltime"   "$walltime"
 row "Account"    "\${SLURM_JOB_ACCOUNT:-N/A}"      "Nodes"      "\${SLURM_JOB_NUM_NODES:-1} (\${SLURM_NTASKS:-$nranks} ranks)"
 row "Job Name"   "\${SLURM_JOB_NAME:-$case_name}"  "Job ID"     "\${SLURM_JOB_ID:-N/A}"
-row "Engine"     "batch"                           "Email"      "${email:-N/A}"
+row "Engine"     "$engine"                         "Email"      "${email:-N/A}"
 wide "Build"     "$build"
 wide "Modules"   "\$modules"
 rule
 EOF
     echo
-    echo "srun --mpi=pmix $bin/rflump -c $case_name -v 1"
+    # In an interactive session (srun --pty bash) the session's own step holds
+    # the job's CPUs and memory: --overlap shares them, --mem=0 takes the
+    # job's memory (without both this srun waits forever or is refused)
+    local overlap=""
+    [ $engine == interactive ] && overlap="--overlap --mem=0 "
+    echo "srun --mpi=pmix ${overlap}-n $nranks $bin/rflump -c $case_name -v 1"
   } > "$script"
   say "job script: $script"
 
-  # 4. Submit
+  # 4. Submit, or run here
   if [ $dry == 1 ]; then
     say "dry run: not submitted (submit with: sbatch $script)"
+    return
+  fi
+  if [ $engine == interactive ]; then
+    say "running $case_name here (job $SLURM_JOB_ID); output also in $case_dir/$case_name.interactive.out"
+    (cd "$case_dir" && bash "$script" 2>&1 | tee "$case_name.interactive.out"; exit "${PIPESTATUS[0]}") \
+      || fail "the run failed (output: $case_dir/$case_name.interactive.out)"
     return
   fi
   command -v sbatch > /dev/null || fail "sbatch not found"

@@ -215,7 +215,8 @@ with particles, `points.dat`. `run` then:
 | `-@, --email A` | send all Slurm notifications (start, end, failure) to A | none |
 | `-t pre_process` | build and pre-process only, no job | |
 | `-t simulation` | build and submit only; the case was pre-processed before with the same N x n | |
-| `--dry-run` | build, pre-process and write the job script, but do not submit | |
+| `-e`, `--engine` | `batch`: submit the job script with `sbatch`; `interactive`: run it right away in this shell, on a node you have already allocated (`srun --pty bash` or `salloc`; refused elsewhere), output also in `<case>.interactive.out` | `batch` |
+| `--dry-run` | build, pre-process and write the job script, but do not submit or run it | |
 | `--debug` | debug build of the case | |
 | `-j, --jobs N` | compile with N processes | 16 |
 
