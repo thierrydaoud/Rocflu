@@ -85,7 +85,7 @@ SUBROUTINE PICL_ReadPiclSection( global )
   INTEGER :: nVals
 
   INTEGER :: iReg
-  INTEGER, PARAMETER :: NVALS_MAX = 27
+  INTEGER, PARAMETER :: NVALS_MAX = 29
 
   CHARACTER(20) :: keys(NVALS_MAX)
 
@@ -132,6 +132,9 @@ SUBROUTINE PICL_ReadPiclSection( global )
   keys(25)  = 'OUTGAS'
   keys(26)  = 'OUTGRADGAS'
   keys(27)  = 'OUTMODEL'
+! Particle material, the same for every particle
+  keys(28)  = 'DENSITY'
+  keys(29)  = 'SPECIFICHEAT'
  
   CALL ReadSection( global,IF_INPUT,nVals,keys(1:nVals),vals(1:nVals), & 
                     defined(1:nVals) ) 
@@ -235,6 +238,8 @@ SUBROUTINE PICL_ReadPiclSection( global )
   IF (defined(25) .EQV. .TRUE. ) global%piclOutGas      = NINT(vals(25))
   IF (defined(26) .EQV. .TRUE. ) global%piclOutGradGas  = NINT(vals(26))
   IF (defined(27) .EQV. .TRUE. ) global%piclOutModel    = NINT(vals(27))
+  IF (defined(28) .EQV. .TRUE. ) global%piclDensity      = vals(28)
+  IF (defined(29) .EQV. .TRUE. ) global%piclSpecificHeat = vals(29)
 
 ! Values and combinations are checked before the run by
 ! utilities/scripts/case_validator.py (./rocflu.sh validate)

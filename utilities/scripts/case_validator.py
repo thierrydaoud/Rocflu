@@ -29,6 +29,7 @@ PICL_KEYS = [
     "NEIGHBORWIDTH", "KSP", "EREST", "QSFLUCTFILT", "QSFLUCTFILTADAPT",
     "VISCOUSUNSTEADY", "PERIODICX", "PERIODICY", "PERIODICZ", "SUBBIN",
     "PSEUDOTURB", "VUSTEPS", "OUTPARTICLE", "OUTGAS", "OUTGRADGAS", "OUTMODEL",
+    "DENSITY", "SPECIFICHEAT",
 ]
 
 # Values used when a key is not in the file (RFLU_InitGlobal). KSP and EREST
@@ -40,7 +41,7 @@ PICL_DEFAULTS = {
     "QSFLUCTFILT": 0, "QSFLUCTFILTADAPT": 0, "VISCOUSUNSTEADY": 0,
     "PERIODICX": 0, "PERIODICY": 0, "PERIODICZ": 0, "SUBBIN": 0,
     "PSEUDOTURB": 0, "VUSTEPS": 50, "OUTPARTICLE": 0, "OUTGAS": 0,
-    "OUTGRADGAS": 0, "OUTMODEL": 0,
+    "OUTGRADGAS": 0, "OUTMODEL": 0, "DENSITY": 0.0, "SPECIFICHEAT": 0.0,
 }
 
 # Whole-number flags and their allowed range
@@ -244,6 +245,12 @@ class Validator:
                           "VISCOUSUNSTEADY >= 1" % v["VUSTEPS"], line.get("VUSTEPS"))
         self.prohibit(v["TEMP"] <= 0, "TEMP %g: the initial particle temperature must be "
                       "given and > 0" % v["TEMP"], line.get("TEMP"))
+        self.prohibit(v["DENSITY"] <= 0, "DENSITY %g: the particle density [kg/m^3] must "
+                      "be given and > 0 (it replaced DENS in # MATERIAL)" % v["DENSITY"],
+                      line.get("DENSITY"))
+        self.prohibit(v["SPECIFICHEAT"] <= 0, "SPECIFICHEAT %g: the particle specific heat "
+                      "[J/(kg K)] must be given and > 0 (it replaced SPHT in # MATERIAL)"
+                      % v["SPECIFICHEAT"], line.get("SPECIFICHEAT"))
         self.prohibit(v["NEIGHBORWIDTH"] < 0, "NEIGHBORWIDTH %g: must be >= 0"
                       % v["NEIGHBORWIDTH"], line.get("NEIGHBORWIDTH"))
 

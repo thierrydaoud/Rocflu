@@ -48,9 +48,7 @@
 !
       real*8 :: ppiclf_rcp_part, ppiclf_p0
       integer :: ppiclf_moveparticle, ierr
-      CHARACTER(12) :: ppiclf_matname
       common /RFLU_ppiclf_misc01/ ppiclf_rcp_part
-      common /RFLU_ppiclf_misc02/ ppiclf_matname
       common /RFLU_ppiclf_misc03/ ppiclf_p0, ppiclf_moveparticle
       real*8 fqsx, fqsy, fqsz
       real*8 fqsforce

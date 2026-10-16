@@ -114,6 +114,11 @@ class CaseValidatorTest(unittest.TestCase):
     def test_temperature_needed(self):
         self.assertError(self.errors({("PICL", "TEMP"): 0}), "TEMP")
 
+    def test_particle_material_needed(self):
+        self.assertError(self.errors({("PICL", "DENSITY"): 0}), "DENSITY 0")
+        text = TEMPLATE.replace("\nSPECIFICHEAT", "\n!SPECIFICHEAT")
+        self.assertError(self.errors(text=text), "SPECIFICHEAT 0", "replaced SPHT")
+
     # -- combinations ----------------------------------------------------------------
 
     def test_fluctuations_need_quasi_steady_force(self):

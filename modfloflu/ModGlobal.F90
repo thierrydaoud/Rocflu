@@ -497,7 +497,7 @@ MODULE ModGlobal
 
 
     REAL(RFREAL) :: piclTemp, piclNeighborWidth, piclKsp, &
-                    piclERest, ppiclf_p0
+                    piclERest, ppiclf_p0, piclDensity, piclSpecificHeat
 
   END TYPE t_global
 

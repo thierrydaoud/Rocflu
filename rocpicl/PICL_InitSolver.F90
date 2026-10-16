@@ -78,7 +78,6 @@ SUBROUTINE PICL_InitSolver( pRegion)
  USE ModDataTypes
   USE ModDataStruct, ONLY : t_level,t_region
   USE ModGlobal, ONLY     : t_global
-  USE ModMaterials, ONLY  : t_material
   USE ModError
   USE ModParameters
   USE ModMPI      
@@ -108,17 +107,16 @@ TYPE(t_global), POINTER :: global
 !TYPE(t_level), POINTER :: levels(:)
 TYPE(t_region), POINTER :: pRegion
 TYPE(t_grid), POINTER :: pGrid
-TYPE(t_material), POINTER :: material
 INTEGER :: errorFlag,icg
 
 #ifdef PICL
-   CHARACTER(CHRLEN) :: endString,iFileName,matName,comment
+   CHARACTER(CHRLEN) :: endString,iFileName,comment
    CHARACTER(12) :: vtuFile,vtuFile1
    LOGICAL :: notfoundFlag, pf_restart,pf_rpInit,pf_settle,&
-              wall_exists, fexists, foundMat
+              wall_exists, fexists
    INTEGER :: i,npart,nCells,vi,vii,ii,jj,kk,loopCounter,ipart,icl
    INTEGER :: PPC,numPclCells,npart_local,i_global,i_global_min,i_global_max,&
-              iFile,iMat, k, j, l, m
+              iFile, k, j, l, m
    REAL(RFREAL) :: dp_min,dp_max,rhop,tester,ratio,total_vol,xMinCurt,&
                    xMaxCurt,yMinCurt,yMaxCurt,xMinCell,xMaxCell,yMinCell,&
                    yMaxCell,zMinCell,zMaxCell,x,vFrac,volpclsum,xLoc,yLoc,zLoc,yL, &
@@ -168,9 +166,7 @@ INTEGER :: errorFlag,icg
    ! entries per particle in y and rprop (ppiclf_user_Layout)
    INTEGER :: nStateSlots, nPropSlots
    REAL(RFREAL) :: ppiclf_rcp_part
-   CHARACTER(12) :: ppiclf_matname
    COMMON /RFLU_ppiclf_misc01/ ppiclf_rcp_part
-   COMMON /RFLU_ppiclf_misc02/ ppiclf_matname
 
    ! Fluid domain extent (min, max in x, y, z) and periodic directions
    REAL(RFREAL) :: domainRange(2,3)
@@ -340,16 +336,25 @@ IF(global%restartFromScratch) THEN
    xp_max = -17400000.0
    yp_max = -17400000.0
    zp_max = -17400000.0
-   ! Each line: material x y z dp [u v w]. The velocity is optional;
-   ! particles without one start at rest. Every line is read (for the
-   ! global bounds), but only this rank's lines go into y: y has exactly
+   ! Every particle has the density and specific heat of the # PICL input
+   rhop = global%piclDensity
+   ppiclf_rcp_part = global%piclSpecificHeat
+
+   ! Each line: x y z dp [u v w]. The velocity is optional; particles
+   ! without one start at rest. Every line is read (for the global
+   ! bounds), but only this rank's lines go into y: y has exactly
    ! npart_local columns.
    DO i_global=1,npart
       READ(iFile,'(A)') pointsLine
-      READ(pointsLine,*,IOSTAT=velErr) matName,xyzp,dp,velp
+      READ(pointsLine,*,IOSTAT=velErr) xyzp,dp,velp
       IF (velErr /= 0) THEN
          velp = 0.0_RFREAL
-         READ(pointsLine,*) matName,xyzp,dp
+         READ(pointsLine,*,IOSTAT=velErr) xyzp,dp
+         IF (velErr /= 0) THEN
+            CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
+              'points.dat: a particle line must be x y z dp [u v w] '// &
+              '(the material name was removed)')
+         END IF
       END IF
 
       ! These are global max/min's since in 1:npart loop
@@ -376,34 +381,9 @@ IF(global%restartFromScratch) THEN
          y(PPICLF_JOZ,i) = 0.0D0
 #endif
   
-         ! search for material
-         matName = ADJUSTL(TRIM(matName))
-         foundMat = .FALSE.
-         DO iMat=1,global%nMaterials
-            material => global%materials(iMat)
-            IF (matName == material%name) THEN
-               ppiclf_matname = matName
-               IF (material%spht .GE. 1.0_RFREAL) THEN
-                  ppiclf_rcp_part = material%spht
-               ELSE
-                 PRINT*, 'Material Specific Heat not found in input file' 
-                 CALL ErrorStop(global,ERR_INRT_MISSPLAGMAT,__LINE__,matName)
-               ENDIF
-               rhop = material%dens
-               foundMat = .TRUE.
-               EXIT
-            END IF
-         END DO
-
-         IF(.NOT. foundMat) THEN
-            print*,global%myProcid,'stopping foundMat = False'
-            CALL ErrorStop(global,ERR_INRT_MISSPLAGMAT,__LINE__,matName)
-         END IF
-
          IF ( global%myProcid == MASTERPROC) then
             IF (i==1) THEN
                print*
-               print*,'PPICLF MAT: ',trim(ppiclf_matname)
                print*,'   Density: ',rhop
                print*,'   C_p:     ',ppiclf_rcp_part
                print*,'   T_p:     ',global%piclTemp
@@ -917,7 +897,6 @@ IF ( global%myProcid == MASTERPROC) then
 
    print*, ' '
    print*, 'Reading points.dat file...'
-   print*, "part material  = ", TRIM(ppiclf_matname)
    print*, "npart          = ", npart
    print*, 'dp_max         = ', dp_max
    print*, 'rho_dens       = ', rhop

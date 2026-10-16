@@ -85,14 +85,6 @@ REFTEMP     273.15    ! reference temperature (K)
 SUTHCOEF    110.4     ! sutherland coefficient (K)
 #
 
-# MATERIAL
-NAME     AL                 ! <== Name of particle material
-PHASE    S                  ! <== Solid
-DENS     2710.0             ! Density
-MOLW     1                  ! Molecular Weight (not used with ppiclf)
-SPHT     1                  ! Specific heat (not used with ppiclf)
-#
-
 # PICL
 USED             1      ! 0 = not used; 1 = used
 VELOCITYMODEL    1      ! 0 = particles keep position and velocity; 1 = particles move
@@ -108,6 +100,8 @@ QSFLUCT          2      ! 0 = none; 1 = Lattanzi; 2 = Osnes
 QSFLUCTFILT      0      ! 0 = box filter; 1 = gaussian. For fluctuation QS force only.
 QSFLUCTFILTADAPT 0      ! 0 = not adaptive; 1 = adaptive
 TEMP             288.15 ! temperature; must be consistent with ambient air conditions
+DENSITY          2710.0 ! particle density [kg/m^3]
+SPECIFICHEAT     1.0    ! particle specific heat [J/(kg K)]
 NEIGHBORWIDTH    0.000  ! Actual neighbor width = max(4*dp_max, neighborwidth)
 KSP              100.0  ! collisional spring constant; [kg/s^2]
 EREST            0.7    ! Coefficient of restitution

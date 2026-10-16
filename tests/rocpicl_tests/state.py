@@ -56,14 +56,14 @@ def _picl_used(rundir):
 
 
 def _particle_cp(rundir):
-    """Particle specific heat (SPHT in the # MATERIAL section)."""
+    """Particle specific heat (SPECIFICHEAT in the # PICL section)."""
     with open(os.path.join(rundir, CASENAME + ".inp")) as f:
-        in_mat = False
+        in_picl = False
         for line in f:
             s = line.strip()
             if s.startswith("#"):
-                in_mat = s[1:].split() == ["MATERIAL"]
-            elif in_mat and s.split()[:1] == ["SPHT"]:
+                in_picl = s[1:].split() == ["PICL"]
+            elif in_picl and s.split()[:1] == ["SPECIFICHEAT"]:
                 return float(s.split()[1])
     return 0.0
 

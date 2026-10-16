@@ -90,14 +90,6 @@ REFTEMP     273.15
 SUTHCOEF    110.4
 #
 
-# MATERIAL
-NAME     AL                 ! <== Name of species
-PHASE    S                  ! <== Solid
-DENS     1880.0             ! Density
-MOLW     1
-SPHT     840.0              ! Specific heat
-#
-
 # PICL
 USED             1 ! 0 = not used; 1 = used
 VELOCITYMODEL    1 ! 0 = particles keep position and velocity; 1 = particles move
@@ -114,6 +106,8 @@ QSFLUCTFILT      0 ! 0 = box filter; 1 = gaussian. For fluctuation QS force only
 QSFLUCTFILTADAPT 0 ! 0 = not adaptive; 1 = adaptive
 PSEUDOTURB       0 ! 0 = none; 1 = pseudo-turbulence model
 TEMP             296.40 ! temperature; must be consistent with Ambient air conditions
+DENSITY          1880.0 ! particle density [kg/m^3]
+SPECIFICHEAT     840.0  ! particle specific heat [J/(kg K)]
 NEIGHBORWIDTH    0.0 ! Actual neighbor width = max(4*dp_max, neighborwidth)
 KSP              10    ! Number of collisional time steps 
 EREST            0.7    ! Coefficient of restitution
