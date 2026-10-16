@@ -17,8 +17,8 @@ BUILD_ROOT="$ROOT/build"
 DEFAULT_MODULES="gcc/14.2.0 openmpi/5.0.7"
 ROCFLU_MODULES="${ROCFLU_MODULES-$DEFAULT_MODULES}"
 
-say()  { echo "rocflu: $*"; }
-fail() { echo "rocflu: ERROR: $*" >&2; exit 1; }
+say()  { echo "${PROGRESS:-}rocflu:${PLAIN:-} $*"; }
+fail() { echo "${ERROR_MARK:-}rocflu: ERROR:${ERROR_PLAIN:-} $*" >&2; exit 1; }
 
 # Loads the modules if the module command exists (it does on HiPerGator).
 load_modules() {
@@ -40,22 +40,51 @@ if [ "$1" == "load" ]; then
   return
 fi
 
+# Colours only on a terminal, and not when NO_COLOR is set (no-color.org):
+# logs, pipes and srun output stay plain. Set after 'load', so that sourcing
+# the script does not leave them in the shell.
+colours_on() { [ -t "$1" ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-}" != dumb ]; }
+if colours_on 1; then
+  HEADING=$'\033[1m'; OPTION=$'\033[36m'; DEFAULT=$'\033[33m'
+  PROGRESS=$'\033[32m'; PLAIN=$'\033[0m'
+fi
+if colours_on 2; then ERROR_MARK=$'\033[1;31m'; ERROR_PLAIN=$'\033[0m'; fi
+
 usage() {
-  sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  cat << EOF
+${HEADING}rocflu.sh${PLAIN}: build, check, run and test Rocflu + ppiclF (a small front end to CMake).
+
+${HEADING}Commands:${PLAIN}
+  ${OPTION}./rocflu.sh build${PLAIN} [options]       configure and compile (every particle slot)
+  ${OPTION}./rocflu.sh run${PLAIN} <case>.inp ...    check the case, build for it, pre-process it
+                                    here and submit the simulation to Slurm
+  ${OPTION}./rocflu.sh validate${PLAIN} <case>.inp   check a case's input and files only
+  ${OPTION}./rocflu.sh test${PLAIN} [options]        run the regression suite (tests/run_tests.py)
+  ${OPTION}./rocflu.sh clean${PLAIN}                 remove build/
+  ${OPTION}source ./rocflu.sh load${PLAIN}           load the HiPerGator modules into your shell
+
+${HEADING}Environment:${PLAIN}
+  ${OPTION}ROCFLU_MODULES${PLAIN}    modules loaded by build, run, test and load
+                    ${DEFAULT}(default: $DEFAULT_MODULES)${PLAIN}; "" loads none
+  ${OPTION}NO_COLOR${PLAIN}          set to anything to print without colours
+
+Run ${OPTION}./rocflu.sh <command> --help${PLAIN} for the options of a command.
+EOF
 }
 
 VALIDATOR="$ROOT/utilities/scripts/case_validator.py"
 
 usage_validate() {
   cat << EOF
-Usage: ./rocflu.sh validate <dir>/<case>.inp
+${HEADING}Usage:${PLAIN} ${OPTION}./rocflu.sh validate${PLAIN} <dir>/<case>.inp
 
 Checks the case before it runs and reports every problem at once:
 unknown, removed or misplaced keys in # PICL, values out of range, particle
 models that do not work together, the time-stepping and viscosity input
-particles need, and files in the case directory that would stop the run
-(no points.dat, filein.vtk, par00002.vtu from an earlier run).
-./rocflu.sh run does this first. See utilities/scripts/case_validator.py.
+particles need, points.dat (format, particles inside the fluid domain), and
+files in the case directory that would stop the run (filein.vtk,
+par00002.vtu from an earlier run). No options.
+./rocflu.sh run does this first. See docs/InputFile.md.
 EOF
 }
 
@@ -68,24 +97,27 @@ cmd_validate() {
 
 usage_build() {
   cat << EOF
-Usage: ./rocflu.sh build [options]
+${HEADING}Usage:${PLAIN} ${OPTION}./rocflu.sh build${PLAIN} [options]
 
-Targets (default: all):
-  -t, --targets T ...   one or more of
+${HEADING}Targets${PLAIN} ${DEFAULT}(default: all)${PLAIN}:
+  ${OPTION}-t, --targets${PLAIN} T ...   one or more of
                           simulation    the solver rflump
                           pre_process   rflumap, rflupart and rfluinit
                           rflump rflumap rflupart rfluinit
-Build type and physics:
-  --debug               -g -O0 -fcheck=all instead of the optimised build
-  --spec                species transport (needed by the JWL gas model, GASMODEL 7)
-  --plag                Rocpart Lagrangian particles
-  --no-picl             without the ppiclF particle solver
-  --no-folder           write all output in the run directory
-Other:
-  -j, --jobs N          compile with N processes (default: 16)
-  --metis-root DIR      use an installed METIS 5 instead of the bundled copy
-  --fresh               reconfigure from scratch
-  -v, --verbose         print every compile command
+${HEADING}Build type and physics:${PLAIN}
+  ${OPTION}--debug${PLAIN}               -g -O0 -fcheck=all ${DEFAULT}(default: optimised release build)${PLAIN}
+  ${OPTION}--spec${PLAIN}                species transport, needed by the JWL gas model
+                        (GASMODEL 7) ${DEFAULT}(default: off)${PLAIN}
+  ${OPTION}--plag${PLAIN}                Rocpart Lagrangian particles ${DEFAULT}(default: off)${PLAIN}
+  ${OPTION}--no-picl${PLAIN}             without the ppiclF particle solver ${DEFAULT}(default: with ppiclF)${PLAIN}
+  ${OPTION}--no-folder${PLAIN}           write all output in the run directory
+                        ${DEFAULT}(default: one folder per kind of output)${PLAIN}
+${HEADING}Other:${PLAIN}
+  ${OPTION}-j, --jobs${PLAIN} N          compile with N processes ${DEFAULT}(default: 16)${PLAIN}
+  ${OPTION}--metis-root${PLAIN} DIR      use an installed METIS 5
+                        ${DEFAULT}(default: build the copy in 3rd_party/)${PLAIN}
+  ${OPTION}--fresh${PLAIN}               reconfigure from scratch ${DEFAULT}(default: reuse the configuration)${PLAIN}
+  ${OPTION}-v, --verbose${PLAIN}         print every compile command ${DEFAULT}(default: off)${PLAIN}
 
 Each combination of build type and physics options has its own name (for
 example release, debug-spec): it is compiled in build/staging/<name> and its
@@ -180,36 +212,38 @@ build_config() {
 
 usage_run() {
   cat << EOF
-Usage: ./rocflu.sh run <dir>/<case>.inp [options]
+${HEADING}Usage:${PLAIN} ${OPTION}./rocflu.sh run${PLAIN} <dir>/<case>.inp [options]
 
 Checks the case (./rocflu.sh validate), builds the code for it (only the
-particle slots its input needs), pre-processes the case here (rflumap, rflupart, rfluinit, one process each:
-an error in the .inp, .bc or grid shows up now, before anything is queued),
-then writes <dir>/<case>.sbatch and submits the simulation (rflump) to Slurm.
-The case directory must hold <case>.inp, <case>.bc, the grid and, with
-particles, points.dat.
+particle slots its input needs), pre-processes the case here (rflumap,
+rflupart, rfluinit, one process each: an error in the .inp, .bc or grid shows
+up now, before anything is queued), then writes <dir>/<case>.sbatch and
+submits the simulation (rflump) to Slurm. The case directory must hold
+<case>.inp, <case>.bc, the grid and, with particles, points.dat.
 
-Job:
-  -N, --nodes N         nodes (default: 1)
-  -n, --tasks-per-node N
-                        MPI ranks per node (default: 1); the case is split
+${HEADING}Job:${PLAIN}
+  ${OPTION}-N, --nodes${PLAIN} N         nodes ${DEFAULT}(default: 1)${PLAIN}
+  ${OPTION}-n, --tasks-per-node${PLAIN} N
+                        MPI ranks per node ${DEFAULT}(default: 1)${PLAIN}; the case is split
                         into N x n regions, one per rank
-  -p, --partition P     Slurm partition (default: hpg-default)
-  -a, --account A       Slurm account (default: bala1s)
-  -w, --walltime T      wall time, HH:MM:SS (default: 01:00:00)
-  --mem M               memory per node, e.g. 64gb (default: 2gb per rank,
-                        --mem-per-cpu=2gb)
-  -@, --email ADDRESS   send all Slurm notifications to ADDRESS
-What to do:
-  -t, --targets T       pre_process: build and pre-process only, no job
+  ${OPTION}-p, --partition${PLAIN} P     Slurm partition ${DEFAULT}(default: hpg-default)${PLAIN}
+  ${OPTION}-a, --account${PLAIN} A       Slurm account ${DEFAULT}(default: bala1s)${PLAIN}
+  ${OPTION}-w, --walltime${PLAIN} T      wall time, HH:MM:SS ${DEFAULT}(default: 01:00:00)${PLAIN}
+  ${OPTION}--mem${PLAIN} M               memory per node, e.g. 64gb
+                        ${DEFAULT}(default: 2gb per rank, --mem-per-cpu=2gb)${PLAIN}
+  ${OPTION}-@, --email${PLAIN} ADDRESS   send all Slurm notifications to ADDRESS
+                        ${DEFAULT}(default: no e-mail)${PLAIN}
+${HEADING}What to do:${PLAIN}
+  ${OPTION}-t, --targets${PLAIN} T       pre_process: build and pre-process only, no job
                         simulation: build and submit only (the case was
                         pre-processed before with the same N x n)
-                        (default: both)
-  --dry-run             build, pre-process and write the job script, but
-                        do not submit it
-Build:
-  --debug               debug build (-g -O0 -fcheck=all)
-  -j, --jobs N          compile with N processes (default: 16)
+                        ${DEFAULT}(default: both)${PLAIN}
+  ${OPTION}--dry-run${PLAIN}             build, pre-process and write the job script, but
+                        do not submit it ${DEFAULT}(default: submit)${PLAIN}
+${HEADING}Build:${PLAIN}
+  ${OPTION}--debug${PLAIN}               debug build (-g -O0 -fcheck=all)
+                        ${DEFAULT}(default: optimised release build)${PLAIN}
+  ${OPTION}-j, --jobs${PLAIN} N          compile with N processes ${DEFAULT}(default: 16)${PLAIN}
 
 The build is named after the slot groups (e.g. release-case-qsfluct): cases
 with the same physics share it. build/bin is not changed (it stays the
@@ -353,14 +387,22 @@ cmd_run() {
 
 usage_test() {
   cat << EOF
-Usage: ./rocflu.sh test [options]
+${HEADING}Usage:${PLAIN} ${OPTION}./rocflu.sh test${PLAIN} [options]
 
 Runs tests/run_tests.py with the executables in build/bin (the last build).
-Options are passed on to run_tests.py, for example:
-  -o PATTERN       only the cases whose name contains PATTERN
-  -j N             run N cases at once
-  --generate       rewrite the golden files
-  --list           list the cases
+Options are passed on to run_tests.py:
+  ${OPTION}-o${PLAIN} PATTERN ...        only the cases whose name contains a PATTERN
+                        ${DEFAULT}(default: all cases)${PLAIN}
+  ${OPTION}-j, --jobs${PLAIN} N          run N cases at once ${DEFAULT}(default: 8)${PLAIN}
+  ${OPTION}--account${PLAIN} A           Slurm account for the solver runs
+                        ${DEFAULT}(default: \$ROCPICL_TEST_ACCOUNT, else bala1s)${PLAIN}
+  ${OPTION}--partition${PLAIN} P         Slurm partition ${DEFAULT}(default: \$ROCPICL_TEST_PARTITION, else hpg-dev)${PLAIN}
+  ${OPTION}--local-ranks${PLAIN} N       run cases with at most N ranks here with mpirun
+                        ${DEFAULT}(default: 0, every case through srun)${PLAIN}
+  ${OPTION}--generate${PLAIN}            rewrite the golden files ${DEFAULT}(default: compare to them)${PLAIN}
+  ${OPTION}--keep${PLAIN}                keep the run directories of passing cases
+                        ${DEFAULT}(default: delete them)${PLAIN}
+  ${OPTION}--list${PLAIN}                list the cases
 See tests/README.md.
 EOF
 }

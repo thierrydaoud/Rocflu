@@ -142,6 +142,11 @@ The modules the script loads can be changed with the environment variable
 `ROCFLU_MODULES=""` loads nothing (for machines without `module`, or when your shell
 is already set up).
 
+`./rocflu.sh --help` and `./rocflu.sh <command> --help` list every option with its
+default. On a terminal the help and the script's messages are coloured (options cyan,
+defaults yellow, errors red); in a log file or a pipe they are plain. Set `NO_COLOR=1` to
+turn the colours off.
+
 ## Running a case: `rocflu.sh run`
 
 ```bash
