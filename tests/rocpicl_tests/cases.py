@@ -99,8 +99,9 @@ for n in (1, 2):
         same_as=None if n == 1 else "shocktube/two-way/4-particles/np1")
 
 # -- Force models, one at a time on top of two-way QS (2 ranks) ---------------
+# Added mass (AMFORCE 2, Briney) is left out until it is validated; the case
+# validator rejects it.
 FORCES = {
-    "added-mass": {("PICL", "AMFORCE"): 2},
     "pressure-gradient": {("PICL", "PGFORCE"): 1},
     "viscous-unsteady": {("PICL", "VISCOUSUNSTEADY"): 1},
     "heat-transfer": {("PICL", "HEATTRANSFER"): 3},
