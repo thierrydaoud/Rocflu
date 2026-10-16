@@ -178,6 +178,7 @@
 ! Called from ppiclf_user_Layout, after ppiclf_lrp is set: rprop slot
 ! jp is interpolated from the gas every stage. The fluid solver hands
 ! the field over with ppiclf_solve_InterpFieldUser(jp, field).
+! jp = 0 is a slot this build does not have (PPICLF_LAYOUT.h): ignored.
 !
       IMPLICIT NONE
 !
@@ -185,7 +186,8 @@
 !
       INTEGER*4 jp, k
 !
-      IF(jp .LE. 0 .OR. jp .GT. ppiclf_lrp)
+      IF(jp .EQ. 0) RETURN
+      IF(jp .LT. 0 .OR. jp .GT. ppiclf_lrp)
      >   CALL ppiclf_exittr('Interpolated slot outside rprop$',0.0d0,jp)
       IF(.NOT. ALLOCATED(ppiclf_int_slots))
      >   ALLOCATE(ppiclf_int_slots(ppiclf_lrp))
@@ -206,6 +208,7 @@
 ! jp is sent with ghost particles, because the neighbour routine
 ! (ppiclf_user_EvalNearestNeighbor) reads it from the neighbour
 ! (rpropj). A ghost's other rprop slots are zero in that routine.
+! jp = 0 is a slot this build does not have (PPICLF_LAYOUT.h): ignored.
 !
       IMPLICIT NONE
 !
@@ -213,7 +216,8 @@
 !
       INTEGER*4 jp, k
 !
-      IF(jp .LE. 0 .OR. jp .GT. ppiclf_lrp)
+      IF(jp .EQ. 0) RETURN
+      IF(jp .LT. 0 .OR. jp .GT. ppiclf_lrp)
      >   CALL ppiclf_exittr('Ghost slot outside rprop$',0.0d0,jp)
       IF(.NOT. ALLOCATED(ppiclf_ghost_slots))
      >   ALLOCATE(ppiclf_ghost_slots(ppiclf_lrp))
@@ -1015,7 +1019,8 @@ c----------------------------------------------------------------------
 ! each gas field: infld (one value per fluid cell) is interpolated to
 ! rprop slot jp if ppiclf_user_Layout listed jp (ppiclf_int_slots), and
 ! ignored otherwise, because no model that is on reads it. Each listed
-! slot must be given once per stage.
+! slot must be given once per stage. jp = 0 is a slot this build does
+! not have (PPICLF_LAYOUT.h): ignored too.
 !
       IMPLICIT NONE
 !
@@ -1030,7 +1035,8 @@ c----------------------------------------------------------------------
 !
       INTEGER*4 n, k, kfld
 !
-      IF(jp .LE. 0 .OR. jp .GT. ppiclf_lrp)
+      IF(jp .EQ. 0) RETURN
+      IF(jp .LT. 0 .OR. jp .GT. ppiclf_lrp)
      >   CALL ppiclf_exittr('Interpolated slot outside rprop$',0.0d0,jp)
       kfld = 0
       DO k=1,ppiclf_lrp_int

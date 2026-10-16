@@ -385,6 +385,8 @@ c--- Now Rotate the matrix, Rsg = Q . R . Q^T
   
       Rsg = matmul(Q, matmul(R,Qt))
 
+! Diagnostics: built only with OUTMODEL (ppiclf_slots.txt, ptdiag)
+#if PPICLF_R_RTildePar > 0
       ppiclf_rprop(PPICLF_R_RTildePar, i)  = Rmean_par*rhof
       ppiclf_rprop(PPICLF_R_RTildePerp, i) = Rmean_perp*rhof
       ppiclf_rprop(PPICLF_R_R11,i)         = Rsg(1,1)
@@ -398,6 +400,7 @@ c--- Now Rotate the matrix, Rsg = Q . R . Q^T
      >                    A2*CD_prime/max(CD_average,1.0d-8) 
       ppiclf_rprop(PPICLF_R_RTerm2Perp,i) = 
      >                    A3*CD_prime/max(CD_average,1.0d-8) 
+#endif
 
 c--- Osnes Formulation for Triple Velocity Correlation
 

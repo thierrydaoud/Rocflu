@@ -204,9 +204,15 @@
             endif
 
             ! Relative angular velocity (rolling torque)
+#if PPICLF_JOX > 0
             omgrx = yi(PPICLF_JOX) - yj(PPICLF_JOX)
             omgry = yi(PPICLF_JOY) - yj(PPICLF_JOY)
             omgrz = yi(PPICLF_JOZ) - yj(PPICLF_JOZ)
+#else
+            omgrx = 0.0d0
+            omgry = 0.0d0
+            omgrz = 0.0d0
+#endif
 
             rdelta12 = rthresh - rdiff
             call ppiclf_user_ContactForce(i,rn_12x,rn_12y,rn_12z,
@@ -339,9 +345,15 @@
          u12z = u12z + (A12x*rn(2) - A12y*rn(1))
       endif
 
+#if PPICLF_JOX > 0
       call ppiclf_user_ContactForce(i,rn(1),rn(2),rn(3),
      >     rdelta,u12x,u12y,u12z,rm1,rad1,rad1,rad1,
      >     yi(PPICLF_JOX),yi(PPICLF_JOY),yi(PPICLF_JOZ))
+#else
+      call ppiclf_user_ContactForce(i,rn(1),rn(2),rn(3),
+     >     rdelta,u12x,u12y,u12z,rm1,rad1,rad1,rad1,
+     >     0.0d0,0.0d0,0.0d0)
+#endif
 
       return
       end
@@ -492,12 +504,14 @@
      >                           + Ftmin*rt_12z
 
       ! Particle angular velocities
+#if PPICLF_JOX > 0
       ppiclf_ydotc(PPICLF_JOX,i) = ppiclf_ydotc(PPICLF_JOX,i)
      >                           + tcx + trx
       ppiclf_ydotc(PPICLF_JOY,i) = ppiclf_ydotc(PPICLF_JOY,i)
      >                           + tcy + try
       ppiclf_ydotc(PPICLF_JOZ,i) = ppiclf_ydotc(PPICLF_JOZ,i)
      >                           + tcz + trz
+#endif
 
       return
       end

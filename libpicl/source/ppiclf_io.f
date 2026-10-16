@@ -1058,7 +1058,8 @@ c1511 continue
 ! Appends one field to the particle output (par*.vtu): slot islot of
 ! ppiclf_y (isource = PPICLF_OUT_Y), ppiclf_rprop (PPICLF_OUT_RPROP)
 ! or ppiclf_iprop (PPICLF_OUT_TAG), written under the name fname.
-! Called from ppiclf_user_OutputFields.
+! Called from ppiclf_user_OutputFields. Slot 0 of y or rprop is a slot
+! this build does not have (PPICLF_LAYOUT.h): the field is left out.
 !
       use ppiclf_data
 !
@@ -1075,6 +1076,7 @@ c1511 continue
 !
       integer*4 k, nslot
 !
+      if (islot .eq. 0 .and. isource .ne. PPICLF_OUT_TAG) return
       if (ppiclf_nout .ge. ppiclf_max_out) call ppiclf_exittr(
      >   'AddOutputField: too many output fields$',0.0d0,ppiclf_nout)
 

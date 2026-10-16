@@ -386,9 +386,11 @@
          fqsz = fqsz + fqs_fluct(3)
 
          ! Store quasi-steady fluctuating force
+#if PPICLF_R_FLUCTFX > 0
          ppiclf_rprop(PPICLF_R_FLUCTFX,i) = fqs_fluct(1)
          ppiclf_rprop(PPICLF_R_FLUCTFY,i) = fqs_fluct(2)
          ppiclf_rprop(PPICLF_R_FLUCTFZ,i) = fqs_fluct(3)
+#endif
          
 !
 ! Step 4: Force component added mass
@@ -562,9 +564,11 @@
          endif
 
          ! Store normally distributed random variables xi for PseudoTurbulence
+#if PPICLF_R_XIPAR > 0
          ppiclf_rprop(PPICLF_R_XIPAR,i)  = xi_par
          ppiclf_rprop(PPICLF_R_XIPERP,i) = xi_perp
          ppiclf_rprop(PPICLF_R_XIT,i)    = xi_T
+#endif
 !
 ! Step 10: Set ydot for all PPICLF_SLN number of equations
 !
@@ -578,9 +582,11 @@
          ppiclf_ydot(PPICLF_JVZ,i) = (fqsz+famz+fdpdz+fvuz+liftz+fcz)/
      >                               (rmass+rmass_add)
          ppiclf_ydot(PPICLF_JT,i)  = (qq+qq_du)/rmass_therm
+#if PPICLF_JOX > 0
          ppiclf_ydot(PPICLF_JOX,i) = taux/rmass_omega
          ppiclf_ydot(PPICLF_JOY,i) = tauy/rmass_omega
          ppiclf_ydot(PPICLF_JOZ,i) = tauz/rmass_omega
+#endif
 
 !
 ! Update data for viscous unsteady case at every RK3 stage
@@ -634,18 +640,22 @@
      >                  famx*ppiclf_rprop(PPICLF_R_JUX,i) +
      >                  famy*ppiclf_rprop(PPICLF_R_JUY,i) +
      >                  famz*ppiclf_rprop(PPICLF_R_JUZ,i) +
+#if PPICLF_JOX > 0
      >                  taux_hydro*ppiclf_y(PPICLF_JOX,i) +
      >                  tauy_hydro*ppiclf_y(PPICLF_JOY,i) +
      >                  tauz_hydro*ppiclf_y(PPICLF_JOZ,i) +
+#endif
      >           qq )
           ELSEIF(pseudoTurb_flag .gt. 0) THEN
             ppiclf_feedbk(PPICLF_P_JE,i) = ppiclf_rprop(PPICLF_R_JSPL,i)
      >       * ( (fqsx+fvux+famx+liftx)*ppiclf_y(PPICLF_JVX,i) + 
      >           (fqsy+fvuy+famy+lifty)*ppiclf_y(PPICLF_JVY,i) + 
      >           (fqsz+fvuz+famz+liftz)*ppiclf_y(PPICLF_JVZ,i) +
+#if PPICLF_JOX > 0
      >           taux_hydro*ppiclf_y(PPICLF_JOX,i) +
      >           tauy_hydro*ppiclf_y(PPICLF_JOY,i) +
      >           tauz_hydro*ppiclf_y(PPICLF_JOZ,i) +
+#endif
      >           qq )
           END IF ! pseudoTurb_flag
 
@@ -729,9 +739,11 @@
                ppiclf_ydot(PPICLF_JVY,i)  = 0.0d0
                ppiclf_ydot(PPICLF_JVZ,i)  = 0.0d0
                ppiclf_ydot(PPICLF_JT,i)   = 0.0d0
+#if PPICLF_JOX > 0
                ppiclf_ydot(PPICLF_JOX,i)  = 0.0d0
                ppiclf_ydot(PPICLF_JOY,i)  = 0.0d0
                ppiclf_ydot(PPICLF_JOZ,i)  = 0.0d0
+#endif
             else
                call ppiclf_exittr('Unknown stationary flag$', 0.0d0, 0)
             endif

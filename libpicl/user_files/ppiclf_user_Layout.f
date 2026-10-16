@@ -18,6 +18,8 @@
 !       with ppiclf_solve_InterpFieldUser(jp, field). A slot that is not
 !       listed is not interpolated and stays zero: list every slot a
 !       model that is on reads.
+!   A slot this build does not have is 0 (PPICLF_LAYOUT.h); the Add*Slot
+!   routines and ppiclf_io_AddOutputField ignore it.
 !   ppiclf_solve_AddGhostSlot(jp): rprop slot jp is sent with ghost
 !       particles, because ppiclf_user_EvalNearestNeighbor reads it
 !       from the neighbour (rpropj)
@@ -32,15 +34,17 @@
 !
       integer*4 jp
 !
-      ppiclf_lrs = PPICLF_JOZ
-      ppiclf_lrp = PPICLF_R_RTerm2Perp
+! Sizes: the slots this build has (PPICLF_LAYOUT.h, from
+! ppiclf_slots.txt and the case the build is for)
+      ppiclf_lrs = PPICLF_NSLOTS_Y
+      ppiclf_lrp = PPICLF_NSLOTS_RPROP
 !
 ! Projected fields: volume fraction, force and energy feedback, and the
 ! fields the probes read (PPICLF_P_JPHIPD to PPICLF_P_JPHIPT); the
 ! pseudo-turbulence stresses and heat flux only with PSEUDOTURB
 !
       if (pseudoTurb_flag .gt. 0) then
-         ppiclf_lrp_pro = PPICLF_P_JAlphaPT33
+         ppiclf_lrp_pro = PPICLF_NSLOTS_PRO
       else
          ppiclf_lrp_pro = PPICLF_P_JPHIPT
       endif

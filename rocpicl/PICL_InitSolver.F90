@@ -408,9 +408,11 @@ IF(global%restartFromScratch) THEN
          y(PPICLF_JVY,i) = velp(2)
          y(PPICLF_JVZ,i) = velp(3)
          y(PPICLF_JT, i) = global%piclTemp
+#if PPICLF_JOX > 0
          y(PPICLF_JOX,i) = 0.0D0
          y(PPICLF_JOY,i) = 0.0D0
          y(PPICLF_JOZ,i) = 0.0D0
+#endif
   
          ! search for material
          matName = ADJUSTL(TRIM(matName))
