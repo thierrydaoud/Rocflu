@@ -185,8 +185,14 @@ reports every problem at once, with the line it is on:
 - flags that are not whole numbers or out of range;
 - particle models that do not work together, e.g. `QSFLUCT` without `QSFORCE`;
 - with `USED 1`: `RKSCHEME 2` in `# TIMESTEP`, `VISCOSITY` in `# VISCMODEL`, no
-  `AXIFLAG 1`, a `points.dat` in the case directory, and no `filein.vtk` or
-  `par00002.vtu` (which would start a particle restart).
+  `AXIFLAG 1`, `DENSITY` and `SPECIFICHEAT` in `# PICL`, and no `filein.vtk` or
+  `par00002.vtu` (which would start a particle restart) in the case directory;
+- `points.dat`: `!` comment lines, the number of particles, then exactly that many
+  lines of `x y z dp` or `x y z dp u v w` with `dp > 0` (a line that still starts with
+  a material name is reported), and every particle inside the fluid domain. The domain
+  is the box around the grid's vertices, read from `<case>.hyb.asc` (CENTAUR ASCII,
+  `GRIDSRC 0`; about a second for a million vertices). In a domain that is not a box
+  (a cylinder, a wedge), a particle can be inside the box but outside the grid.
 
 Settings of a model that is off (e.g. `KSP` without collisions) are ignored. `rocflu.sh
 run` and the regression suite run the same checks. The validator's own tests:

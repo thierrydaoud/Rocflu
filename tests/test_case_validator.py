@@ -24,6 +24,20 @@ from rocpicl_tests.case import edit_inp        # noqa: E402
 with open(os.path.join(TESTS_DIR, "templates", "rectshktb.inp")) as f:
     TEMPLATE = f.read()
 
+# Two particles, one with an initial velocity
+POINTS = "! test\n2\n0.001 0.002 0.003 1e-4\n0.004 0.005 0.006 1e-4 1.0 0.0 0.0\n"
+
+
+def write_box_grid(path, lo, hi):
+    """The vertex part of a CENTAUR ASCII grid: the 8 corners of a box."""
+    corners = [(x, y, z) for x in (lo, hi) for y in (lo, hi) for z in (lo, hi)]
+    with open(path, "w") as f:
+        f.write("box\n%16d\n" % len(corners))
+        for axis in range(3):
+            values = [c[axis] for c in corners]
+            for i in range(0, len(values), 5):
+                f.write("".join("%16.9E" % v for v in values[i:i + 5]) + "\n")
+
 
 class CaseValidatorTest(unittest.TestCase):
     def setUp(self):
@@ -32,16 +46,22 @@ class CaseValidatorTest(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.dir)
 
-    def errors(self, overrides=None, text=None, files=("points.dat",)):
+    def errors(self, overrides=None, text=None, files=("points.dat",), points=POINTS,
+               grid=None):
         """Errors for the template with {(SECTION, KEY): value} changes, or
-        for the given input text, with the given files in the case directory."""
+        for the given input text, with the given files in the case directory
+        (points.dat holds `points`; a grid file is written when grid is a
+        (min, max) box)."""
         if text is None:
             text = edit_inp(TEMPLATE, overrides or {})
         inp = os.path.join(self.dir, "case.inp")
         with open(inp, "w") as f:
             f.write(text)
         for name in files:
-            open(os.path.join(self.dir, name), "w").close()
+            with open(os.path.join(self.dir, name), "w") as f:
+                f.write(points if name == "points.dat" else "")
+        if grid:
+            write_box_grid(os.path.join(self.dir, "case.hyb.asc"), *grid)
         return case_validator.validate(inp)
 
     def assertError(self, errors, *words):
@@ -158,6 +178,27 @@ class CaseValidatorTest(unittest.TestCase):
     def test_viscosity_needed(self):
         text = TEMPLATE.replace("\nVISCOSITY", "\n!VISCOSITY")
         self.assertError(self.errors(text=text), "VISCOSITY")
+
+    # -- points.dat ------------------------------------------------------------------
+
+    def test_points_old_format_with_material(self):
+        old = "2\nAL 0.001 0.002 0.003 1e-4\nAL 0.004 0.005 0.006 1e-4\n"
+        self.assertError(self.errors(points=old), "points.dat:2", "material name was removed")
+
+    def test_points_count_and_lines(self):
+        self.assertError(self.errors(points="3\n0.001 0.002 0.003 1e-4\n"),
+                         "3 particles announced", "only 1")
+        self.assertError(self.errors(points="1\n0.001 0.002 0.003 1e-4\n0.1 0.1 0.1 1e-4\n"),
+                         "1 line after the 1 particles")
+        self.assertError(self.errors(points="1\n0.001 0.002 0.003 1e-4 1.0\n"),
+                         "points.dat:2", "5 entries")
+        self.assertError(self.errors(points="1\n0.001 0.002 0.003 0\n"), "diameter 0")
+        self.assertError(self.errors(points="x\n"), "number of particles")
+
+    def test_points_in_the_domain(self):
+        self.assertEqual(self.errors(grid=(0.0, 0.01)), [])
+        self.assertError(self.errors(grid=(0.0, 0.005)), "points.dat:4",
+                         "outside the fluid domain")
 
     def test_files_in_case_directory(self):
         self.assertError(self.errors(files=()), "no points.dat")

@@ -142,11 +142,12 @@ class Validator:
         self.case_dir = os.path.dirname(os.path.abspath(inp))
         self.errors = []
 
-    def prohibit(self, condition, message, line=None):
-        """Records an error when condition holds (as MFC's case validator)."""
+    def prohibit(self, condition, message, line=None, name=None):
+        """Records an error when condition holds (as MFC's case validator).
+        name: the file the line is in (default: the input file)."""
         if condition:
-            where = "%s:%d" % (os.path.basename(self.inp), line) if line else \
-                os.path.basename(self.inp)
+            name = name or os.path.basename(self.inp)
+            where = "%s:%d" % (name, line) if line else name
             self.errors.append("%s: %s" % (where, message))
 
     # -- # PICL section ------------------------------------------------------
@@ -302,6 +303,8 @@ class Validator:
             return os.path.exists(os.path.join(self.case_dir, name))
         self.prohibit(not present("points.dat"),
                       "no points.dat (the particles) in %s" % self.case_dir)
+        if present("points.dat"):
+            self.check_points(sections)
         self.prohibit(present("filein.vtk"),
                       "filein.vtk is no longer read: set PARTWALL 1 on the wall "
                       "patches in the .bc file and remove filein.vtk")
@@ -309,6 +312,93 @@ class Validator:
                       "par00002.vtu from an earlier run is in the case directory: it "
                       "starts a particle restart, which is not available yet. Remove "
                       "the par*.vtu files (and the .rin file) to start a new run")
+
+    # -- points.dat -----------------------------------------------------------------
+
+    def read_points(self):
+        """Particles of points.dat as [(line number, x, y, z, dp)], read as
+        PICL_InitSolver does: '!' comment lines at the top, the number of
+        particles, then one line per particle: x y z dp [u v w]."""
+        name = "points.dat"
+        with open(os.path.join(self.case_dir, name)) as f:
+            lines = f.readlines()
+        n = 0
+        while n < len(lines) and lines[n].strip().startswith("!"):
+            n += 1
+        try:
+            count = int(lines[n].split()[0])
+        except (IndexError, ValueError):
+            self.prohibit(True, "the first line after the comments must be the number "
+                          "of particles", n + 1, name)
+            return []
+        self.prohibit(count < 1, "number of particles %d: must be at least 1" % count,
+                      n + 1, name)
+        particles, bad = [], []
+        for number in range(n + 2, n + 2 + count):
+            if number > len(lines):
+                self.prohibit(True, "%d particles announced on line %d, but only %d "
+                              "lines follow" % (count, n + 1, len(lines) - n - 1),
+                              len(lines), name)
+                break
+            words = lines[number - 1].split("!")[0].split()
+            try:
+                values = [float(w.replace("d", "e").replace("D", "e")) for w in words]
+            except ValueError:
+                values = None
+            if values is None or len(values) not in (4, 7):
+                bad.append((number, "must be x y z dp [u v w] (%d entries%s)" % (
+                    len(words), "; the material name was removed" if words and
+                    values is None and len(words) in (5, 8) else "")))
+            elif values[3] <= 0:
+                bad.append((number, "diameter %g: must be > 0" % values[3]))
+            else:
+                particles.append((number,) + tuple(values[:4]))
+        for number, message in bad[:5]:
+            self.prohibit(True, message, number, name)
+        self.prohibit(len(bad) > 5, "... and %d more lines like these" % (len(bad) - 5),
+                      None, name)
+        extra = [i + 1 for i in range(n + 1 + count, len(lines)) if lines[i].strip()]
+        self.prohibit(extra, "%d line%s after the %d particles (line %d on): is the "
+                      "number of particles on line %d right?" % (
+                          len(extra), "s" if len(extra) > 1 else "", count,
+                          extra[0] if extra else 0, n + 1), None, name)
+        return particles
+
+    def grid_box(self, sections):
+        """(min, max) of the grid's vertices in x, y, z, or None when the grid
+        is not a CENTAUR ASCII file (GRIDSRC 0, <case>.hyb.asc) in the case
+        directory. The file holds a title, the number of vertices, then all
+        x, all y and all z, five 16-character values per line."""
+        number, source = simple_value(sections.get("FORMATS", []), "GRIDSRC")
+        grid = os.path.splitext(self.inp)[0] + ".hyb.asc"
+        if (source or 0) != 0 or not os.path.exists(grid):
+            return None
+        with open(grid) as f:
+            f.readline()
+            nvert = int(f.readline())
+            box = []
+            for axis in range(3):
+                values = []
+                while len(values) < nvert:
+                    line = f.readline().rstrip("\n")
+                    values += [float(line[i:i + 16]) for i in range(0, len(line), 16)
+                               if line[i:i + 16].strip()]
+                box.append((min(values), max(values)))
+        return box
+
+    def check_points(self, sections):
+        particles = self.read_points()
+        box = self.grid_box(sections) if particles else None
+        if box is None:
+            return
+        outside = [p for p in particles
+                   if any(not box[a][0] <= p[1 + a] <= box[a][1] for a in range(3))]
+        for number, x, y, z, dp in outside[:5]:
+            self.prohibit(True, "particle at (%g, %g, %g) is outside the fluid domain "
+                          "x [%g, %g], y [%g, %g], z [%g, %g]" % (
+                              (x, y, z) + box[0] + box[1] + box[2]), number, "points.dat")
+        self.prohibit(len(outside) > 5, "... %d particles outside the fluid domain in all"
+                      % len(outside), None, "points.dat")
 
     def run(self):
         try:
