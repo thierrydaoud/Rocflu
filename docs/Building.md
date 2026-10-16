@@ -188,8 +188,9 @@ reports every problem at once, with the line it is on:
   `AXIFLAG 1`, `DENSITY` and `SPECIFICHEAT` in `# PICL`, and no `filein.vtk` or
   `par00002.vtu` (which would start a particle restart) in the case directory;
 - `points.dat`: `!` comment lines, the number of particles, then exactly that many
-  lines of `x y z dp` or `x y z dp u v w` with `dp > 0` (a line that still starts with
-  a material name is reported), and every particle inside the fluid domain. The domain
+  lines of `x y z vx vy vz dp` (position, initial velocity, diameter) with `dp > 0`
+  (lines in an older form, with a material name first or with `x y z dp` only, are
+  reported as such), and every particle inside the fluid domain. The domain
   is the box around the grid's vertices, read from `<case>.hyb.asc` (CENTAUR ASCII,
   `GRIDSRC 0`; about a second for a million vertices). In a domain that is not a box
   (a cylinder, a wedge), a particle can be inside the box but outside the grid.

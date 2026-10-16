@@ -340,21 +340,16 @@ IF(global%restartFromScratch) THEN
    rhop = global%piclDensity
    ppiclf_rcp_part = global%piclSpecificHeat
 
-   ! Each line: x y z dp [u v w]. The velocity is optional; particles
-   ! without one start at rest. Every line is read (for the global
+   ! Each line: x y z vx vy vz dp. Every line is read (for the global
    ! bounds), but only this rank's lines go into y: y has exactly
    ! npart_local columns.
    DO i_global=1,npart
       READ(iFile,'(A)') pointsLine
-      READ(pointsLine,*,IOSTAT=velErr) xyzp,dp,velp
+      READ(pointsLine,*,IOSTAT=velErr) xyzp,velp,dp
       IF (velErr /= 0) THEN
-         velp = 0.0_RFREAL
-         READ(pointsLine,*,IOSTAT=velErr) xyzp,dp
-         IF (velErr /= 0) THEN
-            CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
-              'points.dat: a particle line must be x y z dp [u v w] '// &
-              '(the material name was removed)')
-         END IF
+         CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
+           'points.dat: a particle line must be x y z vx vy vz dp '// &
+           '(./rocflu.sh validate shows which line)')
       END IF
 
       ! These are global max/min's since in 1:npart loop

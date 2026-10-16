@@ -318,7 +318,7 @@ class Validator:
     def read_points(self):
         """Particles of points.dat as [(line number, x, y, z, dp)], read as
         PICL_InitSolver does: '!' comment lines at the top, the number of
-        particles, then one line per particle: x y z dp [u v w]."""
+        particles, then one line per particle: x y z vx vy vz dp."""
         name = "points.dat"
         with open(os.path.join(self.case_dir, name)) as f:
             lines = f.readlines()
@@ -345,14 +345,19 @@ class Validator:
                 values = [float(w.replace("d", "e").replace("D", "e")) for w in words]
             except ValueError:
                 values = None
-            if values is None or len(values) not in (4, 7):
-                bad.append((number, "must be x y z dp [u v w] (%d entries%s)" % (
-                    len(words), "; the material name was removed" if words and
-                    values is None and len(words) in (5, 8) else "")))
-            elif values[3] <= 0:
-                bad.append((number, "diameter %g: must be > 0" % values[3]))
+            if values is None or len(values) != 7:
+                if values is None and len(words) in (5, 8):
+                    hint = "; the material name was removed"
+                elif values is not None and len(values) == 4:
+                    hint = "; the old x y z dp form: the velocity now comes before dp"
+                else:
+                    hint = ""
+                bad.append((number, "must be x y z vx vy vz dp (%d entries%s)"
+                            % (len(words), hint)))
+            elif values[6] <= 0:
+                bad.append((number, "diameter %g: must be > 0" % values[6]))
             else:
-                particles.append((number,) + tuple(values[:4]))
+                particles.append((number,) + tuple(values[:3]) + (values[6],))
         for number, message in bad[:5]:
             self.prohibit(True, message, number, name)
         self.prohibit(len(bad) > 5, "... and %d more lines like these" % (len(bad) - 5),

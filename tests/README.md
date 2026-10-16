@@ -130,9 +130,9 @@ Cases are defined in `rocpicl_tests/cases.py`. Each one specifies:
   - `periodic`: periodic on all six faces;
   - `closed`: slip walls on all six faces;
   - `partwall`: slip walls on all six faces that are also particle walls (`PARTWALL 1`);
-- a particle list, written to `points.dat` (`x y z dp`, optionally followed by an
-  initial velocity `u v w`; particles without one start at rest; density and specific
-  heat come from `DENSITY` and `SPECIFICHEAT` in `# PICL`);
+- a particle list `(x, y, z, dp)` or `(x, y, z, dp, u, v, w)` (without a velocity the
+  particle starts at rest), written to `points.dat` as `x y z vx vy vz dp`; density and
+  specific heat come from `DENSITY` and `SPECIFICHEAT` in `# PICL`;
 - a rank count.
 
 Particles never start on a cell face, so round-off can't decide which cell or rank owns

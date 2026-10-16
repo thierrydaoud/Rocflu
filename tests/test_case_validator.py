@@ -24,8 +24,8 @@ from rocpicl_tests.case import edit_inp        # noqa: E402
 with open(os.path.join(TESTS_DIR, "templates", "rectshktb.inp")) as f:
     TEMPLATE = f.read()
 
-# Two particles, one with an initial velocity
-POINTS = "! test\n2\n0.001 0.002 0.003 1e-4\n0.004 0.005 0.006 1e-4 1.0 0.0 0.0\n"
+# Two particles (x y z vx vy vz dp), one with an initial velocity
+POINTS = "! test\n2\n0.001 0.002 0.003 0 0 0 1e-4\n0.004 0.005 0.006 1.0 0.0 0.0 1e-4\n"
 
 
 def write_box_grid(path, lo, hi):
@@ -184,15 +184,17 @@ class CaseValidatorTest(unittest.TestCase):
     def test_points_old_format_with_material(self):
         old = "2\nAL 0.001 0.002 0.003 1e-4\nAL 0.004 0.005 0.006 1e-4\n"
         self.assertError(self.errors(points=old), "points.dat:2", "material name was removed")
+        short = "1\n0.001 0.002 0.003 1e-4\n"
+        self.assertError(self.errors(points=short), "points.dat:2", "velocity now comes before dp")
 
     def test_points_count_and_lines(self):
-        self.assertError(self.errors(points="3\n0.001 0.002 0.003 1e-4\n"),
-                         "3 particles announced", "only 1")
-        self.assertError(self.errors(points="1\n0.001 0.002 0.003 1e-4\n0.1 0.1 0.1 1e-4\n"),
+        line = "0.001 0.002 0.003 0 0 0 1e-4\n"
+        self.assertError(self.errors(points="3\n" + line), "3 particles announced", "only 1")
+        self.assertError(self.errors(points="1\n" + line + line),
                          "1 line after the 1 particles")
-        self.assertError(self.errors(points="1\n0.001 0.002 0.003 1e-4 1.0\n"),
-                         "points.dat:2", "5 entries")
-        self.assertError(self.errors(points="1\n0.001 0.002 0.003 0\n"), "diameter 0")
+        self.assertError(self.errors(points="1\n0.001 0.002 0.003 1.0 0 1e-4\n"),
+                         "points.dat:2", "6 entries")
+        self.assertError(self.errors(points="1\n0.001 0.002 0.003 0 0 0 0\n"), "diameter 0")
         self.assertError(self.errors(points="x\n"), "number of particles")
 
     def test_points_in_the_domain(self):
