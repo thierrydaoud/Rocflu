@@ -179,6 +179,7 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
   CHARACTER(52) :: leftColumn
   CHARACTER(53) :: rightColumn
   REAL(KIND=8) :: totalSeconds
+  REAL(RFREAL) :: peakKB,peakMaxKB,peakSumKB,requestedMB
 
 ! ******************************************************************************
 ! Start, initialize some variables
@@ -618,6 +619,13 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
 
   totalSeconds = MPI_Wtime() - global%timingSubRout(1)
 
+! Peak memory: largest rank and sum over the ranks
+  peakKB = PeakMemoryKB()
+  CALL MPI_Reduce(peakKB,peakMaxKB,1,MPI_RFREAL,MPI_MAX,MASTERPROC, &
+                  global%mpiComm,errorFlag)
+  CALL MPI_Reduce(peakKB,peakSumKB,1,MPI_RFREAL,MPI_SUM,MASTERPROC, &
+                  global%mpiComm,errorFlag)
+
 ! ******************************************************************************
 ! Print info about warnings
 ! ******************************************************************************
@@ -675,6 +683,18 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
     rightColumn = '* Exit Code:     0'
     WRITE(STDOUT,'(4A)') '| ',leftColumn,rightColumn,' |'
 
+    leftColumn = '* Peak memory:   '//TRIM(MemoryText(peakMaxKB))// &
+                 '/rank (max), '//TRIM(MemoryText(peakSumKB))//' total'
+    requestedMB = RequestedMemoryMB()
+    IF ( requestedMB > 0.0_RFREAL ) THEN
+      WRITE(rightColumn,'(3A,I0,A)') '* Requested:     ', &
+        TRIM(MemoryText(1024.0_RFREAL*requestedMB)),' (', &
+        NINT(100.0_RFREAL*peakSumKB/(1024.0_RFREAL*requestedMB)),'% used)'
+    ELSE
+      rightColumn = '* Requested:     N/A'
+    END IF ! requestedMB
+    WRITE(STDOUT,'(4A)') '| ',leftColumn,rightColumn,' |'
+
     leftColumn  = '* End-time:      '//endTime(1:2)//':'//endTime(3:4)//':'// &
                   endTime(5:6)
     rightColumn = '* End-date:      '//endDate(1:4)//'-'//endDate(5:6)//'-'// &
@@ -685,6 +705,66 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
 
 
   CALL DeregisterFunction(global)
+
+CONTAINS
+
+! Peak resident memory of this process in kB (VmHWM in /proc/self/status);
+! 0 where that file does not exist
+  FUNCTION PeakMemoryKB() RESULT(kB)
+    REAL(RFREAL) :: kB
+    CHARACTER(128) :: line
+    INTEGER :: ios,statusUnit
+
+    kB = 0.0_RFREAL
+    OPEN(NEWUNIT=statusUnit,FILE='/proc/self/status',STATUS='OLD', &
+         ACTION='READ',IOSTAT=ios)
+    IF ( ios /= 0 ) RETURN
+    DO
+      READ(statusUnit,'(A)',IOSTAT=ios) line
+      IF ( ios /= 0 ) EXIT
+      IF ( line(1:6) == 'VmHWM:' ) THEN
+        READ(line(7:),*,IOSTAT=ios) kB
+        EXIT
+      END IF ! line
+    END DO
+    CLOSE(statusUnit)
+  END FUNCTION PeakMemoryKB
+
+! Memory the Slurm job step asked for in MB: --mem-per-cpu times the CPUs of
+! the tasks, or --mem times the nodes; 0 outside Slurm
+  FUNCTION RequestedMemoryMB() RESULT(mB)
+    REAL(RFREAL) :: mB
+    mB = EnvNumber('SLURM_MEM_PER_CPU')*EnvNumber('SLURM_NTASKS')* &
+         MAX(1.0_RFREAL,EnvNumber('SLURM_CPUS_PER_TASK'))
+    IF ( mB <= 0.0_RFREAL ) THEN
+      mB = EnvNumber('SLURM_MEM_PER_NODE')*EnvNumber('SLURM_JOB_NUM_NODES')
+    END IF ! mB
+  END FUNCTION RequestedMemoryMB
+
+! Value of a numeric environment variable; 0 if unset or not a number
+  FUNCTION EnvNumber(name) RESULT(x)
+    CHARACTER(*), INTENT(IN) :: name
+    REAL(RFREAL) :: x
+    CHARACTER(32) :: value
+    INTEGER :: ios,status
+
+    x = 0.0_RFREAL
+    CALL GET_ENVIRONMENT_VARIABLE(name,value,STATUS=status)
+    IF ( status /= 0 ) RETURN
+    READ(value,*,IOSTAT=ios) x
+    IF ( ios /= 0 ) x = 0.0_RFREAL
+  END FUNCTION EnvNumber
+
+! kB as 'n MB' below 1 GB, else 'x.y GB'
+  FUNCTION MemoryText(kB) RESULT(text)
+    REAL(RFREAL), INTENT(IN) :: kB
+    CHARACTER(16) :: text
+    IF ( kB < 1024.0_RFREAL**2 ) THEN
+      WRITE(text,'(I0,A)') NINT(kB/1024.0_RFREAL),' MB'
+    ELSE
+      WRITE(text,'(F0.1,A)') kB/1024.0_RFREAL**2,' GB'
+    END IF ! kB
+  END FUNCTION MemoryText
 
 END SUBROUTINE RFLU_EndFlowSolver
 
