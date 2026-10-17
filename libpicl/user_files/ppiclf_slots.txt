@@ -47,6 +47,9 @@ rprop  props    R_JRHOP R_JDP R_JVOLP R_JSPL
 # --- Model state carried from step to step
 #     fluctuating quasi-steady force (QSFLUCT)
 rprop  qsfluct  R_FLUCTFX R_FLUCTFY R_FLUCTFZ
+#     state of the particle's own random stream (QSFLUCT, PSEUDOTURB;
+#     ppiclf_op_UniformRandom), seeded with its line number in points.dat
+rprop  qsfluct  R_SEED
 #     pseudo-turbulence stochastic variables (PSEUDOTURB)
 rprop  pt       R_XIPAR R_XIPERP R_XIT
 #     density-weighted relative acceleration, read from neighbours

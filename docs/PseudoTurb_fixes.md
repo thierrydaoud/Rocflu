@@ -23,6 +23,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 - [Projection: kernel width per direction, and cloud-edge cells](#projection-kernel-width-per-direction-and-cloud-edge-cells)
 - [Low-slip closures](#low-slip-closures)
 - [Quasi-steady drag, aligned with MFC](#quasi-steady-drag-aligned-with-mfc)
+- [Random numbers for the stochastic models](#random-numbers-for-the-stochastic-models)
 - [Particle collisions](#particle-collisions)
   - [Contact stiffness from the pair's effective mass (3afd23a)](#contact-stiffness-from-the-pairs-effective-mass-3afd23a)
   - [Ghost particles and the neighbour search (f7a3980, 0bb2e4b, 82d4ca4)](#ghost-particles-and-the-neighbour-search-f7a3980-0bb2e4b-82d4ca4)
@@ -60,6 +61,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Conservation | Fluxes on periodic and symmetry patches were not conservative | Exchange and transform gradients in virtual cells | 11dc640 |
 | Robustness | Uninitialized reads gave NaN on 2+ ranks; a single particle gave a filter width of 0 | Initialize; filter width from cell–box overlap | b10c5f1, 48f64b7 |
 | Build | Required `SPEC=1` | Builds without it; stops if species are requested | aa3c0b6 |
+| Random numbers | QS fluctuations and pseudo-turbulence drew from one generator per rank, every rank seeded with 1: the same noise on every rank, and results that changed with the number of ranks | Each particle has its own stream (splitmix32, as MFC), seeded with its line in `points.dat` and carried with the particle; 1 and 2 ranks now give identical results | (section "Random numbers for the stochastic models") |
 | Collisions | The contact stiffness used particle i's own mass, so an unequal pair felt unequal forces: an 8:1 pair at 20 m/s ended with its total momentum reversed | Stiffness from the pair's effective mass (MFC soft-sphere model) | 3afd23a, 78eb711 |
 | Particle walls | Walls existed only through `filein.vtk`; a particle over the edge between two wall triangles was pushed by both (e = 0.60 instead of 0.70); a fast particle went through the wall and the run crashed | Walls from the fluid wall patches (`PARTWALL 1`), contacts computed like pair contacts, a fluid side that pushes back; `filein.vtk` removed | 2ff0cd8 |
 | Ghost particles | Overflowing the ghost arrays wrote past their end | Guards stop the run; ghost arrays 30% smaller | f7a3980, 0bb2e4b |
@@ -340,6 +342,55 @@ M ≥ 1e-6 floor in Loth's terms, which MFC also has. The modified Parmar model 
 
 > **Input decks:** `QSFORCE` now follows MFC: 0 none, 1 Gidaspow, 2 Parmar, 3 Osnes.
 > 4 stops with an error. Decks that used `QSFORCE 2` for Osnes must change to `3`.
+
+## Random numbers for the stochastic models
+
+The quasi-steady force fluctuations (`QSFLUCT` 1 Lattanzi, 2 Osnes) and pseudo-turbulence
+(`PSEUDOTURB`) add Gaussian noise to each particle (Box–Muller from uniform numbers).
+
+**Before:** the uniform numbers came from gfortran's `RANDOM_NUMBER`, one generator per
+rank. `PICL_InitSolver` seeded every rank with the same value (`seed = 1`), and each
+rank drew in the order it visits its own particles. So:
+
+- every rank drew the same sequence: the k-th particle of rank 0, of rank 1, of rank 2, …
+  received identical noise, which correlates the forcing across the domain;
+- which number a particle received depended on which rank held it and where it stood in
+  that rank's list, so the same case gave different results on 1 and on 2 ranks, and a
+  particle moving to another rank switched to a different stream;
+- a restart could only continue the same streams by saving every rank's generator state,
+  and only on the same number of ranks with particles in the same order.
+
+**Now (as MFC, `s_prng_splitmix32` in `m_helper.fpp`):** each particle carries its own
+generator state in the `rprop` slot `R_SEED` (group `qsfluct`). The state starts at the
+particle's line number in `points.dat` and advances by one splitmix32 step per draw
+(`ppiclf_op_UniformRandom` in `ppiclf_op.f`). splitmix32 hashes a Weyl sequence, so
+different seeds give unrelated streams: the first draws of particles 1 to 100,000 have a
+correlation of −0.006 between neighbouring seeds (MFC measured −0.009). The state is an
+integer below 2³², exact in a double, and moves with the particle like every other
+`rprop` slot. Draws equal to 0 are raised to the smallest positive double, so `log(u)`
+stays finite.
+
+The advantages:
+
+| | Before | Now |
+|---|---|---|
+| Noise of different particles | identical for the k-th particle of every rank | independent for every particle |
+| Result on 1 vs 2 ranks | different | identical |
+| Particle moving to another rank | switches to that rank's stream | keeps its own stream |
+| Restart | needs every rank's generator state, same rank count | the state is in the particle's data; any rank count |
+| Same as MFC | no | yes (same generator, seeded by the particle's ID) |
+
+**How it was checked**
+
+- The Fortran routine gives the same numbers as MFC's formula for seeds 1–3 (six draws
+  each).
+- A cloud of 40 particles (the `box/momentum-exchange` set-up with a ±1 m/s velocity
+  spread, `QSFLUCT 2`, `NEIGHBORWIDTH 3e-3` so the particles have neighbours) on 1 and 2
+  ranks: before, the fluctuation forces differed between the two runs and the particle
+  velocities by up to 6.7e-6 m/s after 100 µs; now both runs are identical.
+- The suite's `shocktube/two-way/qs-fluctuations` case is unchanged: its four particles are
+  farther apart than the neighbour width, so their granular temperature, and with it the
+  noise amplitude, is exactly 0 in both versions.
 
 ## Particle collisions
 

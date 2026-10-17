@@ -109,7 +109,8 @@
       aSDE = tF_inv
       bSDE = sigF*sqrt(2.0*tF_inv)
 
-      call RANDOM_NUMBER(UnifRnd)
+      call ppiclf_op_UniformRandom(ppiclf_rprop(PPICLF_R_SEED,i),
+     >                             UnifRnd,6)
 
       Z1 = sqrt(-2.0d0*log(UnifRnd(1)))*cos(TwoPi*UnifRnd(2))
       Z2 = sqrt(-2.0d0*log(UnifRnd(3)))*cos(TwoPi*UnifRnd(4))
@@ -313,7 +314,8 @@
       cvec    = cvec / denum
 
       ! Generate  Gaussian Random Values
-      call RANDOM_NUMBER(UnifRnd)
+      call ppiclf_op_UniformRandom(ppiclf_rprop(PPICLF_R_SEED,i),
+     >                             UnifRnd,6)
 
 ! Box-Muller transform for generating two independent standard normal
 ! (Gaussian) random variables

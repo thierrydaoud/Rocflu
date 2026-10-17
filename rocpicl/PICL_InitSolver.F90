@@ -141,7 +141,7 @@ INTEGER :: errorFlag,icg
    REAL(RFREAL) :: velp(3), xyzp(3)
    INTEGER :: velErr
 
-   INTEGER :: seed(33), isize, CellVertices
+   INTEGER :: CellVertices
 
    INTEGER :: velocity_model, qs_flag, am_flag, pg_flag, &
         collisional_flag, heattransfer_flag, feedback_flag, &
@@ -266,12 +266,6 @@ END DO
 ! Field sizes and slot lists of this run (ppiclf_user_Layout, from the
 ! flags above)
 CALL ppiclf_solve_InitLayout(nStateSlots, nPropSlots)
-
-! Needed for fluctuations
-seed = 1
-CALL RANDOM_SEED(put=seed)
-CALL RANDOM_SEED(size=isize)
-
 
 ! ************************************************************
 
@@ -400,6 +394,11 @@ IF(global%restartFromScratch) THEN
                                    (0.5_RFREAL*dp)**3 ! particle volume
          ! Super Particle Loading (Real Number of particles = SPL * number of compuational particles)
          rprop(PPICLF_R_JSPL,i) = 1.0_RFREAL
+#if PPICLF_R_SEED > 0
+         ! Seed of the particle's own random stream: its line number,
+         ! so the stream does not depend on the number of ranks
+         rprop(PPICLF_R_SEED,i) = REAL(i_global,RFREAL)
+#endif
 
          i = i + 1
       END IF

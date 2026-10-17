@@ -612,3 +612,47 @@ C--------------------------------------------------------------------------
       return
       end
 C--------------------------------------------------------------------------
+!-----------------------------------------------------------------------
+! Uniform random numbers from a particle's own stream: splitmix32, as
+! MFC's s_prng_splitmix32 (hashed Weyl sequence: different seeds give
+! unrelated streams). state: the generator state, kept in the particle's
+! rprop slot PPICLF_R_SEED (an integer below 2**32, exact in a double);
+! advanced by n draws. u(1:n) in (0,1): 0 becomes the smallest positive
+! double, so log(u) in the Box-Muller transforms stays finite.
+      subroutine ppiclf_op_UniformRandom(state,u,n)
+!
+      implicit none
+!
+      integer*4 n
+      real*8 state, u(n)
+!
+      integer*4 k
+      integer*8 s, z, ppiclf_op_MulMod32
+      external ppiclf_op_MulMod32
+!
+      s = nint(state,8)
+      do k = 1,n
+         s = iand(s + 2654435769_8, 4294967295_8)
+         z = ppiclf_op_MulMod32(ieor(s,ishft(s,-16)), 2246822507_8)
+         z = ppiclf_op_MulMod32(ieor(z,ishft(z,-13)), 3266489909_8)
+         z = ieor(z,ishft(z,-16))
+         u(k) = max(dble(z)/4294967296.0d0, tiny(1.0d0))
+      enddo
+      state = dble(s)
+!
+      return
+      end
+!-----------------------------------------------------------------------
+! a*b mod 2**32 for a, b in [0, 2**32); b is split into 16-bit halves so
+! no intermediate product exceeds 2**49 (MFC's f_mulmod32)
+      integer*8 function ppiclf_op_MulMod32(a,b)
+!
+      implicit none
+!
+      integer*8 a, b
+!
+      ppiclf_op_MulMod32 = iand(a*iand(b,65535_8)
+     >   + iand(a*ishft(b,-16),65535_8)*65536_8, 4294967295_8)
+!
+      return
+      end

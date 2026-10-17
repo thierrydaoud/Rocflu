@@ -224,7 +224,8 @@
       cvec    = cvec / denum
 
       ! Generate  Gaussian Random Values
-      call RANDOM_NUMBER(UnifRnd)
+      call ppiclf_op_UniformRandom(ppiclf_rprop(PPICLF_R_SEED,i),
+     >                             UnifRnd,6)
 
       ! Box-Muller transform for generating two independent standard normal
       ! (Gaussian) random variables
