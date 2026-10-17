@@ -5,14 +5,15 @@
 
 Reads the input file the way Rocflu does and reports every problem it finds
 at once: unknown, removed or misplaced keys in the # PICL section, values out
-of range, combinations of particle models that do not work together, and
-files in the case directory that would stop the run. Exit status 0 when the
+of range, combinations of particle models that do not work together, the
+boundary conditions of <case>.bc (sections, keys, patches, boundary order),
+and files in the case directory that would stop the run. Exit status 0 when the
 case is fine, 1 when it is not.
 
 ./rocflu.sh run calls it before building, ./rocflu.sh validate on its own,
 and tests/run_tests.py on every case. The allowed values and defaults below
-mirror rocpicl/PICL_ReadPiclSection.F90 and libflu/RFLU_InitGlobal.F90: keep
-them in step when either changes.
+mirror rocpicl/PICL_ReadPiclSection.F90, libflu/RFLU_InitGlobal.F90 and
+modflu/RFLU_ModReadBcInputFile.F90: keep them in step when any changes.
 """
 
 import difflib
@@ -89,6 +90,85 @@ REMOVED_KEYS = {
     "OUTGRADGAS": "renamed to GRADGAS_WRT",
     "OUTMODEL": "renamed to MODEL_WRT",
 }
+
+# -- the .bc file (modflu/RFLU_ModReadBcInputFile.F90) -------------------------
+# Keys of each section and the whole numbers they may take (None: any number).
+# PATCH, NAME and DISTRIB are read for every section (ReadPatchSection).
+_BC_FLOW = {"KIND": (0, 1), "ORDER": (1, 2), "THRUSTFLAG": (0, 1)}
+_BC_WALL = dict(_BC_FLOW, CRECONST=(0, 1))
+BC_SECTIONS = {
+    "BC_OUTFLOW": dict(_BC_FLOW, TYPE=(0, 1, 2), PRESS=None, REFLECT=(0, 1),
+                       NSCBCK=None),
+    "BC_FARF": dict(_BC_FLOW, CORR=(0, 1), MACH=None, ATTACK=None, SLIP=None,
+                    PRESS=None, TEMP=None),
+    "BC_INFLOW_TOTANG": dict(_BC_FLOW, TYPE=(0, 1, 2), FIXED=(0, 1), PTOT=None,
+                             TTOT=None, BETAH=None, BETAV=None, MACH=None,
+                             REFLECT=(0, 1)),
+    "BC_INFLOW_VELTEMP": dict(_BC_FLOW, TYPE=(0, 1, 2), VELX=None, VELY=None,
+                              VELZ=None, TEMP=None, PRESS=None, REFLECT=(0, 1)),
+    "BC_INJECT": dict(_BC_WALL, MFRATE=None, TEMP=None),
+    "BC_NOSLIP_HFLUX": dict(_BC_WALL, HFLUX=None, PARTWALL=(0, 1)),
+    "BC_NOSLIP_TEMP": dict(_BC_WALL, TEMP=None, PARTWALL=(0, 1)),
+    "BC_SLIPW": dict(_BC_WALL, PARTWALL=(0, 1)),
+    "BC_PERIODIC": {"RELPATCH": None, "ANGLE": None, "AXIS": (1, 2, 3)},
+    "BC_SYMMETRY": {},
+    "BC_VIRTUAL": {},
+}
+
+# Sections Rocflu still reads under an old name
+BC_LEGACY_SECTIONS = {"BC_INFLOW": "BC_INFLOW_TOTANG", "BC_NOSLIP": "BC_NOSLIP_HFLUX"}
+
+# Keys Rocflu reads but that do nothing in this code (or turn on code that is gone)
+BC_DEAD_KEYS = {
+    "MVPATCH": "no longer used",
+    "SMGRID": "no longer used",
+    "COUPLED": "only for the GENX coupling, which is gone",
+    "MOVEDIR": "only for moving grids",
+    "STATS": "nothing reads it",
+    "BFLAG": "nothing reads it",
+    "FILE": "nothing reads it (DISTRIB 1 reads a file with a fixed name)",
+}
+
+
+def bc_required(section, values):
+    """Keys the section must have, given the values it has. The data values
+    are only needed when DISTRIB is 0 (DISTRIB 1 takes them from a file)."""
+    flow_type = values.get("TYPE")
+    switches = {"BC_OUTFLOW": ["TYPE"], "BC_FARF": ["CORR"],
+                "BC_INFLOW_TOTANG": ["TYPE"], "BC_INFLOW_VELTEMP": ["TYPE"],
+                "BC_PERIODIC": ["RELPATCH", "ANGLE", "AXIS"]}.get(section, [])
+    data = {"BC_FARF": ["MACH", "ATTACK", "SLIP", "PRESS", "TEMP"],
+            "BC_INFLOW_TOTANG": ["PTOT", "TTOT", "BETAH", "BETAV"],
+            "BC_INFLOW_VELTEMP": ["VELX", "VELY", "VELZ", "TEMP"],
+            "BC_INJECT": ["MFRATE", "TEMP"],
+            "BC_NOSLIP_HFLUX": ["HFLUX"], "BC_NOSLIP_TEMP": ["TEMP"]}.get(section, [])
+    # Supersonic and mixed inflow need one value more; subsonic outflow a pressure
+    if section == "BC_INFLOW_TOTANG" and flow_type not in (None, 1):
+        data = data + ["MACH"]
+    if section == "BC_INFLOW_VELTEMP" and flow_type not in (None, 1):
+        data = data + ["PRESS"]
+    if section == "BC_OUTFLOW" and flow_type not in (None, 0):
+        data = ["PRESS"]
+    return switches + (data if values.get("DISTRIB", 0) == 0 else [])
+
+
+def bc_header(text):
+    """Section name of a header line '# NAME' (as Rocflu compares it), or None."""
+    words = text.split()
+    if len(words) == 2 and text == "# " + words[1]:
+        return words[1]
+    return None
+
+
+def int_words(text, count):
+    """The first `count` whole numbers of a list-directed READ, or None."""
+    words = text.replace(",", " ").split()[:count]
+    try:
+        values = [int(w) for w in words]
+    except ValueError:
+        return None
+    return values if len(values) == count else None
+
 
 RK3 = 2   # RKSCHEME of the 3-stage Runge-Kutta scheme (RK_SCHEME_3_WRAY)
 RK4 = 1   # Rocflu's default (RK_SCHEME_4_CLASSICAL)
@@ -455,6 +535,263 @@ class Validator:
         self.prohibit(len(outside) > 5, "... %d particles outside the fluid domain in all"
                       % len(outside), None, "points.dat")
 
+    # -- the .bc file -----------------------------------------------------------------
+
+    def grid_patches(self, sections):
+        """(number of patches Rocflu uses, number of empty patches it removes)
+        of a CENTAUR ASCII grid (as grid_box), or None. After the vertices
+        (x, y, z, five per line, then their flags, ten per line) come the
+        tetrahedra, hexahedra, prisms and pyramids (count, then the vertices
+        and flags, ten per line), the number of patches and three rows of ten
+        per line: kind, last triangle and last quadrilateral of each patch.
+        Rocflu removes the patches without faces and renumbers the others
+        (RFLU_ReadGridCENTAURASCII)."""
+        number, source = simple_value(sections.get("FORMATS", []), "GRIDSRC")
+        grid = os.path.splitext(self.inp)[0] + ".hyb.asc"
+        if (source or 0) != 0 or not os.path.exists(grid):
+            return None
+
+        def rows(n, per_line):
+            return (n + per_line - 1) // per_line
+
+        try:
+            with open(grid) as f:
+                def skip(n):
+                    for _ in range(n):
+                        if not f.readline():
+                            raise ValueError("end of file")
+                f.readline()
+                nvert = int(f.readline())
+                skip(3 * rows(nvert, 5) + rows(nvert, 10))
+                for nodes in (4, 8, 6, 5):
+                    ncells = int(f.readline())
+                    skip((nodes + 1) * rows(ncells, 10) if ncells > 0 else 0)
+                npatches = int(f.readline())
+                info = []
+                for _ in range(3):
+                    row = []
+                    for _ in range(rows(npatches, 10)):
+                        line = f.readline().rstrip("\n")
+                        row += [int(line[i:i + 16]) for i in range(0, len(line), 16)
+                                if line[i:i + 16].strip()]
+                    info.append(row[:npatches])
+        except (OSError, ValueError):
+            return None
+        if npatches < 1 or len(info[2]) != npatches:
+            return None
+        ends = list(zip(info[1], info[2]))
+        empty = sum(1 for p in range(npatches)
+                    if ends[p] == (ends[p - 1] if p > 0 else (0, 0)))
+        return npatches - empty, empty
+
+    def read_bc_section(self, section, header, body, name):
+        """Keys of one section ({key: (line, value)}), with every line Rocflu
+        would ignore, misread or stop on reported. Rocflu (ReadPatchSection)
+        takes PATCH, NAME and DISTRIB, then any line that starts with a key."""
+        keys = BC_SECTIONS[section]
+        known = ["PATCH", "NAME", "DISTRIB"] + list(keys)
+        given = {}
+        for number, text in body:
+            stripped = text.strip()
+            if not stripped or stripped.startswith("!"):
+                continue
+            word = stripped.split()[0]
+            rest = stripped[len(word):]
+            if word in BC_DEAD_KEYS:
+                self.prohibit(True, "%s: %s; remove the line" % (word, BC_DEAD_KEYS[word]),
+                              number, name)
+                continue
+            if word not in known:
+                close = difflib.get_close_matches(word.upper(), known, n=1)
+                hint = " (did you mean %s?)" % close[0] if close else ""
+                self.prohibit(True, "unknown key %s in # %s%s; Rocflu ignores it"
+                              % (word, section, hint), number, name)
+                continue
+            if text[:1] in (" ", "\t"):
+                self.prohibit(True, "%s starts with a space; Rocflu only reads keys at "
+                              "the start of the line, so it ignores it" % word, number, name)
+                continue
+            if word in given:
+                self.prohibit(True, "%s is given twice in this section (line %d); Rocflu "
+                              "uses the last one" % (word, given[word][0]), number, name)
+            if word == "PATCH":
+                # READ(line(6:),*) first,last: one number stops Rocflu ('End of file')
+                value = int_words(rest, 2)
+                self.prohibit(value is None, "PATCH needs two whole numbers, the first and "
+                              "the last patch (PATCH 3 3 for one patch); with one, Rocflu "
+                              "stops with 'End of file'", number, name)
+                if value is not None:
+                    self.prohibit(not 1 <= value[0] <= value[1],
+                                  "PATCH %d %d: needs 1 <= first <= last" % tuple(value),
+                                  number, name)
+            elif word == "NAME":
+                value = rest.split()[0] if rest.split() else None
+                self.prohibit(value is None, "NAME has no name after it", number, name)
+            else:
+                value = read_number(rest)
+                allowed = (0, 1) if word == "DISTRIB" else keys[word]
+                if value is None:
+                    self.prohibit(True, "%s has no number after it" % word, number, name)
+                elif allowed is not None and value not in allowed:
+                    self.prohibit(True, "%s %g: must be %s" % (word, value, " or ".join(
+                        str(a) for a in allowed)), number, name)
+                    value = None
+            given[word] = (number, value)
+
+        values = {k: v for k, (_, v) in given.items()}
+        for key in ["PATCH", "NAME"] + bc_required(section, values):
+            self.prohibit(key not in given, "# %s needs %s" % (section, key), header, name)
+        return given
+
+    def read_bc(self, name):
+        """Sections of the .bc file as Rocflu reads them (RFLU_ReadBcInputFile):
+        [(section, header line, {key: (line, value)})]. Rocflu looks for lines
+        '# NAME'; each section ends at the next line that starts with '#',
+        which Rocflu reads as part of the section."""
+        with open(os.path.join(self.case_dir, name)) as f:
+            lines = f.read().split("\n")
+        sections = []
+        ended = False
+        i = 0
+        while i < len(lines):
+            text = lines[i].rstrip()
+            number = i + 1
+            i += 1
+            section = bc_header(text)
+            if section == "END":
+                ended = True
+                break
+            if section is None:
+                stripped = text.strip()
+                self.prohibit(text.startswith("#") and stripped != "#",
+                              "'%s' is not a section Rocflu knows (it needs '# NAME' with "
+                              "one space; write comments with '!')" % stripped, number, name)
+                self.prohibit(bool(stripped) and not stripped.startswith(("!", "#")),
+                              "'%s' is outside any section; Rocflu ignores it" % stripped,
+                              number, name)
+                continue
+            if section in BC_LEGACY_SECTIONS:
+                self.prohibit(True, "# %s is an old name: use # %s" % (
+                    section, BC_LEGACY_SECTIONS[section]), number, name)
+                section = BC_LEGACY_SECTIONS[section]
+            known = section in BC_SECTIONS
+            if not known:
+                close = difflib.get_close_matches(section, list(BC_SECTIONS), n=1)
+                self.prohibit(True, "unknown section # %s%s; Rocflu skips it" % (
+                    section, " (did you mean # %s?)" % close[0] if close else ""),
+                    number, name)
+            body = []
+            while i < len(lines) and not lines[i].startswith("#"):
+                body.append((i + 1, lines[i]))
+                i += 1
+            if not known:
+                continue
+            if i == len(lines):
+                self.prohibit(True, "# %s is not closed by a line '#'; Rocflu stops with "
+                              "a read error" % section, number, name)
+            else:
+                closing = lines[i].rstrip()
+                self.prohibit(bc_header(closing) is not None,
+                              "'%s' ends the section # %s above it, so Rocflu skips it: "
+                              "close # %s with a line '#'" % (closing, section, section),
+                              i + 1, name)
+                i += 1
+            sections.append((section, number, self.read_bc_section(section, number, body,
+                                                                     name)))
+        self.prohibit(not ended, "no '# END' line", None, name)
+        return sections
+
+    def check_bc(self, sections):
+        name = os.path.splitext(os.path.basename(self.inp))[0] + ".bc"
+        if not os.path.exists(os.path.join(self.case_dir, name)):
+            self.prohibit(True, "no %s (the boundary conditions) in %s" % (name, self.case_dir))
+            return
+        bc = self.read_bc(name)
+
+        # Patches: each one in exactly one section
+        owner = {}
+        for section, header, given in bc:
+            line, value = given.get("PATCH", (None, None))
+            if value is None or value[0] > value[1] or value[0] < 1:
+                continue
+            for p in range(value[0], value[1] + 1):
+                self.prohibit(p in owner, "patch %d is also in the section on line %d; "
+                              "Rocflu uses the later one" % (p, owner.get(p, (0,))[0]),
+                              line, name)
+                owner[p] = (line, section, given)
+        patches = self.grid_patches(sections)
+        if patches is not None:
+            npatches, empty = patches
+            note = (" (the grid file has %d, but Rocflu removes the %d without faces and "
+                    "renumbers the others)" % (npatches + empty, empty)) if empty else ""
+            beyond = sorted(p for p in owner if p > npatches)
+            self.prohibit(beyond, "patch %s: the grid has only %d patches%s" % (
+                beyond[0] if beyond else 0, npatches, note), owner.get(
+                    beyond[0] if beyond else 0, (None,))[0], name)
+        else:
+            npatches = max(owner) if owner else 0
+        missing = [p for p in range(1, npatches + 1) if p not in owner]
+        self.prohibit(missing, "no boundary condition for patch%s %s" % (
+            "es" if len(missing) > 1 else "", ", ".join(str(p) for p in missing)), None, name)
+
+        # Periodic patches come in pairs that point at each other
+        for p, (line, section, given) in sorted(owner.items()):
+            if section != "BC_PERIODIC" or "RELPATCH" not in given:
+                continue
+            first, last = given["PATCH"][1]
+            if first != last:
+                if p == first:
+                    self.prohibit(True, "# BC_PERIODIC takes one patch (PATCH %d %d): its "
+                                  "RELPATCH is a single patch" % (first, last), line, name)
+                continue
+            rel = given["RELPATCH"][1]
+            other = owner.get(int(rel)) if rel is not None and rel == int(rel) else None
+            if other is None or other[1] != "BC_PERIODIC":
+                self.prohibit(True, "RELPATCH %g: not a # BC_PERIODIC patch" % rel,
+                              given["RELPATCH"][0], name)
+                continue
+            back = other[2].get("RELPATCH", (None, None))[1]
+            self.prohibit(rel == p or back != p, "RELPATCH %d: patch %d must point back "
+                          "at patch %d (its RELPATCH is %s)" % (rel, rel, p, back),
+                          given["RELPATCH"][0], name)
+            axes = (given.get("AXIS", (0, None))[1], other[2].get("AXIS", (0, None))[1])
+            self.prohibit(None not in axes and axes[0] != axes[1],
+                          "AXIS %d: patch %d has AXIS %d; a periodic pair needs the same "
+                          "axis" % (axes[0], rel, axes[1]), given.get("AXIS", (None,))[0],
+                          name)
+            angles = (given.get("ANGLE", (0, None))[1], other[2].get("ANGLE", (0, None))[1])
+            self.prohibit(None not in angles and abs(angles[0] + angles[1]) > 1e-12,
+                          "ANGLE %g: patch %d has ANGLE %g; the two angles must add up to 0"
+                          % (angles[0], rel, angles[1]), given.get("ANGLE", (None,))[0],
+                          name)
+
+        # Boundary gradients exist only at first order (RFLU_CreateWtsBF2C):
+        # Navier-Stokes needs them on every patch, NSCBC (KIND 1) on its patches
+        _, model = simple_value(sections.get("FLOWMODEL", []), "MODEL")
+        _, orderbf = simple_value(sections.get("NUMERICS", []), "ORDERBF")
+        _, sdimensbf = simple_value(sections.get("NUMERICS", []), "SDIMENSBF")
+        orderbf = 1 if orderbf is None else abs(round(orderbf))
+        if sdimensbf is not None and abs(round(sdimensbf)) == 1:
+            return
+        for section, header, given in bc:
+            if section == "BC_VIRTUAL":
+                continue
+            kind = given.get("KIND", (None, 0))[1]
+            if model != 1 and kind != 1:
+                continue
+            why = ("MODEL 1 (Navier-Stokes) needs gradients on every boundary" if model == 1
+                   else "KIND 1 (NSCBC) needs boundary gradients")
+            if "ORDER" in BC_SECTIONS[section] and "ORDER" in given:
+                line, order = given["ORDER"]
+                self.prohibit(order == 2, "ORDER 2: %s, which Rocflu only has at first "
+                              "order: set ORDER 1" % why, line, name)
+            else:
+                self.prohibit(orderbf == 2, "# %s: %s, which Rocflu only has at first order, "
+                              "and the order of this patch is ORDERBF 2 (# NUMERICS in %s)%s"
+                              % (section, why, os.path.basename(self.inp),
+                                 ": set ORDER 1" if "ORDER" in BC_SECTIONS[section] else
+                                 ": set ORDERBF 1"), header, name)
+
     def run(self):
         try:
             with open(self.inp) as f:
@@ -466,6 +803,7 @@ class Validator:
         self.check_disabled(sections)
         self.check_timestep(sections)
         self.check_post(sections)
+        self.check_bc(sections)
         picl = self.check_picl(sections)
         if picl is not None and picl["USED"] == 1:
             self.check_with_particles(sections)

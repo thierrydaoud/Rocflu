@@ -19,10 +19,12 @@ sys.path.insert(0, TESTS_DIR)
 sys.path.insert(0, os.path.join(TESTS_DIR, "..", "utilities", "scripts"))
 
 import case_validator                          # noqa: E402
-from rocpicl_tests.case import edit_inp        # noqa: E402
+from rocpicl_tests.case import bc_text, edit_inp   # noqa: E402
 
 with open(os.path.join(TESTS_DIR, "templates", "rectshktb.inp")) as f:
     TEMPLATE = f.read()
+with open(os.path.join(TESTS_DIR, "templates", "rectshktb.bc")) as f:
+    TEMPLATE_BC = f.read()
 
 # Two particles (x y z vx vy vz dp), one with an initial velocity
 POINTS = "! test\n2\n0.001 0.002 0.003 0 0 0 1e-4\n0.004 0.005 0.006 1.0 0.0 0.0 1e-4\n"
@@ -39,6 +41,21 @@ def write_box_grid(path, lo, hi):
                 f.write("".join("%16.9E" % v for v in values[i:i + 5]) + "\n")
 
 
+def write_patch_grid(path, faces):
+    """A CENTAUR ASCII grid with no cells and len(faces) patches; faces[i] is
+    the number of triangles of patch i + 1 (0: an empty patch)."""
+    def block(values):
+        return "".join("".join("%16d" % v for v in values[i:i + 10]) + "\n"
+                       for i in range(0, len(values), 10))
+    ends = [sum(faces[:i + 1]) for i in range(len(faces))]
+    with open(path, "w") as f:
+        f.write("patches\n%16d\n" % 1)
+        f.write(("%16.9E\n" % 0.0) * 3 + block([0]))
+        f.write(("%16d\n" % 0) * 4)
+        f.write("%16d\n" % len(faces))
+        f.write(block([1] * len(faces)) + block(ends) + block([0] * len(faces)))
+
+
 class CaseValidatorTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
@@ -47,16 +64,22 @@ class CaseValidatorTest(unittest.TestCase):
         shutil.rmtree(self.dir)
 
     def errors(self, overrides=None, text=None, files=("points.dat",), points=POINTS,
-               grid=None):
+               grid=None, bc=TEMPLATE_BC, patches=None):
         """Errors for the template with {(SECTION, KEY): value} changes, or
         for the given input text, with the given files in the case directory
         (points.dat holds `points`; a grid file is written when grid is a
-        (min, max) box)."""
+        (min, max) box, or with the patches of write_patch_grid; the .bc file
+        holds `bc`, none when it is None)."""
         if text is None:
             text = edit_inp(TEMPLATE, overrides or {})
         inp = os.path.join(self.dir, "case.inp")
         with open(inp, "w") as f:
             f.write(text)
+        if bc is not None:
+            with open(os.path.join(self.dir, "case.bc"), "w") as f:
+                f.write(bc)
+        if patches:
+            write_patch_grid(os.path.join(self.dir, "case.hyb.asc"), patches)
         for name in files:
             with open(os.path.join(self.dir, name), "w") as f:
                 f.write(points if name == "points.dat" else "")
@@ -230,6 +253,108 @@ class CaseValidatorTest(unittest.TestCase):
         self.assertEqual(self.errors({("TIMESTEP", "START_STEP"): -1}), [])
         self.assertError(self.errors({("TIMESTEP", "START_STEP"): -2}), "START_STEP")
         self.assertError(self.errors({("TIMESTEP", "START_STEP"): 1.5}), "START_STEP")
+
+    # -- the .bc file ----------------------------------------------------------------
+
+    def bc_errors(self, old, new, **kwargs):
+        """Errors of the template .bc with `old` replaced by `new`."""
+        self.assertIn(old, TEMPLATE_BC)
+        return [e for e in self.errors(bc=TEMPLATE_BC.replace(old, new, 1), **kwargs)
+                if "case.bc" in e]
+
+    def test_bc_template_and_suite_files_are_fine(self):
+        for kind in ("shocktube", "periodic", "closed", "partwall"):
+            errors = self.errors(bc=bc_text(kind), patches=[1] * 6)
+            self.assertEqual([e for e in errors if "case.bc" in e], [], kind)
+
+    def test_bc_file_missing(self):
+        self.assertError(self.errors(bc=None), "no case.bc")
+
+    def test_patch_needs_two_values(self):
+        self.assertEqual(self.bc_errors("PATCH      2 2", "PATCH      2 2 ! outflow"), [])
+        for line in ("PATCH      2", "PATCH      2 ! outflow"):
+            self.assertError(self.bc_errors("PATCH      2 2", line), "PATCH needs two",
+                             "PATCH 3 3")
+        self.assertError(self.bc_errors("PATCH      2 2", "PATCH      2 1"), "first <= last")
+
+    def test_bc_keys(self):
+        self.assertError(self.bc_errors("NSCBCK     0.0", "PRESSURE 1e5"),
+                         "unknown key PRESSURE", "PRESS")
+        self.assertError(self.bc_errors("NSCBCK     0.0", "MVPATCH 0"), "MVPATCH", "remove")
+        self.assertError(self.bc_errors("NSCBCK     0.0", "COUPLED 2"), "COUPLED", "GENX")
+        self.assertError(self.bc_errors("NSCBCK     0.0", "  NSCBCK 0.0"), "starts with a space")
+        self.assertError(self.bc_errors("NSCBCK     0.0", "NSCBCK 0.0\nNSCBCK 0.1"),
+                         "NSCBCK is given twice")
+        self.assertError(self.bc_errors("NSCBCK     0.0", "NSCBCK"), "NSCBCK has no number")
+        # A key of another section
+        self.assertError(self.bc_errors("NSCBCK     0.0", "PARTWALL 1"),
+                         "unknown key PARTWALL in # BC_OUTFLOW")
+
+    def test_bc_values(self):
+        self.assertError(self.bc_errors("KIND       1", "KIND       2"), "KIND 2", "0 or 1")
+        self.assertError(self.bc_errors("REFLECT    0\nTHRUST", "REFLECT    3\nTHRUST"), "REFLECT 3")
+        self.assertError(self.bc_errors("TYPE       0", "TYPE       4"), "TYPE 4", "0 or 1 or 2")
+        self.assertError(self.bc_errors("ORDER      1", "ORDER      3"), "ORDER 3")
+
+    def test_bc_required_keys(self):
+        self.assertError(self.bc_errors("NAME       Absorbing_Wall\n", ""), "needs NAME")
+        # Subsonic outflow needs the pressure
+        self.assertError(self.bc_errors("TYPE       0", "TYPE       1"), "BC_OUTFLOW needs PRESS")
+        self.assertError(self.bc_errors("TEMP            348", "!TEMP            348"),
+                         "BC_INFLOW_VELTEMP needs TEMP")
+        # ... unless the values come from a file
+        self.assertEqual(self.bc_errors("TEMP            348", "DISTRIB 1\n!TEMP 348"), [])
+
+    def test_bc_sections(self):
+        self.assertError(self.bc_errors("# BC_OUTFLOW", "# BC_OUTFLO"),
+                         "unknown section # BC_OUTFLO", "BC_OUTFLOW")
+        self.assertError(self.bc_errors("# BC_OUTFLOW", "#BC_OUTFLOW"), "one space")
+        self.assertError(self.bc_errors("# BC_OUTFLOW", "# BC_INFLOW"), "old name",
+                         "BC_INFLOW_TOTANG")
+        self.assertError(self.bc_errors("# END", ""), "no '# END'")
+        self.assertError(self.bc_errors("# BC_OUTFLOW", "PATCH 2 2\n# BC_OUTFLOW"),
+                         "outside any section")
+
+    def test_section_not_closed(self):
+        # The header of the next section closes the one above, which is skipped
+        errors = self.bc_errors("REFLECT     0\n#\n", "REFLECT     0\n")
+        self.assertError(errors, "# BC_OUTFLOW", "ends the section # BC_INFLOW_VELTEMP")
+
+    def test_patches_covered_once(self):
+        self.assertError(self.bc_errors("PATCH      2 2", "PATCH      1 2"),
+                         "patch 1 is also in the section")
+        self.assertError(self.bc_errors("PATCH      2 2", "PATCH      7 7"),
+                         "no boundary condition for patch 2")
+        # Patch numbers from the grid
+        self.assertEqual(self.bc_errors("PATCH      2 2", "PATCH      2 2", patches=[1] * 6), [])
+        self.assertError(self.bc_errors("PATCH      2 2", "PATCH      2 2", patches=[1] * 7),
+                         "no boundary condition for patch 7")
+        self.assertError(self.bc_errors("PATCH      2 2", "PATCH      2 2",
+                                        patches=[1, 1, 0, 1, 1, 1]),
+                         "only 5 patches", "removes the 1 without faces")
+
+    def test_periodic_pairs(self):
+        self.assertError(self.bc_errors("RELPATCH 4 4", "RELPATCH 5 5"),
+                         "patch 5 must point back at patch 3")
+        self.assertError(self.bc_errors("RELPATCH 4 4\nAXIS     2", "RELPATCH 4 4\nAXIS     3"),
+                         "same axis")
+        self.assertError(self.bc_errors("RELPATCH 4 4\nAXIS     2\nANGLE    0.0",
+                                        "RELPATCH 4 4\nAXIS     2\nANGLE    5.0"), "add up to 0")
+        self.assertError(self.bc_errors("RELPATCH 4 4", "RELPATCH 2 2"),
+                         "RELPATCH 2", "not a # BC_PERIODIC patch")
+
+    def test_boundary_gradients_only_at_first_order(self):
+        # NSCBC outflow (KIND 1): ORDER 2, or ORDERBF 2 without ORDER, crashes Rocflu
+        self.assertError(self.bc_errors("ORDER      1", "ORDER      2"), "ORDER 2", "KIND 1")
+        numerics = TEMPLATE.replace("# NUMERICS", "# NUMERICS\nORDERBF 2", 1)
+        self.assertError(self.bc_errors("ORDER      1\n", "", text=numerics),
+                         "# BC_OUTFLOW", "ORDERBF 2")
+        self.assertEqual(self.bc_errors("ORDER      1", "ORDER      1", text=numerics), [])
+        # ... unless boundary stencils are 1D
+        sdim = numerics.replace("ORDERBF 2", "ORDERBF 2\nSDIMENSBF 1")
+        self.assertEqual(self.bc_errors("ORDER      1", "ORDER      2", text=sdim), [])
+        # Navier-Stokes needs them everywhere: the inflow's ORDER 2 too
+        self.assertError(self.errors({("FLOWMODEL", "MODEL"): 1}), "ORDER 2", "Navier-Stokes")
 
 
 if __name__ == "__main__":
