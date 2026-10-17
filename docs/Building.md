@@ -202,7 +202,7 @@ with particles, `points.dat`. `run` then:
 3. **Writes `<case>.sbatch`** in the case directory and **submits it**: the job runs
    only `rflump`, with `srun` on N nodes x n ranks per node. The solver's output goes to
    `<case>.<job id>.out`: a header box from the job script (start time, partition,
-   account, walltime, nodes and ranks, job ID, build and commit, modules), the Setup box,
+   account, QOS, walltime, nodes and ranks, job ID, build and commit, modules), the Setup box,
    one progress line per `PRNTIME` (percent done, t, dt, step, time per step, ETA) and a
    footer box (total time, peak memory against the Slurm request, end time). `rflump -v 2`
    adds the detailed messages of every stage.
@@ -213,6 +213,7 @@ with particles, `points.dat`. `run` then:
 | `-n, --tasks-per-node N` | MPI ranks **per node**; the case is split into N x n regions | 1 |
 | `-p, --partition P` | Slurm partition | `hpg-default` |
 | `-a, --account A` | Slurm account | `bala1s` |
+| `-q, --qos Q` | `primary`: the account's QOS (`bala1s`); `burst`: its burst QOS (`bala1s-b`) | `primary` |
 | `-w, --walltime T` | wall time `HH:MM:SS` | `01:00:00` |
 | `--mem M` | memory per node, e.g. `64gb` | 2 GB per rank (`--mem-per-cpu=2gb`) |
 | `-@, --email A` | send all Slurm notifications (start, end, failure) to A | none |
@@ -306,7 +307,7 @@ after changing which fields to write (the `*_WRT` keys of `# POST` for the fluid
 |---|---|---|
 | `-s, --steps S` | `new`, `all`, `last`, or step numbers `N,M,...` | `new` |
 | `-e, --engine E` | `here`: run on this node; `batch`: submit `<case>.post.sbatch` (one task) | `here` |
-| `-p`, `-a`, `-w`, `--mem` | partition, account, wall time, memory of the batch job | `hpg-default`, `bala1s`, `00:30:00`, `8gb` |
+| `-p`, `-a`, `-q`, `-w`, `--mem` | partition, account, QOS (`primary` or `burst`), wall time, memory of the batch job | `hpg-default`, `bala1s`, `primary`, `00:30:00`, `8gb` |
 | `--debug`, `-j N` | build options, as for `run` | |
 
 ## Using CMake directly

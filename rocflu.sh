@@ -358,6 +358,9 @@ ${HEADING}Job:${PLAIN}
                         into N x n regions, one per rank
   ${OPTION}-p, --partition${PLAIN} P     Slurm partition ${DEFAULT}(default: hpg-default)${PLAIN}
   ${OPTION}-a, --account${PLAIN} A       Slurm account ${DEFAULT}(default: bala1s)${PLAIN}
+  ${OPTION}-q, --qos${PLAIN} Q           primary: the account's QOS (bala1s)
+                        burst: its burst QOS (bala1s-b)
+                        ${DEFAULT}(default: primary)${PLAIN}
   ${OPTION}-w, --walltime${PLAIN} T      wall time, HH:MM:SS ${DEFAULT}(default: 01:00:00)${PLAIN}
   ${OPTION}--mem${PLAIN} M               memory per node, e.g. 64gb
                         ${DEFAULT}(default: 2gb per rank, --mem-per-cpu=2gb)${PLAIN}
@@ -389,6 +392,15 @@ build used by ./rocflu.sh test).
 EOF
 }
 
+# Slurm QOS of -q: primary is the account's own QOS, burst its burst QOS
+qos_name() {   # <primary|burst> <account>
+  case "$1" in
+    primary) echo "$2" ;;
+    burst)   echo "$2-b" ;;
+    *) fail "unknown QOS $1 (primary or burst)" ;;
+  esac
+}
+
 # Build for a case: a quick configure finds the particle slot groups its
 # input needs; the build is named after them. Sets name and bin.
 build_for_case() {   # <case.inp> <debug 0|1> <jobs>
@@ -413,7 +425,7 @@ build_for_case() {   # <case.inp> <debug 0|1> <jobs>
 }
 
 cmd_run() {
-  local inp="" nodes=1 tasks=1 partition=hpg-default account=bala1s
+  local inp="" nodes=1 tasks=1 partition=hpg-default account=bala1s qos=primary
   local walltime=01:00:00 mem="" email="" targets=() dry=0 debug=0 jobs=16
   local engine=batch post=0
   while [ $# -gt 0 ]; do
@@ -422,6 +434,7 @@ cmd_run() {
       -n|--tasks-per-node) tasks="$2"; shift ;;
       -p|--partition)      partition="$2"; shift ;;
       -a|--account)        account="$2"; shift ;;
+      -q|--qos)            qos="$2"; shift ;;
       -w|--walltime)       walltime="$2"; shift ;;
       --mem)               mem="$2"; shift ;;
       -@|--email)          email="$2"; shift ;;
@@ -441,6 +454,8 @@ cmd_run() {
     shift
   done
   [ -n "$inp" ] || { usage_run; fail "no case given"; }
+  local slurm_qos
+  slurm_qos=$(qos_name "$qos" "$account") || exit 1
   [ -f "$inp" ] || fail "no file $inp"
   case "$inp" in *.inp) ;; *) fail "$inp: the case file must end in .inp" ;; esac
   [[ "$nodes" =~ ^[1-9][0-9]*$ ]] || fail "-N must be a positive integer"
@@ -533,6 +548,7 @@ cmd_run() {
     echo "# Written by rocflu.sh run on $(date '+%Y-%m-%d %H:%M'): $case_name, $nodes node(s) x $tasks rank(s)"
     echo "#SBATCH --job-name=$case_name"
     echo "#SBATCH --account=$account"
+    echo "#SBATCH --qos=$slurm_qos"
     echo "#SBATCH --partition=$partition"
     echo "#SBATCH --nodes=$nodes"
     echo "#SBATCH --ntasks-per-node=$tasks"
@@ -562,9 +578,10 @@ printf '| %-105.105s |\n' "$title"
 rule
 row "Start-time" "\$(date +%T)"                    "Start-date" "\$(date +%F)"
 row "Partition"  "\${SLURM_JOB_PARTITION:-N/A}"    "Walltime"   "$walltime"
-row "Account"    "\${SLURM_JOB_ACCOUNT:-N/A}"      "Nodes"      "\${SLURM_JOB_NUM_NODES:-1} (\${SLURM_NTASKS:-$nranks} ranks)"
+row "Account"    "\${SLURM_JOB_ACCOUNT:-N/A}"      "QOS"        "\${SLURM_JOB_QOS:-$slurm_qos} ($qos)"
+row "Nodes"      "\${SLURM_JOB_NUM_NODES:-1} (\${SLURM_NTASKS:-$nranks} ranks)" "Engine" "$engine"
 row "Job Name"   "\${SLURM_JOB_NAME:-$case_name}"  "Job ID"     "\${SLURM_JOB_ID:-N/A}"
-row "Engine"     "$engine"                         "Email"      "${email:-N/A}"
+wide "Email"     "${email:-N/A}"
 wide "Build"     "$build"
 wide "Modules"   "\$modules"
 rule
@@ -622,6 +639,8 @@ ${HEADING}Where:${PLAIN}
                         batch: submit a one-task Slurm job (<case>.post.sbatch)
   ${OPTION}-p, --partition${PLAIN} P     Slurm partition for batch ${DEFAULT}(default: hpg-default)${PLAIN}
   ${OPTION}-a, --account${PLAIN} A       Slurm account for batch ${DEFAULT}(default: bala1s)${PLAIN}
+  ${OPTION}-q, --qos${PLAIN} Q           for batch: primary (the account's QOS, bala1s) or
+                        burst (bala1s-b) ${DEFAULT}(default: primary)${PLAIN}
   ${OPTION}-w, --walltime${PLAIN} T      wall time for batch, HH:MM:SS ${DEFAULT}(default: 00:30:00)${PLAIN}
   ${OPTION}--mem${PLAIN} M               memory for batch, e.g. 16gb ${DEFAULT}(default: 8gb)${PLAIN}
 ${HEADING}Build:${PLAIN}
@@ -631,7 +650,7 @@ EOF
 }
 
 cmd_post() {
-  local inp="" steps=new engine=here partition=hpg-default account=bala1s
+  local inp="" steps=new engine=here partition=hpg-default account=bala1s qos=primary
   local walltime=00:30:00 mem=8gb debug=0 jobs=16
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -639,6 +658,7 @@ cmd_post() {
       -e|--engine)    engine="$2"; shift ;;
       -p|--partition) partition="$2"; shift ;;
       -a|--account)   account="$2"; shift ;;
+      -q|--qos)       qos="$2"; shift ;;
       -w|--walltime)  walltime="$2"; shift ;;
       --mem)          mem="$2"; shift ;;
       --debug)        debug=1 ;;
@@ -650,6 +670,8 @@ cmd_post() {
     shift
   done
   [ -n "$inp" ] || { usage_post; fail "no case given"; }
+  local slurm_qos
+  slurm_qos=$(qos_name "$qos" "$account") || exit 1
   [ -f "$inp" ] || fail "no file $inp"
   case "$inp" in *.inp) ;; *) fail "$inp: the case file must end in .inp" ;; esac
   case "$engine" in here|batch) ;; *) fail "unknown engine $engine (here or batch)" ;; esac
@@ -680,6 +702,7 @@ cmd_post() {
     echo "# Written by rocflu.sh post on $(date '+%Y-%m-%d %H:%M'): $case_name, steps $steps"
     echo "#SBATCH --job-name=$case_name-post"
     echo "#SBATCH --account=$account"
+    echo "#SBATCH --qos=$slurm_qos"
     echo "#SBATCH --partition=$partition"
     echo "#SBATCH --ntasks=1"
     echo "#SBATCH --mem=$mem"
