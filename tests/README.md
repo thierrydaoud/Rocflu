@@ -18,7 +18,7 @@ There are two kinds of test:
 
 Particle fields are read by name (`vp_x`, `rho_g`, `dp`, ...; see
 `libpicl/user_files/ppiclf_user_OutputFields.f`). The template input
-`templates/rectshktb.inp` turns on `OUTPARTICLE`, `OUTGAS` and `OUTGRADGAS`, because the
+`templates/rectshktb.inp` turns on `PARTICLE_WRT`, `GAS_WRT` and `GRADGAS_WRT`, because the
 goldens and checks use the particle temperature, spin, density and volume and the gas
 values at the particles; keep them on. Gas gradients are written only when a model that is
 on needs them (`ppiclf_user_Layout`), so cases without pressure-gradient, added-mass,
@@ -158,7 +158,7 @@ by particle.
 | `projection_shape` | One particle's volume fraction is centred on it (within 0.06 cell) and spread 0.35-0.50 cell lengths in each direction |
 | `collision_pairs` | Overlapping pairs pushed apart by collisions alone conserve each pair's momentum, separate, and all move like the first pair, whether the partner is real, a ghost from another rank, or a periodic image |
 | `binary_collisions` | Colliding pairs (ids 2k−1, 2k) conserve momentum (1e-5) and angular momentum about their centre of mass (0.5%), and separate; head-on pairs rebound with the input `EREST` (within 1%) |
-| `fluctuations_active` | Every particle feels a nonzero quasi-steady force fluctuation at the end (`Ffluct_*`, written with `OUTMODEL 1`), so the noise is really tested |
+| `fluctuations_active` | Every particle feels a nonzero quasi-steady force fluctuation at the end (`Ffluct_*`, written with `MODEL_WRT 1`), so the noise is really tested |
 | `wall_collisions` | Every particle that reaches a wall of the box rebounds from it and ends inside the box, clear of the wall; one that hits a single wall rebounds with the input `EREST` (within 0.035) |
 | `same_as` | Particles match the same case on a different number of ranks (all particle fields, or only those named by the case's `same_as_fields`) |
 
@@ -210,7 +210,7 @@ walls. The gas is uniform (1.2 kg/m³, 101 325 Pa) unless stated otherwise.
 | Case | Ranks | Setup | Checks | What it guards |
 |---|---|---|---|---|
 | `box/momentum-exchange` | 1, 2 | Periodic; gas at 50 m/s through 40 particles (20 µm) at rest, two-way | `mass`, `momentum`, `energy`, `same_as` | The gas loses exactly the momentum and energy the particles gain |
-| `box/qs-fluctuations` | 1, 2 | Periodic; gas at 50 m/s through 40 particles (20 µm) with a ±1 m/s velocity spread, `QSFLUCT 2`, `OUTMODEL 1`, `NEIGHBORWIDTH 3e-3` | `particles_moved`, `fluctuations_active`, `same_as` | Each particle draws from its own random stream: 1 and 2 ranks agree (96b28a4; one generator per rank failed this) |
+| `box/qs-fluctuations` | 1, 2 | Periodic; gas at 50 m/s through 40 particles (20 µm) with a ±1 m/s velocity spread, `QSFLUCT 2`, `MODEL_WRT 1`, `NEIGHBORWIDTH 3e-3` | `particles_moved`, `fluctuations_active`, `same_as` | Each particle draws from its own random stream: 1 and 2 ranks agree (96b28a4; one generator per rank failed this) |
 | `box/quiescent-cloud` | 2, 4 | Periodic; 30 fixed particles (300 µm, uneven) in gas at rest, `VELOCITYMODEL 0`, `PGFORCE 1` | `quiescent`, `mass` | Stale virtual cells at rank borders set the gas moving (e3ed370) |
 | `box/resting-heat-exchange` | 1 | Periodic; particles at rest at 296.4 K in gas at rest at 294.2 K, `HEATTRANSFER 2` | `particles_heat_exchange`, `mass`, `energy` | Heat transfer at zero slip used to be skipped (f0ae123) |
 | `box/linear-interp` | 1, 2, 4 | Closed; gas at rest with density linear in x, y, z; 40 tracers (1 µm) | `linear_interp`, `mass` | Interpolation is exact for a linear field (89f9661) |

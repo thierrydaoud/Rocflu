@@ -115,10 +115,10 @@ PERIODICX        0      ! 0 = turn off ; 1 = turn on
 PERIODICY        1      ! 0 = turn off ; 1 = turn on
 PERIODICZ        1      ! 0 = turn off ; 1 = turn on
 SUBBIN           0 ! 0 = Zwick subbin; 1 = Avery subbin
-OUTPARTICLE      1 ! particle files: also Tp, spin, rhop, volp
-OUTGAS           1 ! particle files: also gas density, velocity, sound speed, T at the particle
-OUTGRADGAS       1 ! particle files: also gas gradients at the particle
-OUTMODEL         0 ! particle files: also the states/diagnostics of the models that are on
+PARTICLE_WRT      1 ! particle files: also Tp, spin, rhop, volp
+GAS_WRT           1 ! particle files: also gas density, velocity, sound speed, T at the particle
+GRADGAS_WRT       1 ! particle files: also gas gradients at the particle
+MODEL_WRT         0 ! particle files: also the states/diagnostics of the models that are on
 #
 
 # POST 

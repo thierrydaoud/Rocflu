@@ -386,7 +386,7 @@ c--- Now Rotate the matrix, Rsg = Q . R . Q^T
   
       Rsg = matmul(Q, matmul(R,Qt))
 
-! Diagnostics: built only with OUTMODEL (ppiclf_slots.txt, ptdiag)
+! Diagnostics: built only with MODEL_WRT (ppiclf_slots.txt, ptdiag)
 #if PPICLF_R_RTildePar > 0
       ppiclf_rprop(PPICLF_R_RTildePar, i)  = Rmean_par*rhof
       ppiclf_rprop(PPICLF_R_RTildePerp, i) = Rmean_perp*rhof

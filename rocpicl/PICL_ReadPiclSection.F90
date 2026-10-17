@@ -128,10 +128,10 @@ SUBROUTINE PICL_ReadPiclSection( global )
   keys(23)  = 'VUSTEPS'
 ! Optional groups of fields in the particle files (ppiclf_user_OutputFields).
 ! No key may be the start of another: ReadSection matches the start of a line.
-  keys(24)  = 'OUTPARTICLE'
-  keys(25)  = 'OUTGAS'
-  keys(26)  = 'OUTGRADGAS'
-  keys(27)  = 'OUTMODEL'
+  keys(24)  = 'PARTICLE_WRT'
+  keys(25)  = 'GAS_WRT'
+  keys(26)  = 'GRADGAS_WRT'
+  keys(27)  = 'MODEL_WRT'
 ! Particle material, the same for every particle
   keys(28)  = 'DENSITY'
   keys(29)  = 'SPECIFICHEAT'

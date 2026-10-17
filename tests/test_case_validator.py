@@ -93,7 +93,8 @@ class CaseValidatorTest(unittest.TestCase):
         for key, words in (("FILTERWIDTH 0.002", ("FILTERWIDTH", "remove")),
                            ("STATIONARY 1", ("VELOCITYMODEL 0",)),
                            ("REACTIVE 0", ("burn-rate",)),
-                           ("ANGULARPERIODIC 0", ("angular",))):
+                           ("ANGULARPERIODIC 0", ("angular",)),
+                           ("OUTGAS 1", ("GAS_WRT",))):
             text = TEMPLATE.replace("# PICL\n", "# PICL\n%s\n" % key)
             self.assertError(self.errors(text=text), *words)
 

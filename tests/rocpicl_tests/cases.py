@@ -154,7 +154,7 @@ for n in (1, 2):
                     "the force fluctuation must be on and not depend on the rank count",
         nranks=n, grid=BOX, bc="periodic",
         inp={**uniform_gas(50.0), **TWO_WAY, ("PICL", "QSFLUCT"): 2,
-             ("PICL", "OUTMODEL"): 1, ("PICL", "NEIGHBORWIDTH"): "3.0e-3"},
+             ("PICL", "MODEL_WRT"): 1, ("PICL", "NEIGHBORWIDTH"): "3.0e-3"},
         particles=with_velocity_spread(cloud(40, 2.0e-5)),
         checks=["particles_moved", "fluctuations_active"],
         same_as=None if n == 1 else "box/qs-fluctuations/np1",

@@ -8,13 +8,13 @@
 ! A slot that is not listed here is still computed and used; it is
 ! only not written. Groups beyond the default are switched on in the
 ! PICL section of the input file:
-!   OUTPARTICLE 1 : temperature, spin, density and volume of the particle
-!   OUTGAS      1 : gas density, velocity, sound speed and temperature
+!   PARTICLE_WRT 1 : temperature, spin, density and volume of the particle
+!   GAS_WRT      1 : gas density, velocity, sound speed and temperature
 !                   interpolated to the particle
-!   OUTGRADGAS  1 : gas gradients and derivatives interpolated to the
+!   GRADGAS_WRT  1 : gas gradients and derivatives interpolated to the
 !                   particle (for checking the interpolation), those
 !                   that a model that is on needs
-!   OUTMODEL    1 : states and diagnostics of the models that are on
+!   MODEL_WRT    1 : states and diagnostics of the models that are on
 !
 ! Called once, before the first particle file is written.
 !
@@ -43,7 +43,7 @@
       call ppiclf_io_AddOutputField(PPICLF_OUT_TAG, 2, 'id_rank')
       call ppiclf_io_AddOutputField(PPICLF_OUT_TAG, 3, 'id_cycle')
 !
-! OUTPARTICLE
+! PARTICLE_WRT
 !
       if (out_particle_flag .ge. 1) then
          call ppiclf_io_AddOutputField(PPICLF_OUT_Y, PPICLF_JT, 'Tp')
@@ -59,7 +59,7 @@
      >                                 PPICLF_R_JVOLP, 'volp')
       endif
 !
-! OUTGAS
+! GAS_WRT
 !
       if (out_gas_flag .ge. 1) then
          call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
@@ -76,7 +76,7 @@
      >                                 PPICLF_R_JT, 'T_g')
       endif
 !
-! OUTGRADGAS
+! GRADGAS_WRT
 !
       ! only the fields this run interpolates (ppiclf_user_Layout)
       if (out_gradgas_flag .ge. 1) then
@@ -111,7 +111,7 @@
          call ppiclf_user_AddGasField(PPICLF_R_JSDOZ, 'DvortDt_g_z')
       endif
 !
-! OUTMODEL: only the models that are on
+! MODEL_WRT: only the models that are on
 !
       if (out_model_flag .ge. 1) then
          if (qs_fluct_flag .ge. 1) then

@@ -365,7 +365,7 @@ physics that needs them, with a rule for each optional group:
 ```
 rule   spin     COLLISIONS >= 2
 rule   qsfluct  QSFLUCT >= 1 or PSEUDOTURB >= 1
-rule   ptdiag   PSEUDOTURB >= 1 and OUTMODEL >= 1
+rule   ptdiag   PSEUDOTURB >= 1 and MODEL_WRT >= 1
 ...
 y      core     JX JY JZ JVX JVY JVZ JT
 y      spin     JOX JOY JOZ

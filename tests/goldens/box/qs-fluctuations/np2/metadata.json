@@ -1,5 +1,5 @@
 {
- "created": "2026-10-17T14:48:51",
+ "created": "2026-10-17T15:40:14",
  "host": "login10.ufhpc",
  "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocpicl_Dec23_dump/build/install/release/bin",
  "git": {
@@ -14,6 +14,7 @@
    "libpicl/source/ppiclf_op.f",
    "libpicl/source/ppiclf_solve.f",
    "libpicl/user_files/ppiclf_user_Fluctuations.f",
+   "libpicl/user_files/ppiclf_user_OutputFields.f",
    "libpicl/user_files/ppiclf_user_PseudoTurbulence.f",
    "modfloflu/ModGlobal.F90",
    "modflu/RFLU_ModNewtonKrylov.F90",
@@ -25,6 +26,7 @@
    "rocflu/RFLU_TimeStepping.F90",
    "rocpicl/PICL_InitSolver.F90",
    "rocpicl/PICL_ModInterfaces.F90",
+   "rocpicl/PICL_ReadPiclSection.F90",
    "simulation/rflump.F90",
    "utilities/init/rfluinit.F90"
   ]

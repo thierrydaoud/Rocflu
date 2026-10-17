@@ -16,7 +16,7 @@ set(PPICLF_RULE_KEYS
   HEATTRANSFER    global%piclHeatTransferFlag
   QSFLUCT         global%piclQSFluctFlag
   PSEUDOTURB      global%piclPseudoTurbFlag
-  OUTMODEL        global%piclOutModel
+  MODEL_WRT        global%piclOutModel
   AMFORCE         global%piclAmFlag
   PGFORCE         global%piclPgFlag
   VISCOUSUNSTEADY global%piclViscousUnsteady

@@ -29,7 +29,7 @@
 rule   spin     COLLISIONS >= 2
 rule   qsfluct  QSFLUCT >= 1 or PSEUDOTURB >= 1
 rule   pt       PSEUDOTURB >= 1
-rule   ptdiag   PSEUDOTURB >= 1 and OUTMODEL >= 1
+rule   ptdiag   PSEUDOTURB >= 1 and MODEL_WRT >= 1
 rule   am2      AMFORCE == 2
 rule   dpdx     PGFORCE == 1 or AMFORCE == 1
 rule   amvu     AMFORCE >= 1 or VISCOUSUNSTEADY >= 1

@@ -28,7 +28,7 @@ PICL_KEYS = [
     "VELOCITYMODEL", "USED", "QSFLUCT", "TEMP", "DU HEATTRANSFER",
     "NEIGHBORWIDTH", "KSP", "EREST", "QSFLUCTFILT", "QSFLUCTFILTADAPT",
     "VISCOUSUNSTEADY", "PERIODICX", "PERIODICY", "PERIODICZ", "SUBBIN",
-    "PSEUDOTURB", "VUSTEPS", "OUTPARTICLE", "OUTGAS", "OUTGRADGAS", "OUTMODEL",
+    "PSEUDOTURB", "VUSTEPS", "PARTICLE_WRT", "GAS_WRT", "GRADGAS_WRT", "MODEL_WRT",
     "DENSITY", "SPECIFICHEAT",
 ]
 
@@ -40,8 +40,8 @@ PICL_DEFAULTS = {
     "QSFLUCT": 0, "TEMP": 0.0, "DU HEATTRANSFER": 0, "NEIGHBORWIDTH": 0.0,
     "QSFLUCTFILT": 0, "QSFLUCTFILTADAPT": 0, "VISCOUSUNSTEADY": 0,
     "PERIODICX": 0, "PERIODICY": 0, "PERIODICZ": 0, "SUBBIN": 0,
-    "PSEUDOTURB": 0, "VUSTEPS": 50, "OUTPARTICLE": 0, "OUTGAS": 0,
-    "OUTGRADGAS": 0, "OUTMODEL": 0, "DENSITY": 0.0, "SPECIFICHEAT": 0.0,
+    "PSEUDOTURB": 0, "VUSTEPS": 50, "PARTICLE_WRT": 0, "GAS_WRT": 0,
+    "GRADGAS_WRT": 0, "MODEL_WRT": 0, "DENSITY": 0.0, "SPECIFICHEAT": 0.0,
 }
 
 # Whole-number flags and their allowed range
@@ -61,8 +61,8 @@ PICL_FLAGS = {
     "PSEUDOTURB": (0, 1),
     "SUBBIN": (0, 1),
     "PERIODICX": (0, 1), "PERIODICY": (0, 1), "PERIODICZ": (0, 1),
-    "OUTPARTICLE": (0, 1), "OUTGAS": (0, 1), "OUTGRADGAS": (0, 1),
-    "OUTMODEL": (0, 1),
+    "PARTICLE_WRT": (0, 1), "GAS_WRT": (0, 1), "GRADGAS_WRT": (0, 1),
+    "MODEL_WRT": (0, 1),
 }
 
 # Keys only read when a model is on: left in the file with the model off,
@@ -84,6 +84,10 @@ REMOVED_KEYS = {
     "XANGLE": "angular periodicity is not available; remove the line",
     "RIN": "angular periodicity is not available; remove the line",
     "ROUT": "angular periodicity is not available; remove the line",
+    "OUTPARTICLE": "renamed to PARTICLE_WRT",
+    "OUTGAS": "renamed to GAS_WRT",
+    "OUTGRADGAS": "renamed to GRADGAS_WRT",
+    "OUTMODEL": "renamed to MODEL_WRT",
 }
 
 RK3 = 2   # RKSCHEME of the 3-stage Runge-Kutta scheme (RK_SCHEME_3_WRAY)

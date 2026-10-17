@@ -11,7 +11,7 @@ from .outputs import (particle_ids, read_flow_ascii, read_particle_vtu, read_vtu
 
 # Particle fields kept in goldens: the particle state plus the gas quantities
 # interpolated to the particle. Named as in ppiclf_user_OutputFields; the
-# template input turns on OUTPARTICLE, OUTGAS and OUTGRADGAS so they are written.
+# template input turns on PARTICLE_WRT, GAS_WRT and GRADGAS_WRT so they are written.
 VEL = ("vp_x", "vp_y", "vp_z")
 SPIN = ("omp_x", "omp_y", "omp_z")
 PARTICLE_FIELDS = (
@@ -19,7 +19,7 @@ PARTICLE_FIELDS = (
     + list(VEL) + ["Tp"] + list(SPIN)
     + ["rhop", "rho_g", "dp", "volp", "phi_p"]
     + ["ug_x", "ug_y", "ug_z", "c_g", "dpdx_g", "dpdy_g", "dpdz_g"]
-    # Quasi-steady force fluctuation: written only with QSFLUCT and OUTMODEL 1
+    # Quasi-steady force fluctuation: written only with QSFLUCT and MODEL_WRT 1
     + ["Ffluct_x", "Ffluct_y", "Ffluct_z"]
 )
 # What the five arrays of a Rocflu ASCII flow file hold depends on whether

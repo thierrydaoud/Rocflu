@@ -68,7 +68,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Neighbour search | Dense subbin tables: ~28 GB requested for 50,000 particles in one 2 cm bin | Compact lists: ~1.2 MB for the same bin (about 24,000 times less), byte-identical results | 82d4ca4 |
 | Clean-up | ppiclF's own unit tests no longer matched the code; the burn-rate model and the `PICLDEBUG` output were unused | Removed; the regression suite replaces the unit tests. Input files that still ask for `REACTIVE` or a negative `STATIONARY` stop with a message | 3c41db2 |
 | Memory | ppiclF reserved fixed arrays for 80,000 particles, 640,000 ghosts and 120,000 cells per rank, plus 50 steps of viscous-unsteady history even when it was off: 1.34 GB for a run with one particle. A run with more particles on a rank stopped and needed a recompile | Arrays sized from the run and grown when needed; the history is allocated only with `VISCOUSUNSTEADY` (`VUSTEPS` steps). 265 MB for the same run; no particle, ghost, cell or wall limits | c1ac692, 0d4d86c, e227f99 |
-| Particle output | Every file held all 72 particle fields, named `y01`…, `rpro01`…, `tag01`… (300 bytes per particle) | A list of named fields: velocity, volume fraction, diameter and ID by default (44 bytes per particle); more groups with `OUTPARTICLE`, `OUTGAS`, `OUTGRADGAS`, `OUTMODEL`. Particle restart stops until it has its own file | (this section) |
+| Particle output | Every file held all 72 particle fields, named `y01`…, `rpro01`…, `tag01`… (300 bytes per particle) | A list of named fields: velocity, volume fraction, diameter and ID by default (44 bytes per particle); more groups with `PARTICLE_WRT`, `GAS_WRT`, `GRADGAS_WRT`, `MODEL_WRT`. Particle restart stops until it has its own file | (this section) |
 | Interpolation speed | 60% of a particle stage went to finding the cells around each particle | Marker per cell, an early exit and contiguous reads: that search is 45% faster, the whole run 14–20% faster, results bit-identical | (section "Where a particle stage spends its time") |
 | Ghost particles | A ghost carried all 59 particle properties; the neighbour search reads 6 | A ghost carries those 6 (16 doubles instead of 69), byte-identical results | a7f5748 |
 | Field sizes | The number of fields per particle and per cell (state, properties, interpolated, projected) was fixed at compile time; Rocflu's number of interpolated fields had to match it by hand; every run interpolated 29 gas fields and projected 31 | Set at start-up by `ppiclf_user_Layout` from the physics that is on: 7 interpolated fields for drag only, 10 projected without pseudo-turbulence; ppiclF stops if a needed field is not given; byte-identical flow files | 074d58d, (section "Field sizes set at run time") |
@@ -738,7 +738,7 @@ when the run starts.
 
 In 074d58d the layout is the one the macros gave: every field on. Checked: in all 42
 cases (the suite, `AMFORCE 2` variants of the ghost and binary-collision cases, and
-`QSFLUCT` and `PSEUDOTURB` variants with `OUTMODEL 1`) every particle and flow file is
+`QSFLUCT` and `PSEUDOTURB` variants with `MODEL_WRT 1`) every particle and flow file is
 byte-identical to f4d6486; 35 PASS twice.
 
 #### Only the fields the physics needs
@@ -766,12 +766,12 @@ Projected fields: without `PSEUDOTURB` there are 10 instead of 31 (φ_p, force, 
 the five fields the probes read in `WriteProbe.F90`); the Reynolds stress, k_sg and heat
 flux fields are allocated, filled and projected only with it.
 
-Particle output: `OUTGRADGAS 1` writes only the gradient fields that were interpolated (the
+Particle output: `GRADGAS_WRT 1` writes only the gradient fields that were interpolated (the
 others would be zeros). The regression harness now reports a field that is in a golden but
 no longer written as a failure, instead of stopping with an error.
 
 Checked: the suite and 12 variants (`AMFORCE 1` and 2, `VISCOUSUNSTEADY` with `AMFORCE 1` and
-`PGFORCE`, `COLLISIONS 3` and 4, `QSFLUCT` and `PSEUDOTURB` with `OUTMODEL 1`), 44 runs with
+`PGFORCE`, `COLLISIONS 3` and 4, `QSFLUCT` and `PSEUDOTURB` with `MODEL_WRT 1`), 44 runs with
 particles. Against 074d58d the flow files are byte-identical and every particle field that is
 still written is bit-identical; the fields no longer written are exactly the ones the table
 leaves out for each case. The 32 goldens with particles were regenerated: all 7,641 values
@@ -883,14 +883,17 @@ written. Positions are always written, as the points of the file.
 | Group | Fields | Written when |
 |---|---|---|
 | Default | `vp_x vp_y vp_z` (particle velocity), `phi_p` (particle volume fraction: the projected particle volume, interpolated back to the particle), `dp`, `id id_rank id_cycle` (index on the rank that created the particle, that rank, the cycle it was created on) | Always |
-| Particle | `Tp`, `omp_x omp_y omp_z` (spin), `rhop`, `volp` | `OUTPARTICLE 1` |
-| Gas at the particle | `rho_g`, `ug_x ug_y ug_z`, `c_g` (sound speed), `T_g` | `OUTGAS 1` |
-| Gas gradients at the particle | `dpdx_g …`, `DuDt_g_* `, `drhophidt_g`, `drhophidx_g …`, `vort_g_*`, `drhodx_g …`, `divtau_g_*`, `DvortDt_g_*` | `OUTGRADGAS 1`, for checking the interpolation |
-| Models | `Ffluct_*` (with `QSFLUCT`), `Wdot_*` (with `AMFORCE 2`), `xi_par xi_perp xi_T` and the 11 pseudo-turbulence diagnostics (with `PSEUDOTURB`) | `OUTMODEL 1`, for the models that are on |
+| Particle | `Tp`, `omp_x omp_y omp_z` (spin), `rhop`, `volp` | `PARTICLE_WRT 1` |
+| Gas at the particle | `rho_g`, `ug_x ug_y ug_z`, `c_g` (sound speed), `T_g` | `GAS_WRT 1` |
+| Gas gradients at the particle | `dpdx_g …`, `DuDt_g_* `, `drhophidt_g`, `drhophidx_g …`, `vort_g_*`, `drhodx_g …`, `divtau_g_*`, `DvortDt_g_*` | `GRADGAS_WRT 1`, for checking the interpolation |
+| Models | `Ffluct_*` (with `QSFLUCT`), `Wdot_*` (with `AMFORCE 2`), `xi_par xi_perp xi_T` and the 11 pseudo-turbulence diagnostics (with `PSEUDOTURB`) | `MODEL_WRT 1`, for the models that are on |
 
 - The four keys go in the `# PICL` section; all default to 0. No key is the start of
   another, because Rocflu's `ReadSection` matches the start of each input line (a key
-  `OUTGAS` would also match a line `OUTGASGRAD 1`).
+  `GAS` would also match a line `GASGRAD 1`).
+- They were called `OUTPARTICLE`, `OUTGAS`, `OUTGRADGAS` and `OUTMODEL` at first, and were
+  renamed in the MFC style of the fluid output keys (`DENSITY_WRT`, ...); the case validator
+  tells an input with an old name what it is now.
 - The superparticle loading (always 1 for now) and the unused slots are not written.
 - To add a field: one `call ppiclf_io_AddOutputField(source, slot, 'name')` in
   `ppiclf_user_OutputFields`, inside the group it belongs to. The call stops the run if
@@ -907,15 +910,15 @@ from the last `par*.vtu` file, in file order. The files now hold only the output
 start-up with *"Particle restart is not available yet"* until the separate restart file
 exists. A new run (no `.rin` file) is unaffected.
 
-**Regression suite.** The template input turns on `OUTPARTICLE`, `OUTGAS` and
-`OUTGRADGAS`, so the goldens keep checking the same quantities (the gradients only where a
+**Regression suite.** The template input turns on `PARTICLE_WRT`, `GAS_WRT` and
+`GRADGAS_WRT`, so the goldens keep checking the same quantities (the gradients only where a
 model needs them; see [Only the fields the physics needs](#only-the-fields-the-physics-needs)). The harness and the 32
 goldens with particles use the new names; the conversion renamed keys only (8,790
 values compared, none changed) and dropped the superparticle loading, which was 1.0 in
 every golden. Checked: in all 37 cases with particles (the 35 suite cases plus
-`AMFORCE 2` variants with `OUTMODEL 1`), every named field is bit-identical to the
+`AMFORCE 2` variants with `MODEL_WRT 1`), every named field is bit-identical to the
 field it replaces in the files of 74b8f87 (e.g. `rho_g` to `rpro02`), and the flow
-files are byte-identical. The default output alone and `OUTMODEL` with `QSFLUCT` and
+files are byte-identical. The default output alone and `MODEL_WRT` with `QSFLUCT` and
 `PSEUDOTURB` were also run.
 
 ### Unused slots removed, the rest grouped by job
@@ -955,7 +958,7 @@ Rocflu then has to hand it over with an `InterpFieldUser` call in both
 `PICL_Runge*.F90` files.
 
 Checked: 35 PASS twice; in all 39 cases with particles (the suite, `AMFORCE 2` variants,
-and `QSFLUCT` and `PSEUDOTURB` variants with `OUTMODEL 1`, 62 fields) every named field is
+and `QSFLUCT` and `PSEUDOTURB` variants with `MODEL_WRT 1`, 62 fields) every named field is
 bit-identical to the old field it replaces in the files of 74b8f87, and the flow files
 are byte-identical.
 

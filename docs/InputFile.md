@@ -116,10 +116,10 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 | `NEIGHBORWIDTH` | ≥ 0 | 0 | neighbour search distance; the code uses max(4 × largest diameter, `NEIGHBORWIDTH`) |
 | `PERIODICX`, `PERIODICY`, `PERIODICZ` | 0, 1 | 0 | particles periodic in x, y, z; should match the periodic patches of the fluid in `<case>.bc` (not checked yet) |
 | `SUBBIN` | 0, 1 | 0 | neighbour-search method: 0 Zwick, 1 Avery sub-bins |
-| `OUTPARTICLE` | 0, 1 | 0 | particle files also hold temperature, spin, density, volume |
-| `OUTGAS` | 0, 1 | 0 | … and the gas density, velocity, sound speed and temperature at each particle |
-| `OUTGRADGAS` | 0, 1 | 0 | … and the gas gradients at each particle |
-| `OUTMODEL` | 0, 1 | 0 | … and the states and diagnostics of the models that are on |
+| `PARTICLE_WRT` | 0, 1 | 0 | particle files also hold temperature, spin, density, volume |
+| `GAS_WRT` | 0, 1 | 0 | … and the gas density, velocity, sound speed and temperature at each particle |
+| `GRADGAS_WRT` | 0, 1 | 0 | … and the gas gradients at each particle |
+| `MODEL_WRT` | 0, 1 | 0 | … and the states and diagnostics of the models that are on |
 
 The filter width of the particle projection is not an input: it is twice the largest cell
 length around the particles. `./rocflu.sh run` builds only the particle data the models
