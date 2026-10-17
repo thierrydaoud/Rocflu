@@ -2566,6 +2566,12 @@ SUBROUTINE RFLU_BXV_WriteVarsWrapper(pRegion)
 
   CALL RegisterFunction(global,'RFLU_BXV_WriteVarsWrapper',__FILE__)
 
+! Old-style files only (OLD_OUTPUT_WRT 1): the dump holds the face states
+  IF ( global%postWriteOldOutput .EQV. .FALSE. ) THEN
+    CALL DeregisterFunction(global)
+    RETURN
+  END IF ! global%postWriteOldOutput
+
 ! ******************************************************************************
 ! Read bcv files
 ! ******************************************************************************

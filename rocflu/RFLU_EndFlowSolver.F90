@@ -245,7 +245,7 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
     END IF ! moveGrid    
     
 #ifdef PICL
-        IF ( global%piclUsed .EQV. .TRUE. ) THEN
+        IF ( (global%piclUsed .EQV. .TRUE.) .AND. global%postWriteOldOutput ) THEN
         ! TLJ added to plot primitive variables - 02/19/2025
         ! The old-style files get converted values; keep the state
         ALLOCATE(cvSaved,SOURCE=pRegion%mixt%cv)
@@ -264,7 +264,7 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
         CALL RFLU_WriteFlowWrapper(pRegion)
 
 #ifdef PICL
-        IF ( global%piclUsed .EQV. .TRUE. ) THEN
+        IF ( (global%piclUsed .EQV. .TRUE.) .AND. global%postWriteOldOutput ) THEN
         ! Back to the exact state (converting back is not exact)
         pRegion%mixt%cv = cvSaved
         DEALLOCATE(cvSaved)

@@ -5,9 +5,9 @@ import math
 import os
 import re
 
+from . import outputs
 from .case import CASENAME
-from .outputs import (particle_ids, read_flow_ascii, read_particle_vtu, read_vtu_cell_centroids,
-                      read_vtu_cell_field)
+from .outputs import particle_ids
 
 # Particle fields kept in goldens: the particle state plus the gas quantities
 # interpolated to the particle. Named as in ppiclf_user_OutputFields; the
@@ -75,48 +75,61 @@ def _particle_files(rundir):
 
 
 def snapshot(rundir, case, which=-1):
-    """State at dump index `which` (0 = initial, -1 = last).
+    """State at dump step index `which` (0 = initial, -1 = last), from the dumps in
+    restart_data/ (the old-style SOL_*/par*.vtu are checked against them when a
+    case writes them).
 
-    Gas and particle dumps are written together, so the n-th SOL_* directory
-    and the n-th par*.vtu file share a time.
-    """
-    dumps = _dumps(rundir)
-    pfiles = _particle_files(rundir)
-    _, soldir = dumps[which]
-
+    The gas arrays are in the form of the old-style flow files (FLOW_NAMES): with
+    particles rho_g, u, v, w, E; without, the conserved state. phi with particles:
+    from the fluid dump, or at step 0 (rfluinit's dump) the volume projected at the
+    start of the run (particle dump) over the cell volume. Particle fields: those of
+    the particle dump's output-field table, with x, y, z."""
+    fluid = outputs.fluid_dumps(rundir)
+    steps = sorted({s for s, _ in fluid})
+    step = steps[which]
     picl = _picl_used(rundir)
+    particle_dumps = outputs.particle_dumps(rundir)
+    pdump = outputs.read_particle_dump(particle_dumps[step]) if picl and step in particle_dumps \
+        else None
+
     gas = {}
     centroids = {}  # only for checks that need geometry; not written to goldens
     t_gas = None
-    for path in sorted(glob.glob(os.path.join(soldir, "%s.mixt.cva_*" % CASENAME))):
-        region = int(os.path.basename(path).split("_")[1])
-        # Full-precision time from the file; the directory name has 6 digits
-        t_gas, arrays = read_flow_ascii(path)
-        n = _real_cells(rundir, region)
-        gas[region] = {name: arr[:n] for name, arr in zip(FLOW_NAMES, arrays)}
+    for region in sorted(r for s, r in fluid if s == step):
+        d = outputs.read_fluid_dump(fluid[(step, region)])
+        t_gas = d["time"]
+        cv = d["cv"]
+        n = len(cv[0])
         if picl:
-            # Gas volume fraction comes from the ParaView file of the same dump
-            suffix = os.path.basename(soldir)[4:]
-            vtu = os.path.join(rundir, "PARAVIEW_" + suffix,
-                               "%s_%s_%05d.vtu" % (CASENAME, suffix, region))
-            phi = read_vtu_cell_field(vtu, "Particle Volume Fraction")
-            if len(phi) != n:
-                raise RuntimeError("%s has %d cells, expected %d" % (vtu, len(phi), n))
+            if d["form"] == outputs.FORM_VOLUME_WEIGHTED:
+                phi = list(d["phi"])
+                rho_g = [cv[0][i] / (1.0 - phi[i]) for i in range(n)]
+            else:
+                rank = max(region, 1) - 1
+                phi = [v / case.grid.cell_volume for v in pdump["projected"][rank][0]] \
+                    if pdump else [0.0] * n
+                rho_g = list(cv[0])
+            arrays = [rho_g] + [[cv[k][i] / cv[0][i] for i in range(n)] for k in range(1, 5)]
+            gas[region] = dict(zip(FLOW_NAMES, arrays))
             gas[region]["phi"] = phi
-            if "projection_shape" in case.checks:
-                centroids[region] = read_vtu_cell_centroids(vtu)
+        else:
+            gas[region] = dict(zip(FLOW_NAMES, [list(a) for a in cv]))
+        if "projection_shape" in case.checks:
+            centroids[region] = outputs.read_post_vtu(
+                os.path.join(rundir, "post", "p%d" % max(region - 1, 0), "%08d.vtu" % step),
+                centroids=True)
 
     particles = {}
-    t_par = None
-    if case.particles and pfiles:
-        t_par, f = read_particle_vtu(pfiles[which])
+    if case.particles and pdump:
+        names = {name: (source, slot) for source, slot, name in pdump["fields"]}
+        arrays = {"y": pdump["y"], "rprop": pdump["rprop"], "iprop": pdump["iprop"]}
+        source_name = {outputs.OUT_Y: "y", outputs.OUT_RPROP: "rprop", outputs.OUT_TAG: "iprop"}
+        f = {name: [p[slot - 1] for p in arrays[source_name[source]]]
+             for name, (source, slot) in names.items()}
+        f.update({c: [p[k] for p in pdump["y"]] for k, c in enumerate("xyz")})
         ids = particle_ids(f, len(case.particles), case.nranks)
         for k, pid in enumerate(ids):
             particles[pid] = {name: f[name][k] for name in PARTICLE_FIELDS if name in f}
-
-    # Particle files store the time with 7 significant digits
-    if t_par is not None and abs(t_par - t_gas) > 1e-5 * max(abs(t_gas), 1e-30):
-        raise RuntimeError("Gas dump t=%g and particle dump t=%g do not match" % (t_gas, t_par))
 
     snap = {"time": t_gas, "gas": gas, "particles": particles,
             "totals": totals(gas, particles, case.grid.cell_volume, picl,

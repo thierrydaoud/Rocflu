@@ -130,6 +130,7 @@ TEMPERATURE_WRT  1 ! all on in the tests, so the suite compares every field
 SOUNDSPEED_WRT   1
 ENERGY_WRT       1
 GRADRHO_WRT      1
+OLD_OUTPUT_WRT   0 ! old-style SOL_/PARAVIEW_/par/bin files (some cases turn it on)
 INTERTYPE  0 
 MERGEFLAG  1 
 EXTRFLAG   0 ! Turn it 'ON' while running MVFRAME 

@@ -13,6 +13,7 @@ inside an allocation (salloc) they run as job steps. Set-up is serial.
 
 import argparse
 import datetime
+import glob
 import json
 import os
 import platform
@@ -98,15 +99,20 @@ def run_case(case, args):
                 if attempt == 2:
                     raise
                 res["note"] = "retried after: %s" % e
+        # The post program (also gives the cell centroids of projection_shape)
+        post_errors = rcase.run_post(rundir, args.exe)
+        res["errors"] += post_errors
         init = state.snapshot(rundir, case, 0)
         final = state.snapshot(rundir, case, -1)
         res["final"] = final
-        res["errors"] += checks.check_restart_data(rundir)
-        if case.particles:
-            res["errors"] += checks.check_particle_dump(rundir)
-        # The post program must give what the old-style output gives
-        post_errors = rcase.run_post(rundir, args.exe)
-        res["errors"] += post_errors or checks.check_post(rundir)
+        # Cases that write the old-style output (OLD_OUTPUT_WRT 1): it must agree
+        # with the dumps and with the post program
+        if state._dumps(rundir):   # SOL_* directories with flow files
+            res["errors"] += checks.check_restart_data(rundir)
+            if case.particles:
+                res["errors"] += checks.check_particle_dump(rundir)
+            if not post_errors:
+                res["errors"] += checks.check_post(rundir)
         if case.restart_test:
             res["errors"] += rcase.restart_test(case, rundir, args.exe, slurm)
 

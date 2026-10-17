@@ -162,12 +162,19 @@ by particle.
 | `wall_collisions` | Every particle that reaches a wall of the box rebounds from it and ends inside the box, clear of the wall; one that hits a single wall rebounds with the input `EREST` (within 0.035) |
 | `same_as` | Particles match the same case on a different number of ranks (all particle fields, or only those named by the case's `same_as_fields`) |
 
-Every case also checks its dumps in `restart_data/`: each `SOL_*` flow file matches the fluid
-dump of the same time (1e-12 relative), each `par*.vtu` matches the particle dump of the same
-time field by field (single precision), and rfluinit's step 0 dump exists.
+The state a case is judged by (goldens, physics checks) comes from its dumps in
+`restart_data/` (`rocpicl_tests/state.py`), in the form of the old-style flow files: with
+particles `rho_g, u, v, w, E` and `phi`, without the conserved state.
 
-**Post program**: every case also runs `rflupost -s all` and compares `post/` with the
-old-style output of every step: each fluid field of each region with `PARAVIEW_*` of the
+The template switches the old-style output off (`OLD_OUTPUT_WRT 0`, as for a user's run).
+Five cases switch it on (`OLD_OUTPUT_CASES` in `cases.py`: 2 regions and 1, NSCBC outflow
+with history, random streams, gas only); for them the harness also checks that each `SOL_*`
+flow file matches the fluid dump of the same time (1e-12 relative), that each `par*.vtu`
+matches the particle dump of the same time field by field (single precision), and that
+rfluinit's step 0 dump exists.
+
+**Post program**: every case also runs `rflupost -s all`; the cases with the old-style
+output compare `post/` with it at every step: each fluid field of each region with `PARAVIEW_*` of the
 same time (1e-12 relative to the field's largest value; the template turns every
 `*_WRT` field on), each particle field and position with the `par*.vtu` of the same step
 (single precision). Without particles the old `Velocity` and `Energy` are the momentum
@@ -288,8 +295,9 @@ The fluid dumps (`restart_data/fluid_<step>_<region>.dat`) hold the state as it 
 `(1-phi)*rho, ...` with particles; rfluinit's step 0 dump the pure gas state. Layouts of both
 dump files: `modflu/RFLU_ModRestartData.F90`; readers: `rocpicl_tests/outputs.py`.
 
-Goldens store the arrays as written. Conservation totals convert to bulk quantities,
-taking `phi` from the "Particle Volume Fraction" field in `PARAVIEW_*/<case>_<t>_<reg>.vtu`.
+Goldens store the arrays in the old-style form above (made from the dumps). Conservation
+totals convert to bulk quantities with `phi` from the fluid dump (at step 0, the particle
+volume projected at the start of the run over the cell volume).
 
 ## Adding a case
 

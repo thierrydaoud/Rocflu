@@ -315,7 +315,7 @@ class Validator:
 
     POST_FIELD_KEYS = ("DENSITY_WRT", "VELOCITY_WRT", "PRESSURE_WRT", "PHI_WRT",
                        "TEMPERATURE_WRT", "SOUNDSPEED_WRT", "ENERGY_WRT", "GRADRHO_WRT",
-                       "PT_WRT")
+                       "PT_WRT", "OLD_OUTPUT_WRT")
 
     def check_post(self, sections):
         """Fields of the post program (rflupost): the *_WRT keys of # POST are 0 or 1."""
@@ -324,6 +324,17 @@ class Validator:
             number, value = simple_value(body, key)
             if number is not None:
                 self.prohibit(value not in (0, 1), "%s must be 0 or 1" % key, number)
+        # Moving grids and the HM solver write their files into the old-style
+        # SOL_* directories, which only OLD_OUTPUT_WRT 1 creates
+        _, old_output = simple_value(body, "OLD_OUTPUT_WRT")
+        number, move = simple_value(sections.get("FLOWMODEL", []), "MOVEGRID")
+        self.prohibit(move == 1 and old_output != 1,
+                      "MOVEGRID 1 writes the grid into SOL_*: set OLD_OUTPUT_WRT 1 in # POST",
+                      number)
+        number, solver = simple_value(sections.get("TIMESTEP", []), "SOLVERTYPE")
+        self.prohibit(solver == 3 and old_output != 1,
+                      "SOLVERTYPE 3 writes its variables into SOL_*: set OLD_OUTPUT_WRT 1 in "
+                      "# POST", number)
 
     def check_timestep(self, sections):
         body = sections.get("TIMESTEP", [])

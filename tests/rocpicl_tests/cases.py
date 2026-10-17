@@ -391,5 +391,20 @@ for n in (1, 2):
         checks=["mass", "gas_energy"])
 
 
+# Cases that also write the old-style output (OLD_OUTPUT_WRT 1): the harness checks
+# that it agrees with the dumps and with the post program (2 regions and 1, NSCBC
+# outflow with history, random streams, gas only)
+OLD_OUTPUT_CASES = (
+    "box/momentum-exchange/np2",
+    "shocktube/two-way/viscous-unsteady/np2",
+    "shocktube/one-way/1-particle/np1",
+    "box/qs-fluctuations/np2",
+    "box/gas-jump/periodic/np2",
+)
+for _case in CASES:
+    if _case.name in OLD_OUTPUT_CASES:
+        _case.inp[("POST", "OLD_OUTPUT_WRT")] = 1
+
+
 def by_name():
     return {c.name: c for c in CASES}

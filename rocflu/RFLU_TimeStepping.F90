@@ -285,7 +285,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
         pGrid => pRegion%grid
 
 #ifdef PICL
-        IF ( global%piclUsed .EQV. .TRUE. ) THEN
+        IF ( (global%piclUsed .EQV. .TRUE.) .AND. global%postWriteOldOutput ) THEN
         ! TLJ added to plot primitive variables - 02/19/2025
         ! The old-style files get converted values; keep the state
         ALLOCATE(cvSaved,SOURCE=pRegion%mixt%cv)
@@ -304,7 +304,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
         CALL RFLU_WriteFlowWrapper(pRegion)
 
 #ifdef PICL
-        IF ( global%piclUsed .EQV. .TRUE. ) THEN
+        IF ( (global%piclUsed .EQV. .TRUE.) .AND. global%postWriteOldOutput ) THEN
         ! Back to the exact state (converting back is not exact)
         pRegion%mixt%cv = cvSaved
         DEALLOCATE(cvSaved)
@@ -691,7 +691,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
     ELSEIF ( global%flowType == FLOW_STEADY ) THEN
        WRITE(NameSolDir,'(i10)') global%currentIter
     END IF
-    IF(global%myProcid==MASTERPROC) THEN
+    IF ( (global%myProcid == MASTERPROC) .AND. global%postWriteOldOutput ) THEN
        CALL system( 'mkdir -p SOL_'//NameSolDir )
        CALL system( 'mkdir -p PARAVIEW_'//NameSolDir )
     END IF   
@@ -983,7 +983,7 @@ END IF
         CALL RFLU_WriteRestartData(pRegion)
 
 #ifdef PICL
-        IF ( global%piclUsed .EQV. .TRUE. ) THEN
+        IF ( (global%piclUsed .EQV. .TRUE.) .AND. global%postWriteOldOutput ) THEN
         ! TLJ added to plot primitive variables - 02/19/2025
         ! The old-style files get converted values; keep the state
         ALLOCATE(cvSaved,SOURCE=pRegion%mixt%cv)
@@ -1003,7 +1003,7 @@ END IF
         CALL RFLU_WriteFlowWrapper(pRegion)
 
 #ifdef PICL
-        IF ( global%piclUsed .EQV. .TRUE. ) THEN
+        IF ( (global%piclUsed .EQV. .TRUE.) .AND. global%postWriteOldOutput ) THEN
         ! Back to the exact state (converting back is not exact)
         pRegion%mixt%cv = cvSaved
         DEALLOCATE(cvSaved)

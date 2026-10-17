@@ -132,6 +132,12 @@ TYPE(t_grid), POINTER :: pGrid
 
 !PPICLF Write
 #ifdef PICL
+! The old-style particle and bin files only with OLD_OUTPUT_WRT 1
+   IF ( global%postWriteOldOutput .EQV. .FALSE. ) THEN
+     CALL DeregisterFunction(global)
+     RETURN
+   END IF ! global%postWriteOldOutput
+
    CALL MPI_Barrier(global%mpiComm,errorFlag)
 
    piclCurrentTime = REAL(global%currentTime,8)

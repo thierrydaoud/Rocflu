@@ -180,6 +180,8 @@ MODULE ModGlobal
     LOGICAL :: postWriteDensity,postWriteVelocity,postWritePressure, &
                postWritePhi,postWriteTemperature,postWriteSoundSpeed, &
                postWriteEnergy,postWriteGradRho,postWritePT
+    ! Old-style output (SOL_*, PARAVIEW_*, par*.vtu, bin*.vtu; OLD_OUTPUT_WRT)
+    LOGICAL :: postWriteOldOutput
     ! endTime: time this job ends at (MAXTIME, or the start time + RUNTIME);
     ! the last step is shortened to end exactly there
     REAL(RFREAL) :: endTime

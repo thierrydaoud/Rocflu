@@ -1704,6 +1704,13 @@ MODULE RFLU_ModPatchCoeffs
     global => pRegion%global
     
     CALL RegisterFunction(global,'RFLU_WritePatchCoeffsWrapper',__FILE__)
+
+! Patch coefficient files go into the old-style SOL_* directories: only
+! with OLD_OUTPUT_WRT 1
+    IF ( global%postWriteOldOutput .EQV. .FALSE. ) THEN
+      CALL DeregisterFunction(global)
+      RETURN
+    END IF ! global%postWriteOldOutput
     
     IF ( global%solutFormat == FORMAT_ASCII ) THEN
       CALL RFLU_OpenPatchCoeffsASCII(pRegion,FILE_STATUS_UNKNOWN)

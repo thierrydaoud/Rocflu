@@ -224,10 +224,11 @@ def particle_dumps(rundir):
             for p in glob.glob(os.path.join(rundir, "restart_data", "particles_*.dat"))}
 
 
-def read_post_vtu(path):
+def read_post_vtu(path, centroids=False):
     """Return (time, step, points, fields) of a post/ .vtu (rflupost: raw appended
     data, UInt64 block sizes). fields maps name -> list of values, one tuple per
-    cell or point (one value for one component)."""
+    cell or point (one value for one component). centroids=True: the cell
+    centroids (mean of the vertices) instead."""
     with open(path, "rb") as f:
         data = f.read()
     i = data.index(b"<AppendedData")
@@ -245,8 +246,16 @@ def read_post_vtu(path):
         flat = struct.unpack_from("<%d%s" % (nbytes // size, fmt), data, base + offset + 8)
         arrays[name] = flat if ncomp == 1 else [flat[k:k + ncomp] for k in range(0, len(flat), ncomp)]
     points = arrays.pop("Points")
-    for name in ("connectivity", "offsets", "types"):
-        arrays.pop(name)
+    cells = (arrays.pop("connectivity"), arrays.pop("offsets"))
+    arrays.pop("types")
+    if centroids:
+        conn, offsets = cells
+        out, start = [], 0
+        for end in offsets:
+            ids = conn[start:end]
+            out.append(tuple(sum(points[i][k] for i in ids) / len(ids) for k in range(3)))
+            start = end
+        return out
     return time, step, points, arrays
 
 

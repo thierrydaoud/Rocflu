@@ -4139,6 +4139,12 @@ END IF
       CALL RFLU_WriteRestartData(pRegion)
     END IF ! global%moduleType
 
+! The old-style files (SOL_*, PARAVIEW_*) only with OLD_OUTPUT_WRT 1
+    IF ( global%postWriteOldOutput .EQV. .FALSE. ) THEN
+      CALL DeregisterFunction(global)
+      RETURN
+    END IF ! global%postWriteOldOutput
+
 ! ******************************************************************************
 !   Write mixture solution files
 ! ******************************************************************************

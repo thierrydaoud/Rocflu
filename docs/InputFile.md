@@ -53,7 +53,7 @@ accept more.
 
 | Section | Key | Values | Meaning |
 |---|---|---|---|
-| `# FORMATS` | `GRID`, `SOLUTION` | 0 ASCII, 1 binary, 2 HDF | Rocflu's own grid and solution files |
+| `# FORMATS` | `GRID`, `SOLUTION` | 0 ASCII, 1 binary, 2 HDF | Rocflu's own grid files; `SOLUTION`: the old-style solution files (`OLD_OUTPUT_WRT 1` only) |
 | | `GRIDSRC` | 0 CENTAUR ASCII, 1 VGRIDNS, 2 MESH3D | grid read by the pre-processing (`<case>.hyb.asc` for 0) |
 | `# FLOWMODEL` | `MODEL` | 0 Euler, 1 Navier-Stokes | |
 | | `MOVEGRID` | 0 static, 1 moving | |
@@ -87,7 +87,8 @@ accept more.
 | | `REFTEMP`, `SUTHCOEF` | K | Sutherland's law |
 | `# POST` | `DENSITY_WRT`, `VELOCITY_WRT`, `PRESSURE_WRT`, `PHI_WRT` | 0, 1 (default 1) | fluid fields the post program writes: gas density, velocity, pressure, particle volume fraction (with particles) |
 | | `TEMPERATURE_WRT`, `SOUNDSPEED_WRT`, `ENERGY_WRT`, `GRADRHO_WRT`, `PT_WRT` | 0, 1 (default 0) | also temperature, speed of sound, total energy per mass, gas-density gradient, pseudo-turbulence fields `DivPhiRsg` and `FCell` (with `PSEUDOTURB`) |
-| | other keys | | settings of the old ParaView output, as in the template |
+| | `OLD_OUTPUT_WRT` | 0 (default), 1 | also the old-style output (`SOL_*`, `PARAVIEW_*`, `par*.vtu`, `bin*.vtu`, patch coefficients); needed with `MOVEGRID 1` or `SOLVERTYPE 3`, which write into `SOL_*` |
+| | other keys | | settings of the old-style ParaView output, as in the template |
 | `# MISC` | | | miscellaneous settings, as in the template |
 
 ## `# PICL`: the particles
@@ -195,9 +196,11 @@ and the same particle physics as the run that wrote the dump, and continues it e
 the results are the same, to the last bit, as a run that never stopped (checked by the
 suite's restart test).
 
-The old-style output (`SOL_*`, `PARAVIEW_*`, `par*.vtu`, `bin*.vtu`) is still written for
-comparison. Without particles its `Velocity` and `Energy` fields hold the momentum and the
-energy per volume; the post program writes velocity and energy per mass.
+The old-style output (`SOL_*`, `PARAVIEW_*`, `par*.vtu`, `bin*.vtu`, patch coefficients)
+is written only with `OLD_OUTPUT_WRT 1` in `# POST`; the suite keeps it on in a few cases
+to check that it agrees with the dumps and the post program. Without particles its
+`Velocity` and `Energy` fields hold the momentum and the energy per volume; the post
+program writes velocity and energy per mass.
 
 ## The case validator
 
