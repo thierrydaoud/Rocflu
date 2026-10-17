@@ -236,6 +236,7 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
   global%maxIterHypre = 1000
 
   global%currentIter       = 0
+  global%currentStep       = 0
   global%iterSinceRestart  = 0
   global%maxIter           = 10000
   global%printIter         = 1

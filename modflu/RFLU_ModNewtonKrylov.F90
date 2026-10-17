@@ -330,6 +330,7 @@ SUBROUTINE RFLU_NK_TimeStepping(dTimeSystem,dIterSystem,regions)
 
     IF ( global%flowType == FLOW_STEADY ) THEN
       global%currentIter      = global%currentIter      + 1
+      global%currentStep      = global%currentStep      + 1
       global%iterSinceRestart = global%iterSinceRestart + 1
     END IF ! global%flowType
 
@@ -567,6 +568,7 @@ SUBROUTINE RFLU_NK_TimeStepping(dTimeSystem,dIterSystem,regions)
 ! ------------------------------------------------------------------------------
 
         global%currentIter      = global%currentIter      + 1
+        global%currentStep      = global%currentStep      + 1
         global%iterSinceRestart = global%iterSinceRestart + 1
 
         DO iReg = 1,global%nRegionsLocal  

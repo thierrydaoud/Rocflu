@@ -105,6 +105,7 @@ MODULE RFLU_ModReadWriteFlow
 
   USE RFLU_ModIRPrecision
   USE RFLU_ModLibVTKIO
+  USE RFLU_ModRestartData, ONLY: RFLU_WriteRestartData
 !  USE, intrinsic:: ISO_FORTRAN_ENV, only: stdout=>OUTPUT_UNIT, stderr=>ERROR_UNIT
 
   IMPLICIT NONE
@@ -4131,6 +4132,12 @@ END IF
     global => pRegion%global
 
     CALL RegisterFunction(global,'RFLU_WriteFlowWrapper',__FILE__)
+
+! rfluinit also writes the step 0 dump (restart_data/) of the initial gas
+! state; rflump writes its dumps itself (RFLU_WriteRestartData)
+    IF ( global%moduleType == MODULE_TYPE_INIT ) THEN
+      CALL RFLU_WriteRestartData(pRegion)
+    END IF ! global%moduleType
 
 ! ******************************************************************************
 !   Write mixture solution files

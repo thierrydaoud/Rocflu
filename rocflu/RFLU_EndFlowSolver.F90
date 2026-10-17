@@ -107,6 +107,7 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
   USE RFLU_ModProbes
   USE RFLU_ModReadWriteAuxVars
   USE RFLU_ModReadWriteFlow
+  USE RFLU_ModRestartData, ONLY: RFLU_WriteRestartData
   USE RFLU_ModReadWriteGrid
   USE RFLU_ModReadWriteGridSpeeds  
   USE RFLU_ModRenumberings
@@ -243,6 +244,9 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
     pRegion => levels(1)%regions(iReg) ! single-level grids for now
     
     CALL RFLU_WriteDimensionsWrapper(pRegion,WRITE_DIMENS_MODE_MAYBE)    
+
+    ! Raw dump of the state in memory (restart_data/)
+    CALL RFLU_WriteRestartData(pRegion)
 
     IF ( moveGrid .EQV. .TRUE. ) THEN
       CALL RFLU_WriteGridWrapper(pRegion)

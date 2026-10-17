@@ -156,6 +156,8 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
   USE PICL_ModInterfaces, ONLY: PICL_WriteVTU
 #endif
 
+  USE RFLU_ModRestartData, ONLY: RFLU_WriteRestartData
+
 #ifdef PICL
 !DEC$ NOFREEFORM
 #include "PPICLF_USER.h"
@@ -436,6 +438,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
     IF ( global%flowType == FLOW_STEADY .OR. &
          global%solverType == SOLV_IMPLICIT_HM ) THEN
       global%currentIter      = global%currentIter      + 1
+      global%currentStep      = global%currentStep      + 1
       global%iterSinceRestart = global%iterSinceRestart + 1
     END IF ! global%flowType
 
@@ -660,6 +663,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
       global%halftimeSinceWrite = global%halftimeSinceWrite + global%dtMin
       !end BBR     
  
+      global%currentStep      = global%currentStep      + 1
       global%iterSinceRestart = global%iterSinceRestart + 1
     END IF ! global%flowType
 
@@ -976,6 +980,10 @@ END IF
       ! Inserting write statements here
       DO iReg=1,global%nRegionsLocal
         pRegion => regions(iReg)
+
+        ! Raw dump of the state in memory (restart_data/)
+        CALL RFLU_WriteRestartData(pRegion)
+
 #ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
         ! TLJ added to plot primitive variables - 02/19/2025

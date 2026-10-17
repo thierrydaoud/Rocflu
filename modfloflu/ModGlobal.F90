@@ -173,9 +173,9 @@ MODULE ModGlobal
 ! ==============================================================================
 
     LOGICAL :: dualTstSource,predCorrIter,predictSol,restartFromScratch
-    INTEGER :: currentIter,flowType,hypreSolver,iterSinceRestart,maxIter, &
-               maxSubIter,nrkSteps,printIter,restartIter,rkScheme,solverType, &
-               tstepOrder,writeIter
+    INTEGER :: currentIter,currentStep,flowType,hypreSolver,iterSinceRestart, &
+               maxIter,maxSubIter,nrkSteps,printIter,restartIter,rkScheme, &
+               solverType,tstepOrder,writeIter
     INTEGER :: maxIterPC,maxIterHypre
     REAL(RFREAL) :: currentTime,dTimeSystem,dtImposed,maxTime,printTime, &
                     resTol,runTime,stopRun,timeStamp,timeStampPrep,tolSubIter, &

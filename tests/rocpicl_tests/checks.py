@@ -5,8 +5,12 @@ right, and stay meaningful when a change (e.g. a new interpolation scheme)
 moves every golden on purpose.
 """
 
+import glob
 import math
+import os
 
+from . import outputs, state
+from .case import CASENAME
 from .state import SPIN, VEL
 
 # Gas fields are double precision; particle files are single precision
@@ -69,6 +73,56 @@ def compare_states(new, ref, label="golden", fields=None):
                     e, i, a, b = max(bad)
                     errors.append("region %s %s: %d cells differ, worst cell %d: %.15g vs %.15g"
                                   % (region, name, len(bad), i + 1, a, b))
+    return errors
+
+
+def check_restart_data(rundir):
+    """Each SOL_* dump must have a fluid dump (restart_data/) of the same time
+    holding the same state, and rfluinit's step 0 dump must exist.
+
+    The dump holds the state in memory; with particles that is volume-weighted
+    ((1-phi)*rho, ...), while the SOL_* files hold rho_g = rho/(1-phi), u, v, w,
+    E (see state.FLOW_NAMES). rfluinit's step 0 dump holds the pure gas state."""
+    errors = []
+    picl = state._picl_used(rundir)
+    dumps = {}
+    for (step, region), path in outputs.fluid_dumps(rundir).items():
+        dumps.setdefault(region, []).append((step, path))
+    if not dumps:
+        return ["restart_data: no fluid dumps"]
+    for region, items in sorted(dumps.items()):
+        if 0 not in [step for step, _ in items]:
+            errors.append("restart_data: no step 0 dump of region %d" % region)
+        dumps[region] = [outputs.read_fluid_dump(path) for _, path in sorted(items)]
+
+    for _, soldir in state._dumps(rundir):
+        for path in glob.glob(os.path.join(soldir, "%s.mixt.cva_*" % CASENAME)):
+            region = int(os.path.basename(path).split("_")[1])
+            # The directory name has 6 digits; the file holds the full time
+            time, sol = outputs.read_flow_ascii(path)
+            match = [d for d in dumps.get(region, []) if _close(d["time"], time, 1e-12, 1e-30)]
+            if not match:
+                errors.append("restart_data: no dump of region %d at t = %.17g" % (region, time))
+                continue
+            d = match[-1]
+            n = len(d["cv"][0])
+            cv = d["cv"]
+            if picl and d["form"] == outputs.FORM_VOLUME_WEIGHTED:
+                expected = [[cv[0][i] / (1.0 - d["phi"][i]) for i in range(n)]]
+            else:
+                expected = [list(cv[0])]
+            if picl:
+                expected += [[cv[k][i] / cv[0][i] for i in range(n)] for k in range(1, len(cv))]
+            else:
+                expected += [list(cv[k]) for k in range(1, len(cv))]
+            for k, (e, s) in enumerate(zip(expected, sol)):
+                scale = max(abs(v) for v in e)
+                bad = [i for i in range(n) if not _close(s[i], e[i], 1e-12, scale)]
+                if bad:
+                    i = bad[0]
+                    errors.append("restart_data: step %d region %d var %d: %d cells differ "
+                                  "from SOL_ (cell %d: %.17g vs %.17g)"
+                                  % (d["step"], region, k + 1, len(bad), i + 1, e[i], s[i]))
     return errors
 
 

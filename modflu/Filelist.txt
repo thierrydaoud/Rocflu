@@ -88,6 +88,7 @@ SRCF90+=	RFLU_ModIRPrecision.F90\
                 RFLU_ModRenumberList.F90\
                 RFLU_ModRepair3D.F90\
                 RFLU_ModResidual.F90\
+                RFLU_ModRestartData.F90\
                 RFLU_ModRindStates.F90\
                 RFLU_ModRoeFlux.F90\
                 RFLU_ModThrustSpecImpulse.F90\

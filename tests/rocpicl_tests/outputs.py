@@ -2,6 +2,8 @@
 
 - ppiclF particle files (par*.vtu): VTK XML with raw appended Float32 data.
 - Rocflu ASCII flow files (SOL_<t>/<case>.mixt.cva_<reg>_<t>): double precision.
+- Fluid dumps (restart_data/fluid_<step>_<region>.dat): raw stream, layout in
+  modflu/RFLU_ModRestartData.F90.
 """
 
 import glob
@@ -94,6 +96,46 @@ def particle_ids(fields, npart, nranks):
     """
     per_rank = -(-npart // nranks)
     return [int(r) * per_rank + int(i) for r, i in zip(fields["id_rank"], fields["id"])]
+
+
+FLUID_DUMP_HEADER = struct.Struct("<8siqd5i")
+FORM_PURE, FORM_VOLUME_WEIGHTED = 1, 2
+
+
+def read_fluid_dump(path):
+    """Return a dict: step, time, region, form, cv (list of nCv arrays over the
+    real cells) and, for PICL runs, phi and grad_rhog (3 arrays)."""
+    with open(path, "rb") as f:
+        data = f.read()
+    magic, version, step, time, region, ncells, ncv, form, with_picl = \
+        FLUID_DUMP_HEADER.unpack_from(data, 0)
+    if magic != b"RFLUDUMP" or version != 1:
+        raise ValueError("%s: not a version 1 fluid dump" % path)
+    pos = FLUID_DUMP_HEADER.size
+
+    def take():
+        nonlocal pos
+        a = struct.unpack_from("<%dd" % ncells, data, pos)
+        pos += 8 * ncells
+        return a
+
+    out = {"step": step, "time": time, "region": region, "form": form,
+           "cv": [take() for _ in range(ncv)]}
+    if with_picl:
+        out["phi"] = take()
+        out["grad_rhog"] = [take() for _ in range(3)]
+    if pos != len(data):
+        raise ValueError("%s: %d bytes left after the data" % (path, len(data) - pos))
+    return out
+
+
+def fluid_dumps(rundir):
+    """All fluid dumps of a run: {(step, region): path}."""
+    out = {}
+    for path in glob.glob(os.path.join(rundir, "restart_data", "fluid_*_*.dat")):
+        _, step, region = os.path.basename(path)[:-4].split("_")
+        out[(int(step), int(region))] = path
+    return out
 
 
 def read_flow_ascii(path):
