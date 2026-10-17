@@ -6,9 +6,11 @@ list of particles. Setting up runs rflumap/rflupart/rfluinit serially;
 the solver runs through srun.
 """
 
+import filecmp
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -64,6 +66,9 @@ class Case:
     # reports XFAIL while they fail (golden still guards against changes) and
     # XPASS once they pass, so the marker can be removed.
     known_issue: Optional[str] = None
+    # After the run: restart it from its first dump after step 0 and require
+    # the final dumps to be byte-identical (restart_test below)
+    restart_test: bool = False
     timeout_min: int = 15
 
     @property
@@ -218,3 +223,50 @@ def run_solver(case, rundir, exe_dir, slurm):
                        if "srun:" in l or "slurm" in l.lower()][:3]
         raise RunError("rflump failed (rc=%d; see rflump.log)%s"
                        % (rc, ("; slurm: " + " | ".join(slurm_lines)) if slurm_lines else ""))
+
+
+def restart_test(case, rundir, exe_dir, slurm):
+    """Restart the finished run in a copy of its directory (rundir + "_restart")
+    from its first dump after step 0, to the same end time, and require every
+    final dump (fluid of each region, particles) to be byte-identical to the
+    uninterrupted run's. Returns a list of failure messages."""
+    data = os.path.join(rundir, "restart_data")
+    steps = sorted({int(n[6:14]) for n in os.listdir(data)
+                    if n.startswith("fluid_") and n.endswith(".dat")})
+    if len(steps) < 3:
+        return ["restart test: needs dumps at step 0, a middle step and the end "
+                "(found steps %s)" % steps]
+    start, last = steps[1], steps[-1]
+
+    again = rundir + "_restart"
+    shutil.rmtree(again, ignore_errors=True)
+    shutil.copytree(rundir, again)
+    inp = os.path.join(again, CASENAME + ".inp")
+    with open(inp) as f:
+        text = f.read()
+    text, n = re.subn(r"(?m)^START_STEP\b.*$", "START_STEP  %d" % start, text)
+    if n != 1:
+        return ["restart test: no START_STEP line in the input"]
+    with open(inp, "w") as f:
+        f.write(text)
+
+    cmd = srun_prefix(case.nranks, case.timeout_min, slurm)
+    cmd += [os.path.join(exe_dir, "rflump"), "-c", CASENAME, "-v", "1"]
+    rc = _run(cmd, again, "rflump.log", timeout=60 * (case.timeout_min + 5))
+    with open(os.path.join(again, "rflump.log"), errors="replace") as f:
+        log = f.read()
+    if rc != 0 or "| Finished" not in log:
+        return ["restart test: rflump failed restarting from step %d (rc=%d; see %s)"
+                % (start, rc, os.path.join(again, "rflump.log"))]
+
+    final = sorted(n for n in os.listdir(data) if n.endswith(".dat") and
+                   (n.startswith("fluid_%08d_" % last) or n == "particles_%08d.dat" % last))
+    errors = []
+    for name in final:
+        restarted = os.path.join(again, "restart_data", name)
+        if not os.path.exists(restarted):
+            errors.append("restart test: restarted from step %d, no %s" % (start, name))
+        elif not filecmp.cmp(os.path.join(data, name), restarted, shallow=False):
+            errors.append("restart test: restarted from step %d, %s differs from the "
+                          "uninterrupted run" % (start, name))
+    return errors

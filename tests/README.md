@@ -162,6 +162,18 @@ by particle.
 | `wall_collisions` | Every particle that reaches a wall of the box rebounds from it and ends inside the box, clear of the wall; one that hits a single wall rebounds with the input `EREST` (within 0.035) |
 | `same_as` | Particles match the same case on a different number of ranks (all particle fields, or only those named by the case's `same_as_fields`) |
 
+Every case also checks its dumps in `restart_data/`: each `SOL_*` flow file matches the fluid
+dump of the same time (1e-12 relative), each `par*.vtu` matches the particle dump of the same
+time field by field (single precision), and rfluinit's step 0 dump exists.
+
+**Restart test** (cases with `restart_test=True`): after the run, the harness copies the run
+directory to `<case>_restart`, sets `START_STEP` to the first dump after step 0, runs rflump
+again to the same end time and requires every final dump (fluid of each region, particles)
+to be **byte-identical** to the uninterrupted run's. It runs on `box/momentum-exchange/np2`
+(two-way coupling), `shocktube/two-way/viscous-unsteady/np2` (history of past steps, NSCBC
+outflow), `box/qs-fluctuations/np2` (random streams) and `box/binary-collisions/np2`
+(collisions).
+
 ## The test cases
 
 Every case writes two solution dumps and is compared at the last one. "np*N*" in a name
@@ -264,6 +276,10 @@ on (`RFLU_TimeStepping` converts real cells just before each dump):
 
 - PICL off: conserved bulk state `rho, rho*u, rho*v, rho*w, rho*E`
 - PICL on: gas-phase primitive state `rho_g, u, v, w, E`, with `rho_g = rho/(1-phi)`
+
+The fluid dumps (`restart_data/fluid_<step>_<region>.dat`) hold the state as it is in memory:
+`(1-phi)*rho, ...` with particles; rfluinit's step 0 dump the pure gas state. Layouts of both
+dump files: `modflu/RFLU_ModRestartData.F90`; readers: `rocpicl_tests/outputs.py`.
 
 Goldens store the arrays as written. Conservation totals convert to bulk quantities,
 taking `phi` from the "Particle Volume Fraction" field in `PARAVIEW_*/<case>_<t>_<reg>.vtu`.

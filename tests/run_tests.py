@@ -79,6 +79,8 @@ def run_case(case, args):
     # errors: run failures and golden mismatches (always fatal)
     # physics: physics/cross-check failures (expected while known_issue is set)
     res = {"case": case, "errors": [], "physics": [], "final": None}
+    slurm = {"account": args.account, "partition": args.partition,
+             "local_ranks": args.local_ranks}
     try:
         # One retry from a clean set-up: a failed srun can leave partial
         # dumps that a rerun in the same directory would restart from
@@ -90,9 +92,7 @@ def run_case(case, args):
                 res["errors"] += ["case validator: " + e for e in invalid]
                 return res
             try:
-                rcase.run_solver(case, rundir, args.exe, {"account": args.account,
-                                                          "partition": args.partition,
-                                                          "local_ranks": args.local_ranks})
+                rcase.run_solver(case, rundir, args.exe, slurm)
                 break
             except rcase.RunError as e:
                 if attempt == 2:
@@ -104,6 +104,8 @@ def run_case(case, args):
         res["errors"] += checks.check_restart_data(rundir)
         if case.particles:
             res["errors"] += checks.check_particle_dump(rundir)
+        if case.restart_test:
+            res["errors"] += rcase.restart_test(case, rundir, args.exe, slurm)
 
         if not state.all_finite(final):
             res["errors"].append("non-finite values in final state")
@@ -230,6 +232,7 @@ def main():
             print(paint("         - " + e, "31"))
         if st == "PASS" and not args.keep:
             shutil.rmtree(os.path.join(WORK, r["case"].name), ignore_errors=True)
+            shutil.rmtree(os.path.join(WORK, r["case"].name) + "_restart", ignore_errors=True)
         elif st != "PASS":
             print(paint("         run dir: " + os.path.join(WORK, r["case"].name), "2"))
     seconds = (datetime.datetime.now() - start).total_seconds()

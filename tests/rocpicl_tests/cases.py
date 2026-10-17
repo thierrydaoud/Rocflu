@@ -114,7 +114,9 @@ for force, opts in FORCES.items():
     add(name="shocktube/two-way/%s/np2" % force,
         description="Two-way QS drag plus %s" % force.replace("-", " "),
         nranks=2, inp={**SHOCKTUBE, **TWO_WAY, **opts}, particles=FOUR_PARTICLES,
-        checks=["particles_moved"])
+        checks=["particles_moved"],
+        # history of past steps and the NSCBC outflow must survive a restart
+        restart_test=(force == "viscous-unsteady"))
 
 # -- Periodic box: gas moving through particles at rest -----------------------
 for n in (1, 2):
@@ -124,7 +126,8 @@ for n in (1, 2):
         nranks=n, grid=BOX, bc="periodic",
         inp={**uniform_gas(50.0), **TWO_WAY}, particles=cloud(40, 2.0e-5),
         checks=["particles_moved", "mass", "momentum", "energy"],
-        same_as=None if n == 1 else "box/momentum-exchange/np1")
+        same_as=None if n == 1 else "box/momentum-exchange/np1",
+        restart_test=(n == 2))
 
 # -- Periodic box: quasi-steady force fluctuations (QSFLUCT 2, Osnes) ---------
 # The noise amplitude grows with the granular temperature, the velocity spread
@@ -154,7 +157,8 @@ for n in (1, 2):
              ("PICL", "OUTMODEL"): 1, ("PICL", "NEIGHBORWIDTH"): "3.0e-3"},
         particles=with_velocity_spread(cloud(40, 2.0e-5)),
         checks=["particles_moved", "fluctuations_active"],
-        same_as=None if n == 1 else "box/qs-fluctuations/np1")
+        same_as=None if n == 1 else "box/qs-fluctuations/np1",
+        restart_test=(n == 2))
 
 # -- Periodic box: fixed particles in gas at rest -----------------------------
 # Virtual cells at region borders used to keep the gas-phase state after the
@@ -306,7 +310,8 @@ for n in (1, 2, 4):
         inp={**uniform_gas(0.0), **ONE_WAY, **COLLISIONS_ONLY, ("PICL", "COLLISIONS"): 2},
         particles=BINARY_COLLISIONS,
         checks=["particles_moved", "binary_collisions"],
-        same_as=None if n == 1 else "box/binary-collisions/np1")
+        same_as=None if n == 1 else "box/binary-collisions/np1",
+        restart_test=(n == 2))
 
 # -- Closed box: particle-wall collisions --------------------------------------
 # The six slip walls are particle walls (PARTWALL 1 in the .bc file). Each
