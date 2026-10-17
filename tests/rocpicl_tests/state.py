@@ -19,6 +19,8 @@ PARTICLE_FIELDS = (
     + list(VEL) + ["Tp"] + list(SPIN)
     + ["rhop", "rho_g", "dp", "volp", "phi_p"]
     + ["ug_x", "ug_y", "ug_z", "c_g", "dpdx_g", "dpdy_g", "dpdz_g"]
+    # Quasi-steady force fluctuation: written only with QSFLUCT and OUTMODEL 1
+    + ["Ffluct_x", "Ffluct_y", "Ffluct_z"]
 )
 # What the five arrays of a Rocflu ASCII flow file hold depends on whether
 # particles are on (RFLU_TimeStepping converts real cells just before writing):

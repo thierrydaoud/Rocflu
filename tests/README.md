@@ -25,7 +25,7 @@ on needs them (`ppiclf_user_Layout`), so cases without pressure-gradient, added-
 viscous-unsteady or rotational-collision models have no `dpdx_g` and similar fields. A
 field that is in a golden but no longer written fails the comparison.
 
-The 34 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
+The 36 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
 collisions, walls) and [gas only](#gas-only-cases) (the flow solver without particles).
 
@@ -79,8 +79,8 @@ messages are shown next to the case.
 
 ### 3. Read the result
 
-The script prints one line per case, a total (e.g. `34 PASS`) and a closing line
-(`✔ All 34 cases passed in 29 s`, or `✗ 2 of 34 cases failed`). On a terminal the statuses
+The script prints one line per case, a total (e.g. `36 PASS`) and a closing line
+(`✔ All 36 cases passed in 29 s`, or `✗ 2 of 36 cases failed`). On a terminal the statuses
 are coloured (PASS green, FAIL red, XFAIL yellow, XPASS cyan); `NO_COLOR=1` turns that off. See [Results](#results)
 for what each status means.
 
@@ -158,6 +158,7 @@ by particle.
 | `projection_shape` | One particle's volume fraction is centred on it (within 0.06 cell) and spread 0.35-0.50 cell lengths in each direction |
 | `collision_pairs` | Overlapping pairs pushed apart by collisions alone conserve each pair's momentum, separate, and all move like the first pair, whether the partner is real, a ghost from another rank, or a periodic image |
 | `binary_collisions` | Colliding pairs (ids 2k−1, 2k) conserve momentum (1e-5) and angular momentum about their centre of mass (0.5%), and separate; head-on pairs rebound with the input `EREST` (within 1%) |
+| `fluctuations_active` | Every particle feels a nonzero quasi-steady force fluctuation at the end (`Ffluct_*`, written with `OUTMODEL 1`), so the noise is really tested |
 | `wall_collisions` | Every particle that reaches a wall of the box rebounds from it and ends inside the box, clear of the wall; one that hits a single wall rebounds with the input `EREST` (within 0.035) |
 | `same_as` | Particles match the same case on a different number of ranks (all particle fields, or only those named by the case's `same_as_fields`) |
 
@@ -182,7 +183,7 @@ They run to 20 µs.
 | `shocktube/two-way/pressure-gradient` | 2 | + `PGFORCE 1` | `particles_moved` | Pressure-gradient force |
 | `shocktube/two-way/viscous-unsteady` | 2 | + `VISCOUSUNSTEADY 1` | `particles_moved` | History force |
 | `shocktube/two-way/heat-transfer` | 2 | + `HEATTRANSFER 3` | `particles_moved` | Heat-transfer closure |
-| `shocktube/two-way/qs-fluctuations` | 2 | + `QSFLUCT 2` | `particles_moved` | Quasi-steady force fluctuations |
+| `shocktube/two-way/qs-fluctuations` | 2 | + `QSFLUCT 2` | `particles_moved` | Quasi-steady force fluctuations run; the four particles have no neighbours, so the noise amplitude is 0 (see `box/qs-fluctuations`) |
 | `shocktube/two-way/qs-parmar` | 2 | `QSFORCE 2` | `particles_moved` | Parmar drag (MFC numbering) |
 | `shocktube/two-way/qs-gidaspow` | 2 | `QSFORCE 1` | `particles_moved` | Gidaspow drag |
 
@@ -197,6 +198,7 @@ walls. The gas is uniform (1.2 kg/m³, 101 325 Pa) unless stated otherwise.
 | Case | Ranks | Setup | Checks | What it guards |
 |---|---|---|---|---|
 | `box/momentum-exchange` | 1, 2 | Periodic; gas at 50 m/s through 40 particles (20 µm) at rest, two-way | `mass`, `momentum`, `energy`, `same_as` | The gas loses exactly the momentum and energy the particles gain |
+| `box/qs-fluctuations` | 1, 2 | Periodic; gas at 50 m/s through 40 particles (20 µm) with a ±1 m/s velocity spread, `QSFLUCT 2`, `OUTMODEL 1`, `NEIGHBORWIDTH 3e-3` | `particles_moved`, `fluctuations_active`, `same_as` | Each particle draws from its own random stream: 1 and 2 ranks agree (96b28a4; one generator per rank failed this) |
 | `box/quiescent-cloud` | 2, 4 | Periodic; 30 fixed particles (300 µm, uneven) in gas at rest, `VELOCITYMODEL 0`, `PGFORCE 1` | `quiescent`, `mass` | Stale virtual cells at rank borders set the gas moving (e3ed370) |
 | `box/resting-heat-exchange` | 1 | Periodic; particles at rest at 296.4 K in gas at rest at 294.2 K, `HEATTRANSFER 2` | `particles_heat_exchange`, `mass`, `energy` | Heat transfer at zero slip used to be skipped (f0ae123) |
 | `box/linear-interp` | 1, 2, 4 | Closed; gas at rest with density linear in x, y, z; 40 tracers (1 µm) | `linear_interp`, `mass` | Interpolation is exact for a linear field (89f9661) |

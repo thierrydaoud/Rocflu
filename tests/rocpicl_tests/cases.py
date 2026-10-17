@@ -126,6 +126,36 @@ for n in (1, 2):
         checks=["particles_moved", "mass", "momentum", "energy"],
         same_as=None if n == 1 else "box/momentum-exchange/np1")
 
+# -- Periodic box: quasi-steady force fluctuations (QSFLUCT 2, Osnes) ---------
+# The noise amplitude grows with the granular temperature, the velocity spread
+# among a particle's neighbours, so the particles start with a spread of up to
+# 1 m/s per component and the neighbour width (3 mm) covers the cloud. Each
+# particle draws from its own random stream, so 1 and 2 ranks must agree; with
+# one generator per rank they did not.
+def with_velocity_spread(particles, spread=1.0, seed=7):
+    """Add reproducible velocities in [-spread, spread] to (x, y, z, dp) particles."""
+    out = []
+    state = seed
+    for p in particles:
+        uvw = []
+        for _ in range(3):
+            state = (1103515245 * state + 12345) % 2 ** 31
+            uvw.append(spread * (2.0 * state / 2 ** 31 - 1.0))
+        out.append(tuple(p[:4]) + tuple(uvw))
+    return out
+
+
+for n in (1, 2):
+    add(name="box/qs-fluctuations/np%d" % n,
+        description="Uniform gas at 50 m/s through 40 particles with a velocity spread; "
+                    "the force fluctuation must be on and not depend on the rank count",
+        nranks=n, grid=BOX, bc="periodic",
+        inp={**uniform_gas(50.0), **TWO_WAY, ("PICL", "QSFLUCT"): 2,
+             ("PICL", "OUTMODEL"): 1, ("PICL", "NEIGHBORWIDTH"): "3.0e-3"},
+        particles=with_velocity_spread(cloud(40, 2.0e-5)),
+        checks=["particles_moved", "fluctuations_active"],
+        same_as=None if n == 1 else "box/qs-fluctuations/np1")
+
 # -- Periodic box: fixed particles in gas at rest -----------------------------
 # Virtual cells at region borders used to keep the gas-phase state after the
 # start-up conversion to phi_g-weighted variables, so the first stage leaked

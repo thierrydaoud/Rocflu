@@ -1,0 +1,22 @@
+{
+ "created": "2026-10-17T00:52:15",
+ "host": "login12.ufhpc",
+ "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocpicl_Dec23_dump/build/install/release/bin",
+ "git": {
+  "commit": "598df0db1dbf11c3cfe3db5ec7e1a82255a0b06f",
+  "branch": "HEAD",
+  "modified_sources": [
+   "libflu/RFLU_InitGlobal.F90",
+   "libpicl/source/ppiclf_op.f",
+   "libpicl/user_files/ppiclf_user_Fluctuations.f",
+   "libpicl/user_files/ppiclf_user_PseudoTurbulence.f",
+   "modfloflu/ModGlobal.F90",
+   "modflu/RFLU_ModNewtonKrylov.F90",
+   "modflu/RFLU_ModReadWriteFlow.F90",
+   "rocflu/RFLU_EndFlowSolver.F90",
+   "rocflu/RFLU_TimeStepping.F90",
+   "rocpicl/PICL_InitSolver.F90"
+  ]
+ },
+ "modules": "gcc/14.2.0:openmpi/5.0.7"
+}

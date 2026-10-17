@@ -449,6 +449,17 @@ def check_wall_collisions(init, final, case):
     return errors
 
 
+def check_fluctuations_active(init, final, case):
+    """Every particle must feel a nonzero force fluctuation at the end; a zero
+    noise amplitude (no neighbours, no velocity spread) would test nothing."""
+    quiet = [pid for pid, p in final["particles"].items()
+             if all(p.get("Ffluct_" + c, 0.0) == 0.0 for c in "xyz")]
+    if quiet:
+        return ["%d of %d particles have no force fluctuation (e.g. particle %s)"
+                % (len(quiet), len(final["particles"]), quiet[0])]
+    return []
+
+
 PHYSICS = {
     "quiescent": check_quiescent,
     "mass": check_mass,
@@ -462,4 +473,5 @@ PHYSICS = {
     "collision_pairs": check_collision_pairs,
     "binary_collisions": check_binary_collisions,
     "wall_collisions": check_wall_collisions,
+    "fluctuations_active": check_fluctuations_active,
 }

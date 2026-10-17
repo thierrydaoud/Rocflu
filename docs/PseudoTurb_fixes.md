@@ -390,7 +390,9 @@ The advantages:
   velocities by up to 6.7e-6 m/s after 100 µs; now both runs are identical.
 - The suite's `shocktube/two-way/qs-fluctuations` case is unchanged: its four particles are
   farther apart than the neighbour width, so their granular temperature, and with it the
-  noise amplitude, is exactly 0 in both versions.
+  noise amplitude, is exactly 0 in both versions. The new suite case `box/qs-fluctuations`
+  (np1 and np2, the cloud above) checks that the noise is on and that both rank counts
+  agree; the old generator fails it.
 
 ## Particle collisions
 
