@@ -60,6 +60,8 @@ ${HEADING}Commands:${PLAIN}
   ${OPTION}./rocflu.sh build${PLAIN} [options]       configure and compile (every particle slot)
   ${OPTION}./rocflu.sh run${PLAIN} <case>.inp ...    check the case, build for it, pre-process it
                                     here and submit the simulation to Slurm
+  ${OPTION}./rocflu.sh post${PLAIN} <case>.inp ...   convert the case's dumps (restart_data/) into
+                                    ParaView files in post/ (rflupost)
   ${OPTION}./rocflu.sh validate${PLAIN} <case>.inp   check a case's input and files only
   ${OPTION}./rocflu.sh test${PLAIN} [options]        run the regression suite (tests/run_tests.py)
   ${OPTION}./rocflu.sh clean${PLAIN}                 remove build/
@@ -105,7 +107,8 @@ ${HEADING}Targets${PLAIN} ${DEFAULT}(default: all)${PLAIN}:
   ${OPTION}-t, --targets${PLAIN} T ...   one or more of
                           simulation    the solver rflump
                           pre_process   rflumap, rflupart and rfluinit
-                          rflump rflumap rflupart rfluinit
+                          post_process  the post program rflupost
+                          rflump rflumap rflupart rfluinit rflupost
 ${HEADING}Build type and physics:${PLAIN}
   ${OPTION}--debug${PLAIN}               -g -O0 -fcheck=all ${DEFAULT}(default: optimised release build)${PLAIN}
   ${OPTION}--spec, --plag${PLAIN}        species transport (needed by the mixture and JWL
@@ -159,7 +162,8 @@ cmd_build() {
     case "$t" in
       simulation)  cmake_targets+=(rflump) ;;
       pre_process) cmake_targets+=(rflumap rflupart rfluinit) ;;
-      rflump|rflumap|rflupart|rfluinit) cmake_targets+=("$t") ;;
+      post_process) cmake_targets+=(rflupost) ;;
+      rflump|rflumap|rflupart|rfluinit|rflupost) cmake_targets+=("$t") ;;
       *) fail "unknown target $t (see ./rocflu.sh build --help)" ;;
     esac
   done
@@ -232,7 +236,7 @@ build_config() {
         metis_bundled) checkpoint "METIS + GKlib" $((SECONDS - start)) ;;
         ppiclF)        checkpoint "ppiclF" $((SECONDS - start)) ;;
         flu)           checkpoint "Rocflu library" $((SECONDS - start)) ;;
-        rflump|rflumap|rflupart|rfluinit) programs+=("${BASH_REMATCH[1]}") ;;
+        rflump|rflumap|rflupart|rfluinit|rflupost) programs+=("${BASH_REMATCH[1]}") ;;
       esac
     fi
     [ "$verbose" == 1 ] || progress_bar "$percent" "$file" $((SECONDS - start))
@@ -371,6 +375,9 @@ ${HEADING}What to do:${PLAIN}
                         ${DEFAULT}(default: batch)${PLAIN}
   ${OPTION}--dry-run${PLAIN}             build, pre-process and write the job script, but
                         do not submit or run it ${DEFAULT}(default: submit)${PLAIN}
+  ${OPTION}--post${PLAIN}                after the simulation, convert its dumps into
+                        ParaView files in post/ (rflupost, one task)
+                        ${DEFAULT}(default: no; run ./rocflu.sh post later)${PLAIN}
 ${HEADING}Build:${PLAIN}
   ${OPTION}--debug${PLAIN}               debug build (-g -O0 -fcheck=all)
                         ${DEFAULT}(default: optimised release build)${PLAIN}
@@ -382,10 +389,33 @@ build used by ./rocflu.sh test).
 EOF
 }
 
+# Build for a case: a quick configure finds the particle slot groups its
+# input needs; the build is named after them. Sets name and bin.
+build_for_case() {   # <case.inp> <debug 0|1> <jobs>
+  local inp="$1" debug="$2" jobs="$3" case_name
+  case_name="$(basename "$inp" .inp)"
+  local type=Release prefix=release
+  if [ "$debug" == 1 ]; then type=Debug; prefix=debug; fi
+  local probe="$BUILD_ROOT/staging/.probe-$prefix" groups
+  mkdir -p "$BUILD_ROOT/staging"
+  groups=$(cmake -S "$ROOT" -B "$probe" -DCMAKE_BUILD_TYPE=$type -DROCFLU_CASE="$inp" 2>&1 \
+           | sed -n 's/^-- Particle slot groups: //p')
+  [ -n "$groups" ] || fail "could not read the slot groups of $inp (try: cmake -S $ROOT -B $probe -DROCFLU_CASE=$inp)"
+  local physics
+  physics=$(echo "$groups" | tr ';' '\n' | grep -vxE 'core|props|gas' | paste -sd- -)
+  [ -n "$physics" ] || physics=base
+  name="$prefix-case-$physics"
+  say "case $case_name needs slot groups: $groups"
+  build_config "$name" "$jobs" 0 0 "rflump rflumap rflupart rfluinit rflupost" \
+    -DCMAKE_BUILD_TYPE=$type -DROCFLU_CASE="$inp"
+  bin="$BUILD_ROOT/install/$name/bin"
+  say "executables: build/install/$name/bin"
+}
+
 cmd_run() {
   local inp="" nodes=1 tasks=1 partition=hpg-default account=bala1s
   local walltime=01:00:00 mem="" email="" targets=() dry=0 debug=0 jobs=16
-  local engine=batch
+  local engine=batch post=0
   while [ $# -gt 0 ]; do
     case "$1" in
       -N|--nodes)          nodes="$2"; shift ;;
@@ -401,6 +431,7 @@ cmd_run() {
         continue ;;
       -e|--engine)         engine="$2"; shift ;;
       --dry-run)           dry=1 ;;
+      --post)              post=1 ;;
       --debug)             debug=1 ;;
       -j|--jobs)           jobs="$2"; shift ;;
       -h|--help)           usage_run; exit 0 ;;
@@ -455,24 +486,9 @@ cmd_run() {
 
   load_modules || fail "could not load modules: $ROCFLU_MODULES"
 
-  # 1. Build for the case. A quick configure finds the slot groups its
-  #    input needs; the build is named after them.
-  local type=Release prefix=release
-  if [ $debug == 1 ]; then type=Debug; prefix=debug; fi
-  local probe="$BUILD_ROOT/staging/.probe-$prefix" groups
-  mkdir -p "$BUILD_ROOT/staging"
-  groups=$(cmake -S "$ROOT" -B "$probe" -DCMAKE_BUILD_TYPE=$type -DROCFLU_CASE="$inp" 2>&1 \
-           | sed -n 's/^-- Particle slot groups: //p')
-  [ -n "$groups" ] || fail "could not read the slot groups of $inp (try: cmake -S $ROOT -B $probe -DROCFLU_CASE=$inp)"
-  local physics
-  physics=$(echo "$groups" | tr ';' '\n' | grep -vxE 'core|props|gas' | paste -sd- -)
-  [ -n "$physics" ] || physics=base
-  local name="$prefix-case-$physics"
-  say "case $case_name needs slot groups: $groups"
-  build_config "$name" "$jobs" 0 0 "rflump rflumap rflupart rfluinit" \
-    -DCMAKE_BUILD_TYPE=$type -DROCFLU_CASE="$inp"
-  local bin="$BUILD_ROOT/install/$name/bin"
-  say "executables: build/install/$name/bin"
+  # 1. Build for the case
+  local name bin
+  build_for_case "$inp" "$debug" "$jobs"
 
   # 2. Pre-process here, one process each
   if [ $pre == 1 ]; then
@@ -560,6 +576,12 @@ EOF
     local overlap=""
     [ $engine == interactive ] && overlap="--overlap --mem=0 "
     echo "srun --mpi=pmix ${overlap}-n $nranks $bin/rflump -c $case_name -v 1"
+    if [ $post == 1 ]; then
+      # Only after a simulation that succeeded
+      echo "status=\$?"
+      echo "[ \$status == 0 ] || exit \$status"
+      echo "srun --mpi=pmix ${overlap}-n 1 $bin/rflupost -c $case_name -v 0"
+    fi
   } > "$script"
   say "job script: $script"
 
@@ -578,6 +600,100 @@ EOF
   local out
   out=$(cd "$case_dir" && sbatch "$script" 2>&1) || { echo "$out" >&2; fail "sbatch failed"; }
   checkpoint "$out (output: $case_dir/$case_name.<job id>.out)" ""
+}
+
+usage_post() {
+  cat << EOF
+${HEADING}Usage:${PLAIN} ${OPTION}./rocflu.sh post${PLAIN} <dir>/<case>.inp [options]
+
+Converts the dumps of the case (<dir>/restart_data/) into ParaView files in
+<dir>/post/ with rflupost: open <dir>/post/collection.pvd. The fluid fields
+are chosen with the *_WRT keys of # POST, the particle fields with those of
+# PICL. It uses the build of the case (as ./rocflu.sh run) and can run while
+the simulation is still running.
+
+${HEADING}Steps:${PLAIN}
+  ${OPTION}-s, --steps${PLAIN} S         new: the steps not yet in post/ ${DEFAULT}(default)${PLAIN}
+                        all: every step (e.g. after changing the *_WRT keys)
+                        last: the last step
+                        N,M,...: the steps given
+${HEADING}Where:${PLAIN}
+  ${OPTION}-e, --engine${PLAIN} E        here: run on this node, one process ${DEFAULT}(default)${PLAIN}
+                        batch: submit a one-task Slurm job (<case>.post.sbatch)
+  ${OPTION}-p, --partition${PLAIN} P     Slurm partition for batch ${DEFAULT}(default: hpg-default)${PLAIN}
+  ${OPTION}-a, --account${PLAIN} A       Slurm account for batch ${DEFAULT}(default: bala1s)${PLAIN}
+  ${OPTION}-w, --walltime${PLAIN} T      wall time for batch, HH:MM:SS ${DEFAULT}(default: 00:30:00)${PLAIN}
+  ${OPTION}--mem${PLAIN} M               memory for batch, e.g. 16gb ${DEFAULT}(default: 8gb)${PLAIN}
+${HEADING}Build:${PLAIN}
+  ${OPTION}--debug${PLAIN}               debug build ${DEFAULT}(default: release)${PLAIN}
+  ${OPTION}-j, --jobs${PLAIN} N          compile with N processes ${DEFAULT}(default: 16)${PLAIN}
+EOF
+}
+
+cmd_post() {
+  local inp="" steps=new engine=here partition=hpg-default account=bala1s
+  local walltime=00:30:00 mem=8gb debug=0 jobs=16
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -s|--steps)     steps="$2"; shift ;;
+      -e|--engine)    engine="$2"; shift ;;
+      -p|--partition) partition="$2"; shift ;;
+      -a|--account)   account="$2"; shift ;;
+      -w|--walltime)  walltime="$2"; shift ;;
+      --mem)          mem="$2"; shift ;;
+      --debug)        debug=1 ;;
+      -j|--jobs)      jobs="$2"; shift ;;
+      -h|--help)      usage_post; exit 0 ;;
+      -*)             usage_post; fail "unknown option $1" ;;
+      *) [ -z "$inp" ] || fail "more than one case given ($inp, $1)"; inp="$1" ;;
+    esac
+    shift
+  done
+  [ -n "$inp" ] || { usage_post; fail "no case given"; }
+  [ -f "$inp" ] || fail "no file $inp"
+  case "$inp" in *.inp) ;; *) fail "$inp: the case file must end in .inp" ;; esac
+  case "$engine" in here|batch) ;; *) fail "unknown engine $engine (here or batch)" ;; esac
+  [[ "$steps" =~ ^(new|all|last|[0-9]+(,[0-9]+)*)$ ]] \
+    || fail "-s must be new, all, last or step numbers separated by commas"
+
+  local case_dir case_name
+  case_dir="$(cd "$(dirname "$inp")" && pwd)"
+  case_name="$(basename "$inp" .inp)"
+  inp="$case_dir/$case_name.inp"
+  [ -d "$case_dir/restart_data" ] || fail "no restart_data/ in $case_dir: run the case first"
+
+  load_modules || fail "could not load modules: $ROCFLU_MODULES"
+  local name bin
+  build_for_case "$inp" "$debug" "$jobs"
+
+  if [ $engine == here ]; then
+    say "converting the dumps of $case_name (steps: $steps) into $case_dir/post"
+    (cd "$case_dir" && "$bin/rflupost" -c "$case_name" -s "$steps" -v 0) \
+      || fail "rflupost failed"
+    say "open $case_dir/post/collection.pvd in ParaView"
+    return
+  fi
+
+  local script="$case_dir/$case_name.post.sbatch"
+  {
+    echo "#!/bin/bash"
+    echo "# Written by rocflu.sh post on $(date '+%Y-%m-%d %H:%M'): $case_name, steps $steps"
+    echo "#SBATCH --job-name=$case_name-post"
+    echo "#SBATCH --account=$account"
+    echo "#SBATCH --partition=$partition"
+    echo "#SBATCH --ntasks=1"
+    echo "#SBATCH --mem=$mem"
+    echo "#SBATCH --time=$walltime"
+    echo "#SBATCH --output=$case_name.post.%j.out"
+    echo
+    [ -n "$ROCFLU_MODULES" ] && echo "module purge; module load $ROCFLU_MODULES"
+    echo "cd $case_dir"
+    echo "srun --mpi=pmix -n 1 $bin/rflupost -c $case_name -s $steps -v 0"
+  } > "$script"
+  command -v sbatch > /dev/null || fail "sbatch not found"
+  local out
+  out=$(cd "$case_dir" && sbatch "$script" 2>&1) || { echo "$out" >&2; fail "sbatch failed"; }
+  checkpoint "$out (output: $case_dir/$case_name.post.<job id>.out)" ""
 }
 
 usage_test() {
@@ -621,6 +737,7 @@ cmd_test() {
 case "$1" in
   build) shift; cmd_build "$@" ;;
   run)   shift; cmd_run "$@" ;;
+  post)  shift; cmd_post "$@" ;;
   validate) shift; cmd_validate "$@" ;;
   test)  shift; cmd_test "$@" ;;
   clean) rm -rf "$BUILD_ROOT"; say "removed build/" ;;

@@ -238,6 +238,15 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
   global%currentIter       = 0
   global%currentStep       = 0
   global%startStep         = 0
+  global%postWriteDensity     = .TRUE.
+  global%postWriteVelocity    = .TRUE.
+  global%postWritePressure    = .TRUE.
+  global%postWritePhi         = .TRUE.
+  global%postWriteTemperature = .FALSE.
+  global%postWriteSoundSpeed  = .FALSE.
+  global%postWriteEnergy      = .FALSE.
+  global%postWriteGradRho     = .FALSE.
+  global%postWritePT          = .FALSE.
   global%nFilesRemoved     = 0
   global%iterSinceRestart  = 0
   global%maxIter           = 10000

@@ -16,6 +16,7 @@ is a complete, working example.
 - [`# PICL`: the particles](#picl-the-particles)
   - [Models that need other models](#models-that-need-other-models)
 - [`points.dat`: the particles' initial state](#pointsdat-the-particles-initial-state)
+- [Output and restarts](#output-and-restarts)
 - [The case validator](#the-case-validator)
   - [Removed keys](#removed-keys)
 
@@ -84,7 +85,10 @@ accept more.
 | `# VISCMODEL` | `MODEL` | 0 Sutherland, 1 fixed | |
 | | `VISCOSITY` | Pa s | reference viscosity; **required with particles** |
 | | `REFTEMP`, `SUTHCOEF` | K | Sutherland's law |
-| `# POST`, `# MISC` | | | output and miscellaneous settings, as in the template |
+| `# POST` | `DENSITY_WRT`, `VELOCITY_WRT`, `PRESSURE_WRT`, `PHI_WRT` | 0, 1 (default 1) | fluid fields the post program writes: gas density, velocity, pressure, particle volume fraction (with particles) |
+| | `TEMPERATURE_WRT`, `SOUNDSPEED_WRT`, `ENERGY_WRT`, `GRADRHO_WRT`, `PT_WRT` | 0, 1 (default 0) | also temperature, speed of sound, total energy per mass, gas-density gradient, pseudo-turbulence fields `DivPhiRsg` and `FCell` (with `PSEUDOTURB`) |
+| | other keys | | settings of the old ParaView output, as in the template |
+| `# MISC` | | | miscellaneous settings, as in the template |
 
 ## `# PICL`: the particles
 
@@ -165,6 +169,36 @@ Older forms are no longer read: a material name in the first column (removed wit
 `# MATERIAL` for particles), and `x y z dp [u v w]` (diameter before the velocity).
 The validator and `rflump` both stop on them.
 
+## Output and restarts
+
+`rflump` writes its results as raw dumps in `restart_data/`, at step 0 (the particles),
+every `WRITIME` and the end of the run:
+
+- `fluid_<step>_<region>.dat`: the gas state of a region as it is in memory (real cells,
+  double precision), with particles also the particle volume fraction and the gas-density
+  gradient, with `PSEUDOTURB` the pseudo-turbulence fields, and the face states of the
+  non-reflecting (NSCBC) boundaries. `rfluinit` writes step 0.
+- `particles_<step>.dat`: every particle (state, properties, IDs, random-stream state,
+  viscous-unsteady history), the fields projected to the fluid cells, the bins and the
+  list of output fields.
+
+Layouts: `modflu/RFLU_ModRestartData.F90`. A file is written as `.tmp` and renamed when it
+is complete. The same files are what a restart reads and what the post program converts
+(`./rocflu.sh post`, see [Building.md](Building.md#results-rocflush-post)), so results
+can be looked at during a run or after it stopped.
+
+**Starting a run** (`START_STEP` in `# TIMESTEP`): `0` (default) is a new run from
+rfluinit's step 0; it removes what an earlier run in the directory left (dumps after step
+0, the old-style output). `-1` restarts from the latest step with every dump, `N` from
+step N; dumps after the start step are removed. A restart needs the same number of ranks
+and the same particle physics as the run that wrote the dump, and continues it exactly:
+the results are the same, to the last bit, as a run that never stopped (checked by the
+suite's restart test).
+
+The old-style output (`SOL_*`, `PARAVIEW_*`, `par*.vtu`, `bin*.vtu`) is still written for
+comparison. Without particles its `Velocity` and `Energy` fields hold the momentum and the
+energy per volume; the post program writes velocity and energy per mass.
+
 ## The case validator
 
 ```bash
@@ -208,4 +242,6 @@ The validator mirrors `rocpicl/PICL_ReadPiclSection.F90` (keys and their order) 
 | `REACTIVE` | nothing: the particle burn-rate model was removed |
 | `PICLDEBUG` | nothing |
 | `ANGULARPERIODIC`, `ANGLE`, `XANGLE`, `RIN`, `ROUT` | nothing: angular periodicity is not available |
+| `OUTPARTICLE`, `OUTGAS`, `OUTGRADGAS`, `OUTMODEL` | renamed `PARTICLE_WRT`, `GAS_WRT`, `GRADGAS_WRT`, `MODEL_WRT` |
+| `PRNTENDTIME` (`# TIMESTEP`) | nothing: the end of every run is written |
 | `# MATERIAL` for particles | `DENSITY` and `SPECIFICHEAT` in `# PICL` (`# MATERIAL` is still read for species) |

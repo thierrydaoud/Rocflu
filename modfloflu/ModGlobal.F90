@@ -176,6 +176,10 @@ MODULE ModGlobal
     ! startStep: START_STEP of the input (0 new run, -1 latest dump, N);
     ! nFilesRemoved: files of earlier runs removed at start-up
     INTEGER :: startStep,nFilesRemoved
+    ! Fields the post program (rflupost) writes (# POST, *_WRT keys)
+    LOGICAL :: postWriteDensity,postWriteVelocity,postWritePressure, &
+               postWritePhi,postWriteTemperature,postWriteSoundSpeed, &
+               postWriteEnergy,postWriteGradRho,postWritePT
     ! endTime: time this job ends at (MAXTIME, or the start time + RUNTIME);
     ! the last step is shortened to end exactly there
     REAL(RFREAL) :: endTime

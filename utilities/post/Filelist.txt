@@ -1,0 +1,16 @@
+################################################################################
+#
+# Purpose: Filelist for rflupost, the post program (restart_data/ -> post/).
+#
+################################################################################
+
+SRCCXX+=	main.C
+
+SRCF90+= 	BuildVersionString.F90\
+		RFLU_AllocMemSolWrapper.F90\
+		RFLU_DeallocMemSolWrapper.F90\
+		RFLU_ModPostWrite.F90\
+		RFLU_ModPostParticles.F90\
+		RFLU_PrintHeader.F90\
+		RFLU_WriteVersionString.F90\
+		rflupost.F90

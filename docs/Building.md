@@ -16,6 +16,7 @@ The input file and `points.dat` are described in [InputFile.md](InputFile.md).
 - [Running a case: `rocflu.sh run`](#running-a-case-rocflush-run)
   - [Checking a case: `rocflu.sh validate`](#checking-a-case-rocflush-validate)
   - [Running the steps by hand](#running-the-steps-by-hand)
+  - [Results: `rocflu.sh post`](#results-rocflush-post)
 - [Using CMake directly](#using-cmake-directly)
 - [How the build is organised](#how-the-build-is-organised)
   - [Adding a source file](#adding-a-source-file)
@@ -33,6 +34,7 @@ On HiPerGator:
 ./rocflu.sh build        # optimised build of everything (about 30 s on 16 cores)
 ./rocflu.sh test         # regression suite (36 cases, about a minute)
 ./rocflu.sh run /path/to/case/rectshktb.inp -n 4   # build for the case, pre-process, submit
+./rocflu.sh post /path/to/case/rectshktb.inp       # dumps -> ParaView files in post/
 ```
 
 The executables are in `build/bin`. There is nothing to set up first: the script loads
@@ -49,12 +51,13 @@ tested), and MPI. HiPerGator's default `cmake` (3.31) is new enough.
 | `rflumap` | `pre_process` | maps the grid onto regions (one region per MPI rank) |
 | `rflupart` | `pre_process` | partitions the grid into those regions (uses METIS) |
 | `rfluinit` | `pre_process` | writes the initial flow solution |
+| `rflupost` | `post_process` | converts the dumps in `restart_data/` into ParaView files in `post/` |
 
 `rflump` is built from `simulation/` (its main program and driver) and the library
 `libflu`, which holds the rest of Rocflu (`modfloflu`, `modflu`, `libfloflu`,
 `libflu`, `rocflu`, `rocinteract`, `rocpicl`, and the optional physics modules). The
 pre-processing tools are built from `utilities/map`, `utilities/part` and
-`utilities/init`, plus `libflu`.
+`utilities/init`, the post program from `utilities/post`, each plus `libflu`.
 
 ## `rocflu.sh build`
 
@@ -217,6 +220,7 @@ with particles, `points.dat`. `run` then:
 | `-t simulation` | build and submit only; the case was pre-processed before with the same N x n | |
 | `-e`, `--engine` | `batch`: submit the job script with `sbatch`; `interactive`: run it right away in this shell, on a node you have already allocated (`srun --pty bash` or `salloc`; refused elsewhere), output also in `<case>.interactive.out` | `batch` |
 | `--dry-run` | build, pre-process and write the job script, but do not submit or run it | |
+| `--post` | after a simulation that succeeded, the job runs `rflupost` (one task): `post/` is ready when the job ends | no |
 | `--debug` | debug build of the case | |
 | `-j, --jobs N` | compile with N processes | 16 |
 
@@ -273,6 +277,37 @@ warnings and errors; `2` the detailed messages of every stage (Rocflu and ppiclF
 A case build stops at start-up if the input asks for a model whose slots it does not
 have, with a message such as *Input needs ppiclF slots 'qsfluct' (QSFLUCT >= 1 or
 PSEUDOTURB >= 1), not in this build: use ./rocflu.sh run*.
+
+The post program runs on one process, in the case directory:
+`$B/rflupost -c <case> [-s new|all|last|N,M]`.
+
+### Results: `rocflu.sh post`
+
+```bash
+./rocflu.sh post /path/to/case/rectshktb.inp            # the steps not yet in post/
+./rocflu.sh post /path/to/case/rectshktb.inp -s all     # every step again
+./rocflu.sh post /path/to/case/rectshktb.inp -e batch   # as a one-task Slurm job
+```
+
+`rflump` writes its results as raw dumps in `restart_data/` (the same files a restart
+reads, see [InputFile.md](InputFile.md#output-and-restarts)). `post` converts them into
+ParaView files in `post/`, with the case's build: open `post/collection.pvd`, which lists
+every step with its time. Each step is one dataset, `post/root/collection_<step>.vtm`,
+with three blocks: the fluid of every region (`post/p<k>/<step>.vtu`, region k+1), the
+particles (`post/particles/<step>.vtu`) and the ppiclF bins with the rank that owns each
+(`post/bins/<step>.vtu`). All values are in double precision.
+
+By default only the steps without a dataset in `post/` are converted, so `post` can run
+while the simulation is still going and again later; `-s all` redoes every step, e.g.
+after changing which fields to write (the `*_WRT` keys of `# POST` for the fluid,
+`PARTICLE_WRT`, ... of `# PICL` for the particles).
+
+| Option | Meaning | Default |
+|---|---|---|
+| `-s, --steps S` | `new`, `all`, `last`, or step numbers `N,M,...` | `new` |
+| `-e, --engine E` | `here`: run on this node; `batch`: submit `<case>.post.sbatch` (one task) | `here` |
+| `-p`, `-a`, `-w`, `--mem` | partition, account, wall time, memory of the batch job | `hpg-default`, `bala1s`, `00:30:00`, `8gb` |
+| `--debug`, `-j N` | build options, as for `run` | |
 
 ## Using CMake directly
 

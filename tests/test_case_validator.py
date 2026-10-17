@@ -217,6 +217,12 @@ class CaseValidatorTest(unittest.TestCase):
         # They do not matter: a new run removes them
         self.assertEqual(self.errors(files=("points.dat", "par00002.vtu")), [])
 
+    def test_post_field_keys(self):
+        text = TEMPLATE.replace("# POST", "# POST\nTEMPERATURE_WRT 1\nPT_WRT 2", 1)
+        errors = self.errors(text=text)
+        self.assertError(errors, "PT_WRT", "0 or 1")
+        self.assertFalse(any("TEMPERATURE_WRT" in e for e in errors))
+
     def test_end_of_run_and_start_step(self):
         text = TEMPLATE.replace("# TIMESTEP", "# TIMESTEP\nPRNTENDTIME 2", 1)
         self.assertError(self.errors(text=text), "PRNTENDTIME", "removed")

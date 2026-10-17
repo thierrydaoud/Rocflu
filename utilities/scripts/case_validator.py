@@ -313,6 +313,18 @@ class Validator:
                       "filein.vtk is no longer read: set PARTWALL 1 on the wall "
                       "patches in the .bc file and remove filein.vtk")
 
+    POST_FIELD_KEYS = ("DENSITY_WRT", "VELOCITY_WRT", "PRESSURE_WRT", "PHI_WRT",
+                       "TEMPERATURE_WRT", "SOUNDSPEED_WRT", "ENERGY_WRT", "GRADRHO_WRT",
+                       "PT_WRT")
+
+    def check_post(self, sections):
+        """Fields of the post program (rflupost): the *_WRT keys of # POST are 0 or 1."""
+        body = sections.get("POST", [])
+        for key in self.POST_FIELD_KEYS:
+            number, value = simple_value(body, key)
+            if number is not None:
+                self.prohibit(value not in (0, 1), "%s must be 0 or 1" % key, number)
+
     def check_timestep(self, sections):
         body = sections.get("TIMESTEP", [])
         number, _ = simple_value(body, "PRNTENDTIME")
@@ -442,6 +454,7 @@ class Validator:
         sections = read_sections(lines)
         self.check_disabled(sections)
         self.check_timestep(sections)
+        self.check_post(sections)
         picl = self.check_picl(sections)
         if picl is not None and picl["USED"] == 1:
             self.check_with_particles(sections)

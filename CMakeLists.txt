@@ -183,6 +183,7 @@ if(ROCFLU_UTILITIES)
   rocflu_executable(rflumap utilities/map)
   rocflu_executable(rflupart utilities/part metis)
   rocflu_executable(rfluinit utilities/init)
+  rocflu_executable(rflupost utilities/post)
 endif()
 
 message(STATUS "Rocflu ${CMAKE_BUILD_TYPE}: defines ${ROCFLU_DEFINES}")

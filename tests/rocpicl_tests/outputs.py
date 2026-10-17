@@ -99,7 +99,7 @@ def particle_ids(fields, npart, nranks):
     return [int(r) * per_rank + int(i) for r, i in zip(fields["id_rank"], fields["id"])]
 
 
-FLUID_DUMP_HEADER = struct.Struct("<8siqd5i")
+FLUID_DUMP_HEADER = struct.Struct("<8siqd6i")
 FORM_PURE, FORM_VOLUME_WEIGHTED = 1, 2
 
 
@@ -108,10 +108,10 @@ def read_fluid_dump(path):
     real cells) and, for PICL runs, phi and grad_rhog (3 arrays)."""
     with open(path, "rb") as f:
         data = f.read()
-    magic, version, step, time, region, ncells, ncv, form, with_picl = \
+    magic, version, step, time, region, ncells, ncv, form, with_picl, with_pt = \
         FLUID_DUMP_HEADER.unpack_from(data, 0)
-    if magic != b"RFLUDUMP" or version != 2:
-        raise ValueError("%s: not a version 2 fluid dump" % path)
+    if magic != b"RFLUDUMP" or version != 3:
+        raise ValueError("%s: not a version 3 fluid dump" % path)
     pos = FLUID_DUMP_HEADER.size
 
     def take():
@@ -125,6 +125,9 @@ def read_fluid_dump(path):
     if with_picl:
         out["phi"] = take()
         out["grad_rhog"] = [take() for _ in range(3)]
+    if with_pt:
+        out["div_phi_rsg"] = [take() for _ in range(3)]
+        out["f_cell"] = [take() for _ in range(3)]
     # NSCBC face states: {global patch: list of nCv arrays over the faces}
     npatches, = struct.unpack_from("<i", data, pos)
     pos += 4
@@ -208,6 +211,32 @@ def particle_dumps(rundir):
     """All particle dumps of a run: {step: path}."""
     return {int(os.path.basename(p)[10:18]): p
             for p in glob.glob(os.path.join(rundir, "restart_data", "particles_*.dat"))}
+
+
+def read_post_vtu(path):
+    """Return (time, step, points, fields) of a post/ .vtu (rflupost: raw appended
+    data, UInt64 block sizes). fields maps name -> list of values, one tuple per
+    cell or point (one value for one component)."""
+    with open(path, "rb") as f:
+        data = f.read()
+    i = data.index(b"<AppendedData")
+    header = data[:i].decode()
+    base = data.index(b"_", i) + 1
+    time = float(re.search(r'Name="TIME"[^>]*>\s*([-+.\dEe]+)', header).group(1))
+    step = int(re.search(r'Name="STEP"[^>]*>\s*(\d+)', header).group(1))
+    arrays = {}
+    for m in re.finditer(r'<DataArray type="(\w+)" Name="([^"]*)" NumberOfComponents="(\d+)" '
+                         r'format="appended" offset="(\d+)"/>', header):
+        dtype, name, ncomp, offset = m.group(1), m.group(2), int(m.group(3)), int(m.group(4))
+        nbytes, = struct.unpack_from("<Q", data, base + offset)
+        fmt = {"Float64": "d", "Int64": "q", "UInt8": "B"}[dtype]
+        size = struct.calcsize(fmt)
+        flat = struct.unpack_from("<%d%s" % (nbytes // size, fmt), data, base + offset + 8)
+        arrays[name] = flat if ncomp == 1 else [flat[k:k + ncomp] for k in range(0, len(flat), ncomp)]
+    points = arrays.pop("Points")
+    for name in ("connectivity", "offsets", "types"):
+        arrays.pop(name)
+    return time, step, points, arrays
 
 
 def read_flow_ascii(path):

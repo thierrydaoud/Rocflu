@@ -86,10 +86,10 @@ SUBROUTINE ReadPostSection(global)
 
 ! ... local variables
   INTEGER :: nVals  
-  INTEGER, PARAMETER :: NVALS_MAX = 27
+  INTEGER, PARAMETER :: NVALS_MAX = 36
 
   CHARACTER(CHRLEN) :: RCSIdentString
-  CHARACTER(10) :: keys(NVALS_MAX)  
+  CHARACTER(20) :: keys(NVALS_MAX)  
 
   LOGICAL :: defined(NVALS_MAX)
 
@@ -132,6 +132,16 @@ SUBROUTINE ReadPostSection(global)
   keys(25) = 'VIRTFLAG'
   keys(26) = 'PROP'
   keys(27) = 'FRACTAL' 
+! Fields of the post program (rflupost), 0 or 1
+  keys(28) = 'DENSITY_WRT'
+  keys(29) = 'VELOCITY_WRT'
+  keys(30) = 'PRESSURE_WRT'
+  keys(31) = 'PHI_WRT'
+  keys(32) = 'TEMPERATURE_WRT'
+  keys(33) = 'SOUNDSPEED_WRT'
+  keys(34) = 'ENERGY_WRT'
+  keys(35) = 'GRADRHO_WRT'
+  keys(36) = 'PT_WRT'
 
   CALL ReadSection(global,IF_INPUT,nVals,keys,vals,defined)
 
@@ -325,6 +335,44 @@ SUBROUTINE ReadPostSection(global)
   END IF ! defined
 
 
+
+! Fields of the post program (rflupost)
+
+  IF ( defined(28) .EQV. .TRUE. ) THEN
+    global%postWriteDensity = (NINT(vals(28)) == 1)
+  END IF ! defined
+
+  IF ( defined(29) .EQV. .TRUE. ) THEN
+    global%postWriteVelocity = (NINT(vals(29)) == 1)
+  END IF ! defined
+
+  IF ( defined(30) .EQV. .TRUE. ) THEN
+    global%postWritePressure = (NINT(vals(30)) == 1)
+  END IF ! defined
+
+  IF ( defined(31) .EQV. .TRUE. ) THEN
+    global%postWritePhi = (NINT(vals(31)) == 1)
+  END IF ! defined
+
+  IF ( defined(32) .EQV. .TRUE. ) THEN
+    global%postWriteTemperature = (NINT(vals(32)) == 1)
+  END IF ! defined
+
+  IF ( defined(33) .EQV. .TRUE. ) THEN
+    global%postWriteSoundSpeed = (NINT(vals(33)) == 1)
+  END IF ! defined
+
+  IF ( defined(34) .EQV. .TRUE. ) THEN
+    global%postWriteEnergy = (NINT(vals(34)) == 1)
+  END IF ! defined
+
+  IF ( defined(35) .EQV. .TRUE. ) THEN
+    global%postWriteGradRho = (NINT(vals(35)) == 1)
+  END IF ! defined
+
+  IF ( defined(36) .EQV. .TRUE. ) THEN
+    global%postWritePT = (NINT(vals(36)) == 1)
+  END IF ! defined
 
 ! finalize
 
