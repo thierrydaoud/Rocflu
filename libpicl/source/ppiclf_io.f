@@ -1266,3 +1266,98 @@ c1511 continue
       return
       end
 !-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+! Particle dump (restart_data/particles_<step>.dat; layout in
+! modflu/RFLU_ModRestartData.F90): one file for all ranks. Rank 0 writes
+! the header with stream access; then every rank writes its own block
+! with MPI-IO, after the blocks of the lower ranks: y, rprop, iprop and
+! the viscous-unsteady history (rprop3), all of this rank's particles.
+      subroutine ppiclf_io_WriteRestart(fname,istep,time)
+      use ppiclf_data
+      use ppiclf_unsteady
+!
+      implicit none
+!
+      include "PPICLF"
+      include 'mpif.h'
+!
+! Input:
+!
+      character (len = *) fname
+      integer*8 istep
+      real*8 time
+!
+! Internal:
+!
+      integer*4 iunit, fh, ierr, k, nhist
+      integer*4 status(MPI_STATUS_SIZE)
+      integer*8 nlocal, ntotal, npart_rank(ppiclf_np), header_size
+      integer(kind=MPI_OFFSET_KIND) offset
+!
+      ! the output fields (ppiclf_user_OutputFields), built once
+      if (ppiclf_nout .lt. 0) then
+         ppiclf_nout = 0
+         call ppiclf_user_OutputFields
+      endif
+
+      ! pack the viscous-unsteady history into rprop3
+      if (ppiclf_lrp3 .gt. 0) call ppiclf_user_plag2prop
+      nhist = max(ppiclf_nUnsteadyData,0)
+
+      nlocal = ppiclf_npart
+      call mpi_allgather(nlocal,1,MPI_INTEGER8,npart_rank,1,
+     >                   MPI_INTEGER8,ppiclf_comm,ierr)
+      ntotal = sum(npart_rank)
+
+      if (ppiclf_nid .eq. 0) then
+         open(newunit=iunit,file=fname,form='unformatted',
+     >        access='stream',status='replace',iostat=ierr)
+         if (ierr .ne. 0)
+     >      call ppiclf_exittr('Cannot open particle dump$',0.0d0,0)
+         write(iunit) 'PPICLDMP', 1_4, istep, time,
+     >      int(ppiclf_np,4), ntotal,
+     >      int(ppiclf_lrs,4), int(ppiclf_lrp,4), int(PPICLF_LIP,4),
+     >      int(ppiclf_lrp3,4), int(nhist,4), int(ppiclf_nTimeBH,4)
+         if (nhist .gt. 0) write(iunit) ppiclf_TimeBH(1:nhist)
+         write(iunit) ppiclf_n_bins, ppiclf_binb, ppiclf_bins_dx
+         write(iunit) int(ppiclf_nout,4)
+         do k=1,ppiclf_nout
+            write(iunit) int(ppiclf_out_source(k),4),
+     >                   int(ppiclf_out_slot(k),4), ppiclf_out_name(k)
+         enddo
+         write(iunit) npart_rank
+         ! the next byte to write, 1-based: the header is one byte less
+         inquire(unit=iunit,pos=header_size)
+         header_size = header_size - 1
+         close(iunit)
+      endif
+      call mpi_bcast(header_size,1,MPI_INTEGER8,0,ppiclf_comm,ierr)
+
+      call mpi_file_open(ppiclf_comm,fname,MPI_MODE_WRONLY,
+     >                   MPI_INFO_NULL,fh,ierr)
+      if (ierr .ne. MPI_SUCCESS)
+     >   call ppiclf_exittr('Cannot open particle dump$',0.0d0,0)
+
+      offset = header_size
+      do k=1,ppiclf_nid
+         offset = offset + npart_rank(k)*(8*ppiclf_lrs + 8*ppiclf_lrp
+     >                    + 4*PPICLF_LIP + 8*ppiclf_lrp3)
+      enddo
+
+      call mpi_file_write_at_all(fh,offset,ppiclf_y,
+     >   ppiclf_lrs*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
+      offset = offset + 8*ppiclf_lrs*nlocal
+      call mpi_file_write_at_all(fh,offset,ppiclf_rprop,
+     >   ppiclf_lrp*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
+      offset = offset + 8*ppiclf_lrp*nlocal
+      call mpi_file_write_at_all(fh,offset,ppiclf_iprop,
+     >   PPICLF_LIP*ppiclf_npart,MPI_INTEGER4,status,ierr)
+      offset = offset + 4*PPICLF_LIP*nlocal
+      if (ppiclf_lrp3 .gt. 0)
+     >   call mpi_file_write_at_all(fh,offset,ppiclf_rprop3,
+     >   ppiclf_lrp3*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
+
+      call mpi_file_close(fh,ierr)
+
+      return
+      end

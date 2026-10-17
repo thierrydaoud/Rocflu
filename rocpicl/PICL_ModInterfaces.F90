@@ -85,6 +85,11 @@ MODULE PICL_ModInterfaces
     USE ModDataStruct, ONLY : t_region
     TYPE(t_region), POINTER :: pRegion    
   END SUBROUTINE PICL_WriteVTU
+
+  SUBROUTINE PICL_WriteRestartData(pRegion)
+    USE ModDataStruct, ONLY : t_region
+    TYPE(t_region), POINTER :: pRegion
+  END SUBROUTINE PICL_WriteRestartData
        
   SUBROUTINE PICL_InitSolver( pRegion)!,global )
     USE ModDataStruct, ONLY : t_region!,t_global

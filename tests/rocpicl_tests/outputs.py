@@ -2,7 +2,8 @@
 
 - ppiclF particle files (par*.vtu): VTK XML with raw appended Float32 data.
 - Rocflu ASCII flow files (SOL_<t>/<case>.mixt.cva_<reg>_<t>): double precision.
-- Fluid dumps (restart_data/fluid_<step>_<region>.dat): raw stream, layout in
+- Fluid and particle dumps (restart_data/fluid_<step>_<region>.dat,
+  restart_data/particles_<step>.dat): raw stream, layout in
   modflu/RFLU_ModRestartData.F90.
 """
 
@@ -136,6 +137,62 @@ def fluid_dumps(rundir):
         _, step, region = os.path.basename(path)[:-4].split("_")
         out[(int(step), int(region))] = path
     return out
+
+
+PARTICLE_DUMP_HEADER = struct.Struct("<8siqdiq6i")
+OUT_Y, OUT_RPROP, OUT_TAG = 1, 2, 3
+
+
+def read_particle_dump(path):
+    """Return a dict: step, time, counts (per rank), sizes, history times, bins,
+    the output-field table and, per particle in rank order, y, rprop, iprop and
+    hist (lists of slot values)."""
+    with open(path, "rb") as f:
+        data = f.read()
+    (magic, version, step, time, nranks, ntotal,
+     lrs, lrp, lip, lrp3, nhist, ntimebh) = PARTICLE_DUMP_HEADER.unpack_from(data, 0)
+    if magic != b"PPICLDMP" or version != 1:
+        raise ValueError("%s: not a version 1 particle dump" % path)
+    pos = PARTICLE_DUMP_HEADER.size
+
+    def take(fmt, n):
+        nonlocal pos
+        out = struct.unpack_from("<%d%s" % (n, fmt), data, pos)
+        pos += struct.calcsize("<%d%s" % (n, fmt))
+        return out
+
+    time_bh = take("d", nhist)
+    n_bins = take("i", 3)
+    bin_box = take("d", 6)
+    bin_dx = take("d", 3)
+    nout, = take("i", 1)
+    fields = []
+    for _ in range(nout):
+        source, slot = take("i", 2)
+        name = data[pos:pos + 24].decode().strip()
+        pos += 24
+        fields.append((source, slot, name))
+    counts = take("q", nranks)
+    if sum(counts) != ntotal:
+        raise ValueError("%s: rank counts add up to %d, not %d" % (path, sum(counts), ntotal))
+    y, rprop, iprop, hist = [], [], [], []
+    for n in counts:
+        for arr, fmt, width in ((y, "d", lrs), (rprop, "d", lrp), (iprop, "i", lip),
+                                (hist, "d", lrp3)):
+            flat = take(fmt, width * n)
+            arr.extend(flat[k * width:(k + 1) * width] for k in range(n))
+    if pos != len(data):
+        raise ValueError("%s: %d bytes left after the data" % (path, len(data) - pos))
+    return {"step": step, "time": time, "counts": counts, "lrs": lrs, "lrp": lrp, "lip": lip,
+            "lrp3": lrp3, "time_bh": time_bh, "ntimebh": ntimebh, "n_bins": n_bins,
+            "bin_box": bin_box, "bin_dx": bin_dx, "fields": fields,
+            "y": y, "rprop": rprop, "iprop": iprop, "hist": hist}
+
+
+def particle_dumps(rundir):
+    """All particle dumps of a run: {step: path}."""
+    return {int(os.path.basename(p)[10:18]): p
+            for p in glob.glob(os.path.join(rundir, "restart_data", "particles_*.dat"))}
 
 
 def read_flow_ascii(path):

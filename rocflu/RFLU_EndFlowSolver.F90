@@ -145,7 +145,7 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
 #endif
 
 #ifdef PICL
-  USE PICL_ModInterfaces, ONLY: PICL_WriteVTU
+  USE PICL_ModInterfaces, ONLY: PICL_WriteVTU,PICL_WriteRestartData
 #endif
 
 
@@ -287,6 +287,7 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
 #ifdef PICL
     IF ( global%piclUsed .EQV. .TRUE. ) THEN
        CALL PICL_WriteVTU(pRegion)
+       CALL PICL_WriteRestartData(pRegion)
     END IF
 #endif
 

@@ -102,6 +102,8 @@ def run_case(case, args):
         final = state.snapshot(rundir, case, -1)
         res["final"] = final
         res["errors"] += checks.check_restart_data(rundir)
+        if case.particles:
+            res["errors"] += checks.check_particle_dump(rundir)
 
         if not state.all_finite(final):
             res["errors"].append("non-finite values in final state")

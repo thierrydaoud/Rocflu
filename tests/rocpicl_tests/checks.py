@@ -126,6 +126,50 @@ def check_restart_data(rundir):
     return errors
 
 
+def check_particle_dump(rundir):
+    """Each par*.vtu must have a particle dump (restart_data/) of the same time
+    holding the same particles, in the same order (both are written in rank
+    order), and the step 0 dump must exist. The vtu files are single precision."""
+    dumps = [outputs.read_particle_dump(p)
+             for _, p in sorted(outputs.particle_dumps(rundir).items())]
+    if not dumps:
+        return ["restart_data: no particle dumps"]
+    errors = []
+    if dumps[0]["step"] != 0:
+        errors.append("restart_data: no step 0 particle dump")
+    for path in sorted(glob.glob(os.path.join(rundir, "par[0-9]*.vtu"))):
+        time, vtu = outputs.read_particle_vtu(path)
+        # The vtu holds the time with 7 significant digits
+        match = [d for d in dumps if _close(d["time"], time, 1e-6, 1e-30)]
+        if len(match) != 1:
+            errors.append("restart_data: %d particle dumps at t = %g (%s)"
+                          % (len(match), time, os.path.basename(path)))
+            continue
+        d = match[0]
+        n = len(d["y"])
+        if any(len(v) != n for v in vtu.values()):
+            errors.append("restart_data: step %d has %d particles, %s has %d"
+                          % (d["step"], n, os.path.basename(path), len(vtu["x"])))
+            continue
+        columns = [("x", "y", 1), ("y", "y", 2), ("z", "y", 3)]
+        source_name = {outputs.OUT_Y: "y", outputs.OUT_RPROP: "rprop", outputs.OUT_TAG: "iprop"}
+        columns += [(name, source_name[source], slot) for source, slot, name in d["fields"]]
+        for name, array, slot in columns:
+            if name not in vtu:
+                errors.append("restart_data: field %s of the dump is not in %s"
+                              % (name, os.path.basename(path)))
+                continue
+            expected = [p[slot - 1] for p in d[array]]
+            scale = max(abs(v) for v in expected) or 1.0
+            bad = [i for i in range(n) if not _close(vtu[name][i], expected[i], PAR_RTOL, scale)]
+            if bad:
+                i = bad[0]
+                errors.append("restart_data: step %d %s: %d particles differ from %s "
+                              "(particle %d: %.9g vs %.9g)" % (d["step"], name, len(bad),
+                              os.path.basename(path), i + 1, expected[i], vtu[name][i]))
+    return errors
+
+
 def compare_particles_only(new, ref, label, fields=None):
     """Decomposition-independence: particles must agree, gas regions differ."""
     return compare_states(dict(new, gas={}), dict(ref, gas={}), label, fields)

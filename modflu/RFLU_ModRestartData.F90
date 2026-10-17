@@ -1,7 +1,9 @@
 ! ******************************************************************************
 !
-! Purpose: Raw dumps of the fluid state in restart_data/, one file per region
-!   and step: restart_data/fluid_<step>_<region>.dat (8 and 5 digits).
+! Purpose: Raw dumps of the state in restart_data/: the fluid, one file per
+!   region and step, restart_data/fluid_<step>_<region>.dat (8 and 5 digits),
+!   and with particles one file per step for all ranks,
+!   restart_data/particles_<step>.dat.
 !
 ! Description: The dump holds the state as it is in memory, real cells only,
 !   in double precision, without conversion. It is written with stream access
@@ -20,8 +22,31 @@
 !     REAL(8)       PICL only: piclVF(1:nCells), then piclgradRhog(i,1,1:nCells)
 !                   for i = 1..3
 !
-!   The file is written as <name>.tmp and renamed when it is complete, so an
-!   interrupted run never leaves a partial dump under a final name.
+!   The particle dump (written by ppiclf_io_WriteRestart) holds, with the
+!   same stream layout:
+!
+!     CHARACTER(8)  'PPICLDMP'
+!     INTEGER(4)    format version (1)
+!     INTEGER(8)    step
+!     REAL(8)       time
+!     INTEGER(4)    nRanks
+!     INTEGER(8)    nParticles (all ranks)
+!     INTEGER(4)    lrs, lrp, lip (slots of y, rprop, iprop), lrp3 (history
+!                   values per particle, 0 without VISCOUSUNSTEADY), nHist
+!                   (history steps), nTimeBH (history steps filled)
+!     REAL(8)       TimeBH(1:nHist)
+!     INTEGER(4)    bin counts (3); REAL(8) bin box (xmin,xmax,ymin,...; 6)
+!                   and bin size (3)
+!     INTEGER(4)    nOut, then per output field: INTEGER(4) source (1 y,
+!                   2 rprop, 3 iprop), INTEGER(4) slot, CHARACTER(24) name
+!                   (ppiclf_user_OutputFields: the par*.vtu fields)
+!     INTEGER(8)    particles on each rank (nRanks)
+!     then one block per rank, in rank order, each for that rank's
+!     particles: REAL(8) y(lrs,:), REAL(8) rprop(lrp,:), INTEGER(4)
+!     iprop(lip,:), REAL(8) rprop3(lrp3,:)
+!
+!   Each file is written as <name>.tmp and renamed when it is complete, so
+!   an interrupted run never leaves a partial dump under a final name.
 !
 ! ******************************************************************************
 
@@ -40,7 +65,9 @@ MODULE RFLU_ModRestartData
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: RFLU_WriteRestartData
+  PUBLIC :: RFLU_WriteRestartData, &
+            RFLU_CreateRestartDataDir, &
+            RFLU_FinishRestartFile
 
   INTEGER, PARAMETER, PUBLIC :: RESTART_FORM_PURE = 1, &
                                 RESTART_FORM_VOLUME_WEIGHTED = 2
@@ -104,10 +131,7 @@ CONTAINS
     END IF ! global%piclUsed
 #endif
 
-! Every rank creates the directory (no barrier needed; an existing
-! directory is not an error)
-    dirName = TRIM(global%outDir)//'restart_data'
-    errorFlag = c_mkdir(TRIM(dirName)//C_NULL_CHAR,INT(O'755',C_INT))
+    CALL RFLU_CreateRestartDataDir(global,dirName)
 
     WRITE(fileName,'(A,I8.8,A,I5.5,A)') TRIM(dirName)//'/fluid_', &
           global%currentStep,'_',pRegion%iRegionGlobal,'.dat'
@@ -147,13 +171,60 @@ CONTAINS
       CALL ErrorStop(global,ERR_FILE_CLOSE,__LINE__,TRIM(fileName)//'.tmp')
     END IF ! errorFlag
 
+    CALL RFLU_FinishRestartFile(global,fileName)
+
+    CALL DeregisterFunction(global)
+
+  END SUBROUTINE RFLU_WriteRestartData
+
+! ******************************************************************************
+!
+! Purpose: Create restart_data/ (on the calling rank; an existing directory
+!   is not an error, so every rank may call it without a barrier).
+!
+! Input:
+!   global      Global data
+!
+! Output:
+!   dirName     The directory name, without a trailing /
+!
+! ******************************************************************************
+
+  SUBROUTINE RFLU_CreateRestartDataDir(global,dirName)
+
+    TYPE(t_global), POINTER :: global
+    CHARACTER(*), INTENT(OUT) :: dirName
+
+    INTEGER(C_INT) :: mkdirStatus
+
+    dirName = TRIM(global%outDir)//'restart_data'
+    mkdirStatus = c_mkdir(TRIM(dirName)//C_NULL_CHAR,INT(O'755',C_INT))
+
+  END SUBROUTINE RFLU_CreateRestartDataDir
+
+! ******************************************************************************
+!
+! Purpose: Give a dump written as <fileName>.tmp its final name.
+!
+! Input:
+!   global      Global data
+!   fileName    Final name of the dump
+!
+! Output: None.
+!
+! ******************************************************************************
+
+  SUBROUTINE RFLU_FinishRestartFile(global,fileName)
+
+    TYPE(t_global), POINTER :: global
+    CHARACTER(*), INTENT(IN) :: fileName
+
     IF ( c_rename(TRIM(fileName)//'.tmp'//C_NULL_CHAR, &
                   TRIM(fileName)//C_NULL_CHAR) /= 0 ) THEN
       CALL ErrorStop(global,ERR_FILE_CLOSE,__LINE__,TRIM(fileName))
     END IF ! c_rename
 
-    CALL DeregisterFunction(global)
+  END SUBROUTINE RFLU_FinishRestartFile
 
-  END SUBROUTINE RFLU_WriteRestartData
 
 END MODULE RFLU_ModRestartData
