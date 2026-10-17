@@ -226,6 +226,19 @@
 
       CALL MPI_BARRIER(ppiclf_comm,ierr)
 
+      ! Restart: the box of the dump (ppiclf_restart_bins), then the bins
+      ! are built from it as below
+      IF(ppiclf_restart_bins) THEN
+        ppiclf_binb(1:6) = ppiclf_restart_binb(1:6)
+        ppiclf_restart_bins = .FALSE.
+        ppiclf_previousbinb(1) =  1.0D9
+        ppiclf_previousbinb(2) = -1.0D9
+        ppiclf_previousbinb(3) =  1.0D9
+        ppiclf_previousbinb(4) = -1.0D9
+        ppiclf_previousbinb(5) =  1.0D9
+        ppiclf_previousbinb(6) = -1.0D9
+      END IF
+
       ! If all particles within last RK Stage binbound, do not calculate
       ! bins again and do not remap overlap grid.
       BinCheck = 0

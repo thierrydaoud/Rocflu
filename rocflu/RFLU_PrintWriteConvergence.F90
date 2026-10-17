@@ -199,7 +199,7 @@ SUBROUTINE RFLU_PrintWriteConvergence(global)
     END IF ! global%progressStepLast
 
     WRITE(STDOUT,'(A,I3,A,ES11.4,A,ES11.4,A,I8,A)') ' [',percent,'%] t =', &
-      global%currentTime,' dt =',global%dtMin,' @ step',global%iterSinceRestart, &
+      global%currentTime,' dt =',global%dtMin,' @ step',global%currentStep, &
       TRIM(timing)
 
     global%progressWallLast = wallNow

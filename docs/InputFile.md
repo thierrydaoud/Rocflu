@@ -75,7 +75,7 @@ accept more.
 | | `STARTTIME` | s | |
 | | `WALLTIME`, `SAFEWRTIME` | s | wall time; write a restart this long before it |
 | | `RKSCHEME` | 1 RK4 (default), 2 RK3 | **must be 2 with particles** |
-| | `START_STEP` | 0 (default), -1, N | 0: a new run from rfluinit's step 0, replacing the results of an earlier run in the directory; -1: restart from the latest dump in `restart_data/`; N: restart from the dump of step N. Dumps newer than the start step are removed. Restarts are not available yet |
+| | `START_STEP` | 0 (default), -1, N | 0: a new run from rfluinit's step 0, replacing the results of an earlier run in the directory; -1: restart from the latest dump in `restart_data/`; N: restart from the dump of step N. Dumps newer than the start step are removed. A restart needs the same number of ranks (regions) and the same particle physics as the run that wrote the dump, and continues it exactly: it gives the same results, to the last bit, as a run that never stopped |
 | `# INITFLOW` | `FLAG` | 1 from scratch, 2 from file, 3 hard-coded, 4-6 combinations | initial gas state |
 | | `RVAL1`…, `IVAL1`… | | parameters of the initial state; with `FLAG 3` their meaning depends on the case name (`utilities/init/RFLU_InitFlowHardCode.F90`; for `rectshktb`: shock position, post- and pre-shock state) |
 | `# REFERENCE` | `GAMMA`, `CP` | | ratio of specific heats; specific heat at constant pressure [J/(kg K)] |

@@ -1270,8 +1270,11 @@ c1511 continue
 ! Particle dump (restart_data/particles_<step>.dat; layout in
 ! modflu/RFLU_ModRestartData.F90): one file for all ranks. Rank 0 writes
 ! the header with stream access; then every rank writes its own block
-! with MPI-IO, after the blocks of the lower ranks: y, rprop, iprop and
-! the viscous-unsteady history (rprop3), all of this rank's particles.
+! with MPI-IO, after the blocks of the lower ranks: y, rprop, iprop, the
+! viscous-unsteady history (rprop3) and the feedback to the gas (feedbk)
+! of this rank's particles, then the fields projected to this rank's
+! fluid cells. At the start of a stage the gas reads the projected fields
+! and ppiclF then projects feedbk of the stage before: a restart needs both.
       subroutine ppiclf_io_WriteRestart(fname,istep,time)
       use ppiclf_data
       use ppiclf_unsteady
@@ -1291,8 +1294,10 @@ c1511 continue
 !
       integer*4 iunit, fh, ierr, k, nhist
       integer*4 status(MPI_STATUS_SIZE)
-      integer*8 nlocal, ntotal, npart_rank(ppiclf_np), header_size
+      integer*8 nlocal, ntotal, npart_rank(ppiclf_np), header_size,
+     >          ncells, ncell_rank(ppiclf_np)
       integer(kind=MPI_OFFSET_KIND) offset
+      real*8, allocatable :: projected(:,:)
 !
       ! the output fields (ppiclf_user_OutputFields), built once
       if (ppiclf_nout .lt. 0) then
@@ -1308,16 +1313,20 @@ c1511 continue
       call mpi_allgather(nlocal,1,MPI_INTEGER8,npart_rank,1,
      >                   MPI_INTEGER8,ppiclf_comm,ierr)
       ntotal = sum(npart_rank)
+      ncells = ppiclf_nFVCells
+      call mpi_allgather(ncells,1,MPI_INTEGER8,ncell_rank,1,
+     >                   MPI_INTEGER8,ppiclf_comm,ierr)
 
       if (ppiclf_nid .eq. 0) then
          open(newunit=iunit,file=fname,form='unformatted',
      >        access='stream',status='replace',iostat=ierr)
          if (ierr .ne. 0)
      >      call ppiclf_exittr('Cannot open particle dump$',0.0d0,0)
-         write(iunit) 'PPICLDMP', 1_4, istep, time,
+         write(iunit) 'PPICLDMP', 2_4, istep, time,
      >      int(ppiclf_np,4), ntotal,
      >      int(ppiclf_lrs,4), int(ppiclf_lrp,4), int(PPICLF_LIP,4),
-     >      int(ppiclf_lrp3,4), int(nhist,4), int(ppiclf_nTimeBH,4)
+     >      int(ppiclf_lrp3,4), int(ppiclf_lrp_pro,4), int(nhist,4),
+     >      int(ppiclf_nTimeBH,4)
          if (nhist .gt. 0) write(iunit) ppiclf_TimeBH(1:nhist)
          write(iunit) ppiclf_n_bins, ppiclf_binb, ppiclf_bins_dx
          write(iunit) int(ppiclf_nout,4)
@@ -1325,7 +1334,7 @@ c1511 continue
             write(iunit) int(ppiclf_out_source(k),4),
      >                   int(ppiclf_out_slot(k),4), ppiclf_out_name(k)
          enddo
-         write(iunit) npart_rank
+         write(iunit) npart_rank, ncell_rank
          ! the next byte to write, 1-based: the header is one byte less
          inquire(unit=iunit,pos=header_size)
          header_size = header_size - 1
@@ -1341,7 +1350,9 @@ c1511 continue
       offset = header_size
       do k=1,ppiclf_nid
          offset = offset + npart_rank(k)*(8*ppiclf_lrs + 8*ppiclf_lrp
-     >                    + 4*PPICLF_LIP + 8*ppiclf_lrp3)
+     >                    + 4*PPICLF_LIP + 8*ppiclf_lrp3
+     >                    + 8*ppiclf_lrp_pro)
+     >                   + ncell_rank(k)*8*ppiclf_lrp_pro
       enddo
 
       call mpi_file_write_at_all(fh,offset,ppiclf_y,
@@ -1356,8 +1367,207 @@ c1511 continue
       if (ppiclf_lrp3 .gt. 0)
      >   call mpi_file_write_at_all(fh,offset,ppiclf_rprop3,
      >   ppiclf_lrp3*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
+      offset = offset + 8*ppiclf_lrp3*nlocal
+      ! the feedback to the gas, which the next stage projects first
+      call mpi_file_write_at_all(fh,offset,ppiclf_feedbk,
+     >   ppiclf_lrp_pro*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
+      offset = offset + 8*ppiclf_lrp_pro*nlocal
+      ! the fields projected to this rank's fluid cells, which the next
+      ! stage reads
+      allocate(projected(max(ncells,1_8),ppiclf_lrp_pro))
+      if (ncells .gt. 0) projected(1:ncells,:) =
+     >   ppiclf_pro_fld(1:ncells,1:ppiclf_lrp_pro)
+      call mpi_file_write_at_all(fh,offset,projected,
+     >   int(ncells*ppiclf_lrp_pro,4),MPI_DOUBLE_PRECISION,status,ierr)
+      deallocate(projected)
 
       call mpi_file_close(fh,ierr)
+
+      return
+      end
+!-----------------------------------------------------------------------
+! Restart from a particle dump (ppiclf_io_WriteRestart): every rank reads
+! its own block, so particles keep their rank, order, IDs, random streams
+! and viscous-unsteady history. Call instead of reading points.dat, before
+! ppiclf_solve_InitParticle (which then adds no particles). The dump must
+! come from a run with the same number of ranks and the same particle
+! physics (sizes of y, rprop, iprop and the history).
+!
+! Input:  fname, istartoutin (par*.vtu files already present: new ones
+!         continue the numbering)
+! Output: ntotal (particles, all ranks), dp_min, dp_max (all ranks)
+      subroutine ppiclf_io_ReadRestart(fname,istartoutin,ntotal,
+     >                                 dp_min,dp_max)
+      use ppiclf_data
+      use ppiclf_unsteady
+!
+      implicit none
+!
+      include "PPICLF"
+      include 'mpif.h'
+!
+      character (len = *) fname
+      integer*4 istartoutin
+      integer*8 ntotal
+      real*8 dp_min, dp_max
+!
+      character*8 magic
+      character*24 fieldname
+      integer*4 iunit, fh, ierr, k, nhist, nranks, nout, version,
+     >          lrs, lrp, lip, lrp3, lrppro, ntimebh, ibad, idum(2),
+     >          nbins(3)
+      integer*4 status(MPI_STATUS_SIZE)
+      integer*8 istep, nlocal, npart_rank(ppiclf_np), header_size,
+     >          ncells, ncell_rank(ppiclf_np)
+      integer(kind=MPI_OFFSET_KIND) offset
+      real*8 time, rdum(9), dpl
+      real*8, allocatable :: ytmp(:,:), rtmp(:,:), htmp(:,:),
+     >                       ftmp(:,:), timebh(:)
+      integer*4, allocatable :: itmp(:,:)
+      integer*4 istartout
+      common /ppiclf_io_restart/ istartout
+!
+      call ppiclf_solve_InitZero
+      PPICLF_RESTART = .true.
+      istartout = istartoutin
+
+      nhist = max(ppiclf_nUnsteadyData,0)
+      allocate(timebh(max(nhist,1)))
+      timebh = 0.0d0
+
+      ibad = 0
+      if (ppiclf_nid .eq. 0) then
+         open(newunit=iunit,file=fname,form='unformatted',
+     >        access='stream',status='old',iostat=ierr)
+         if (ierr .ne. 0) then
+            ibad = 1
+         else
+            read(iunit,iostat=ierr) magic, version, istep, time,
+     >         nranks, ntotal, lrs, lrp, lip, lrp3, lrppro, k, ntimebh
+            if (ierr .ne. 0 .or. magic .ne. 'PPICLDMP' .or.
+     >          version .ne. 2) then
+               ibad = 2
+            elseif (nranks .ne. ppiclf_np) then
+               ibad = 3
+            elseif (lrs .ne. ppiclf_lrs .or. lrp .ne. ppiclf_lrp .or.
+     >              lip .ne. PPICLF_LIP .or. lrp3 .ne. ppiclf_lrp3 .or.
+     >              lrppro .ne. ppiclf_lrp_pro .or. k .ne. nhist) then
+               ibad = 4
+            else
+               if (nhist .gt. 0) read(iunit) timebh(1:nhist)
+               read(iunit) nbins, rdum
+               read(iunit) nout
+               do k=1,nout
+                  read(iunit) idum, fieldname
+               enddo
+               read(iunit) npart_rank, ncell_rank
+               ! the next byte to read, 1-based
+               inquire(unit=iunit,pos=header_size)
+               header_size = header_size - 1
+            endif
+            close(iunit)
+         endif
+      endif
+
+      call mpi_bcast(ibad,1,MPI_INTEGER4,0,ppiclf_comm,ierr)
+      if (ibad .eq. 1) call ppiclf_exittr(
+     >   'Cannot open the particle dump$',0.0d0,0)
+      if (ibad .eq. 2) call ppiclf_exittr(
+     >   'Not a version 2 particle dump$',0.0d0,0)
+      if (ibad .eq. 3) call ppiclf_exittr(
+     >   'Particle dump from a different number of ranks$',0.0d0,0)
+      if (ibad .eq. 4) call ppiclf_exittr(
+     >   'Particle dump from different particle physics$',0.0d0,0)
+
+      call mpi_bcast(header_size,1,MPI_INTEGER8,0,ppiclf_comm,ierr)
+      call mpi_bcast(npart_rank,ppiclf_np,MPI_INTEGER8,0,
+     >               ppiclf_comm,ierr)
+      call mpi_bcast(ncell_rank,ppiclf_np,MPI_INTEGER8,0,
+     >               ppiclf_comm,ierr)
+      call mpi_bcast(ntotal,1,MPI_INTEGER8,0,ppiclf_comm,ierr)
+      call mpi_bcast(istep,1,MPI_INTEGER8,0,ppiclf_comm,ierr)
+      call mpi_bcast(time,1,MPI_DOUBLE_PRECISION,0,ppiclf_comm,ierr)
+      call mpi_bcast(ntimebh,1,MPI_INTEGER4,0,ppiclf_comm,ierr)
+      ! the bin box (rdum(1:6)) and bin counts of the dump
+      call mpi_bcast(rdum,9,MPI_DOUBLE_PRECISION,0,ppiclf_comm,ierr)
+      call mpi_bcast(nbins,3,MPI_INTEGER4,0,ppiclf_comm,ierr)
+      ppiclf_restart_binb(1:6) = rdum(1:6)
+      ppiclf_restart_bins = .true.
+      call mpi_bcast(timebh,max(nhist,1),MPI_DOUBLE_PRECISION,0,
+     >               ppiclf_comm,ierr)
+
+      nlocal = npart_rank(ppiclf_nid+1)
+      allocate(ytmp(ppiclf_lrs,max(nlocal,1_8)),
+     >         rtmp(ppiclf_lrp,max(nlocal,1_8)),
+     >         itmp(PPICLF_LIP,max(nlocal,1_8)),
+     >         htmp(max(ppiclf_lrp3,1),max(nlocal,1_8)),
+     >         ftmp(ppiclf_lrp_pro,max(nlocal,1_8)))
+      ncells = ncell_rank(ppiclf_nid+1)
+      if (allocated(ppiclf_restart_pro_fld))
+     >   deallocate(ppiclf_restart_pro_fld)
+      allocate(ppiclf_restart_pro_fld(ncells,ppiclf_lrp_pro))
+
+      offset = header_size
+      do k=1,ppiclf_nid
+         offset = offset + npart_rank(k)*(8*ppiclf_lrs + 8*ppiclf_lrp
+     >                    + 4*PPICLF_LIP + 8*ppiclf_lrp3
+     >                    + 8*ppiclf_lrp_pro)
+     >                   + ncell_rank(k)*8*ppiclf_lrp_pro
+      enddo
+
+      call mpi_file_open(ppiclf_comm,fname,MPI_MODE_RDONLY,
+     >                   MPI_INFO_NULL,fh,ierr)
+      call mpi_file_read_at_all(fh,offset,ytmp,
+     >   int(ppiclf_lrs*nlocal,4),MPI_DOUBLE_PRECISION,status,ierr)
+      offset = offset + 8*ppiclf_lrs*nlocal
+      call mpi_file_read_at_all(fh,offset,rtmp,
+     >   int(ppiclf_lrp*nlocal,4),MPI_DOUBLE_PRECISION,status,ierr)
+      offset = offset + 8*ppiclf_lrp*nlocal
+      call mpi_file_read_at_all(fh,offset,itmp,
+     >   int(PPICLF_LIP*nlocal,4),MPI_INTEGER4,status,ierr)
+      offset = offset + 4*PPICLF_LIP*nlocal
+      if (ppiclf_lrp3 .gt. 0)
+     >   call mpi_file_read_at_all(fh,offset,htmp,
+     >   int(ppiclf_lrp3*nlocal,4),MPI_DOUBLE_PRECISION,status,ierr)
+      offset = offset + 8*ppiclf_lrp3*nlocal
+      call mpi_file_read_at_all(fh,offset,ftmp,
+     >   int(ppiclf_lrp_pro*nlocal,4),MPI_DOUBLE_PRECISION,status,ierr)
+      offset = offset + 8*ppiclf_lrp_pro*nlocal
+      call mpi_file_read_at_all(fh,offset,ppiclf_restart_pro_fld,
+     >   int(ncells*ppiclf_lrp_pro,4),MPI_DOUBLE_PRECISION,status,ierr)
+      call mpi_file_close(fh,ierr)
+
+      ! state and properties (PPICLF_RESTART: the IDs are not reset)
+      call ppiclf_solve_AddParticles(int(nlocal,4),ytmp,rtmp)
+      if (nlocal .gt. 0) then
+         ppiclf_iprop(:,1:nlocal) = itmp(:,1:nlocal)
+         ppiclf_feedbk(:,1:nlocal) = ftmp(:,1:nlocal)
+         if (ppiclf_lrp3 .gt. 0) then
+            ppiclf_rprop3(:,1:nlocal) = htmp(:,1:nlocal)
+         endif
+      endif
+      if (ppiclf_lrp3 .gt. 0) call ppiclf_user_prop2plag
+      if (nhist .gt. 0) ppiclf_TimeBH(1:nhist) = timebh(1:nhist)
+      ppiclf_nTimeBH = ntimebh
+
+      ppiclf_time  = time
+      ppiclf_cycle = int(istep,4)
+
+      ! diameter range over all ranks
+      dp_min = huge(1.0d0)
+      dp_max = 0.0d0
+      do k=1,int(nlocal,4)
+         dp_min = min(dp_min,ppiclf_rprop(PPICLF_R_JDP,k))
+         dp_max = max(dp_max,ppiclf_rprop(PPICLF_R_JDP,k))
+      enddo
+      dpl = dp_min
+      call mpi_allreduce(dpl,dp_min,1,MPI_DOUBLE_PRECISION,MPI_MIN,
+     >                   ppiclf_comm,ierr)
+      dpl = dp_max
+      call mpi_allreduce(dpl,dp_max,1,MPI_DOUBLE_PRECISION,MPI_MAX,
+     >                   ppiclf_comm,ierr)
+
+      deallocate(ytmp,rtmp,itmp,htmp,ftmp,timebh)
 
       return
       end

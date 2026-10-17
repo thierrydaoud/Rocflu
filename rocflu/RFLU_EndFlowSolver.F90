@@ -171,6 +171,7 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
 
   INTEGER :: icg
   REAL(KIND=8) :: vFrac, ir
+  REAL(RFREAL), ALLOCATABLE :: cvSaved(:,:)
 
   ! Run log footer
   CHARACTER(8) :: endDate
@@ -246,6 +247,8 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
 #ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
         ! TLJ added to plot primitive variables - 02/19/2025
+        ! The old-style files get converted values; keep the state
+        ALLOCATE(cvSaved,SOURCE=pRegion%mixt%cv)
         DO icg = 1,pGrid%nCellsTot
            vFrac = 1.0_RFREAL - pRegion%mixt%piclVF(icg)
            ir = 1.0_RFREAL/pRegion%mixt%cv(CV_MIXT_DENS,icg)
@@ -262,15 +265,9 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
 
 #ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
-        DO icg = 1,pGrid%nCellsTot
-           vFrac = 1.0_RFREAL - pRegion%mixt%piclVF(icg)
-           ir = vFrac*pRegion%mixt%cv(CV_MIXT_DENS,icg)
-           pRegion%mixt%cv(CV_MIXT_DENS,icg) = ir
-           pRegion%mixt%cv(CV_MIXT_XMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_XMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_YMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_YMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_ZMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_ZMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_ENER,icg) = ir*pRegion%mixt%cv(CV_MIXT_ENER,icg)
-        ENDDO
+        ! Back to the exact state (converting back is not exact)
+        pRegion%mixt%cv = cvSaved
+        DEALLOCATE(cvSaved)
         ENDIF
 #endif
 

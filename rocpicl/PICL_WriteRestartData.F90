@@ -23,7 +23,8 @@ SUBROUTINE PICL_WriteRestartData(pRegion)
   USE ModParameters
   USE ModMPI
   USE RFLU_ModRestartData, ONLY: RFLU_CreateRestartDataDir, &
-                                 RFLU_FinishRestartFile
+                                 RFLU_FinishRestartFile, &
+                                 RFLU_ParticleDumpName
 
   IMPLICIT NONE
 
@@ -38,8 +39,7 @@ SUBROUTINE PICL_WriteRestartData(pRegion)
   CALL RegisterFunction(global,'PICL_WriteRestartData',__FILE__)
 
   CALL RFLU_CreateRestartDataDir(global,dirName)
-  WRITE(fileName,'(A,I8.8,A)') TRIM(dirName)//'/particles_', &
-        global%currentStep,'.dat'
+  fileName = RFLU_ParticleDumpName(global,global%currentStep)
 
   IF ( global%myProcid == MASTERPROC .AND. &
        global%verbLevel > VERBOSE_NONE ) THEN

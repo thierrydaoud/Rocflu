@@ -206,6 +206,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 
   INTEGER :: icg
   REAL(RFREAL) :: vFrac, ir
+  REAL(RFREAL), ALLOCATABLE :: cvSaved(:,:)
 
 !CRN - begin
   REAL(RFREAL) :: timerStart, timerEnd
@@ -286,6 +287,8 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 #ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
         ! TLJ added to plot primitive variables - 02/19/2025
+        ! The old-style files get converted values; keep the state
+        ALLOCATE(cvSaved,SOURCE=pRegion%mixt%cv)
         DO icg = 1,pGrid%nCells
            vFrac = 1.0_RFREAL - pRegion%mixt%piclVF(icg)
            ir = 1.0_RFREAL/pRegion%mixt%cv(CV_MIXT_DENS,icg)
@@ -302,15 +305,9 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 
 #ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
-        DO icg = 1,pGrid%nCells
-           vFrac = 1.0_RFREAL - pRegion%mixt%piclVF(icg)
-           ir = vFrac*pRegion%mixt%cv(CV_MIXT_DENS,icg)
-           pRegion%mixt%cv(CV_MIXT_DENS,icg) = ir
-           pRegion%mixt%cv(CV_MIXT_XMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_XMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_YMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_YMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_ZMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_ZMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_ENER,icg) = ir*pRegion%mixt%cv(CV_MIXT_ENER,icg)
-        ENDDO
+        ! Back to the exact state (converting back is not exact)
+        pRegion%mixt%cv = cvSaved
+        DEALLOCATE(cvSaved)
         ENDIF
 #endif
 
@@ -469,10 +466,10 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 
       IF ( global%flowType == FLOW_UNSTEADY ) THEN         
          CALL RFLU_MinimumTimeStep(regions)
-        IF ( global%timeSinceRestart + global%dtMin > dTimeSystem ) THEN 
-           global%dtMin = dTimeSystem - global%timeSinceRestart
+        IF ( global%currentTime + global%dtMin > global%endTime ) THEN 
+           global%dtMin = global%endTime - global%currentTime
            finished     = .TRUE.                     
-        END IF ! global%timeSinceRestart
+        END IF ! global%currentTime
       END IF ! global%flowType            
 
     ELSE  ! Below for ( global%solverType == SOLV_IMPLICIT_HM )
@@ -775,9 +772,9 @@ END IF
 ! ==============================================================================
 
     IF ( global%flowType == FLOW_UNSTEADY ) THEN    
-      IF ( global%timeSinceRestart >= dTimeSystem ) THEN 
+      IF ( global%currentTime >= global%endTime ) THEN 
         finished = .TRUE.
-      END IF ! global%timeSinceRestart
+      END IF ! global%currentTime
     ELSE
       IF ( (doPrint .EQV. .TRUE.) .OR. (global%iterSinceRestart >= dIterSystem) ) THEN 
         CALL RFLU_ResidualNorm(regions)    
@@ -980,6 +977,7 @@ END IF
       ! Inserting write statements here
       DO iReg=1,global%nRegionsLocal
         pRegion => regions(iReg)
+        pGrid   => pRegion%grid
 
         ! Raw dump of the state in memory (restart_data/)
         CALL RFLU_WriteRestartData(pRegion)
@@ -987,6 +985,8 @@ END IF
 #ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
         ! TLJ added to plot primitive variables - 02/19/2025
+        ! The old-style files get converted values; keep the state
+        ALLOCATE(cvSaved,SOURCE=pRegion%mixt%cv)
         DO icg = 1,pGrid%nCellsTot
            vFrac = 1.0_RFREAL - pRegion%mixt%piclVF(icg)
            ir = 1.0_RFREAL/pRegion%mixt%cv(CV_MIXT_DENS,icg)
@@ -1004,15 +1004,9 @@ END IF
 
 #ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
-        DO icg = 1,pGrid%nCellsTot
-           vFrac = 1.0_RFREAL - pRegion%mixt%piclVF(icg)
-           ir = vFrac*pRegion%mixt%cv(CV_MIXT_DENS,icg)
-           pRegion%mixt%cv(CV_MIXT_DENS,icg) = ir
-           pRegion%mixt%cv(CV_MIXT_XMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_XMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_YMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_YMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_ZMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_ZMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_ENER,icg) = ir*pRegion%mixt%cv(CV_MIXT_ENER,icg)
-        ENDDO
+        ! Back to the exact state (converting back is not exact)
+        pRegion%mixt%cv = cvSaved
+        DEALLOCATE(cvSaved)
         ENDIF
 #endif
 

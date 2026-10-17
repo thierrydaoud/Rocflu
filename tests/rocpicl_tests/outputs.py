@@ -110,8 +110,8 @@ def read_fluid_dump(path):
         data = f.read()
     magic, version, step, time, region, ncells, ncv, form, with_picl = \
         FLUID_DUMP_HEADER.unpack_from(data, 0)
-    if magic != b"RFLUDUMP" or version != 1:
-        raise ValueError("%s: not a version 1 fluid dump" % path)
+    if magic != b"RFLUDUMP" or version != 2:
+        raise ValueError("%s: not a version 2 fluid dump" % path)
     pos = FLUID_DUMP_HEADER.size
 
     def take():
@@ -125,6 +125,17 @@ def read_fluid_dump(path):
     if with_picl:
         out["phi"] = take()
         out["grad_rhog"] = [take() for _ in range(3)]
+    # NSCBC face states: {global patch: list of nCv arrays over the faces}
+    npatches, = struct.unpack_from("<i", data, pos)
+    pos += 4
+    out["nscbc"] = {}
+    for _ in range(npatches):
+        patch, nfaces = struct.unpack_from("<2i", data, pos)
+        pos += 8
+        out["nscbc"][patch] = []
+        for _ in range(ncv):
+            out["nscbc"][patch].append(struct.unpack_from("<%dd" % nfaces, data, pos))
+            pos += 8 * nfaces
     if pos != len(data):
         raise ValueError("%s: %d bytes left after the data" % (path, len(data) - pos))
     return out
@@ -139,7 +150,7 @@ def fluid_dumps(rundir):
     return out
 
 
-PARTICLE_DUMP_HEADER = struct.Struct("<8siqdiq6i")
+PARTICLE_DUMP_HEADER = struct.Struct("<8siqdiq7i")
 OUT_Y, OUT_RPROP, OUT_TAG = 1, 2, 3
 
 
@@ -150,9 +161,9 @@ def read_particle_dump(path):
     with open(path, "rb") as f:
         data = f.read()
     (magic, version, step, time, nranks, ntotal,
-     lrs, lrp, lip, lrp3, nhist, ntimebh) = PARTICLE_DUMP_HEADER.unpack_from(data, 0)
-    if magic != b"PPICLDMP" or version != 1:
-        raise ValueError("%s: not a version 1 particle dump" % path)
+     lrs, lrp, lip, lrp3, lrppro, nhist, ntimebh) = PARTICLE_DUMP_HEADER.unpack_from(data, 0)
+    if magic != b"PPICLDMP" or version != 2:
+        raise ValueError("%s: not a version 2 particle dump" % path)
     pos = PARTICLE_DUMP_HEADER.size
 
     def take(fmt, n):
@@ -173,20 +184,24 @@ def read_particle_dump(path):
         pos += 24
         fields.append((source, slot, name))
     counts = take("q", nranks)
+    cell_counts = take("q", nranks)
     if sum(counts) != ntotal:
         raise ValueError("%s: rank counts add up to %d, not %d" % (path, sum(counts), ntotal))
-    y, rprop, iprop, hist = [], [], [], []
-    for n in counts:
+    y, rprop, iprop, hist, feedback, projected = [], [], [], [], [], []
+    for n, ncells in zip(counts, cell_counts):
         for arr, fmt, width in ((y, "d", lrs), (rprop, "d", lrp), (iprop, "i", lip),
-                                (hist, "d", lrp3)):
+                                (hist, "d", lrp3), (feedback, "d", lrppro)):
             flat = take(fmt, width * n)
             arr.extend(flat[k * width:(k + 1) * width] for k in range(n))
+        # fields projected to the rank's fluid cells: one array per field
+        projected.append([take("d", ncells) for _ in range(lrppro)])
     if pos != len(data):
         raise ValueError("%s: %d bytes left after the data" % (path, len(data) - pos))
     return {"step": step, "time": time, "counts": counts, "lrs": lrs, "lrp": lrp, "lip": lip,
             "lrp3": lrp3, "time_bh": time_bh, "ntimebh": ntimebh, "n_bins": n_bins,
             "bin_box": bin_box, "bin_dx": bin_dx, "fields": fields,
-            "y": y, "rprop": rprop, "iprop": iprop, "hist": hist}
+            "y": y, "rprop": rprop, "iprop": iprop, "hist": hist, "feedback": feedback,
+            "projected": projected}
 
 
 def particle_dumps(rundir):

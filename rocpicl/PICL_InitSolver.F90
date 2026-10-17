@@ -88,6 +88,7 @@ SUBROUTINE PICL_InitSolver( pRegion)
 !PICL
   USE ModRandom, ONLY: Rand1Uniform,Rand1Normal
   USE RFLU_ModInCellTest
+  USE RFLU_ModRestartData, ONLY: RFLU_ParticleDumpName
 
   IMPLICIT NONE
 #ifdef PICL
@@ -124,6 +125,7 @@ INTEGER :: errorFlag,icg
                    yp_min, yp_max, zp_min, zp_max, MinFluidCells, maxVF
    ! this rank's share of points.dat, handed to ppiclF
    REAL(RFREAL), ALLOCATABLE :: y(:,:), rprop(:,:)
+   INTEGER(8) :: npartRead
    REAL(RFREAL), DIMENSION(:,:), ALLOCATABLE :: rocGrid 
    REAL(RFREAL), DIMENSION(:,:), ALLOCATABLE :: xGrid, yGrid, zGrid
    REAL(RFREAL),ALLOCATABLE,DIMENSION(:) :: xData,yData,zData,rData,dumData    
@@ -272,6 +274,9 @@ CALL ppiclf_solve_InitLayout(nStateSlots, nPropSlots)
 ! A new run reads points.dat; a restart (start step > 0) reads the
 ! particle dump. global%restartFromScratch is set from the start time
 ! (RFLU_SetRestartTimeFlag).
+! The particles' specific heat (# PICL), for a new run and a restart
+ppiclf_rcp_part = global%piclSpecificHeat
+
 IF(global%restartFromScratch) THEN
    IF ( showDetail ) then
       WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,'Reading points.dat file...'
@@ -321,9 +326,8 @@ IF(global%restartFromScratch) THEN
    xp_max = -17400000.0
    yp_max = -17400000.0
    zp_max = -17400000.0
-   ! Every particle has the density and specific heat of the # PICL input
+   ! Every particle has the density of the # PICL input
    rhop = global%piclDensity
-   ppiclf_rcp_part = global%piclSpecificHeat
 
    ! Each line: x y z vx vy vz dp. Every line is read (for the global
    ! bounds), but only this rank's lines go into y: y has exactly
@@ -442,49 +446,30 @@ IF(global%restartFromScratch) THEN
       CALL ErrorStop(global,ERR_FILE_CLOSE,__LINE__,iFileName)
    END IF ! global%error  
 ELSE
-!  This is for a restart
+!  A restart: the particles, their IDs, random streams and viscous-unsteady
+!  history come from the particle dump of the start step, each rank reading
+!  its own block (ppiclf_io_ReadRestart). Old-style par*.vtu files continue
+!  their numbering after the last one present.
    fexists = .true.
-   ii=0 !last exists par.vtu file
+   ii = 0
    DO WHILE (fexists)
       ii = ii + 1
-      vtuFile = ''
       WRITE(vtuFile,'(A3,I5.5,A4)') 'par',ii,'.vtu'
       INQUIRE(FILE=trim(vtuFile), EXIST=fexists)
-      IF( showDetail ) THEN
-         WRITE(*,*) 'PPICLF par file: ',TRIM(vtuFile),ii,'  ',fexists
-      END IF
    END DO
    ii = ii - 1
-   vtuFile = ''
-   WRITE(vtuFile,'(A3,I5.5,A4)') 'par',ii,'.vtu'
-   IF( showDetail ) THEN
-      WRITE(*,*) 'Reading ', vtuFile, len(vtuFile)
-   ENDIF
 
-   IF(ii .lt. 0) THEN
-      CALL ErrorStop(global,ERR_FILE_EXIST,__LINE__,vtuFile)
+   npart_local = 0
+   ALLOCATE(y(nStateSlots,1),rprop(nPropSlots,1),STAT=errorFlag)
+   IF ( errorFlag /= 0 ) THEN
+     CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'PPICLF:y,rprop')
    END IF
+   y = 0.0_RFREAL
+   rprop = 0.0_RFREAL
 
-   ! The particle files hold only the fields chosen for output
-   ! (ppiclf_user_OutputFields), not the whole state, so they cannot be
-   ! read back. A separate particle restart file is planned.
-   CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__, &
-     'Particle restart is not available yet: par*.vtu files hold only '// &
-     'the output fields. Remove the .rin file to start a new run.')
-
-   npart = -1
-   dp_max = -1.0
-   CALL ppiclf_io_ReadParticleVTU(trim(vtuFile), ii, npart, dp_max)
-   CALL MPI_Allreduce(dp_max,dp_max,1,MPI_RFREAL,MPI_MAX, &
-      global%mpiComm,global%mpierr )
-   IF( global%verbLevel > VERBOSE_NONE ) print*,global%myProcid,npart,dp_max
-   IF( showDetail ) THEN
-      print*, " "
-      WRITE(*,*) 'Finished PPICLF Restart'
-      print*, " "
-      print*, " ======================================="
-      print*, " "
-   END IF
+   iFileName = RFLU_ParticleDumpName(global,global%currentStep)
+   CALL ppiclf_io_ReadRestart(TRIM(iFileName),ii,npartRead,dp_min,dp_max)
+   npart = INT(npartRead)
 END IF ! global%restartFromScratch
 
 !CALL MPI_Barrier(global%mpiComm,errorFlag)
@@ -834,6 +819,8 @@ END IF
 ! virtual cells with piclVF = 0 left them at the gas-phase state, so the
 ! two sides of a region border disagreed during the first RK stage.
 
+! A restart reads the volume-weighted state of rflump: nothing to convert.
+IF ( global%restartFromScratch .EQV. .TRUE. ) THEN
 DO icg = 1,pGrid%nCells
     vFrac = 1.0_RFREAL - pRegion%mixt%piclVF(icg)
     pRegion%mixt%cv(CV_MIXT_DENS,icg) = vFrac*pRegion%mixt%cv(CV_MIXT_DENS,icg)
@@ -847,6 +834,7 @@ DO icg = 1,pGrid%nCells
          CALL ErrorStop(global,ERR_INVALID_VALUE,__LINE__,'PPICLF:init')
     END IF    
 END DO ! icg
+END IF ! global%restartFromScratch
 
 DEALLOCATE(volp,STAT=errorFlag)
     global%error = errorFlag

@@ -99,6 +99,18 @@
      >          ppiclf_out_slot(ppiclf_max_out)
       character*24 ppiclf_out_name(ppiclf_max_out)
 
+! Restart (ppiclf_io_ReadRestart): the bin box of the dump. The first
+! ppiclf_comm_CreateBin takes it instead of the particles' extent, so the
+! bins are those the uninterrupted run had (it keeps a box while the
+! particles stay in it).
+      logical ppiclf_restart_bins
+      data ppiclf_restart_bins /.false./
+      real*8 ppiclf_restart_binb(6)
+! and the fields projected to the fluid cells at the dump, which the next
+! stage would have read: ppiclf_solve_InitSolve puts them in place of its
+! own projection (made from the particles' newer positions)
+      real*8, allocatable :: ppiclf_restart_pro_fld(:,:)
+
       contains
 !-----------------------------------------------------------------------
 ! Resize an allocatable array along its particle/cell dimension to n,

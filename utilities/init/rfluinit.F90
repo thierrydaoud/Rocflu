@@ -364,8 +364,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
           CALL RFLU_BXV_CreateVarsDv(pRegion)
           CALL RFLU_BXV_InitVars(pRegion)
           CALL RFLU_BXV_WriteVarsWrapper(pRegion)
-          CALL RFLU_BXV_DestroyVarsCv(pRegion)
-          CALL RFLU_BXV_DestroyVarsDv(pRegion)
         END IF ! RFLU_NSCBC_DecideHaveNSCBC
 
 ! Modify flow field for moving reference frame attached to moving particle
@@ -378,6 +376,12 @@ SUBROUTINE rfluinit(caseString,verbLevel)
         END IF ! global%verbLevel       
 
         CALL RFLU_WriteFlowWrapper(pRegion)
+
+! The step 0 dump (written with the flow file) holds the NSCBC face states
+        IF ( RFLU_NSCBC_DecideHaveNSCBC(pRegion) .EQV. .TRUE. ) THEN
+          CALL RFLU_BXV_DestroyVarsCv(pRegion)
+          CALL RFLU_BXV_DestroyVarsDv(pRegion)
+        END IF ! RFLU_NSCBC_DecideHaveNSCBC
 
         IF ( global%solverType == SOLV_IMPLICIT_HM ) THEN
           CALL RFLU_WriteAuxVarsWrapper(pRegion)
@@ -528,8 +532,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
           CALL RFLU_BXV_CreateVarsDv(pRegion)
           CALL RFLU_BXV_InitVars(pRegion)
           CALL RFLU_BXV_WriteVarsWrapper(pRegion)
-          CALL RFLU_BXV_DestroyVarsCv(pRegion)
-          CALL RFLU_BXV_DestroyVarsDv(pRegion)
         END IF ! RFLU_NSCBC_DecideHaveNSCBC
 
 ! Modify flow field for moving reference frame attached to moving particle
@@ -542,6 +544,12 @@ SUBROUTINE rfluinit(caseString,verbLevel)
         END IF ! global%verbLevel       
 
         CALL RFLU_WriteFlowWrapper(pRegion)       
+
+! The step 0 dump (written with the flow file) holds the NSCBC face states
+        IF ( RFLU_NSCBC_DecideHaveNSCBC(pRegion) .EQV. .TRUE. ) THEN
+          CALL RFLU_BXV_DestroyVarsCv(pRegion)
+          CALL RFLU_BXV_DestroyVarsDv(pRegion)
+        END IF ! RFLU_NSCBC_DecideHaveNSCBC
 
         IF ( global%solverType == SOLV_IMPLICIT_HM ) THEN
           CALL RFLU_WriteAuxVarsWrapper(pRegion)

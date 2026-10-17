@@ -125,6 +125,13 @@ SUBROUTINE rflump(caseString,verbLevel)
   CALL RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 
   dTimeSystem = MIN(global%maxTime - global%currentTime,global%runTime)
+! The end as an absolute time: a restarted run then ends at the same time,
+! to the last bit, as one that never stopped
+  IF ( global%runTime < global%maxTime - global%currentTime ) THEN
+    global%endTime = global%currentTime + global%runTime
+  ELSE
+    global%endTime = global%maxTime
+  END IF ! global%runTime
   dIterSystem = global%MaxIter - global%currentIter
 
   CALL RFLU_FlowSolver(dTimeSystem,dIterSystem,levels)

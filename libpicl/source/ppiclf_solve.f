@@ -838,6 +838,14 @@ c----------------------------------------------------------------------
         CALL ppiclf_solve_InterpParticleGrid
         ! Project particle feedback to fluid solver grid
         CALL ppiclf_solve_ProjectParticleGrid
+        ! Restart: the projection of the dump (ppiclf_io_ReadRestart)
+        IF(ALLOCATED(ppiclf_restart_pro_fld)) THEN
+          IF(SIZE(ppiclf_restart_pro_fld,1) .NE. ppiclf_nFVCells)
+     >      CALL ppiclf_exittr('Particle dump: other fluid cells$',
+     >                         0.0d0,ppiclf_nFVCells)
+          ppiclf_pro_fld(1:ppiclf_nFVCells,:) = ppiclf_restart_pro_fld
+          DEALLOCATE(ppiclf_restart_pro_fld)
+        END IF
       END IF
 
 !      IF(ppiclf_gprequired) THEN

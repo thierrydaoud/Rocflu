@@ -176,6 +176,9 @@ MODULE ModGlobal
     ! startStep: START_STEP of the input (0 new run, -1 latest dump, N);
     ! nFilesRemoved: files of earlier runs removed at start-up
     INTEGER :: startStep,nFilesRemoved
+    ! endTime: time this job ends at (MAXTIME, or the start time + RUNTIME);
+    ! the last step is shortened to end exactly there
+    REAL(RFREAL) :: endTime
     INTEGER :: currentIter,currentStep,flowType,hypreSolver,iterSinceRestart, &
                maxIter,maxSubIter,nrkSteps,printIter,restartIter,rkScheme, &
                solverType,tstepOrder,writeIter

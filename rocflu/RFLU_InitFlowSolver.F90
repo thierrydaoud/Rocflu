@@ -245,6 +245,7 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 
   ! TLJ
    REAL(RFREAL) :: vFrac,ir
+   REAL(RFREAL), ALLOCATABLE :: cvSaved(:,:)
  
 
 ! ******************************************************************************
@@ -1168,14 +1169,12 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 
 
 ! ******************************************************************************
-! Read boundary condition data (only relevant if distribution specified)
-! Also Read boundary variables if required, i.e., if NSCBC==1 
+! Read boundary condition data (only relevant if distribution specified).
+! The NSCBC face states come with the fluid dump (RFLU_ReadRestartData).
 ! ******************************************************************************
 
   DO iReg = 1,global%nRegionsLocal
     pRegion => pLevel%regions(iReg)
-
-    CALL RFLU_BXV_ReadVarsWrapper(pRegion)
 
     IF ( RFLU_DecideReadWriteBcDataFile(pRegion) .EQV. .TRUE. ) THEN 
       CALL RFLU_ReadBcDataFile(pRegion)
@@ -1693,6 +1692,8 @@ END if !global%piclused
 #ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
         ! TLJ added to plot primitive variables - 02/19/2025
+        ! The old-style files get converted values; keep the state
+        ALLOCATE(cvSaved,SOURCE=pRegion%mixt%cv)
         DO icg = 1,pGrid%nCellsTot
            vFrac = 1.0_RFREAL - pRegion%mixt%piclVF(icg)
            ir = 1.0_RFREAL/pRegion%mixt%cv(CV_MIXT_DENS,icg)
@@ -1710,15 +1711,9 @@ END if !global%piclused
 
 #ifdef PICL
         IF ( global%piclUsed .EQV. .TRUE. ) THEN
-        DO icg = 1,pGrid%nCellsTot
-           vFrac = 1.0_RFREAL - pRegion%mixt%piclVF(icg)
-           ir = vFrac*pRegion%mixt%cv(CV_MIXT_DENS,icg)
-           pRegion%mixt%cv(CV_MIXT_DENS,icg) = ir
-           pRegion%mixt%cv(CV_MIXT_XMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_XMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_YMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_YMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_ZMOM,icg) = ir*pRegion%mixt%cv(CV_MIXT_ZMOM,icg)
-           pRegion%mixt%cv(CV_MIXT_ENER,icg) = ir*pRegion%mixt%cv(CV_MIXT_ENER,icg)
-        ENDDO
+        ! Back to the exact state (converting back is not exact)
+        pRegion%mixt%cv = cvSaved
+        DEALLOCATE(cvSaved)
         ENDIF
 #endif
 
