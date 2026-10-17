@@ -308,10 +308,19 @@ class Validator:
         self.prohibit(present("filein.vtk"),
                       "filein.vtk is no longer read: set PARTWALL 1 on the wall "
                       "patches in the .bc file and remove filein.vtk")
-        self.prohibit(present("par00002.vtu"),
-                      "par00002.vtu from an earlier run is in the case directory: it "
-                      "starts a particle restart, which is not available yet. Remove "
-                      "the par*.vtu files (and the .rin file) to start a new run")
+
+    def check_timestep(self, sections):
+        body = sections.get("TIMESTEP", [])
+        number, _ = simple_value(body, "PRNTENDTIME")
+        self.prohibit(number is not None,
+                      "PRNTENDTIME was removed: the end of every run is now always "
+                      "written (it is the dump a later run restarts from); remove the "
+                      "line", number)
+        number, start = simple_value(body, "START_STEP")
+        if number is not None:
+            self.prohibit(start is None or start != int(start) or start < -1,
+                          "START_STEP must be 0 (a new run), -1 (restart from the "
+                          "latest dump) or the step of a dump in restart_data/", number)
 
     # -- physics that cannot be built for now ----------------------------------
 
@@ -428,6 +437,7 @@ class Validator:
             return self.errors
         sections = read_sections(lines)
         self.check_disabled(sections)
+        self.check_timestep(sections)
         picl = self.check_picl(sections)
         if picl is not None and picl["USED"] == 1:
             self.check_with_particles(sections)

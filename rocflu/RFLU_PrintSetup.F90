@@ -40,6 +40,7 @@ SUBROUTINE RFLU_PrintSetup(regions)
   CHARACTER(15) :: labels(MAX_ITEMS)
   CHARACTER(35) :: values(MAX_ITEMS)
   CHARACTER(105) :: titleLine
+  CHARACTER(35) :: stepText
   INTEGER :: errorFlag,iReg,nItems
   INTEGER :: cellCounts(5),cellCountsGlobal(5)
   REAL(RFREAL) :: endTime
@@ -151,6 +152,16 @@ SUBROUTINE RFLU_PrintSetup(regions)
   CALL AddItem('dt max',TRIM(RealText(global%dtImposed))//' s')
   CALL AddItem('Start time',TRIM(RealText(global%restartTime))//' s')
   CALL AddItem('End time',TRIM(RealText(endTime))//' s')
+  IF ( global%currentStep == 0 ) THEN
+    CALL AddItem('Start step','0 (new run)')
+  ELSE
+    WRITE(stepText,'(I0,A)') global%currentStep,' (restart)'
+    CALL AddItem('Start step',TRIM(stepText))
+  END IF ! global%currentStep
+  IF ( global%nFilesRemoved > 0 ) THEN
+    WRITE(stepText,'(I0,A)') global%nFilesRemoved,' of an earlier run'
+    CALL AddItem('Files removed',TRIM(stepText))
+  END IF ! global%nFilesRemoved
   CALL AddItem('Print every',TRIM(RealText(global%printTime))//' s')
   CALL AddItem('Write every',TRIM(RealText(global%writeTime))//' s')
   CALL PrintGroup

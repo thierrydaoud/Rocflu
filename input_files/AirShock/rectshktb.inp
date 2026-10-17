@@ -41,7 +41,6 @@ STARTTIME  0.0E-00  ! time from which computation to be started, relevant if FLO
 WALLTIME   432000   ! 11:59:00 in seconds 
 SAFEWRTIME 360      ! to dump 1 hr before walltime 
 RKSCHEME    2       ! 1-RK4 2-RK3
-PRNTENDTIME 2       ! 1-soln at final RUNTIME; 2-print only last CFL step
 # 
 
 # REFERENCE 

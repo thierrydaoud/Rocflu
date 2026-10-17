@@ -211,7 +211,18 @@ class CaseValidatorTest(unittest.TestCase):
     def test_files_in_case_directory(self):
         self.assertError(self.errors(files=()), "no points.dat")
         self.assertError(self.errors(files=("points.dat", "filein.vtk")), "filein.vtk")
-        self.assertError(self.errors(files=("points.dat", "par00002.vtu")), "restart")
+
+    def test_files_of_an_earlier_run(self):
+        # They do not matter: a new run removes them
+        self.assertEqual(self.errors(files=("points.dat", "par00002.vtu")), [])
+
+    def test_end_of_run_and_start_step(self):
+        text = TEMPLATE.replace("# TIMESTEP", "# TIMESTEP\nPRNTENDTIME 2", 1)
+        self.assertError(self.errors(text=text), "PRNTENDTIME", "removed")
+        self.assertEqual(self.errors({("TIMESTEP", "START_STEP"): 0}), [])
+        self.assertEqual(self.errors({("TIMESTEP", "START_STEP"): -1}), [])
+        self.assertError(self.errors({("TIMESTEP", "START_STEP"): -2}), "START_STEP")
+        self.assertError(self.errors({("TIMESTEP", "START_STEP"): 1.5}), "START_STEP")
 
 
 if __name__ == "__main__":

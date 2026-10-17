@@ -237,6 +237,8 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
 
   global%currentIter       = 0
   global%currentStep       = 0
+  global%startStep         = 0
+  global%nFilesRemoved     = 0
   global%iterSinceRestart  = 0
   global%maxIter           = 10000
   global%printIter         = 1

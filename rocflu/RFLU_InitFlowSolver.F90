@@ -122,6 +122,9 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
   USE RFLU_ModReadWriteAuxVars
   USE RFLU_ModReadWriteBcDataFile
   USE RFLU_ModReadWriteFlow   
+  USE RFLU_ModRestartData, ONLY: RFLU_ChooseStartStep, &
+                                 RFLU_CleanRestartData, &
+                                 RFLU_ReadRestartData
   USE RFLU_ModReadWriteGrid 
   USE RFLU_ModReadWriteGridSpeeds
   USE RFLU_ModRegionMapping
@@ -190,7 +193,6 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
                            RFLU_PrintHeader, &
                            RFLU_RandomInit, &
                            RFLU_ReadIntegrals1245OLES, &
-                           RFLU_ReadRestartInfo, &
                            RFLU_ReadTbcInputFile, &
                            RFLU_SetModuleType, & 
                            RFLU_SetMoveGridOptions, & 
@@ -350,11 +352,12 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
   CALL RFLU_RandomInit(pLevel%regions)
 
 ! ******************************************************************************
-! Read restart info. NOTE must not read restart info file for GENx runs because 
-! will overwrite global%currentTime.
+! Choose the start step (START_STEP) and the start time from its dumps, and
+! remove what an earlier run in this directory left behind
 ! ******************************************************************************
-  
-  CALL RFLU_ReadRestartInfo(global)
+
+  CALL RFLU_ChooseStartStep(global)
+  CALL RFLU_CleanRestartData(global)
   CALL RFLU_SetRestartTimeFlag(global)
   
 ! ******************************************************************************
@@ -1056,7 +1059,7 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 ! ******************************************************************************
   DO iReg = 1,global%nRegionsLocal
     pRegion => pLevel%regions(iReg)     
-    CALL RFLU_ReadFlowWrapper(pRegion)
+    CALL RFLU_ReadRestartData(pRegion)
 
     IF ( global%solverType == SOLV_IMPLICIT_HM ) THEN
       CALL RFLU_ReadAuxVarsWrapper(pRegion)

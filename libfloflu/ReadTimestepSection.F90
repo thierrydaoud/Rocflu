@@ -133,7 +133,7 @@ SUBROUTINE ReadTimestepSection( global )
   keys(26) = 'HYPRESOLVER'
   keys(27) = 'WALLTIME'
   keys(28) = 'SAFEWRTIME'
-  keys(29) = 'PRNTENDTIME'
+  keys(29) = 'START_STEP'
   
   CALL ReadSection( global,IF_INPUT,NVALS_MAX,keys,vals,defined )
 
@@ -250,9 +250,8 @@ SUBROUTINE ReadTimestepSection( global )
     global%safeWriteTime = ABS(vals(28))
   END IF
 
-  global%printEndTime = 1
   IF ( defined(29) .EQV. .TRUE. ) THEN
-    global%printEndTime = NINT(vals(29))
+    global%startStep = NINT(vals(29))
   END IF
 
 ! finalize

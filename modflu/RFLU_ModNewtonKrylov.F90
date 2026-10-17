@@ -109,7 +109,6 @@ MODULE RFLU_ModNewtonKrylov
                            RFLU_ResidualNorm, &
                            RFLU_TimeStepInviscid, &
                            RFLU_TimeStepViscous, &
-                           RFLU_WriteRestartInfo, &
                            RFLU_WriteStatsFileOLES, &
                            RungeKuttaMP, &
                            WriteProbe, &
@@ -824,8 +823,6 @@ SUBROUTINE RFLU_NK_TimeStepping(dTimeSystem,dIterSystem,regions)
           END IF ! global%verbLevel
         END IF ! global%myProcid        
       END DO ! iReg
-      
-      CALL RFLU_WriteRestartInfo(global)      
     END IF ! doWrite
 
 #ifdef STATS

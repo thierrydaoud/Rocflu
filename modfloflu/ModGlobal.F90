@@ -173,6 +173,9 @@ MODULE ModGlobal
 ! ==============================================================================
 
     LOGICAL :: dualTstSource,predCorrIter,predictSol,restartFromScratch
+    ! startStep: START_STEP of the input (0 new run, -1 latest dump, N);
+    ! nFilesRemoved: files of earlier runs removed at start-up
+    INTEGER :: startStep,nFilesRemoved
     INTEGER :: currentIter,currentStep,flowType,hypreSolver,iterSinceRestart, &
                maxIter,maxSubIter,nrkSteps,printIter,restartIter,rkScheme, &
                solverType,tstepOrder,writeIter
@@ -189,7 +192,6 @@ MODULE ModGlobal
     ! the last progress line, and the step of the last progress line
     REAL(RFREAL) :: progressWallStart,progressWallLast
     INTEGER :: progressStepLast
-    INTEGER :: printEndTime
     !end BBR
     ! begin TLJ
     INTEGER :: SafeWrite

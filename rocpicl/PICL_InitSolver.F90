@@ -111,7 +111,7 @@ INTEGER :: errorFlag,icg
 
 #ifdef PICL
    CHARACTER(CHRLEN) :: endString,iFileName,comment
-   CHARACTER(12) :: vtuFile,vtuFile1
+   CHARACTER(12) :: vtuFile
    LOGICAL :: notfoundFlag, pf_restart,pf_rpInit,pf_settle,&
               wall_exists, fexists
    INTEGER :: i,npart,nCells,vi,vii,ii,jj,kk,loopCounter,ipart,icl
@@ -269,24 +269,9 @@ CALL ppiclf_solve_InitLayout(nStateSlots, nPropSlots)
 
 ! ************************************************************
 
-! Josh Gillis - Fixed restart probelm
-! TLJ - we should probably use the .rin file instead
-global%restartFromScratch = .true.
-vtuFile1 = 'par00002.vtu'
-INQUIRE(FILE=trim(vtuFile1), EXIST=fexists)
-IF( showDetail ) then
-   write(*,*) fexists, "fexists"
-ENDIF
-IF(fexists) THEN
-   global%restartFromScratch = .false.
-   IF ( showDetail ) THEN
-      PRINT*, " "
-      PRINT*, " ======================================="
-      PRINT*, " "
-      WRITE(*,*) 'Starting PPICLF Restart'
-   END IF
-END IF
-
+! A new run reads points.dat; a restart (start step > 0) reads the
+! particle dump. global%restartFromScratch is set from the start time
+! (RFLU_SetRestartTimeFlag).
 IF(global%restartFromScratch) THEN
    IF ( showDetail ) then
       WRITE(STDOUT,'(A,1X,A)') SOLVER_NAME,'Reading points.dat file...'

@@ -141,7 +141,6 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
                            RFLU_WriteInteg, &
                            RFLU_WritePM, &
                            !end BBR
-                           RFLU_WriteRestartInfo, &
                            RFLU_WriteStatsFileOLES, &
                            RungeKuttaMP, &
                            WriteProbe, &
@@ -1025,13 +1024,6 @@ END IF
 #endif
       END DO ! iReg
 
-    
-      !BBR - begin 
-      IF (donesafewrite .EQV. .FALSE. ) THEN ! prevent writing twice in *.rin
-                                             ! RFLU_EndFlowSolver will do it 
-        CALL RFLU_WriteRestartInfo(global)
-      END IF      
-      !BBR - end
 
     END IF ! doWrite
 

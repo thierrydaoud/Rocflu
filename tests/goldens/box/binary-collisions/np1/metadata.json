@@ -1,11 +1,27 @@
 {
- "created": "2026-10-15T15:23:57",
- "host": "login9.ufhpc",
- "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocpicl_Dec23_layout",
+ "created": "2026-10-17T11:56:16",
+ "host": "login10.ufhpc",
+ "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocpicl_Dec23_dump/build/install/release/bin",
  "git": {
-  "commit": "93109668bad4216ac26973be991debc3fcdcf6e9",
+  "commit": "598df0db1dbf11c3cfe3db5ec7e1a82255a0b06f",
   "branch": "HEAD",
-  "modified_sources": []
+  "modified_sources": [
+   "libfloflu/ReadTimestepSection.F90",
+   "libflu/RFLU_InitGlobal.F90",
+   "libpicl/source/ppiclf_io.f",
+   "libpicl/source/ppiclf_op.f",
+   "libpicl/user_files/ppiclf_user_Fluctuations.f",
+   "libpicl/user_files/ppiclf_user_PseudoTurbulence.f",
+   "modfloflu/ModGlobal.F90",
+   "modflu/RFLU_ModNewtonKrylov.F90",
+   "modflu/RFLU_ModReadWriteFlow.F90",
+   "rocflu/RFLU_EndFlowSolver.F90",
+   "rocflu/RFLU_InitFlowSolver.F90",
+   "rocflu/RFLU_PrintSetup.F90",
+   "rocflu/RFLU_TimeStepping.F90",
+   "rocpicl/PICL_InitSolver.F90",
+   "rocpicl/PICL_ModInterfaces.F90"
+  ]
  },
  "modules": "gcc/14.2.0:openmpi/5.0.7"
 }

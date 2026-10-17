@@ -41,7 +41,6 @@ STARTTIME  0.0E-00  ! current time
 WALLTIME   432000   ! 11:59:00 in seconds; 432000/3600/24 = 5 days
 SAFEWRTIME 360      ! to dump 1 hr before walltime
 RKSCHEME    2       ! 1-RK4 2-RK3
-PRNTENDTIME 2       ! 1-soln at final RUNTIME; 2-soln at last CFL step
 # 
 
 # REFERENCE 

@@ -137,8 +137,7 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
                            RFLU_DestroyGrid, & 
                            RFLU_PrintFlowInfoWrapper, & 
                            RFLU_PrintGridInfo, & 
-                           RFLU_PrintWarnInfo, &  
-                           RFLU_WriteRestartInfo
+                           RFLU_PrintWarnInfo
     
 #ifdef STATS
   USE ModInterfaces, ONLY: RFLU_WriteStat
@@ -199,16 +198,6 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
   CALL RegisterFunction(global,'RFLU_EndFlowSolver',__FILE__)
 
 ! ******************************************************************************
-! Determine whether to print final soln or final CFL timestep
-! ******************************************************************************
-  !
-  ! TLJ - 11/23/2024 - Modified final write solution files
-  !       if printEndTime = 1, print solution at t=RUNTIME
-  !                       = 2, print solution at final CFL timestep
-  !
-  IF (global%printEndTime==1) THEN
-
-! ******************************************************************************
 ! Determine whether have moving grid
 ! ******************************************************************************
 
@@ -242,6 +231,7 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
 
   DO iReg = 1,global%nRegionsLocal
     pRegion => levels(1)%regions(iReg) ! single-level grids for now
+    pGrid   => pRegion%grid
     
     CALL RFLU_WriteDimensionsWrapper(pRegion,WRITE_DIMENS_MODE_MAYBE)    
 
@@ -311,7 +301,6 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
     
   END DO ! iReg
 
-  CALL RFLU_WriteRestartInfo(global)
   
 #ifdef STATS
     IF ( global%doStat == ACTIVE ) THEN
@@ -348,8 +337,6 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
   END IF ! global%verbLevel
 
 
-  ENDIF ! end global%printEndTime
-
 ! ******************************************************************************
 ! Deallocate memory. NOTE must be done before calling deallocation wrapper. 
 ! NOTE weights must be deallocated before stencils.
@@ -359,8 +346,8 @@ SUBROUTINE RFLU_EndFlowSolver(levels)
 ! Weights for cell and face gradients
 ! ==============================================================================
 
-! pRegion is only set above when printEndTime == 1; the decision depends on
-! input settings shared by all regions, so use the first region
+! The decision depends on input settings shared by all regions, so use the
+! first region
   pRegion => levels(1)%regions(1)
 
   IF ( RFLU_DecideNeedWeights(pRegion) .EQV. .TRUE. ) THEN
