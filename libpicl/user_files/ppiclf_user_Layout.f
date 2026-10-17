@@ -105,5 +105,23 @@
       call ppiclf_solve_AddGhostSlot(PPICLF_R_WDOTY)
       call ppiclf_solve_AddGhostSlot(PPICLF_R_WDOTZ)
 
+! What a restart needs (saved in the particle dump, with the slots of
+! the particle output): the properties and the state carried from step
+! to step. The gas values at the particle are interpolated again before
+! every stage. Slots of groups not built are 0 and skipped.
+      do jp = PPICLF_R_JRHOP, PPICLF_R_JSPL
+         call ppiclf_solve_AddRestartSlot(jp)
+      end do
+      call ppiclf_solve_AddRestartSlot(PPICLF_R_FLUCTFX)
+      call ppiclf_solve_AddRestartSlot(PPICLF_R_FLUCTFY)
+      call ppiclf_solve_AddRestartSlot(PPICLF_R_FLUCTFZ)
+      call ppiclf_solve_AddRestartSlot(PPICLF_R_SEED)
+      call ppiclf_solve_AddRestartSlot(PPICLF_R_XIPAR)
+      call ppiclf_solve_AddRestartSlot(PPICLF_R_XIPERP)
+      call ppiclf_solve_AddRestartSlot(PPICLF_R_XIT)
+      call ppiclf_solve_AddRestartSlot(PPICLF_R_WDOTX)
+      call ppiclf_solve_AddRestartSlot(PPICLF_R_WDOTY)
+      call ppiclf_solve_AddRestartSlot(PPICLF_R_WDOTZ)
+
       return
       end

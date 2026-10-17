@@ -51,7 +51,9 @@ CONTAINS
     CHARACTER(8) :: magic
     INTEGER :: errorFlag,iFile,iRank,k
     INTEGER(4) :: version,nRanks4,lrs,lrp,lip,lrp3,lrpPro,nHist,nTimeBH, &
-                  nBins4(3),nOut4,source4,slot4
+                  nBins4(3),nOut4,source4,slot4,nSaved
+    INTEGER(4), ALLOCATABLE :: saved(:)
+    REAL(8), ALLOCATABLE :: props(:,:)
     INTEGER(8) :: first,n
     INTEGER(8), ALLOCATABLE :: counts(:),cellCounts(:)
     REAL(8), ALLOCATABLE :: skipped(:),projected(:,:)
@@ -65,8 +67,8 @@ CONTAINS
 
     READ(iFile) magic,version,dump%step,dump%time,nRanks4,dump%nParticles, &
                 lrs,lrp,lip,lrp3,lrpPro,nHist,nTimeBH
-    IF ( magic /= 'PPICLDMP' .OR. version /= 2 ) THEN
-      WRITE(*,'(A,A)') 'rflupost: not a version 2 particle dump: ', &
+    IF ( magic /= 'PPICLDMP' .OR. version /= 3 ) THEN
+      WRITE(*,'(A,A)') 'rflupost: not a version 3 particle dump: ', &
                        TRIM(fileName)
       STOP 1
     END IF ! magic
@@ -88,17 +90,26 @@ CONTAINS
       dump%outSlot(k)   = slot4
     END DO ! k
 
+! The rprop slots in the file (needed by a restart, or output)
+    READ(iFile) nSaved
+    ALLOCATE(saved(nSaved))
+    IF ( nSaved > 0 ) READ(iFile) saved
+
     ALLOCATE(counts(nRanks4),cellCounts(nRanks4))
     READ(iFile) counts,cellCounts
 
     ALLOCATE(dump%y(lrs,dump%nParticles),dump%rprop(lrp,dump%nParticles), &
              dump%iprop(lip,dump%nParticles),dump%ranks(nRanks4))
+    dump%rprop = 0.0D0
     first = 1
     DO iRank = 1,nRanks4
       n = counts(iRank)
       IF ( n > 0 ) THEN
         READ(iFile) dump%y(:,first:first+n-1)
-        READ(iFile) dump%rprop(:,first:first+n-1)
+        ALLOCATE(props(nSaved,n))
+        IF ( nSaved > 0 ) READ(iFile) props
+        dump%rprop(saved,first:first+n-1) = props
+        DEALLOCATE(props)
         READ(iFile) dump%iprop(:,first:first+n-1)
         ALLOCATE(skipped((lrp3 + lrpPro)*n))
         IF ( SIZE(skipped) > 0 ) READ(iFile) skipped   ! history, feedback

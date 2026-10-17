@@ -40,6 +40,8 @@
      >   ALLOCATE(ppiclf_int_slots(ppiclf_lrp))
       IF(.NOT. ALLOCATED(ppiclf_ghost_slots))
      >   ALLOCATE(ppiclf_ghost_slots(ppiclf_lrp))
+      IF(.NOT. ALLOCATED(ppiclf_restart_slots))
+     >   ALLOCATE(ppiclf_restart_slots(ppiclf_lrp))
       ALLOCATE(ppiclf_int_given(max(ppiclf_lrp_int,1)))
       ppiclf_int_given  = .FALSE.
       ppiclf_int_ngiven = 0
@@ -90,6 +92,33 @@
       END DO
       ppiclf_lrp_int = ppiclf_lrp_int + 1
       ppiclf_int_slots(ppiclf_lrp_int) = jp
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+! An rprop slot a restart needs (ppiclf_user_Layout): saved in the
+! particle dump (ppiclf_io_WriteRestart). A slot of a group not built
+! (0) is skipped.
+      SUBROUTINE ppiclf_solve_AddRestartSlot(jp)
+      use ppiclf_data
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+      INTEGER*4 jp, k
+!
+      IF(jp .EQ. 0) RETURN
+      IF(jp .LT. 0 .OR. jp .GT. ppiclf_lrp)
+     >   CALL ppiclf_exittr('Restart slot outside rprop$',0.0d0,jp)
+      IF(.NOT. ALLOCATED(ppiclf_restart_slots))
+     >   ALLOCATE(ppiclf_restart_slots(ppiclf_lrp))
+      DO k=1,ppiclf_lrp_restart
+        IF(ppiclf_restart_slots(k) .EQ. jp)
+     >    CALL ppiclf_exittr('Restart slot listed twice$',0.0d0,jp)
+      END DO
+      ppiclf_lrp_restart = ppiclf_lrp_restart + 1
+      ppiclf_restart_slots(ppiclf_lrp_restart) = jp
 
       RETURN
       END

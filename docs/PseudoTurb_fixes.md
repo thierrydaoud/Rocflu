@@ -68,7 +68,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Neighbour search | Dense subbin tables: ~28 GB requested for 50,000 particles in one 2 cm bin | Compact lists: ~1.2 MB for the same bin (about 24,000 times less), byte-identical results | 82d4ca4 |
 | Clean-up | ppiclF's own unit tests no longer matched the code; the burn-rate model and the `PICLDEBUG` output were unused | Removed; the regression suite replaces the unit tests. Input files that still ask for `REACTIVE` or a negative `STATIONARY` stop with a message | 3c41db2 |
 | Memory | ppiclF reserved fixed arrays for 80,000 particles, 640,000 ghosts and 120,000 cells per rank, plus 50 steps of viscous-unsteady history even when it was off: 1.34 GB for a run with one particle. A run with more particles on a rank stopped and needed a recompile | Arrays sized from the run and grown when needed; the history is allocated only with `VISCOUSUNSTEADY` (`VUSTEPS` steps). 265 MB for the same run; no particle, ghost, cell or wall limits | c1ac692, 0d4d86c, e227f99 |
-| Particle output | Every file held all 72 particle fields, named `y01`…, `rpro01`…, `tag01`… (300 bytes per particle) | A list of named fields: velocity, volume fraction, diameter and ID by default (44 bytes per particle); more groups with `PARTICLE_WRT`, `GAS_WRT`, `GRADGAS_WRT`, `MODEL_WRT`. Particle restart stops until it has its own file | (this section) |
+| Particle output | Every file held all 72 particle fields, named `y01`…, `rpro01`…, `tag01`… (300 bytes per particle) | A list of named fields: velocity, volume fraction, diameter and ID by default (44 bytes per particle); more groups with `PARTICLE_WRT`, `GAS_WRT`, `GRADGAS_WRT`, `MODEL_WRT`. Restarts read the particle dump in `restart_data/` ([InputFile.md](InputFile.md#output-and-restarts)) | (this section) |
 | Interpolation speed | 60% of a particle stage went to finding the cells around each particle | Marker per cell, an early exit and contiguous reads: that search is 45% faster, the whole run 14–20% faster, results bit-identical | (section "Where a particle stage spends its time") |
 | Ghost particles | A ghost carried all 59 particle properties; the neighbour search reads 6 | A ghost carries those 6 (16 doubles instead of 69), byte-identical results | a7f5748 |
 | Field sizes | The number of fields per particle and per cell (state, properties, interpolated, projected) was fixed at compile time; Rocflu's number of interpolated fields had to match it by hand; every run interpolated 29 gas fields and projected 31 | Set at start-up by `ppiclf_user_Layout` from the physics that is on: 7 interpolated fields for drag only, 10 projected without pseudo-turbulence; ppiclF stops if a needed field is not given; byte-identical flow files | 074d58d, (section "Field sizes set at run time") |
@@ -806,8 +806,13 @@ Planned, one commit at a time:
 1. Ghosts carry only what the neighbour search reads (done, below).
 2. Choose the fields of the particle output with a list, and name them (done, below).
 3. Remove the unused slots and group the rest by job (done, below).
-4. Later: a separate double-precision particle restart file holding only the state a
-   run needs to continue, as MFC does. Until then a particle restart stops (below).
+4. A double-precision particle dump (`restart_data/particles_<step>.dat`) holding the
+   state a run needs to continue, as MFC does (done). Of `rprop` it holds the slots a
+   restart needs, listed in `ppiclf_user_Layout` with `ppiclf_solve_AddRestartSlot`
+   (properties, quasi-steady fluctuation and its random-stream state, pseudo-turbulence
+   variables, added-mass Ẇ), and the slots of the particle output; the gas values at the
+   particle are interpolated again before every stage. The suite's restart test shows that
+   this is enough: a restarted run ends byte-identical to one that never stopped.
 
 ### Ghosts carry only what the neighbour search reads (a7f5748)
 

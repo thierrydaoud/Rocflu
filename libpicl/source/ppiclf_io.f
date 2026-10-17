@@ -1292,18 +1292,22 @@ c1511 continue
 !
 ! Internal:
 !
-      integer*4 iunit, fh, ierr, k, nhist
+      integer*4 iunit, fh, ierr, k, nhist, nsaved
+      integer*4 saved(ppiclf_lrp)
       integer*4 status(MPI_STATUS_SIZE)
       integer*8 nlocal, ntotal, npart_rank(ppiclf_np), header_size,
      >          ncells, ncell_rank(ppiclf_np)
       integer(kind=MPI_OFFSET_KIND) offset
-      real*8, allocatable :: projected(:,:)
+      real*8, allocatable :: projected(:,:), props(:,:)
 !
       ! the output fields (ppiclf_user_OutputFields), built once
       if (ppiclf_nout .lt. 0) then
          ppiclf_nout = 0
          call ppiclf_user_OutputFields
       endif
+
+      ! rprop slots saved: those a restart needs and those of the output
+      call ppiclf_io_SavedSlots(saved,nsaved)
 
       ! pack the viscous-unsteady history into rprop3
       if (ppiclf_lrp3 .gt. 0) call ppiclf_user_plag2prop
@@ -1322,7 +1326,7 @@ c1511 continue
      >        access='stream',status='replace',iostat=ierr)
          if (ierr .ne. 0)
      >      call ppiclf_exittr('Cannot open particle dump$',0.0d0,0)
-         write(iunit) 'PPICLDMP', 2_4, istep, time,
+         write(iunit) 'PPICLDMP', 3_4, istep, time,
      >      int(ppiclf_np,4), ntotal,
      >      int(ppiclf_lrs,4), int(ppiclf_lrp,4), int(PPICLF_LIP,4),
      >      int(ppiclf_lrp3,4), int(ppiclf_lrp_pro,4), int(nhist,4),
@@ -1334,6 +1338,7 @@ c1511 continue
             write(iunit) int(ppiclf_out_source(k),4),
      >                   int(ppiclf_out_slot(k),4), ppiclf_out_name(k)
          enddo
+         write(iunit) int(nsaved,4), saved(1:nsaved)
          write(iunit) npart_rank, ncell_rank
          ! the next byte to write, 1-based: the header is one byte less
          inquire(unit=iunit,pos=header_size)
@@ -1349,7 +1354,7 @@ c1511 continue
 
       offset = header_size
       do k=1,ppiclf_nid
-         offset = offset + npart_rank(k)*(8*ppiclf_lrs + 8*ppiclf_lrp
+         offset = offset + npart_rank(k)*(8*ppiclf_lrs + 8*nsaved
      >                    + 4*PPICLF_LIP + 8*ppiclf_lrp3
      >                    + 8*ppiclf_lrp_pro)
      >                   + ncell_rank(k)*8*ppiclf_lrp_pro
@@ -1358,9 +1363,14 @@ c1511 continue
       call mpi_file_write_at_all(fh,offset,ppiclf_y,
      >   ppiclf_lrs*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
       offset = offset + 8*ppiclf_lrs*nlocal
-      call mpi_file_write_at_all(fh,offset,ppiclf_rprop,
-     >   ppiclf_lrp*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
-      offset = offset + 8*ppiclf_lrp*nlocal
+      allocate(props(max(nsaved,1),max(nlocal,1_8)))
+      if (nlocal .gt. 0 .and. nsaved .gt. 0)
+     >   props(1:nsaved,1:nlocal) =
+     >      ppiclf_rprop(saved(1:nsaved),1:nlocal)
+      call mpi_file_write_at_all(fh,offset,props,
+     >   nsaved*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
+      deallocate(props)
+      offset = offset + 8*nsaved*nlocal
       call mpi_file_write_at_all(fh,offset,ppiclf_iprop,
      >   PPICLF_LIP*ppiclf_npart,MPI_INTEGER4,status,ierr)
       offset = offset + 4*PPICLF_LIP*nlocal
@@ -1415,14 +1425,15 @@ c1511 continue
       character*24 fieldname
       integer*4 iunit, fh, ierr, k, nhist, nranks, nout, version,
      >          lrs, lrp, lip, lrp3, lrppro, ntimebh, ibad, idum(2),
-     >          nbins(3)
+     >          nbins(3), nsaved, needed(ppiclf_lrp), nneeded,
+     >          saved(ppiclf_lrp)
       integer*4 status(MPI_STATUS_SIZE)
       integer*8 istep, nlocal, npart_rank(ppiclf_np), header_size,
      >          ncells, ncell_rank(ppiclf_np)
       integer(kind=MPI_OFFSET_KIND) offset
       real*8 time, rdum(9), dpl
       real*8, allocatable :: ytmp(:,:), rtmp(:,:), htmp(:,:),
-     >                       ftmp(:,:), timebh(:)
+     >                       ftmp(:,:), props(:,:), timebh(:)
       integer*4, allocatable :: itmp(:,:)
       integer*4 istartout
       common /ppiclf_io_restart/ istartout
@@ -1445,7 +1456,7 @@ c1511 continue
             read(iunit,iostat=ierr) magic, version, istep, time,
      >         nranks, ntotal, lrs, lrp, lip, lrp3, lrppro, k, ntimebh
             if (ierr .ne. 0 .or. magic .ne. 'PPICLDMP' .or.
-     >          version .ne. 2) then
+     >          version .ne. 3) then
                ibad = 2
             elseif (nranks .ne. ppiclf_np) then
                ibad = 3
@@ -1460,6 +1471,18 @@ c1511 continue
                do k=1,nout
                   read(iunit) idum, fieldname
                enddo
+               read(iunit) nsaved
+               if (nsaved .gt. ppiclf_lrp) then
+                  ibad = 4
+               else
+                  read(iunit) saved(1:nsaved)
+                  ! every slot a restart needs must be there
+                  call ppiclf_io_SavedSlots(needed,nneeded)
+                  do k=1,ppiclf_lrp_restart
+                     if (.not. any(saved(1:nsaved) .eq.
+     >                   ppiclf_restart_slots(k))) ibad = 4
+                  enddo
+               endif
                read(iunit) npart_rank, ncell_rank
                ! the next byte to read, 1-based
                inquire(unit=iunit,pos=header_size)
@@ -1473,7 +1496,7 @@ c1511 continue
       if (ibad .eq. 1) call ppiclf_exittr(
      >   'Cannot open the particle dump$',0.0d0,0)
       if (ibad .eq. 2) call ppiclf_exittr(
-     >   'Not a version 2 particle dump$',0.0d0,0)
+     >   'Not a version 3 particle dump$',0.0d0,0)
       if (ibad .eq. 3) call ppiclf_exittr(
      >   'Particle dump from a different number of ranks$',0.0d0,0)
       if (ibad .eq. 4) call ppiclf_exittr(
@@ -1484,6 +1507,8 @@ c1511 continue
      >               ppiclf_comm,ierr)
       call mpi_bcast(ncell_rank,ppiclf_np,MPI_INTEGER8,0,
      >               ppiclf_comm,ierr)
+      call mpi_bcast(nsaved,1,MPI_INTEGER4,0,ppiclf_comm,ierr)
+      call mpi_bcast(saved,ppiclf_lrp,MPI_INTEGER4,0,ppiclf_comm,ierr)
       call mpi_bcast(ntotal,1,MPI_INTEGER8,0,ppiclf_comm,ierr)
       call mpi_bcast(istep,1,MPI_INTEGER8,0,ppiclf_comm,ierr)
       call mpi_bcast(time,1,MPI_DOUBLE_PRECISION,0,ppiclf_comm,ierr)
@@ -1499,6 +1524,7 @@ c1511 continue
       nlocal = npart_rank(ppiclf_nid+1)
       allocate(ytmp(ppiclf_lrs,max(nlocal,1_8)),
      >         rtmp(ppiclf_lrp,max(nlocal,1_8)),
+     >         props(max(nsaved,1),max(nlocal,1_8)),
      >         itmp(PPICLF_LIP,max(nlocal,1_8)),
      >         htmp(max(ppiclf_lrp3,1),max(nlocal,1_8)),
      >         ftmp(ppiclf_lrp_pro,max(nlocal,1_8)))
@@ -1509,7 +1535,7 @@ c1511 continue
 
       offset = header_size
       do k=1,ppiclf_nid
-         offset = offset + npart_rank(k)*(8*ppiclf_lrs + 8*ppiclf_lrp
+         offset = offset + npart_rank(k)*(8*ppiclf_lrs + 8*nsaved
      >                    + 4*PPICLF_LIP + 8*ppiclf_lrp3
      >                    + 8*ppiclf_lrp_pro)
      >                   + ncell_rank(k)*8*ppiclf_lrp_pro
@@ -1520,9 +1546,13 @@ c1511 continue
       call mpi_file_read_at_all(fh,offset,ytmp,
      >   int(ppiclf_lrs*nlocal,4),MPI_DOUBLE_PRECISION,status,ierr)
       offset = offset + 8*ppiclf_lrs*nlocal
-      call mpi_file_read_at_all(fh,offset,rtmp,
-     >   int(ppiclf_lrp*nlocal,4),MPI_DOUBLE_PRECISION,status,ierr)
-      offset = offset + 8*ppiclf_lrp*nlocal
+      call mpi_file_read_at_all(fh,offset,props,
+     >   int(nsaved*nlocal,4),MPI_DOUBLE_PRECISION,status,ierr)
+      offset = offset + 8*nsaved*nlocal
+      ! slots not saved start at 0: interpolated before they are used
+      rtmp = 0.0d0
+      if (nlocal .gt. 0 .and. nsaved .gt. 0)
+     >   rtmp(saved(1:nsaved),1:nlocal) = props(1:nsaved,1:nlocal)
       call mpi_file_read_at_all(fh,offset,itmp,
      >   int(PPICLF_LIP*nlocal,4),MPI_INTEGER4,status,ierr)
       offset = offset + 4*PPICLF_LIP*nlocal
@@ -1567,7 +1597,48 @@ c1511 continue
       call mpi_allreduce(dpl,dp_max,1,MPI_DOUBLE_PRECISION,MPI_MAX,
      >                   ppiclf_comm,ierr)
 
-      deallocate(ytmp,rtmp,itmp,htmp,ftmp,timebh)
+      deallocate(ytmp,rtmp,itmp,htmp,ftmp,props,timebh)
+
+      return
+      end
+!-----------------------------------------------------------------------
+! The rprop slots the particle dump holds, in increasing order: those a
+! restart needs (ppiclf_restart_slots) and those of the particle output
+! (ppiclf_user_OutputFields).
+      subroutine ppiclf_io_SavedSlots(saved,nsaved)
+      use ppiclf_data
+!
+      implicit none
+!
+      include "PPICLF"
+!
+      integer*4 saved(*), nsaved
+!
+      integer*4 k, j, slot
+      logical keep(ppiclf_lrp)
+!
+      if (ppiclf_nout .lt. 0) then
+         ppiclf_nout = 0
+         call ppiclf_user_OutputFields
+      endif
+      keep = .false.
+      do k=1,ppiclf_lrp_restart
+         keep(ppiclf_restart_slots(k)) = .true.
+      enddo
+      do k=1,ppiclf_nout
+         if (ppiclf_out_source(k) .eq. PPICLF_OUT_RPROP) then
+            slot = ppiclf_out_slot(k)
+            if (slot .ge. 1 .and. slot .le. ppiclf_lrp)
+     >         keep(slot) = .true.
+         endif
+      enddo
+      nsaved = 0
+      do j=1,ppiclf_lrp
+         if (keep(j)) then
+            nsaved = nsaved + 1
+            saved(nsaved) = j
+         endif
+      enddo
 
       return
       end

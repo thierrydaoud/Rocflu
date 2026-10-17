@@ -165,8 +165,8 @@ def read_particle_dump(path):
         data = f.read()
     (magic, version, step, time, nranks, ntotal,
      lrs, lrp, lip, lrp3, lrppro, nhist, ntimebh) = PARTICLE_DUMP_HEADER.unpack_from(data, 0)
-    if magic != b"PPICLDMP" or version != 2:
-        raise ValueError("%s: not a version 2 particle dump" % path)
+    if magic != b"PPICLDMP" or version != 3:
+        raise ValueError("%s: not a version 3 particle dump" % path)
     pos = PARTICLE_DUMP_HEADER.size
 
     def take(fmt, n):
@@ -186,13 +186,15 @@ def read_particle_dump(path):
         name = data[pos:pos + 24].decode().strip()
         pos += 24
         fields.append((source, slot, name))
+    nsaved, = take("i", 1)
+    saved = take("i", nsaved)              # the rprop slots in the file
     counts = take("q", nranks)
     cell_counts = take("q", nranks)
     if sum(counts) != ntotal:
         raise ValueError("%s: rank counts add up to %d, not %d" % (path, sum(counts), ntotal))
     y, rprop, iprop, hist, feedback, projected = [], [], [], [], [], []
     for n, ncells in zip(counts, cell_counts):
-        for arr, fmt, width in ((y, "d", lrs), (rprop, "d", lrp), (iprop, "i", lip),
+        for arr, fmt, width in ((y, "d", lrs), (rprop, "d", nsaved), (iprop, "i", lip),
                                 (hist, "d", lrp3), (feedback, "d", lrppro)):
             flat = take(fmt, width * n)
             arr.extend(flat[k * width:(k + 1) * width] for k in range(n))
@@ -200,7 +202,16 @@ def read_particle_dump(path):
         projected.append([take("d", ncells) for _ in range(lrppro)])
     if pos != len(data):
         raise ValueError("%s: %d bytes left after the data" % (path, len(data) - pos))
+    # rprop as full rows (lrp slots, 0 where not saved)
+    full = []
+    for row in rprop:
+        r = [0.0] * lrp
+        for j, slot in enumerate(saved):
+            r[slot - 1] = row[j]
+        full.append(tuple(r))
+    rprop = full
     return {"step": step, "time": time, "counts": counts, "lrs": lrs, "lrp": lrp, "lip": lip,
+            "saved_slots": saved,
             "lrp3": lrp3, "time_bh": time_bh, "ntimebh": ntimebh, "n_bins": n_bins,
             "bin_box": bin_box, "bin_dx": bin_dx, "fields": fields,
             "y": y, "rprop": rprop, "iprop": iprop, "hist": hist, "feedback": feedback,

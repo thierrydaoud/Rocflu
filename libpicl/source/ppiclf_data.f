@@ -42,12 +42,17 @@
 !   ppiclf_lrp_ghost: rprop slots a ghost particle carries,
 !                     ppiclf_ghost_slots(1:ppiclf_lrp_ghost)
 !   ppiclf_lrp_gp   : ghost row length, ppiclf_lrs + ppiclf_lrp_ghost
+!   ppiclf_lrp_restart: rprop slots a restart needs (state carried from
+!                     step to step, properties), saved in the particle dump
+!                     with those of the particle output,
+!                     ppiclf_restart_slots(1:ppiclf_lrp_restart)
       integer*4 ppiclf_lrs, ppiclf_lrp, ppiclf_lrp_int, ppiclf_lrp_pro,
-     >          ppiclf_lrp_ghost, ppiclf_lrp_gp
+     >          ppiclf_lrp_ghost, ppiclf_lrp_gp, ppiclf_lrp_restart
       data ppiclf_lrs, ppiclf_lrp, ppiclf_lrp_int, ppiclf_lrp_pro,
-     >     ppiclf_lrp_ghost, ppiclf_lrp_gp /6*0/
+     >     ppiclf_lrp_ghost, ppiclf_lrp_gp, ppiclf_lrp_restart /7*0/
       integer*4, allocatable :: ppiclf_int_slots(:),
-     >                          ppiclf_ghost_slots(:)
+     >                          ppiclf_ghost_slots(:),
+     >                          ppiclf_restart_slots(:)
 
 ! Interpolated fields handed over by the fluid solver this stage
 ! (ppiclf_solve_InterpFieldUser): ppiclf_int_given(k) is true once
