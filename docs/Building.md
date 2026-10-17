@@ -198,9 +198,12 @@ with particles, `points.dat`. `run` then:
 2. **Pre-processes the case here**, on the login node: `rflumap` (into N x n regions),
    `rflupart`, `rfluinit`, one process each, with their output in `rflumap.log`,
    `rflupart.log` and `rfluinit.log` in the case directory. A mistake in the input, the
-   boundary conditions or the grid stops here, before anything is queued.
+   boundary conditions or the grid stops here, before anything is queued. On a terminal
+   a status line shows the step each tool is in and, region by region, how many are done
+   and about how long is left; Ctrl-C stops the tool.
 3. **Writes `<case>.sbatch`** in the case directory and **submits it**: the job runs
-   only `rflump`, with `srun` on N nodes x n ranks per node. The solver's output goes to
+   `rflump`, with `srun` on N nodes x n ranks per node, then (unless `--no-post`)
+   `rflupost` on one task if the simulation succeeded. The solver's output goes to
    `<case>.<job id>.out`: a header box from the job script (start time, partition,
    account, QOS, walltime, nodes and ranks, job ID, build and commit, modules), the Setup box,
    one progress line per `PRNTIME` (percent done, t, dt, step, time per step, ETA) and a
@@ -221,7 +224,7 @@ with particles, `points.dat`. `run` then:
 | `-t simulation` | build and submit only; the case was pre-processed before with the same N x n | |
 | `-e`, `--engine` | `batch`: submit the job script with `sbatch`; `interactive`: run it right away in this shell, on a node you have already allocated (`srun --pty bash` or `salloc`; refused elsewhere), output also in `<case>.interactive.out` | `batch` |
 | `--dry-run` | build, pre-process and write the job script, but do not submit or run it | |
-| `--post` | after a simulation that succeeded, the job runs `rflupost` (one task): `post/` is ready when the job ends | no |
+| `--no-post` | do not run `rflupost` after the simulation. By default, after a simulation that succeeded, the job runs `rflupost` (one task), so `post/` is ready when the job ends | post on |
 | `--debug` | debug build of the case | |
 | `-j, --jobs N` | compile with N processes | 16 |
 

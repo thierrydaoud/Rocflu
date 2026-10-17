@@ -340,6 +340,71 @@ build_failed() {   # <step> <file> <log>
   fail "the $part step failed; the full output is in ${log#$ROOT/}"
 }
 
+clock() {   # <seconds>: m:ss, or h:mm:ss from an hour on
+  if [ "$1" -ge 3600 ]; then
+    printf '%d:%02d:%02d' $(($1 / 3600)) $(($1 % 3600 / 60)) $(($1 % 60))
+  else
+    printf '%d:%02d' $(($1 / 60)) $(($1 % 60))
+  fi
+}
+
+# Runs a pre-processing tool in <dir>, its output in <dir>/<tool>.log. On a
+# terminal a status line shows the step the tool is in (the last step its log
+# started, without the set-up and clean-up ones) and, once it works region by
+# region, the region count and the time left at the pace so far. Rocflu's
+# output is written as it comes (by default gfortran holds it back when it
+# goes to a file). Ctrl-C stops the tool too. Returns the tool's status.
+run_tool() {   # <dir> <executable> <regions> <arguments...>
+  local dir="$1" exe="$2" nregions="$3"
+  shift 3
+  local tool log
+  tool=$(basename "$exe"); log="$dir/$tool.log"
+  (cd "$dir" && GFORTRAN_UNBUFFERED_PRECONNECTED=y exec "$exe" "$@") > "$log" 2>&1 &
+  local pid=$! start=$SECONDS
+  trap 'kill $pid 2> /dev/null; clear_bar; fail "$tool stopped (Ctrl-C)"' INT TERM
+
+  # The line Rocflu writes once per region it has done
+  local marker=""
+  case $tool in
+    rflupart) marker="Adding virtual cells done." ;;
+    rfluinit) marker="Writing fluid dump" ;;
+  esac
+  local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏) frame=0 step regions_done first=0 left text width
+  # The line fits the terminal: a wrapped line could not be redrawn in place
+  width=$(( $(tput cols 2> /dev/null || echo 80) - 25 ))
+  [ "$width" -lt 20 ] && width=20
+  while kill -0 $pid 2> /dev/null; do
+    if on_terminal; then
+      step=$(grep -E '^ [A-Z][^.]*\.\.\.$' "$log" \
+             | grep -vE '^ (Nullifying|Destroying|Deallocating|Creating|Setting|Allocating|Opening|Closing|Printing)' \
+             | tail -1 | sed 's/^ //; s/\.\.\.$//; s/ for inviscid higher-order stencil//')
+      step="${step,}"
+      text="${step:-starting}"
+      regions_done=0
+      [ -n "$marker" ] && regions_done=$(grep -c "$marker" "$log")
+      if [ "$regions_done" -ge "$nregions" ]; then
+        text="all $nregions regions done, $step"
+      elif [ "$regions_done" -gt 0 ]; then
+        # Pace from the end of the first region: what came before is the serial part
+        [ "$first" == 0 ] && first=$SECONDS
+        text="region $regions_done/$nregions"
+        if [ "$regions_done" -gt 1 ]; then
+          left=$(( (SECONDS - first) * (nregions - regions_done) / (regions_done - 1) ))
+          [ "$left" -gt 0 ] && text+=", about $(clock $left) left"
+        fi
+        text+=": $step"
+      fi
+      printf '\r\033[K  %s%s%s %-9s %s%-*.*s%s %s' "${PROGRESS:-}" "${frames[frame]}" \
+        "${PLAIN:-}" "$tool" "${DIM:-}" "$width" "$width" "$text" "${PLAIN:-}" \
+        "$(clock $((SECONDS - start)))"
+      frame=$(( (frame + 1) % ${#frames[@]} ))
+    fi
+    sleep 1
+  done
+  trap - INT TERM
+  wait $pid
+}
+
 usage_run() {
   cat << EOF
 ${HEADING}Usage:${PLAIN} ${OPTION}./rocflu.sh run${PLAIN} <dir>/<case>.inp [options]
@@ -378,9 +443,10 @@ ${HEADING}What to do:${PLAIN}
                         ${DEFAULT}(default: batch)${PLAIN}
   ${OPTION}--dry-run${PLAIN}             build, pre-process and write the job script, but
                         do not submit or run it ${DEFAULT}(default: submit)${PLAIN}
-  ${OPTION}--post${PLAIN}                after the simulation, convert its dumps into
-                        ParaView files in post/ (rflupost, one task)
-                        ${DEFAULT}(default: no; run ./rocflu.sh post later)${PLAIN}
+  ${OPTION}--no-post${PLAIN}             do not convert the dumps after the simulation
+                        ${DEFAULT}(default: when the simulation succeeds, rflupost
+                        converts its dumps into ParaView files in post/, one
+                        task; ./rocflu.sh post does it later)${PLAIN}
 ${HEADING}Build:${PLAIN}
   ${OPTION}--debug${PLAIN}               debug build (-g -O0 -fcheck=all)
                         ${DEFAULT}(default: optimised release build)${PLAIN}
@@ -427,7 +493,7 @@ build_for_case() {   # <case.inp> <debug 0|1> <jobs>
 cmd_run() {
   local inp="" nodes=1 tasks=1 partition=hpg-default account=bala1s qos=primary
   local walltime=01:00:00 mem="" email="" targets=() dry=0 debug=0 jobs=16
-  local engine=batch post=0
+  local engine=batch post=1
   while [ $# -gt 0 ]; do
     case "$1" in
       -N|--nodes)          nodes="$2"; shift ;;
@@ -444,7 +510,8 @@ cmd_run() {
         continue ;;
       -e|--engine)         engine="$2"; shift ;;
       --dry-run)           dry=1 ;;
-      --post)              post=1 ;;
+      --post)              post=1 ;;   # the default; kept for old commands
+      --no-post)           post=0 ;;
       --debug)             debug=1 ;;
       -j|--jobs)           jobs="$2"; shift ;;
       -h|--help)           usage_run; exit 0 ;;
@@ -512,7 +579,7 @@ cmd_run() {
     for tool in rflumap rflupart rfluinit; do
       args=(-c "$case_name" -v 1)
       [ $tool == rflumap ] && args=(-c "$case_name" -m 1 -p "$nranks" -r "$nranks" -v 1)
-      if ! (cd "$case_dir" && "$bin/$tool" "${args[@]}" > "$tool.log" 2>&1) \
+      if ! run_tool "$case_dir" "$bin/$tool" "$nranks" "${args[@]}" \
          || grep -q "ERROR" "$case_dir/$tool.log"; then
         {
           printf '  %s✗ %s%s\n\n' "${ERROR_MARK:-}" "$tool" "${ERROR_PLAIN:-}"
