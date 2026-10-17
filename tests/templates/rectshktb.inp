@@ -122,6 +122,14 @@ MODEL_WRT         0 ! particle files: also the states/diagnostics of the models 
 #
 
 # POST 
+DENSITY_WRT      1 ! post program (rflupost): fluid fields to write
+VELOCITY_WRT     1
+PRESSURE_WRT     1
+PHI_WRT          1
+TEMPERATURE_WRT  1 ! all on in the tests, so the suite compares every field
+SOUNDSPEED_WRT   1
+ENERGY_WRT       1
+GRADRHO_WRT      1
 INTERTYPE  0 
 MERGEFLAG  1 
 EXTRFLAG   0 ! Turn it 'ON' while running MVFRAME 

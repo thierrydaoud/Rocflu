@@ -721,7 +721,7 @@ EOF
 cmd_test() {
   case "$1" in -h|--help) usage_test; exit 0 ;; esac
   local exe
-  for exe in rflumap rflupart rfluinit rflump; do
+  for exe in rflumap rflupart rfluinit rflump rflupost; do
     [ -x "$BUILD_ROOT/bin/$exe" ] || fail "no $exe in build/bin ($(readlink "$BUILD_ROOT/bin" 2>/dev/null)): the last build had -t; build again with the same options and no -t"
   done
   load_modules || fail "could not load modules: $ROCFLU_MODULES"

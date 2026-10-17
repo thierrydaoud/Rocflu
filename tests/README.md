@@ -166,6 +166,13 @@ Every case also checks its dumps in `restart_data/`: each `SOL_*` flow file matc
 dump of the same time (1e-12 relative), each `par*.vtu` matches the particle dump of the same
 time field by field (single precision), and rfluinit's step 0 dump exists.
 
+**Post program**: every case also runs `rflupost -s all` and compares `post/` with the
+old-style output of every step: each fluid field of each region with `PARAVIEW_*` of the
+same time (1e-12 relative to the field's largest value; the template turns every
+`*_WRT` field on), each particle field and position with the `par*.vtu` of the same step
+(single precision). Without particles the old `Velocity` and `Energy` are the momentum
+and the energy per volume, and are compared as such.
+
 **Restart test** (cases with `restart_test=True`): after the run, the harness copies the run
 directory to `<case>_restart`, sets `START_STEP` to the first dump after step 0, runs rflump
 again to the same end time and requires every final dump (fluid of each region, particles)

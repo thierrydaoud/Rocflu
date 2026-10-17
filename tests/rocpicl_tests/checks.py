@@ -8,6 +8,7 @@ moves every golden on purpose.
 import glob
 import math
 import os
+import re
 
 from . import outputs, state
 from .case import CASENAME
@@ -167,6 +168,70 @@ def check_particle_dump(rundir):
                 errors.append("restart_data: step %d %s: %d particles differ from %s "
                               "(particle %d: %.9g vs %.9g)" % (d["step"], name, len(bad),
                               os.path.basename(path), i + 1, expected[i], vtu[name][i]))
+    return errors
+
+
+# Old-style fluid files hold doubles; rflupost divides in another order (1 ulp)
+POST_FLUID_RTOL = 1e-12
+
+
+def check_post(rundir):
+    """post/ (rflupost) must hold what the old-style output holds, at every step:
+    each fluid field of each region as in PARAVIEW_* of the same time (double
+    precision), each particle field as in the par*.vtu of the same step (single
+    precision). Without particles the old files' "Velocity" and "Energy" hold the
+    momentum and the energy per volume, so those are compared as such."""
+    errors = []
+    pvd = os.path.join(rundir, "post", "collection.pvd")
+    if not os.path.exists(pvd):
+        return ["post: no post/collection.pvd"]
+    with open(pvd) as f:
+        entries = re.findall(r'timestep="\s*([-+.\dEe]+)" file="root/collection_(\d+).vtm"',
+                             f.read())
+    dumps = state._dumps(rundir)
+    if len(entries) != len(dumps):
+        return ["post: %d steps in post/, %d old-style dumps" % (len(entries), len(dumps))]
+    picl = state._picl_used(rundir)
+    pars = sorted(glob.glob(os.path.join(rundir, "par[0-9]*.vtu")))
+    for k, (time, step) in enumerate(entries):
+        time = float(time)
+        soldir = dumps[k][1]
+        if not _close(dumps[k][0], time, 1e-5, 1e-30):
+            errors.append("post: step %s at t = %g, old-style dump at t = %g" % (step, time, dumps[k][0]))
+            continue
+        olddir = os.path.join(rundir, "PARAVIEW_" + os.path.basename(soldir)[4:])
+        for vtu in sorted(glob.glob(os.path.join(rundir, "post", "p[0-9]*", step + ".vtu"))):
+            region = int(os.path.basename(os.path.dirname(vtu))[1:]) + 1
+            old = glob.glob(os.path.join(olddir, "*_%05d.vtu" % region)) or \
+                glob.glob(os.path.join(olddir, "*_%05d.vtu" % (region - 1)))
+            _, _, _, fields = outputs.read_post_vtu(vtu)
+            rho = fields.get("Gas Density")
+            for name, new in fields.items():
+                if new and isinstance(new[0], tuple):
+                    flat = [v for t in new for v in t]
+                    if not picl and name == "Velocity":
+                        flat = [v * rho[i // 3] for i, v in enumerate(flat)]
+                    new = flat
+                elif not picl and name == "Energy":
+                    new = [v * r for v, r in zip(new, rho)]
+                ref = outputs.read_vtu_cell_field(old[0], name)
+                scale = max(abs(v) for v in ref) or 1.0
+                bad = [i for i in range(len(ref)) if not _close(new[i], ref[i], POST_FLUID_RTOL, scale)]
+                if len(new) != len(ref) or bad:
+                    errors.append("post: step %s region %d %s: %d values differ from %s"
+                                  % (step, region, name, len(bad) or abs(len(new) - len(ref)),
+                                     os.path.basename(old[0])))
+        particles = os.path.join(rundir, "post", "particles", step + ".vtu")
+        if os.path.exists(particles):
+            _, _, points, fields = outputs.read_post_vtu(particles)
+            _, ref = outputs.read_particle_vtu(pars[k])
+            fields.update({c: [p[j] for p in points] for j, c in enumerate("xyz")})
+            for name, new in fields.items():
+                scale = max(abs(v) for v in ref[name]) or 1.0
+                bad = [i for i in range(len(new)) if not _close(new[i], ref[name][i], PAR_RTOL, scale)]
+                if len(new) != len(ref[name]) or bad:
+                    errors.append("post: step %s particle %s: %d values differ from %s"
+                                  % (step, name, len(bad), os.path.basename(pars[k])))
     return errors
 
 

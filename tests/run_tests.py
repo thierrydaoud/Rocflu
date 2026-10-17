@@ -104,6 +104,9 @@ def run_case(case, args):
         res["errors"] += checks.check_restart_data(rundir)
         if case.particles:
             res["errors"] += checks.check_particle_dump(rundir)
+        # The post program must give what the old-style output gives
+        post_errors = rcase.run_post(rundir, args.exe)
+        res["errors"] += post_errors or checks.check_post(rundir)
         if case.restart_test:
             res["errors"] += rcase.restart_test(case, rundir, args.exe, slurm)
 

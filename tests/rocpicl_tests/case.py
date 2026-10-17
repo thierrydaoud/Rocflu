@@ -270,3 +270,15 @@ def restart_test(case, rundir, exe_dir, slurm):
             errors.append("restart test: restarted from step %d, %s differs from the "
                           "uninterrupted run" % (start, name))
     return errors
+
+
+def run_post(rundir, exe_dir):
+    """Convert every dump step of the run into post/ with rflupost (one process).
+    Returns a list of failure messages."""
+    rc = _run([os.path.join(exe_dir, "rflupost"), "-c", CASENAME, "-s", "all", "-v", "0"],
+              rundir, "rflupost.log")
+    with open(os.path.join(rundir, "rflupost.log"), errors="replace") as f:
+        log = f.read()
+    if rc != 0 or "collection.pvd lists" not in log:
+        return ["rflupost failed (rc=%d; see %s)" % (rc, os.path.join(rundir, "rflupost.log"))]
+    return []
