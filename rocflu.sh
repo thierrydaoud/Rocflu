@@ -77,6 +77,7 @@ EOF
 }
 
 VALIDATOR="$ROOT/utilities/scripts/case_validator.py"
+PREPROCESS_KEY="$ROOT/utilities/scripts/preprocess_key.py"
 
 usage_validate() {
   cat << EOF
@@ -405,6 +406,39 @@ run_tool() {   # <dir> <executable> <regions> <arguments...>
   wait $pid
 }
 
+# The pre-processing files of <regions> regions are all there: the region
+# map, and the grid files rflupart writes for the serial grid (00000) and
+# each region (rflupart)
+partition_present() {   # <dir> <case> <regions>
+  local dir="$1" name="$2" n="$3" i ext
+  [ -f "$dir/$name.map" ] || return 1
+  for ext in cmp dim rnm; do
+    [ -f "$dir/GRIDDATA/$name.${ext}_00000" ] || return 1
+  done
+  for ((i = 1; i <= n; i++)); do
+    for ext in cmp com dim grda rnm; do
+      [ -f "$(printf '%s/GRIDDATA/%s.%s_%05d' "$dir" "$name" "$ext" $i)" ] || return 1
+    done
+  done
+}
+
+# ... and the initial fields rfluinit writes, one dump per region (rfluinit)
+init_present() {   # <dir> <regions>
+  local i
+  for ((i = 1; i <= $2; i++)); do
+    [ -f "$(printf '%s/restart_data/fluid_00000000_%05d.dat' "$1" $i)" ] || return 1
+  done
+}
+
+write_stamp() {   # <file> <line>...
+  {
+    echo "# ./rocflu.sh run: the pre-processing that succeeded here (commit" \
+         "$(git -C "$ROOT" rev-parse --short HEAD 2> /dev/null || echo unknown)," \
+         "$(date '+%Y-%m-%d %H:%M')). Delete it to pre-process again."
+    printf '%s\n' "${@:2}"
+  } > "$1"
+}
+
 usage_run() {
   cat << EOF
 ${HEADING}Usage:${PLAIN} ${OPTION}./rocflu.sh run${PLAIN} <dir>/<case>.inp [options]
@@ -412,8 +446,9 @@ ${HEADING}Usage:${PLAIN} ${OPTION}./rocflu.sh run${PLAIN} <dir>/<case>.inp [opti
 Checks the case (./rocflu.sh validate), builds the code for it (only the
 particle slots its input needs), pre-processes the case here (rflumap,
 rflupart, rfluinit, one process each: an error in the .inp, .bc or grid shows
-up now, before anything is queued), then writes <dir>/<case>.sbatch and
-submits the simulation (rflump) to Slurm. The case directory must hold
+up now, before anything is queued; skipped when already done, see
+--repartition), then writes <dir>/<case>.sbatch and submits the simulation
+(rflump) to Slurm. The case directory must hold
 <case>.inp, <case>.bc, the grid and, with particles, points.dat.
 
 ${HEADING}Job:${PLAIN}
@@ -441,6 +476,14 @@ ${HEADING}What to do:${PLAIN}
                         allocated (srun --pty bash or salloc); the output is
                         shown and saved in <case>.interactive.out
                         ${DEFAULT}(default: batch)${PLAIN}
+  ${OPTION}--repartition${PLAIN}         pre-process again even when it is up to date
+                        ${DEFAULT}(default: rflumap and rflupart are skipped when the
+                        grid, the .bc file, the number of regions and the
+                        input file (all but the run length, output, probes,
+                        and for the partition the initial and particle
+                        settings) are those of the last pre-processing that
+                        succeeded, and rfluinit when the initial fields are;
+                        see <dir>/.rocflu_pre.stamp)${PLAIN}
   ${OPTION}--dry-run${PLAIN}             build, pre-process and write the job script, but
                         do not submit or run it ${DEFAULT}(default: submit)${PLAIN}
   ${OPTION}--no-post${PLAIN}             do not convert the dumps after the simulation
@@ -493,7 +536,7 @@ build_for_case() {   # <case.inp> <debug 0|1> <jobs>
 cmd_run() {
   local inp="" nodes=1 tasks=1 partition=hpg-default account=bala1s qos=primary
   local walltime=01:00:00 mem="" email="" targets=() dry=0 debug=0 jobs=16
-  local engine=batch post=1
+  local engine=batch post=1 repartition=0
   while [ $# -gt 0 ]; do
     case "$1" in
       -N|--nodes)          nodes="$2"; shift ;;
@@ -512,6 +555,7 @@ cmd_run() {
       --dry-run)           dry=1 ;;
       --post)              post=1 ;;   # the default; kept for old commands
       --no-post)           post=0 ;;
+      --repartition)       repartition=1 ;;
       --debug)             debug=1 ;;
       -j|--jobs)           jobs="$2"; shift ;;
       -h|--help)           usage_run; exit 0 ;;
@@ -572,11 +616,43 @@ cmd_run() {
   local name bin
   build_for_case "$inp" "$debug" "$jobs"
 
-  # 2. Pre-process here, one process each
+  # 2. Pre-process here, one process each, unless the stamp of the last
+  # pre-processing that succeeded says it is up to date
   if [ $pre == 1 ]; then
-    say "pre-processing $case_name into $nranks regions in $case_dir"
+    local stamp="$case_dir/.rocflu_pre.stamp" keys key_part key_init
+    local old_part="" old_init="" part_ok=0 init_ok=0 tools=()
+    keys=$(python3 "$PREPROCESS_KEY" "$inp" "$nranks") \
+      || fail "could not compute the pre-processing keys ($PREPROCESS_KEY)"
+    key_part=$(sed -n 's/^partition //p' <<< "$keys")
+    key_init=$(sed -n 's/^init //p' <<< "$keys")
+    if [ -f "$stamp" ] && [ $repartition == 0 ]; then
+      old_part=$(sed -n 's/^partition //p' "$stamp")
+      old_init=$(sed -n 's/^init //p' "$stamp")
+    fi
+    if [ -n "$key_part" ] && [ "$key_part" == "$old_part" ] \
+       && partition_present "$case_dir" "$case_name" "$nranks"; then
+      part_ok=1
+      checkpoint "partition up to date ($nranks regions; --repartition to redo)" ""
+    else
+      tools+=(rflumap rflupart)
+    fi
+    if [ $part_ok == 1 ] && [ "$key_init" == "$old_init" ] \
+       && init_present "$case_dir" "$nranks"; then
+      init_ok=1
+      checkpoint "initial fields up to date (restart_data/; --repartition to redo)" ""
+    else
+      tools+=(rfluinit)
+    fi
+
+    # The stamp only holds what succeeded: drop what is about to be redone
+    if [ $part_ok == 0 ]; then
+      rm -f "$stamp"
+    elif [ $init_ok == 0 ]; then
+      write_stamp "$stamp" "partition $key_part"
+    fi
+    [ ${#tools[@]} -gt 0 ] && say "pre-processing $case_name into $nranks regions in $case_dir"
     local tool args start=$SECONDS
-    for tool in rflumap rflupart rfluinit; do
+    for tool in "${tools[@]}"; do
       args=(-c "$case_name" -v 1)
       [ $tool == rflumap ] && args=(-c "$case_name" -m 1 -p "$nranks" -r "$nranks" -v 1)
       if ! run_tool "$case_dir" "$bin/$tool" "$nranks" "${args[@]}" \
@@ -595,6 +671,11 @@ cmd_run() {
         fail "$tool failed (log: $case_dir/$tool.log); nothing was submitted"
       fi
       checkpoint "$tool ($tool.log)" $((SECONDS - start))
+      # No keys (a grid the key script does not know): no stamp, it always runs
+      if [ -n "$key_part" ]; then
+        [ $tool == rflupart ] && write_stamp "$stamp" "partition $key_part"
+        [ $tool == rfluinit ] && write_stamp "$stamp" "partition $key_part" "init $key_init"
+      fi
     done
   fi
   if [ $sim == 0 ]; then

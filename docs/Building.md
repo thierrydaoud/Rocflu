@@ -201,6 +201,20 @@ with particles, `points.dat`. `run` then:
    boundary conditions or the grid stops here, before anything is queued. On a terminal
    a status line shows the step each tool is in and, region by region, how many are done
    and about how long is left; Ctrl-C stops the tool.
+
+   Steps already done are skipped. After each step that succeeds, the keys of what it
+   depends on go into `<dir>/.rocflu_pre.stamp` (`utilities/scripts/preprocess_key.py`):
+   rflumap and rflupart depend on the number of regions, the grid (checksum), the `.bc`
+   file and the input file; rfluinit on the partition and the input file. The input file
+   counts without comments and without the settings that cannot change these outputs:
+   `# POST`, `# PROBE`, `CFL` and the run-length keys of `# TIMESTEP` (`MAXTIME`,
+   `RUNTIME`, `WRITIME`, `PRNTIME`, `FOMWRITIME`, `TIMESTEP`, `DTMINLIMIT`, `WALLTIME`,
+   `SAFEWRTIME`, `START_STEP`) for both, and also `# INITFLOW`, `# PICL`, `# REFERENCE`,
+   `# MIXTURE` and `STARTTIME` for the partition. So a longer run skips everything, a new
+   initial condition reruns only `rfluinit`, and new numerics rerun all three. A step is
+   also redone when one of its files is missing. The executables do not count: after a
+   change to the pre-processing code, use `--repartition`. A run stopped halfway leaves no
+   stamp for what it was redoing.
 3. **Writes `<case>.sbatch`** in the case directory and **submits it**: the job runs
    `rflump`, with `srun` on N nodes x n ranks per node, then (unless `--no-post`)
    `rflupost` on one task if the simulation succeeded. The solver's output goes to
@@ -223,6 +237,7 @@ with particles, `points.dat`. `run` then:
 | `-t pre_process` | build and pre-process only, no job | |
 | `-t simulation` | build and submit only; the case was pre-processed before with the same N x n | |
 | `-e`, `--engine` | `batch`: submit the job script with `sbatch`; `interactive`: run it right away in this shell, on a node you have already allocated (`srun --pty bash` or `salloc`; refused elsewhere), output also in `<case>.interactive.out` | `batch` |
+| `--repartition` | pre-process again even when the stamp says it is up to date | skip what is done |
 | `--dry-run` | build, pre-process and write the job script, but do not submit or run it | |
 | `--no-post` | do not run `rflupost` after the simulation. By default, after a simulation that succeeded, the job runs `rflupost` (one task), so `post/` is ready when the job ends | post on |
 | `--debug` | debug build of the case | |
