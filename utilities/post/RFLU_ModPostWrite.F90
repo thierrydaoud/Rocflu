@@ -221,12 +221,14 @@ CONTAINS
 
 ! ******************************************************************************
 !
-! Purpose: Write the series file: one entry per step, with its time.
+! Purpose: Write a series file: one entry per step, with its time. A step
+!   of several parts (the fluid regions) lists each part, which ParaView reads
+!   as one dataset of that many blocks.
 !
 ! Input:
-!   fileName    File to write (post/collection.pvd)
+!   fileName    File to write (post/<series>.pvd)
 !   times       Time of each step
-!   stepFiles   The .vtm of each step, relative to the .pvd
+!   stepFiles   The files of each step (part, step), relative to the .pvd
 !
 ! ******************************************************************************
 
@@ -234,9 +236,9 @@ CONTAINS
 
     CHARACTER(*), INTENT(IN) :: fileName
     REAL(8), INTENT(IN) :: times(:)
-    CHARACTER(*), INTENT(IN) :: stepFiles(:)
+    CHARACTER(*), INTENT(IN) :: stepFiles(:,:)
 
-    INTEGER :: errorFlag,i,iFile
+    INTEGER :: errorFlag,i,iFile,iPart
 
     OPEN(NEWUNIT=iFile,FILE=fileName,FORM='FORMATTED',STATUS='REPLACE', &
          IOSTAT=errorFlag)
@@ -249,8 +251,16 @@ CONTAINS
     WRITE(iFile,'(A)') '<VTKFile type="Collection" version="1.0">'
     WRITE(iFile,'(A)') '<Collection>'
     DO i = 1,SIZE(times)
-      WRITE(iFile,'(A,ES24.16E3,A,A,A)') '  <DataSet timestep="',times(i), &
-            '" file="',TRIM(stepFiles(i)),'"/>'
+      IF ( SIZE(stepFiles,1) == 1 ) THEN
+        WRITE(iFile,'(A,ES24.16E3,A,A,A)') '  <DataSet timestep="',times(i), &
+              '" file="',TRIM(stepFiles(1,i)),'"/>'
+      ELSE
+        DO iPart = 1,SIZE(stepFiles,1)
+          WRITE(iFile,'(A,ES24.16E3,A,I0,A,A,A)') '  <DataSet timestep="', &
+                times(i),'" part="',iPart-1,'" file="', &
+                TRIM(stepFiles(iPart,i)),'"/>'
+        END DO ! iPart
+      END IF ! SIZE
     END DO ! i
     WRITE(iFile,'(A)') '</Collection>'
     WRITE(iFile,'(A)') '</VTKFile>'

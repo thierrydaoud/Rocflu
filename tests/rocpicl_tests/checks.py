@@ -188,6 +188,7 @@ def check_post(rundir):
     with open(pvd) as f:
         entries = re.findall(r'timestep="\s*([-+.\dEe]+)" file="root/collection_(\d+).vtm"',
                              f.read())
+    errors += _check_post_series(rundir, entries)
     dumps = state._dumps(rundir)
     if len(entries) != len(dumps):
         return ["post: %d steps in post/, %d old-style dumps" % (len(entries), len(dumps))]
@@ -232,6 +233,39 @@ def check_post(rundir):
                 if len(new) != len(ref[name]) or bad:
                     errors.append("post: step %s particle %s: %d values differ from %s"
                                   % (step, name, len(bad), os.path.basename(pars[k])))
+    return errors
+
+
+def _check_post_series(rundir, entries):
+    """fluid.pvd, particles.pvd and bins.pvd must list the steps and times of
+    collection.pvd: fluid.pvd every region of each step, the other two each
+    step with a particle file."""
+    errors = []
+    post = os.path.join(rundir, "post")
+    nregions = len(glob.glob(os.path.join(post, "p[0-9]*")))
+
+    def series(name):
+        path = os.path.join(post, name)
+        if not os.path.exists(path):
+            return None
+        with open(path) as f:
+            return re.findall(r'timestep="\s*([-+.\dEe]+)"(?: part="(\d+)")? file="([^"]+)"',
+                              f.read())
+
+    fluid = series("fluid.pvd")
+    expected = [(t, str(k) if nregions > 1 else "", "p%d/%s.vtu" % (k, s))
+                for t, s in entries for k in range(nregions)]
+    if fluid != expected:
+        errors.append("post: fluid.pvd does not list the %d regions of the %d steps of "
+                      "collection.pvd" % (nregions, len(entries)))
+    with_particles = [(t, s) for t, s in entries
+                      if os.path.exists(os.path.join(post, "particles", s + ".vtu"))]
+    for kind in ("particles", "bins"):
+        listed = series(kind + ".pvd")
+        expected = [(t, "", "%s/%s.vtu" % (kind, s)) for t, s in with_particles]
+        if (listed or []) != expected:
+            errors.append("post: %s.pvd does not list the %d steps with particles"
+                          % (kind, len(with_particles)))
     return errors
 
 

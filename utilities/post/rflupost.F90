@@ -9,7 +9,8 @@
 !     post/bins/<step>.vtu          the ppiclF bins (with particles)
 !     post/root/collection_<step>.vtm   the three above as one dataset
 !   and post/collection.pvd lists every step in post/ with its time (open it
-!   in ParaView). The fluid fields are chosen with the *_WRT keys of # POST;
+!   in ParaView), post/fluid.pvd, post/particles.pvd and post/bins.pvd each
+!   one kind (open them together to show, hide and filter each on its own). The fluid fields are chosen with the *_WRT keys of # POST;
 !   pressure, temperature and sound speed come from the solver's own
 !   RFLU_SetDependentVars. The particle fields are those of the dump's
 !   output-field table (PARTICLE_WRT, GAS_WRT, ... of # PICL).
@@ -85,11 +86,13 @@ SUBROUTINE rflupost(caseString,verbLevel,stepsString)
 ! ==============================================================================
 
   CHARACTER(CHRLEN) :: binFile,casename,fileName,particleFile,regionDir
-  CHARACTER(CHRLEN), ALLOCATABLE :: regionFiles(:),stepFiles(:)
-  INTEGER :: errorFlag,iReg,iRegLow,iRegUpp,iStep,nSteps,step
+  CHARACTER(CHRLEN), ALLOCATABLE :: binFiles(:,:),fluidFiles(:,:), &
+                                    particleFiles(:,:),regionFiles(:), &
+                                    stepFiles(:)
+  INTEGER :: errorFlag,iReg,iRegLow,iRegUpp,iStep,nParticleSteps,nSteps,step
   INTEGER, ALLOCATABLE :: available(:),steps(:)
   LOGICAL :: fileExists
-  REAL(8), ALLOCATABLE :: times(:)
+  REAL(8), ALLOCATABLE :: particleTimes(:),times(:)
   TYPE(t_global), POINTER :: global
   TYPE(t_level), POINTER :: levels(:)
   TYPE(t_region), POINTER :: pRegion
@@ -201,24 +204,53 @@ SUBROUTINE rflupost(caseString,verbLevel,stepsString)
   END DO ! iStep
 
 ! ******************************************************************************
-! The series: every step that has its dataset in post/
+! The series: every step that has its dataset in post/. collection.pvd has
+! everything; fluid.pvd, particles.pvd and bins.pvd one kind each, so that
+! ParaView shows them as separate objects
 ! ******************************************************************************
 
-  ALLOCATE(times(SIZE(available)),stepFiles(SIZE(available)))
+  ALLOCATE(times(SIZE(available)),stepFiles(SIZE(available)), &
+           fluidFiles(SIZE(regionFiles),SIZE(available)), &
+           particleTimes(SIZE(available)),particleFiles(1,SIZE(available)), &
+           binFiles(1,SIZE(available)))
   nSteps = 0
+  nParticleSteps = 0
   DO iStep = 1,SIZE(available)
-    INQUIRE(FILE=TRIM(StepVTMName(available(iStep))),EXIST=fileExists)
+    step = available(iStep)
+    INQUIRE(FILE=TRIM(StepVTMName(step)),EXIST=fileExists)
     IF ( .NOT. fileExists ) CYCLE
     nSteps = nSteps + 1
-    times(nSteps) = RFLU_FluidDumpTime(global,available(iStep))
-    stepFiles(nSteps) = StepFileName('root/collection_',available(iStep))
+    times(nSteps) = RFLU_FluidDumpTime(global,step)
+    stepFiles(nSteps) = StepFileName('root/collection_',step)
     stepFiles(nSteps) = stepFiles(nSteps)(1:LEN_TRIM(stepFiles(nSteps))-4)// &
                         '.vtm'
+    DO iReg = iRegLow,iRegUpp
+      fluidFiles(iReg-iRegLow+1,nSteps) = &
+        StepFileName(TRIM(RegionDirName(iReg))//'/',step)
+    END DO ! iReg
+    INQUIRE(FILE=TRIM(StepFileName('post/particles/',step)),EXIST=fileExists)
+    IF ( fileExists ) THEN
+      nParticleSteps = nParticleSteps + 1
+      particleTimes(nParticleSteps) = times(nSteps)
+      particleFiles(1,nParticleSteps) = StepFileName('particles/',step)
+      binFiles(1,nParticleSteps)      = StepFileName('bins/',step)
+    END IF ! fileExists
   END DO ! iStep
   CALL WriteSeriesPVD('post/collection.pvd',times(1:nSteps), &
-                      stepFiles(1:nSteps))
-  WRITE(STDOUT,'(A,I0,A)') 'rflupost: post/collection.pvd lists ',nSteps, &
-                           ' steps'
+                      RESHAPE(stepFiles(1:nSteps),(/1,nSteps/)))
+  CALL WriteSeriesPVD('post/fluid.pvd',times(1:nSteps),fluidFiles(:,1:nSteps))
+  IF ( nParticleSteps > 0 ) THEN
+    CALL WriteSeriesPVD('post/particles.pvd',particleTimes(1:nParticleSteps), &
+                        particleFiles(:,1:nParticleSteps))
+    CALL WriteSeriesPVD('post/bins.pvd',particleTimes(1:nParticleSteps), &
+                        binFiles(:,1:nParticleSteps))
+  END IF ! nParticleSteps
+  WRITE(STDOUT,'(A,I0,A)') 'rflupost: post/collection.pvd and fluid.pvd list ', &
+                           nSteps,' steps'
+  IF ( nParticleSteps > 0 ) THEN
+    WRITE(STDOUT,'(A,I0,A)') 'rflupost: post/particles.pvd and bins.pvd list ', &
+                             nParticleSteps,' steps'
+  END IF ! nParticleSteps
 
   CALL DeregisterFunction(global)
 

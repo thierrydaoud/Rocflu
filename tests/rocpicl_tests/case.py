@@ -279,6 +279,6 @@ def run_post(rundir, exe_dir):
               rundir, "rflupost.log")
     with open(os.path.join(rundir, "rflupost.log"), errors="replace") as f:
         log = f.read()
-    if rc != 0 or "collection.pvd lists" not in log:
+    if rc != 0 or "collection.pvd and fluid.pvd list" not in log:
         return ["rflupost failed (rc=%d; see %s)" % (rc, os.path.join(rundir, "rflupost.log"))]
     return []

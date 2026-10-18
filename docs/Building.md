@@ -316,6 +316,12 @@ with three blocks: the fluid of every region (`post/p<k>/<step>.vtu`, region k+1
 particles (`post/particles/<step>.vtu`) and the ppiclF bins with the rank that owns each
 (`post/bins/<step>.vtu`). All values are in double precision.
 
+To show, hide and filter the fluid, the particles and the bins each on its own, open
+`post/fluid.pvd`, `post/particles.pvd` and `post/bins.pvd` together instead (one series
+each, same steps and times; ParaView lists them as separate objects in the Pipeline
+Browser). In `collection.pvd` the three kinds are blocks of one object: View >
+MultiBlock Inspector shows or hides them.
+
 By default only the steps without a dataset in `post/` are converted, so `post` can run
 while the simulation is still going and again later; `-s all` redoes every step, e.g.
 after changing which fields to write (the `*_WRT` keys of `# POST` for the fluid,

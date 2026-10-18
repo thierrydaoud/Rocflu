@@ -772,7 +772,8 @@ usage_post() {
 ${HEADING}Usage:${PLAIN} ${OPTION}./rocflu.sh post${PLAIN} <dir>/<case>.inp [options]
 
 Converts the dumps of the case (<dir>/restart_data/) into ParaView files in
-<dir>/post/ with rflupost: open <dir>/post/collection.pvd. The fluid fields
+<dir>/post/ with rflupost: open <dir>/post/collection.pvd (everything), or
+fluid.pvd, particles.pvd and bins.pvd together (one object each). The fluid fields
 are chosen with the *_WRT keys of # POST, the particle fields with those of
 # PICL. It uses the build of the case (as ./rocflu.sh run) and can run while
 the simulation is still running.
@@ -840,7 +841,7 @@ cmd_post() {
     say "converting the dumps of $case_name (steps: $steps) into $case_dir/post"
     (cd "$case_dir" && "$bin/rflupost" -c "$case_name" -s "$steps" -v 0) \
       || fail "rflupost failed"
-    say "open $case_dir/post/collection.pvd in ParaView"
+    say "open $case_dir/post/collection.pvd in ParaView (or fluid.pvd, particles.pvd, bins.pvd)"
     return
   fi
 

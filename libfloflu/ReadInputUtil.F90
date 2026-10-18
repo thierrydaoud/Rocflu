@@ -571,9 +571,6 @@ SUBROUTINE ReadListSection( global,fileID,key,nCols,nRows,vals,defined )
         vals(:,:) = 0.0_RFREAL
         DO ival=1,nRows
           READ(fileID,*,err=10,end=10) (vals(ival,n), n=1,nCols)
-           IF ( global%myProcid == 0) then
-              print*,'TLJ Probes ',(vals(ival,n),n=1,nCols)
-           ENDIF         
         ENDDO
         defined = .true.
       ENDIF
