@@ -138,7 +138,7 @@ SUBROUTINE BinarySearchInteger(a,n,v,i,j)
 ! ==============================================================================   
   
   INTEGER, INTENT(IN) :: n,v
-  INTEGER, INTENT(IN) :: a(n)
+  INTEGER, INTENT(IN) :: a(:) ! assumed shape: a row of a 2D array is not copied
   INTEGER, INTENT(OUT) :: i
   INTEGER, INTENT(INOUT), OPTIONAL :: j
   
@@ -193,6 +193,107 @@ END SUBROUTINE BinarySearchInteger
   
   
 
+
+
+! ******************************************************************************
+!
+! Purpose: Move the last element of an array into place among the others,
+!   which are in ascending order.
+!
+! Description: Binary search for the place, then shift the larger elements up
+!   by one. Gives the same array as sorting a(1:n), in O(log n + shift) instead
+!   of O(n log n): for lists built one element at a time and kept sorted.
+!
+! Input:
+!   a   Array whose elements a(1:n-1) are in ascending order
+!   n   Number of elements, the new one included
+!
+! Output:
+!   a   Array in ascending order
+!
+! ******************************************************************************
+
+  SUBROUTINE InsertLastInteger(a,n)
+
+    IMPLICIT NONE
+
+    INTEGER, INTENT(IN) :: n
+    INTEGER, INTENT(INOUT) :: a(n)
+
+    INTEGER :: i,il,im,iu,v
+
+    IF ( n < 2 ) RETURN
+    v = a(n)
+    IF ( a(n-1) <= v ) RETURN ! already in place (the common case)
+
+    ! First of a(1:n-1) larger than v
+    il = 1
+    iu = n - 1
+    DO WHILE ( il < iu )
+      im = (il + iu)/2
+      IF ( a(im) > v ) THEN
+        iu = im
+      ELSE
+        il = im + 1
+      END IF ! a(im)
+    END DO ! il
+
+    DO i = n,il+1,-1
+      a(i) = a(i-1)
+    END DO ! i
+    a(il) = v
+
+  END SUBROUTINE InsertLastInteger
+
+
+! ******************************************************************************
+!
+! Purpose: As InsertLastInteger, with a second array b moved along with a.
+!
+! Input:
+!   a   Array whose elements a(1:n-1) are in ascending order (the keys)
+!   b   Array paired with a
+!   n   Number of elements, the new one included
+!
+! Output:
+!   a   Array in ascending order
+!   b   Array with the same reordering
+!
+! ******************************************************************************
+
+  SUBROUTINE InsertLastIntegerInteger(a,b,n)
+
+    IMPLICIT NONE
+
+    INTEGER, INTENT(IN) :: n
+    INTEGER, INTENT(INOUT) :: a(n),b(n)
+
+    INTEGER :: i,il,im,iu,v,w
+
+    IF ( n < 2 ) RETURN
+    v = a(n)
+    w = b(n)
+    IF ( a(n-1) <= v ) RETURN
+
+    il = 1
+    iu = n - 1
+    DO WHILE ( il < iu )
+      im = (il + iu)/2
+      IF ( a(im) > v ) THEN
+        iu = im
+      ELSE
+        il = im + 1
+      END IF ! a(im)
+    END DO ! il
+
+    DO i = n,il+1,-1
+      a(i) = a(i-1)
+      b(i) = b(i-1)
+    END DO ! i
+    a(il) = v
+    b(il) = w
+
+  END SUBROUTINE InsertLastIntegerInteger
 
 ! ******************************************************************************
 !

@@ -709,7 +709,7 @@ SUBROUTINE RFLU_GFM_SetGhostFluid(pRegion)
 
         IF ( global%nRegionsLocal > 1 ) THEN
 ! ------- Find index of serial cell
-          CALL BinarySearchInteger(pRegion%grid%sc2pc(1:1, &
+          CALL BinarySearchInteger(pRegion%grid%sc2pc(1, &
                                    1:pRegion%grid%nCellsTot), &
                                    pRegion%grid%nCellsTot,icgTarget,iLoc)
                                    

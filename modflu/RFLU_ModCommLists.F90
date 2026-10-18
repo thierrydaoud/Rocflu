@@ -330,7 +330,7 @@ MODULE RFLU_ModCommLists
 ! ------------------------------------------------------------------------------
 !       Search for this region in data structure and increment counter
 ! ------------------------------------------------------------------------------
-        CALL BinarySearchInteger(borderInfo(1:1,1:pGrid%nBorders), & 
+        CALL BinarySearchInteger(borderInfo(1,1:pGrid%nBorders), & 
                                  pGrid%nBorders,iReg2,iLoc)
                                              
         IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN 
@@ -385,7 +385,7 @@ MODULE RFLU_ModCommLists
 !       Find entry of this neighboring region in border data structure
 ! ------------------------------------------------------------------------------
       
-        CALL BinarySearchInteger(borderInfo(1:1,1:pGrid%nBorders), & 
+        CALL BinarySearchInteger(borderInfo(1,1:pGrid%nBorders), & 
                                  pGrid%nBorders,iReg2,iLoc)
 ! ------------------------------------------------------------------------------
 !       Increment counter and add cell
@@ -492,7 +492,7 @@ MODULE RFLU_ModCommLists
             
 ! ----------- Find index of serial cell             
             
-              CALL BinarySearchInteger(pGrid2%sc2pc(1:1,1:pGrid2%nCellsTot), &
+              CALL BinarySearchInteger(pGrid2%sc2pc(1,1:pGrid2%nCellsTot), &
                                        pGrid2%nCellsTot,icgs,iLoc) 
 ! ----------- Enter partitioned cell index into list of cells to be sent             
             
@@ -844,7 +844,7 @@ MODULE RFLU_ModCommLists
             ivg  = pBorder%ivgShared(ivl)
             ivgs = pGrid%pv2sv(ivg)
 
-            CALL BinarySearchInteger(pGrid2%sv2pv(1:1,1:pGrid2%nVertTot), &
+            CALL BinarySearchInteger(pGrid2%sv2pv(1,1:pGrid2%nVertTot), &
                                      pGrid2%nVertTot,ivgs,iLoc) 
 
             IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN 
@@ -935,7 +935,7 @@ MODULE RFLU_ModCommLists
                           
 ! ------- Find index of serial vertex            
 
-          CALL BinarySearchInteger(pGrid2%sv2pv(1:1,1:pGrid2%nVertTot), &
+          CALL BinarySearchInteger(pGrid2%sv2pv(1,1:pGrid2%nVertTot), &
                                    pGrid2%nVertTot,ivgs,iLoc) 
 
 ! ------- Enter partitioned vertex index into list of vertices to be sent             

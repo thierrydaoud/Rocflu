@@ -285,7 +285,7 @@ MODULE RFLU_ModFaceList
 ! END TEMPORARY        
       END IF ! c1
 
-      CALL BinarySearchInteger(vc(1:1,1:nCellsRecvTot),nCellsRecvTot,icg,iLoc)
+      CALL BinarySearchInteger(vc(1,1:nCellsRecvTot),nCellsRecvTot,icg,iLoc)
       
       IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN 
         icl = vc(2,iLoc)

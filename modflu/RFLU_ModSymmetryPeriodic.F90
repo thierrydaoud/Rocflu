@@ -539,7 +539,7 @@ SUBROUTINE RFLU_SYPE_AddVirtualCellsInv2(pRegion,pPatch,vc,nCellsVirtMax, &
         END IF ! nCellsVirt
         
         IF ( nCellsVirt > 1 ) THEN    
-          CALL QuickSortInteger(vc(1:nCellsVirt),nCellsVirt)              
+          CALL InsertLastInteger(vc(1:nCellsVirt),nCellsVirt)              
         END IF ! nCellsVirt 
       END IF ! iLoc                    
     END DO ! j      
@@ -613,7 +613,7 @@ SUBROUTINE RFLU_SYPE_AddVirtualCellsInv2(pRegion,pPatch,vc,nCellsVirtMax, &
             CALL ErrorStop(global,ERR_EXCEED_DIMENS,__LINE__,'vcNew')         
           END IF ! vcNewDim 
 
-          CALL QuickSortInteger(vc(1:nCellsVirt),nCellsVirt) 
+          CALL InsertLastInteger(vc(1:nCellsVirt),nCellsVirt) 
         END IF ! iLoc
       END DO ! j                      
     END DO ! i
@@ -1375,9 +1375,9 @@ SUBROUTINE RFLU_SYPE_AugmentVertexLists(pRegion,pGrid,pPatch,pBorder, &
         ivgRecvSorted(pBorder%nVertRecv)   = pGrid%nVertTot
 
         IF ( pBorder%nVertRecv > 1 ) THEN 
-          CALL QuickSortIntegerInteger(ivgSendSorted(1:pBorder%nVertRecv), & 
-                                       ivgRecvSorted(1:pBorder%nVertRecv), &
-                                       pBorder%nVertRecv)                                       
+          CALL InsertLastIntegerInteger(ivgSendSorted(1:pBorder%nVertRecv), & 
+                                        ivgRecvSorted(1:pBorder%nVertRecv), &
+                                        pBorder%nVertRecv)                                       
         END IF ! pBorder%nVertRecv
 
 ! ------------------------------------------------------------------------------
@@ -1439,8 +1439,8 @@ SUBROUTINE RFLU_SYPE_AugmentVertexLists(pRegion,pGrid,pPatch,pBorder, &
         END IF ! pPatch%bcType     
         
         IF ( pBorder%nVertShared > 1 ) THEN 
-          CALL QuickSortInteger(ivgSharedSorted(1:pBorder%nVertShared), & 
-                                pBorder%nVertShared)                
+          CALL InsertLastInteger(ivgSharedSorted(1:pBorder%nVertShared), & 
+                                 pBorder%nVertShared)                
         END IF ! pBorder%nVertShared
       END IF ! iLoc2       
     END IF ! iLoc
@@ -2792,7 +2792,7 @@ SUBROUTINE RFLU_SYPE_GetRelatedVertex(pRegionSerial,pRegion,ivgs,ivg)
       ivls2 = sortKey(iLoc)
       ivgs2 = pBorderSerial2%ivgShared(ivls2)
 
-      CALL BinarySearchInteger(pGrid%sv2pv(1:1,1:pGrid%nVertTot), &
+      CALL BinarySearchInteger(pGrid%sv2pv(1,1:pGrid%nVertTot), &
                                pGrid%nVertTot,ivgs2,iLoc)
 
       IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN
@@ -2846,7 +2846,7 @@ SUBROUTINE RFLU_SYPE_GetRelatedVertex(pRegionSerial,pRegion,ivgs,ivg)
 
         ivgs2 = pBorderSerial2%ivgSend(iLoc)
 
-        CALL BinarySearchInteger(pGrid%sv2pv(1:1,1:pGrid%nVertTot), &
+        CALL BinarySearchInteger(pGrid%sv2pv(1,1:pGrid%nVertTot), &
                                  pGrid%nVertTot,ivgs2,iLoc)
 
         IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN

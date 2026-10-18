@@ -210,7 +210,7 @@ MODULE RFLU_ModPartitionRegionUtils
             END IF ! nCellsVirt
               
             IF ( nCellsVirt > 1 ) THEN    
-              CALL QuickSortInteger(vc(1:nCellsVirt),nCellsVirt)              
+              CALL InsertLastInteger(vc(1:nCellsVirt),nCellsVirt)              
             END IF ! nCellsVirt 
           END IF ! iLoc
         END IF ! pGridSerial%sc2r 
@@ -457,7 +457,7 @@ MODULE RFLU_ModPartitionRegionUtils
                   vc(nCellsVirt) = icg2
   
                   IF ( nCellsVirt > 1 ) THEN
-                    CALL QuickSortInteger(vc(1:nCellsVirt),nCellsVirt)
+                    CALL InsertLastInteger(vc(1:nCellsVirt),nCellsVirt)
                   END IF ! nCellsVirt 
                 END IF ! iLoc
               END IF ! pGridSerial%sc2r                      
@@ -480,7 +480,7 @@ MODULE RFLU_ModPartitionRegionUtils
                 vc(nCellsVirt) = icg2
                   
                 IF ( nCellsVirt > 1 ) THEN    
-                  CALL QuickSortInteger(vc(1:nCellsVirt),nCellsVirt)              
+                  CALL InsertLastInteger(vc(1:nCellsVirt),nCellsVirt)              
                 END IF ! nCellsVirt 
               END IF ! iLoc
             END IF ! pGridSerial%sc2r                      
@@ -564,7 +564,7 @@ MODULE RFLU_ModPartitionRegionUtils
                       CALL ErrorStop(global,ERR_EXCEED_DIMENS,__LINE__,'vcNew')         
                     END IF ! vcNewDim 
 
-                    CALL QuickSortInteger(vc(1:nCellsVirt),nCellsVirt) 
+                    CALL InsertLastInteger(vc(1:nCellsVirt),nCellsVirt) 
                   END IF ! iLoc
                 END IF ! pGridSerial%sc2r                
               END DO ! j
@@ -591,7 +591,7 @@ MODULE RFLU_ModPartitionRegionUtils
                     CALL ErrorStop(global,ERR_EXCEED_DIMENS,__LINE__,'vcNew')         
                   END IF ! vcNewDim 
 
-                  CALL QuickSortInteger(vc(1:nCellsVirt),nCellsVirt) 
+                  CALL InsertLastInteger(vc(1:nCellsVirt),nCellsVirt) 
                 END IF ! iLoc
               END IF ! pGridSerial%sc2r
             END DO ! j

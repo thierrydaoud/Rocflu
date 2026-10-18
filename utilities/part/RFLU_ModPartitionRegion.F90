@@ -943,7 +943,7 @@ MODULE RFLU_ModPartitionRegion
 ! ------------------------------------------------------------------------------ 
 
           IF ( icg >= icgMin .AND. icg <= icgMax ) THEN ! Search
-            CALL BinarySearchInteger(pGrid%sbc2pc(1:1,1:pGrid%nBCellsTot), &
+            CALL BinarySearchInteger(pGrid%sbc2pc(1,1:pGrid%nBCellsTot), &
                                      pGrid%nBCellsTot,icg,iLoc)
           ELSE ! No need to search
 	    iLoc = ELEMENT_NOT_FOUND				   
@@ -2112,7 +2112,7 @@ MODULE RFLU_ModPartitionRegion
           iReg = pGridSerial%sc2r(icg)
 
           IF ( icg >= icgMin .AND. icg <= icgMax ) THEN ! Search
-            CALL BinarySearchInteger(pGrid%sbc2pc(1:1,1:pGrid%nBCellsTot), &    
+            CALL BinarySearchInteger(pGrid%sbc2pc(1,1:pGrid%nBCellsTot), &    
                                      pGrid%nBCellsTot,icg,iLoc)
           ELSE ! No need to search
 	    iLoc = ELEMENT_NOT_FOUND
