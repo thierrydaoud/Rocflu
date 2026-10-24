@@ -345,7 +345,7 @@ M ≥ 1e-6 floor in Loth's terms, which MFC also has. The modified Parmar model 
 
 ## Random numbers for the stochastic models
 
-The quasi-steady force fluctuations (`QSFLUCT` 1 Lattanzi, 2 Osnes) and pseudo-turbulence
+The quasi-steady force fluctuations (`QSFLUCT`; 1 Lattanzi, 2 Osnes at the time, now 1 Osnes) and pseudo-turbulence
 (`PSEUDOTURB`) add Gaussian noise to each particle (Box–Muller from uniform numbers).
 
 **Before:** the uniform numbers came from gfortran's `RANDOM_NUMBER`, one generator per
@@ -385,7 +385,8 @@ The advantages:
 - The Fortran routine gives the same numbers as MFC's formula for seeds 1–3 (six draws
   each).
 - A cloud of 40 particles (the `box/momentum-exchange` set-up with a ±1 m/s velocity
-  spread, `QSFLUCT 2`, `NEIGHBORWIDTH 3e-3` so the particles have neighbours) on 1 and 2
+  spread, `QSFLUCT 2` (Osnes; now `QSFLUCT 1`), `NEIGHBORWIDTH 3e-3` so the particles
+  have neighbours) on 1 and 2
   ranks: before, the fluctuation forces differed between the two runs and the particle
   velocities by up to 6.7e-6 m/s after 100 µs; now both runs are identical.
 - The suite's `shocktube/two-way/qs-fluctuations` case is unchanged: its four particles are

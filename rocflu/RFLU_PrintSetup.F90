@@ -106,7 +106,7 @@ SUBROUTINE RFLU_PrintSetup(regions)
     CALL AddItem('QS force',FlagName(global%piclQsFlag, &
                  (/ 'Gidaspow','Parmar  ','Osnes   ' /)))
     CALL AddItem('QS fluct.',FlagName(global%piclQsFluctFlag, &
-                 (/ 'Lattanzi','Osnes   ' /)))
+                 (/ 'Osnes' /)))
     CALL AddItem('Press. grad.',OnOff(global%piclPgFlag))
     CALL AddItem('Added mass',FlagName(global%piclAmFlag, &
                  (/ 'Parmar','Briney' /)))

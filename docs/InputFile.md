@@ -102,7 +102,7 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 | `USED` | 0, 1 | 0 | particles on; needs a build with ppiclF (not `--no-picl`) |
 | `VELOCITYMODEL` | 0, 1 | 1 | 1: particles move under the forces. 0: they keep their position, velocity, temperature and spin; the forces are still computed, so with `FEEDBACK 1` the gas still feels them (a fixed bed) |
 | `QSFORCE` | 0-3 | 0 | quasi-steady drag: 0 none, 1 Gidaspow, 2 Parmar, 3 Osnes |
-| `QSFLUCT` | 0-2 | 0 | fluctuation of the quasi-steady force: 0 none, 1 Lattanzi, 2 Osnes |
+| `QSFLUCT` | 0, 1 | 0 | fluctuation of the quasi-steady force: 0 none, 1 Osnes. Before 2026-10, 1 was Lattanzi and 2 Osnes; `QSFLUCT 2` now stops with a message, and Lattanzi can no longer be selected |
 | `QSFLUCTFILT` | 0, 1 | 0 | filter for the fluctuation: 0 box, 1 Gaussian |
 | `QSFLUCTFILTADAPT` | 0, 1 | 0 | adaptive filter width |
 | `AMFORCE` | 0-2 | 0 | added mass: 0 none, 1 Parmar, 2 Briney (binary; **not validated, rejected**) |
@@ -139,8 +139,8 @@ With `USED 1`, these combinations are rejected:
 | Setting | Needs | Why |
 |---|---|---|
 | `QSFLUCT ≥ 1` | `QSFORCE ≥ 1` | the fluctuation is added to the quasi-steady force |
-| `PSEUDOTURB 1` | `QSFORCE ≥ 1` | the model uses the drag |
-| `PSEUDOTURB 1` | `QSFLUCT 2` | |
+| `PSEUDOTURB 1` | `QSFORCE 3` | the model is fitted to the Osnes drag: it uses the fluctuation over the mean drag |
+| `PSEUDOTURB 1` | `QSFLUCT 1` | the Osnes fluctuation |
 | `PSEUDOTURB 1` | `HEATTRANSFER ≥ 1` | for now: its heat flux divides by the Nusselt number. To be lifted when the pseudo-turbulence model gets its own switch for the heat flux |
 | `DU HEATTRANSFER 1` | `VISCOUSUNSTEADY ≥ 1` | they share the history |
 | `COLLISIONS ≥ 1` | `VELOCITYMODEL 1` | particles that keep their position cannot collide |

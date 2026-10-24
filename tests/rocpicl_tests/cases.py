@@ -105,7 +105,7 @@ FORCES = {
     "pressure-gradient": {("PICL", "PGFORCE"): 1},
     "viscous-unsteady": {("PICL", "VISCOUSUNSTEADY"): 1},
     "heat-transfer": {("PICL", "HEATTRANSFER"): 3},
-    "qs-fluctuations": {("PICL", "QSFLUCT"): 2},
+    "qs-fluctuations": {("PICL", "QSFLUCT"): 1},
     # Quasi-steady models other than the default Osnes (QSFORCE 3, MFC numbering)
     "qs-parmar": {("PICL", "QSFORCE"): 2},
     "qs-gidaspow": {("PICL", "QSFORCE"): 1},
@@ -129,7 +129,7 @@ for n in (1, 2):
         same_as=None if n == 1 else "box/momentum-exchange/np1",
         restart_test=(n == 2))
 
-# -- Periodic box: quasi-steady force fluctuations (QSFLUCT 2, Osnes) ---------
+# -- Periodic box: quasi-steady force fluctuations (QSFLUCT 1, Osnes) ---------
 # The noise amplitude grows with the granular temperature, the velocity spread
 # among a particle's neighbours, so the particles start with a spread of up to
 # 1 m/s per component and the neighbour width (3 mm) covers the cloud. Each
@@ -153,7 +153,7 @@ for n in (1, 2):
         description="Uniform gas at 50 m/s through 40 particles with a velocity spread; "
                     "the force fluctuation must be on and not depend on the rank count",
         nranks=n, grid=BOX, bc="periodic",
-        inp={**uniform_gas(50.0), **TWO_WAY, ("PICL", "QSFLUCT"): 2,
+        inp={**uniform_gas(50.0), **TWO_WAY, ("PICL", "QSFLUCT"): 1,
              ("PICL", "MODEL_WRT"): 1, ("PICL", "NEIGHBORWIDTH"): "3.0e-3"},
         particles=with_velocity_spread(cloud(40, 2.0e-5)),
         checks=["particles_moved", "fluctuations_active"],

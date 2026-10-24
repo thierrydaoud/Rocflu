@@ -50,7 +50,7 @@ PICL_FLAGS = {
     "USED": (0, 1),
     "VELOCITYMODEL": (0, 1),        # 0 particles keep their state, 1 they move
     "QSFORCE": (0, 3),              # none, Gidaspow, Parmar, Osnes
-    "QSFLUCT": (0, 2),              # none, Lattanzi, Osnes
+    "QSFLUCT": (0, 1),              # none, Osnes
     "AMFORCE": (0, 2),              # none, Parmar, Briney
     "PGFORCE": (0, 1),
     "COLLISIONS": (0, 4),
@@ -64,6 +64,12 @@ PICL_FLAGS = {
     "PERIODICX": (0, 1), "PERIODICY": (0, 1), "PERIODICZ": (0, 1),
     "PARTICLE_WRT": (0, 1), "GAS_WRT": (0, 1), "GRADGAS_WRT": (0, 1),
     "MODEL_WRT": (0, 1),
+}
+
+# Flag values that were renumbered or removed, with what to write instead
+OLD_FLAG_VALUES = {
+    ("QSFLUCT", 2): "QSFLUCT 2 (Osnes) is now QSFLUCT 1; the Lattanzi model "
+                    "(the old QSFLUCT 1) can no longer be selected",
 }
 
 # Keys only read when a model is on: left in the file with the model off,
@@ -298,6 +304,9 @@ class Validator:
             if v != int(v):
                 self.prohibit(True, "%s %g: must be a whole number" % (key, v), line.get(key))
                 return False
+            if (key, v) in OLD_FLAG_VALUES:
+                self.prohibit(True, OLD_FLAG_VALUES[(key, v)], line.get(key))
+                return False
             self.prohibit(not lo <= v <= hi, "%s %d: must be %s" % (
                 key, v, "%d or %d" % (lo, hi) if hi == lo + 1 else
                 "from %d to %d" % (lo, hi)), line.get(key))
@@ -343,11 +352,11 @@ class Validator:
         self.prohibit(v["QSFLUCT"] >= 1 and v["QSFORCE"] == 0,
                       "QSFLUCT %d needs a quasi-steady force (QSFORCE >= 1): the "
                       "fluctuation is added to it" % v["QSFLUCT"], line.get("QSFLUCT"))
-        self.prohibit(v["PSEUDOTURB"] == 1 and v["QSFORCE"] == 0,
-                      "PSEUDOTURB 1 needs a quasi-steady force (QSFORCE >= 1): the "
-                      "pseudo-turbulence model uses the drag", line.get("PSEUDOTURB"))
-        self.prohibit(v["PSEUDOTURB"] == 1 and v["QSFLUCT"] != 2,
-                      "PSEUDOTURB 1 needs QSFLUCT 2 (Osnes fluctuations)",
+        self.prohibit(v["PSEUDOTURB"] == 1 and v["QSFORCE"] != 3,
+                      "PSEUDOTURB 1 needs QSFORCE 3 (Osnes drag): the model is "
+                      "fitted to the Osnes drag and its fluctuation", line.get("PSEUDOTURB"))
+        self.prohibit(v["PSEUDOTURB"] == 1 and v["QSFLUCT"] != 1,
+                      "PSEUDOTURB 1 needs QSFLUCT 1 (Osnes fluctuations)",
                       line.get("PSEUDOTURB"))
         self.prohibit(v["PSEUDOTURB"] == 1 and v["HEATTRANSFER"] == 0,
                       "PSEUDOTURB 1 needs HEATTRANSFER >= 1 for now: its heat flux "

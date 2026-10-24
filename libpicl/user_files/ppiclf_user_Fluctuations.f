@@ -27,6 +27,9 @@
 ! Right now they use the same filter width and are assumed to
 ! be the same. 
 !
+! Not called: since 2026-10 QSFLUCT 1 selects Osnes and Lattanzi
+! cannot be selected. Kept for reference.
+!
 !-----------------------------------------------------------------------
 !
       subroutine ppiclf_user_QS_fluct_Lattanzi(i,iStage,fqs_fluct)
@@ -338,7 +341,7 @@
       denum   = max(1.d-8,sqrt(dvec(1)**2 + dvec(2)**2 + dvec(3)**2))
       dvec    = dvec/denum
 
-      ! Store and project back fqs_fluct values only if QSFLUCT = 2
+      ! Store and project back fqs_fluct values only if QSFLUCT = 1
       ! Otherwise, need to call subroutine for PseudoTurbulence
       if(qs_fluct_flag .eq. 0) then
         fqs_fluct = 0.0d0

@@ -98,7 +98,7 @@ class CaseValidatorTest(unittest.TestCase):
         self.assertEqual(self.errors(), [])
 
     def test_pseudo_turbulence_with_what_it_needs(self):
-        self.assertEqual(self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 2,
+        self.assertEqual(self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 1,
                                       ("PICL", "HEATTRANSFER"): 2}), [])
 
     def test_unused_parameters_left_in_the_file(self):
@@ -170,12 +170,18 @@ class CaseValidatorTest(unittest.TestCase):
                          "QSFLUCT 1 needs a quasi-steady force")
 
     def test_pseudo_turbulence_needs(self):
-        errors = self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 1})
-        self.assertError(errors, "PSEUDOTURB 1 needs QSFLUCT 2")
+        errors = self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 0})
+        self.assertError(errors, "PSEUDOTURB 1 needs QSFLUCT 1")
         self.assertError(errors, "PSEUDOTURB 1 needs HEATTRANSFER")
-        self.assertError(self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 2,
-                                      ("PICL", "HEATTRANSFER"): 2, ("PICL", "QSFORCE"): 0}),
-                         "PSEUDOTURB 1 needs a quasi-steady force")
+        for qsforce in (0, 1, 2):
+            self.assertError(self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 1,
+                                          ("PICL", "HEATTRANSFER"): 2,
+                                          ("PICL", "QSFORCE"): qsforce}),
+                             "PSEUDOTURB 1 needs QSFORCE 3")
+
+    def test_old_fluctuation_numbering(self):
+        self.assertError(self.errors({("PICL", "QSFLUCT"): 2}),
+                         "QSFLUCT 2 (Osnes) is now QSFLUCT 1")
 
     def test_unsteady_heat_transfer_needs_history(self):
         text = TEMPLATE.replace("# PICL\n", "# PICL\nDU HEATTRANSFER 1\n")

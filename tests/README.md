@@ -209,7 +209,7 @@ They run to 20 µs.
 | `shocktube/two-way/pressure-gradient` | 2 | + `PGFORCE 1` | `particles_moved` | Pressure-gradient force |
 | `shocktube/two-way/viscous-unsteady` | 2 | + `VISCOUSUNSTEADY 1` | `particles_moved` | History force |
 | `shocktube/two-way/heat-transfer` | 2 | + `HEATTRANSFER 3` | `particles_moved` | Heat-transfer closure |
-| `shocktube/two-way/qs-fluctuations` | 2 | + `QSFLUCT 2` | `particles_moved` | Quasi-steady force fluctuations run; the four particles have no neighbours, so the noise amplitude is 0 (see `box/qs-fluctuations`) |
+| `shocktube/two-way/qs-fluctuations` | 2 | + `QSFLUCT 1` | `particles_moved` | Quasi-steady force fluctuations run; the four particles have no neighbours, so the noise amplitude is 0 (see `box/qs-fluctuations`) |
 | `shocktube/two-way/qs-parmar` | 2 | `QSFORCE 2` | `particles_moved` | Parmar drag (MFC numbering) |
 | `shocktube/two-way/qs-gidaspow` | 2 | `QSFORCE 1` | `particles_moved` | Gidaspow drag |
 
@@ -224,7 +224,7 @@ walls. The gas is uniform (1.2 kg/m³, 101 325 Pa) unless stated otherwise.
 | Case | Ranks | Setup | Checks | What it guards |
 |---|---|---|---|---|
 | `box/momentum-exchange` | 1, 2 | Periodic; gas at 50 m/s through 40 particles (20 µm) at rest, two-way | `mass`, `momentum`, `energy`, `same_as` | The gas loses exactly the momentum and energy the particles gain |
-| `box/qs-fluctuations` | 1, 2 | Periodic; gas at 50 m/s through 40 particles (20 µm) with a ±1 m/s velocity spread, `QSFLUCT 2`, `MODEL_WRT 1`, `NEIGHBORWIDTH 3e-3` | `particles_moved`, `fluctuations_active`, `same_as` | Each particle draws from its own random stream: 1 and 2 ranks agree (96b28a4; one generator per rank failed this) |
+| `box/qs-fluctuations` | 1, 2 | Periodic; gas at 50 m/s through 40 particles (20 µm) with a ±1 m/s velocity spread, `QSFLUCT 1`, `MODEL_WRT 1`, `NEIGHBORWIDTH 3e-3` | `particles_moved`, `fluctuations_active`, `same_as` | Each particle draws from its own random stream: 1 and 2 ranks agree (96b28a4; one generator per rank failed this) |
 | `box/quiescent-cloud` | 2, 4 | Periodic; 30 fixed particles (300 µm, uneven) in gas at rest, `VELOCITYMODEL 0`, `PGFORCE 1` | `quiescent`, `mass` | Stale virtual cells at rank borders set the gas moving (e3ed370) |
 | `box/resting-heat-exchange` | 1 | Periodic; particles at rest at 296.4 K in gas at rest at 294.2 K, `HEATTRANSFER 2` | `particles_heat_exchange`, `mass`, `energy` | Heat transfer at zero slip used to be skipped (f0ae123) |
 | `box/linear-interp` | 1, 2, 4 | Closed; gas at rest with density linear in x, y, z; 40 tracers (1 µm) | `linear_interp`, `mass` | Interpolation is exact for a linear field (89f9661) |

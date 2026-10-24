@@ -31,7 +31,7 @@
 !
 !   feedback_flag = 1
 !
-!   qs_fluct_flag = 1 ! None = 0 ; Lattanzi = 1 ; Osnes = 2 
+!   qs_fluct_flag = 1 ! None = 0 ; Osnes = 1
 !
 !
 !
@@ -373,9 +373,10 @@
 !
          ! Note: QS fluctuations needs nearest neighbors,
          !   and is called above in Step 1b
+         ! QSFLUCT 1 = Osnes. Before 2026-10, 1 = Lattanzi and
+         ! 2 = Osnes; ppiclf_user_QS_fluct_Lattanzi is kept but can
+         ! no longer be selected
          if (qs_fluct_flag==1) then
-            call ppiclf_user_QS_fluct_Lattanzi(i,iStage,fqs_fluct)
-         elseif (qs_fluct_flag==2) then
             call ppiclf_user_QS_fluct_Osnes(i,iStage,fqs_fluct)
          endif
 
