@@ -99,7 +99,7 @@ def particle_ids(fields, npart, nranks):
     return [int(r) * per_rank + int(i) for r, i in zip(fields["id_rank"], fields["id"])]
 
 
-FLUID_DUMP_HEADER = struct.Struct("<8siqd6i")
+FLUID_DUMP_HEADER = struct.Struct("<8siqd5i")
 FORM_PURE, FORM_VOLUME_WEIGHTED = 1, 2
 
 
@@ -108,10 +108,10 @@ def read_fluid_dump(path):
     real cells) and, for PICL runs, phi and grad_rhog (3 arrays)."""
     with open(path, "rb") as f:
         data = f.read()
-    magic, version, step, time, region, ncells, ncv, form, with_picl, with_pt = \
+    magic, version, step, time, region, ncells, ncv, form, with_picl = \
         FLUID_DUMP_HEADER.unpack_from(data, 0)
-    if magic != b"RFLUDUMP" or version != 3:
-        raise ValueError("%s: not a version 3 fluid dump" % path)
+    if magic != b"RFLUDUMP" or version != 4:
+        raise ValueError("%s: not a version 4 fluid dump" % path)
     pos = FLUID_DUMP_HEADER.size
 
     def take():
@@ -125,9 +125,6 @@ def read_fluid_dump(path):
     if with_picl:
         out["phi"] = take()
         out["grad_rhog"] = [take() for _ in range(3)]
-    if with_pt:
-        out["div_phi_rsg"] = [take() for _ in range(3)]
-        out["f_cell"] = [take() for _ in range(3)]
     # NSCBC face states: {global patch: list of nCv arrays over the faces}
     npatches, = struct.unpack_from("<i", data, pos)
     pos += 4

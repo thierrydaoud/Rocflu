@@ -131,7 +131,6 @@ SUBROUTINE RFLU_BXV_ConvertCvCons2Prim(pRegion,pPatch,cvStateFuture)
    USE ModInterfacesSpecies, ONLY: SPEC_GetSpeciesIndex
    USE ModSpecies,           ONLY: t_spec_input
 #endif
-  USE ModMixture, ONLY: t_mixt
 
 ! ******************************************************************************
 ! Definitions and declarations
@@ -161,7 +160,6 @@ SUBROUTINE RFLU_BXV_ConvertCvCons2Prim(pRegion,pPatch,cvStateFuture)
   TYPE(t_spec_input), POINTER :: pSpecInput
 #endif
   !FRED - Added JWL EOS Capability 9/15/15
-  REAL(RFREAL) :: ksg
 
 
 ! ******************************************************************************
@@ -310,18 +308,16 @@ SUBROUTINE RFLU_BXV_ConvertCvCons2Prim(pRegion,pPatch,cvStateFuture)
                   pCv(CV_MIXT_YVEL,ifl) = ir*pCv(CV_MIXT_YMOM,ifl)
                   pCv(CV_MIXT_ZVEL,ifl) = ir*pCv(CV_MIXT_ZMOM,ifl)
 
-                  ksg = pRegion%mixt%piclKsg(ifl)
-
                   u = pCv(CV_MIXT_XVEL,ifl)
                   v = pCv(CV_MIXT_YVEL,ifl)
                   w = pCv(CV_MIXT_ZVEL,ifl)
 
-                  e = (ir*pCv(CV_MIXT_ENER,ifl))-0.5_RFREAL*(u*u+v*v+w*w) - ksg
+                  e = (ir*pCv(CV_MIXT_ENER,ifl))-0.5_RFREAL*(u*u+v*v+w*w)
 
                   IF (e .LE. 1.0E+04_RFREAL) THEN
                     ! reset e and put new value back in pCv(CV_MIXT_ENER,ifl)
                     e = 1.0E+04_RFREAL 
-                    pCv(CV_MIXT_ENER,ifl) = r*(e+0.5_RFREAL*(u*u+v*v+w*w)+ksg)
+                    pCv(CV_MIXT_ENER,ifl) = r*(e+0.5_RFREAL*(u*u+v*v+w*w))
                   END IF !e le 1e4
 
            iCvSpecProducts = SPEC_GetSpeciesIndex(global,pspecInput,'PRODUCTS')
@@ -427,7 +423,6 @@ SUBROUTINE RFLU_BXV_ConvertCvPrim2Cons(pRegion,pPatch,cvStateFuture)
    USE ModInterfacesSpecies, ONLY: SPEC_GetSpeciesIndex
    USE ModSpecies,           ONLY: t_spec_input
 #endif
-  USE ModMixture, ONLY: t_mixt
 
 ! ******************************************************************************
 ! Definitions and declarations
@@ -458,7 +453,6 @@ SUBROUTINE RFLU_BXV_ConvertCvPrim2Cons(pRegion,pPatch,cvStateFuture)
   TYPE(t_spec_input), POINTER :: pSpecInput
 #endif
   !FRED - Added JWL EOS capabilities  9/15/15
-  REAL(RFREAL) :: ksg
 
 ! ******************************************************************************
 ! Start
@@ -528,9 +522,7 @@ SUBROUTINE RFLU_BXV_ConvertCvPrim2Cons(pRegion,pPatch,cvStateFuture)
               gc = MixtPerf_R_M(mw)
               g  = MixtPerf_G_CpR(cp,gc)
 
-              ksg = pRegion%mixt%piclKsg(ifl)
-
-              pCv(CV_MIXT_ENER,ifl) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w,ksg)
+              pCv(CV_MIXT_ENER,ifl) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w)
             END DO ! icg
 
 !------------------Mixture of detonation products and perfect gas--------------
@@ -562,8 +554,6 @@ SUBROUTINE RFLU_BXV_ConvertCvPrim2Cons(pRegion,pPatch,cvStateFuture)
               w = pCv(CV_MIXT_ZVEL,ifl)
               p = pDv(DV_MIXT_PRES,ifl)
               
-              ksg = pRegion%mixt%piclKsg(ifl)
-
               pCv(CV_MIXT_XMOM,ifl) = r*u !ifl was icg
               pCv(CV_MIXT_YMOM,ifl) = r*v !ifl was icg
               pCv(CV_MIXT_ZMOM,ifl) = r*w !ifl was icg
@@ -577,7 +567,7 @@ SUBROUTINE RFLU_BXV_ConvertCvPrim2Cons(pRegion,pPatch,cvStateFuture)
               IF (e .LE. 1.0E+04_RFREAL) THEN
                 e = 1.0E+04_RFREAL 
               END IF !e le 0
-              pCv(CV_MIXT_ENER,ifl) = r *(e + 0.5_RFREAL*(u*u+v*v+w*w) + ksg)
+              pCv(CV_MIXT_ENER,ifl) = r *(e + 0.5_RFREAL*(u*u+v*v+w*w))
 
             END DO
 

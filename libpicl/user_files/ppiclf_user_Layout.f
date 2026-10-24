@@ -40,14 +40,9 @@
       ppiclf_lrp = PPICLF_NSLOTS_RPROP
 !
 ! Projected fields: volume fraction, force and energy feedback, and the
-! fields the probes read (PPICLF_P_JPHIPD to PPICLF_P_JPHIPT); the
-! pseudo-turbulence stresses and heat flux only with PSEUDOTURB
+! fields the probes read (PPICLF_P_JPHIPD to PPICLF_P_JPHIPT)
 !
-      if (pseudoTurb_flag .gt. 0) then
-         ppiclf_lrp_pro = PPICLF_NSLOTS_PRO
-      else
-         ppiclf_lrp_pro = PPICLF_P_JPHIPT
-      endif
+      ppiclf_lrp_pro = PPICLF_NSLOTS_PRO
 !
 ! Gas at the particle, interpolated every stage. Only the fields a model
 ! that is on reads; Rocflu hands over all of them and ppiclF ignores the
@@ -116,9 +111,6 @@
       call ppiclf_solve_AddRestartSlot(PPICLF_R_FLUCTFY)
       call ppiclf_solve_AddRestartSlot(PPICLF_R_FLUCTFZ)
       call ppiclf_solve_AddRestartSlot(PPICLF_R_SEED)
-      call ppiclf_solve_AddRestartSlot(PPICLF_R_XIPAR)
-      call ppiclf_solve_AddRestartSlot(PPICLF_R_XIPERP)
-      call ppiclf_solve_AddRestartSlot(PPICLF_R_XIT)
       call ppiclf_solve_AddRestartSlot(PPICLF_R_WDOTX)
       call ppiclf_solve_AddRestartSlot(PPICLF_R_WDOTY)
       call ppiclf_solve_AddRestartSlot(PPICLF_R_WDOTZ)

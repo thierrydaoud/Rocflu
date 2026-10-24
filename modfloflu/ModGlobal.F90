@@ -179,7 +179,7 @@ MODULE ModGlobal
     ! Fields the post program (rflupost) writes (# POST, *_WRT keys)
     LOGICAL :: postWriteDensity,postWriteVelocity,postWritePressure, &
                postWritePhi,postWriteTemperature,postWriteSoundSpeed, &
-               postWriteEnergy,postWriteGradRho,postWritePT
+               postWriteEnergy,postWriteGradRho
     ! Old-style output (SOL_*, PARAVIEW_*, par*.vtu, bin*.vtu; OLD_OUTPUT_WRT)
     LOGICAL :: postWriteOldOutput
     ! endTime: time this job ends at (MAXTIME, or the start time + RUNTIME);
@@ -506,7 +506,7 @@ MODULE ModGlobal
                piclViscousUnsteady, &
                piclPeriodicXFlag, piclPeriodicYFlag, piclPeriodicZFlag, &
                piclSBNearFlag, &
-               piclMoveParticles, piclPseudoTurbFlag, piclHTUnsteadyFlag, &
+               piclMoveParticles, piclHTUnsteadyFlag, &
                piclVUSteps, piclOutParticle, piclOutGas, piclOutGradGas, &
                piclOutModel
 

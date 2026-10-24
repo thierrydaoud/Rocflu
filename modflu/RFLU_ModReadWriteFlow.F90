@@ -3058,14 +3058,6 @@ MODULE RFLU_ModReadWriteFlow
          varX=pRegion%mixt%piclgradRhog(1,1,1:Ne), &
          varY=pRegion%mixt%piclgradRhog(2,1,1:Ne), &
          varZ=pRegion%mixt%piclgradRhog(3,1,1:Ne))
-    E_IO = VTK_VAR_XML(NC_NN = Ne, varname = 'DivPhiRsg', &
-         varX=pRegion%mixt%DivPhiRsg(XCOORD,1:Ne), &
-         varY=pRegion%mixt%DivPhiRsg(YCOORD,1:Ne), &
-         varZ=pRegion%mixt%DivPhiRsg(ZCOORD,1:Ne))
-    E_IO = VTK_VAR_XML(NC_NN = Ne, varname = 'FCell', &
-         varX=pRegion%mixt%FCell(XCOORD,1:Ne), &
-         varY=pRegion%mixt%FCell(YCOORD,1:Ne), &
-         varZ=pRegion%mixt%FCell(ZCOORD,1:Ne))
       ! 03/20/2025 - Thierry - ends here
   END IF
 #endif
@@ -3239,8 +3231,6 @@ MODULE RFLU_ModReadWriteFlow
       E_IO = PVTK_VAR_XML(varname = 'Particle Volume Fraction', tp='Float64')
       ! 03/20/2025 - Thierry - begins here
       E_IO = PVTK_VAR_XML(Nc = 3, varname = 'Gradient Gas Density', tp='Float64' )
-      E_IO = PVTK_VAR_XML(Nc = 3, varname = 'DivPhiRsg', tp='Float64' )
-      E_IO = PVTK_VAR_XML(Nc = 3, varname = 'FCell', tp='Float64' )
       ! 03/20/2025 - Thierry - ends here
   END IF
 #endif

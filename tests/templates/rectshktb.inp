@@ -104,7 +104,6 @@ FEEDBACK         0 ! 0 = none; 1 = particles affecting fluid
 QSFLUCT 	       0 ! 0 = none; 1 = Lattanzi; 2 = Osnes  
 QSFLUCTFILT      0 ! 0 = box filter; 1 = gaussian. For fluctuation QS force only.
 QSFLUCTFILTADAPT 0 ! 0 = not adaptive; 1 = adaptive
-PSEUDOTURB       0 ! 0 = none; 1 = pseudo-turbulence model
 TEMP             296.40 ! temperature; must be consistent with Ambient air conditions
 DENSITY          1880.0 ! particle density [kg/m^3]
 SPECIFICHEAT     840.0  ! particle specific heat [J/(kg K)]

@@ -86,23 +86,23 @@ MODULE ModInterfacesBcond
 
   SUBROUTINE BcondInflowPerf( bcOptType,bcOptFixed,ptot,ttot,betah,betav, & 
                               mach,sxn,syn,szn,cpgas,mm,rl,rul,rvl,rwl,rr, &
-                              rur,rvr,rwr,rer,pr,ksg )
+                              rur,rvr,rwr,rer,pr )
     USE ModDataTypes
     INTEGER, INTENT(IN) :: bcOptFixed,bcOptType
     REAL(RFREAL), INTENT(IN)  :: betah, betav, cpgas, mach, mm, sxn, syn, szn, &
-                                 ptot, rl, rul, rvl, rwl, ttot,ksg
+                                 ptot, rl, rul, rvl, rwl, ttot
     REAL(RFREAL), INTENT(OUT) :: rer, rr, rur, rvr, rwr, pr
   END SUBROUTINE BcondInflowPerf
 
   SUBROUTINE BcondInflowPerf_GL(bcOptType,ro,po,to,Bp,Bt,cvl,cvv,cvg,Rg,Rv,ur, &
                                 vr,wr,vfgr,vfvr,vflr,temp,press,nx,ny,nz,rl, &
                                 rul,rvl,rwl,rel,rgpgl,rvpvl,pl,rr,rur,rvr, &
-                                rwr,rer,rgpgr,rvpvr,pr,ksg)
+                                rwr,rer,rgpgr,rvpvr,pr)
     USE ModDataTypes
     INTEGER, INTENT(IN) :: bcOptType
     REAL(RFREAL), INTENT(IN) :: Bp,Bt,cvg,cvl,cvv,nx,ny,nz,pl,po,press,rel, &
                                 Rg,rgpgl,rl,ro,rul,Rv,rvl,rvpvl,rwl,temp,to, &
-                                ur,vfgr,vflr,vfvr,vr,wr,ksg
+                                ur,vfgr,vflr,vfvr,vr,wr
     REAL(RFREAL), INTENT(OUT):: pr,rer,rgpgr,rr,rur,rvr,rvpvr,rwr 
   END SUBROUTINE BcondInflowPerf_GL
 
@@ -119,23 +119,23 @@ MODULE ModInterfacesBcond
 
   SUBROUTINE BcondOutflowPerf( bcOpt,pout,sxn,syn,szn,cpgas,mol, & 
                                rho,rhou,rhov,rhow,rhoe,press, &
-                               rhob,rhoub,rhovb,rhowb,rhoeb,ksg)
+                               rhob,rhoub,rhovb,rhowb,rhoeb)
     USE ModDataTypes
     INTEGER :: bcOpt
     REAL(RFREAL), INTENT(IN) :: cpgas,mol,pout,press,rho,rhou, &
-                                rhov,rhow,rhoe,sxn,syn,szn,ksg
+                                rhov,rhow,rhoe,sxn,syn,szn
     REAL(RFREAL), INTENT(OUT) :: rhob,rhoub,rhovb,rhowb,rhoeb
   END SUBROUTINE BcondOutflowPerf
 
   SUBROUTINE BcondOutflowPerf_GL(bcOpt,ro,Po,To,betaP,betaT,cvl,cvv,cvg,Rg,Rv, &
                                  pout,sxn,syn,szn,rho,rhou,rhov,rhow,rhoe, &
                                  rhogpg,rhovpv,pin,rhob,rhoub,rhovb,rhowb, &
-                                 rhoeb,rhogpgb,rhovpvb,ksg)
+                                 rhoeb,rhogpgb,rhovpvb)
     USE ModDataTypes
     INTEGER :: bcOpt
     REAL(RFREAL), INTENT(IN) :: betaP,betaT,cvg,cvl,cvv,pin,Po,pout,Rg,rho, &
                                 rhoe,rhogpg,rhou,rhov,rhovpv,rhow,ro,Rv,sxn, &
-                                syn,szn,To,ksg
+                                syn,szn,To
     REAL(RFREAL), INTENT(OUT) :: rhob,rhoeb,rhogpgb,rhoub,rhovb,rhovpvb,rhowb
   END SUBROUTINE BcondOutflowPerf_GL
 

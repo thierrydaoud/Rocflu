@@ -104,7 +104,6 @@ SUBROUTINE BcondInjectionPerf( distrib,minj,tinj,rhoVrel,sxn,syn,szn, &
 
 ! ... local variables
   REAL(RFREAL) :: g, qb, rgas, ub, vb, wb
-  REAL(RFREAL) :: ksg
 
 !******************************************************************************
 ! gas properties
@@ -122,8 +121,6 @@ SUBROUTINE BcondInjectionPerf( distrib,minj,tinj,rhoVrel,sxn,syn,szn, &
   vinj = qb*syn
   winj = qb*szn
 
-  ksg = 0.0d0
-
   IF (distrib == BCDAT_CONSTANT) THEN
     ub = uinj
     vb = vinj
@@ -134,7 +131,7 @@ SUBROUTINE BcondInjectionPerf( distrib,minj,tinj,rhoVrel,sxn,syn,szn, &
     wb = rhoVrel(3)/rhob
   ENDIF
 
-  rhoeb = rhob * MixtPerf_Eo_DGPUVW( rhob,g,pb,ub,vb,wb,ksg )
+  rhoeb = rhob * MixtPerf_Eo_DGPUVW( rhob,g,pb,ub,vb,wb )
   rhoub = rhob*ub
   rhovb = rhob*vb
   rhowb = rhob*wb

@@ -97,10 +97,6 @@ class CaseValidatorTest(unittest.TestCase):
     def test_template_is_fine(self):
         self.assertEqual(self.errors(), [])
 
-    def test_pseudo_turbulence_with_what_it_needs(self):
-        self.assertEqual(self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 2,
-                                      ("PICL", "HEATTRANSFER"): 2}), [])
-
     def test_unused_parameters_left_in_the_file(self):
         # Collisions off: KSP and EREST are not read, any value is fine
         self.assertEqual(self.errors({("PICL", "KSP"): -5, ("PICL", "EREST"): 3,
@@ -116,6 +112,7 @@ class CaseValidatorTest(unittest.TestCase):
         for key, words in (("FILTERWIDTH 0.002", ("FILTERWIDTH", "remove")),
                            ("STATIONARY 1", ("VELOCITYMODEL 0",)),
                            ("REACTIVE 0", ("burn-rate",)),
+                           ("PSEUDOTURB 0", ("pseudo-turbulence", "not supported yet")),
                            ("ANGULARPERIODIC 0", ("angular",)),
                            ("OUTGAS 1", ("GAS_WRT",))):
             text = TEMPLATE.replace("# PICL\n", "# PICL\n%s\n" % key)
@@ -168,14 +165,6 @@ class CaseValidatorTest(unittest.TestCase):
     def test_fluctuations_need_quasi_steady_force(self):
         self.assertError(self.errors({("PICL", "QSFORCE"): 0, ("PICL", "QSFLUCT"): 1}),
                          "QSFLUCT 1 needs a quasi-steady force")
-
-    def test_pseudo_turbulence_needs(self):
-        errors = self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 1})
-        self.assertError(errors, "PSEUDOTURB 1 needs QSFLUCT 2")
-        self.assertError(errors, "PSEUDOTURB 1 needs HEATTRANSFER")
-        self.assertError(self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 2,
-                                      ("PICL", "HEATTRANSFER"): 2, ("PICL", "QSFORCE"): 0}),
-                         "PSEUDOTURB 1 needs a quasi-steady force")
 
     def test_unsteady_heat_transfer_needs_history(self):
         text = TEMPLATE.replace("# PICL\n", "# PICL\nDU HEATTRANSFER 1\n")
@@ -241,10 +230,14 @@ class CaseValidatorTest(unittest.TestCase):
         self.assertEqual(self.errors(files=("points.dat", "par00002.vtu")), [])
 
     def test_post_field_keys(self):
-        text = TEMPLATE.replace("# POST", "# POST\nTEMPERATURE_WRT 1\nPT_WRT 2", 1)
+        text = TEMPLATE.replace("# POST", "# POST\nTEMPERATURE_WRT 1\nGRADRHO_WRT 2", 1)
         errors = self.errors(text=text)
-        self.assertError(errors, "PT_WRT", "0 or 1")
+        self.assertError(errors, "GRADRHO_WRT", "0 or 1")
         self.assertFalse(any("TEMPERATURE_WRT" in e for e in errors))
+
+    def test_pseudo_turbulence_fields_not_supported(self):
+        text = TEMPLATE.replace("# POST", "# POST\nPT_WRT 0", 1)
+        self.assertError(self.errors(text=text), "PT_WRT", "not supported yet")
 
     def test_end_of_run_and_start_step(self):
         text = TEMPLATE.replace("# TIMESTEP", "# TIMESTEP\nPRNTENDTIME 2", 1)

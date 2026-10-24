@@ -31,7 +31,6 @@ set(PPICLF_SOURCES
     ${PPICLF_USER_DIR}/ppiclf_user_subbinMap.f
     ${PPICLF_USER_DIR}/ppiclf_user_QuasiSteady.f
     ${PPICLF_USER_DIR}/ppiclf_user_Fluctuations.f
-    ${PPICLF_USER_DIR}/ppiclf_user_PseudoTurbulence.f
     ${PPICLF_USER_DIR}/ppiclf_user_AddedMass.f
     ${PPICLF_USER_DIR}/Added_Mass/ppiclf_user_AddedMass_functions.f
     ${PPICLF_USER_DIR}/Added_Mass/ppiclf_user_AddedMass_subroutines.f

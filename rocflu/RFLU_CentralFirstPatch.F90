@@ -119,7 +119,6 @@ SUBROUTINE RFLU_CentralFirstPatch(pRegion,pPatch)
 #ifdef PLAG
   USE ModPartLag, ONLY: t_plag,t_plag_input
 #endif
-  USE ModMixture, ONLY: t_mixt
 
   IMPLICIT NONE
 
@@ -164,7 +163,6 @@ SUBROUTINE RFLU_CentralFirstPatch(pRegion,pPatch)
   TYPE(t_spec_type), POINTER :: pSpecType
   TYPE(t_spec_input), POINTER :: pSpecInput
 #endif
-  REAL(RFREAL) :: ksg
 
 ! ******************************************************************************
 ! Start
@@ -234,7 +232,6 @@ SUBROUTINE RFLU_CentralFirstPatch(pRegion,pPatch)
 
       DO ifl = 1,pPatch%nBFaces
         c1 = pPatch%bf2c(ifl)
-        ksg = pRegion%mixt%piclKsg(c1)
 
         nx = pPatch%fn(XCOORD,ifl)
         ny = pPatch%fn(YCOORD,ifl)
@@ -267,7 +264,7 @@ SUBROUTINE RFLU_CentralFirstPatch(pRegion,pPatch)
 
           CALL BcondInflowPerf(bcOptType,bcOptFixed,ptot,ttot,betah,betav, &
                                mach,nx,ny,nz,cp,mm,rl,rul,rvl,rwl,rr,rur, &
-                               rvr,rwr,rer,pr,ksg)
+                               rvr,rwr,rer,pr)
         ELSE 
           CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
         END IF ! gasModel
@@ -396,8 +393,6 @@ SUBROUTINE RFLU_CentralFirstPatch(pRegion,pPatch)
         rel = cv(CV_MIXT_ENER,c1)
         pl  = dv(DV_MIXT_PRES,c1)
 
-        ksg = pRegion%mixt%piclKsg(c1)
-
         ur = vals(BCDAT_INFLOW_U,distrib*ifl)
         vr = vals(BCDAT_INFLOW_V,distrib*ifl)
         wr = vals(BCDAT_INFLOW_W,distrib*ifl)
@@ -417,7 +412,7 @@ SUBROUTINE RFLU_CentralFirstPatch(pRegion,pPatch)
             pr = MixtPerf_P_DRT(rr,rgas,tr)
           END IF ! bcOptType
           
-          rer = rr*MixtPerf_Eo_DGPUVW(rr,g,pr,ur,vr,wr,ksg)
+          rer = rr*MixtPerf_Eo_DGPUVW(rr,g,pr,ur,vr,wr)
         ELSE IF ( gasModel == GAS_MODEL_MIXT_TCPERF ) THEN
 #ifdef SPEC
           IF ( pRegion%spec%cvState /= CV_MIXT_STATE_CONS ) THEN
@@ -447,7 +442,7 @@ SUBROUTINE RFLU_CentralFirstPatch(pRegion,pPatch)
             pr = MixtPerf_P_DRT(rr,rgas,tr)
           END IF ! bcOptType
 
-          rer = rr*MixtPerf_Eo_DGPUVW(rr,g,pr,ur,vr,wr,ksg)
+          rer = rr*MixtPerf_Eo_DGPUVW(rr,g,pr,ur,vr,wr)
 
 ! DEBUG: Manoj-PBA1D
 IF (1==2) THEN
@@ -596,7 +591,6 @@ END IF ! 1==2
         rwl = cv(CV_MIXT_ZMOM,c1)
         rel = cv(CV_MIXT_ENER,c1)
         pl  = dv(DV_MIXT_PRES,c1)
-        ksg = pRegion%mixt%piclKsg(c1)
 
         IF ( bcOptType /= BCOPT_SUPERSONIC ) THEN
           pr = vals(BCDAT_OUTFLOW_PRESS,distrib*ifl)
@@ -609,7 +603,7 @@ END IF ! 1==2
           mm = gv(GV_MIXT_MOL,indMol*c1)
 
           CALL BcondOutflowPerf(bcOptType,pr,nx,ny,nz,cp,mm,rl,rul,rvl,rwl, &
-                                rel,pl,rr,rur,rvr,rwr,rer,ksg)
+                                rel,pl,rr,rur,rvr,rwr,rer)
 
           ! Include JWL Gas model for outflow BC - Subbu
           !ELSE IF ( gasModel == GAS_MODEL_MIXT_TCPERF ) THEN
@@ -643,7 +637,7 @@ END IF ! 1==2
 
             ! IF (Yproducts .LE. 1.0E-06_RFREAL) THEN
             CALL BcondOutflowPerf(bcOptType,pr,nx,ny,nz,cp,mm,rl,rul,rvl,rwl, &
-                                rel,pl,rr,rur,rvr,rwr,rer,ksg)
+                                rel,pl,rr,rur,rvr,rwr,rer)
 
             !ELSE
             ! CALL BcondOutflowJWL(bcOptType,pr,nx,ny,nz,cp,mm,rl,rul,rvl,rwl, &
@@ -993,12 +987,11 @@ END IF ! 1==2
         IF ( gasModel == GAS_MODEL_TCPERF ) THEN
           cp = gv(GV_MIXT_CP ,indCp *c1)
           mm = gv(GV_MIXT_MOL,indMol*c1)
-          ksg = pRegion%mixt%piclKsg(c1)
                                            
           CALL RFLU_SetRindStateFarfieldPerf(global,cp,mm,nx,ny,nz,mf,pf,tf, &
                                              aoa,aos,corrFlag,liftCoef,xc,yc, &
                                              zc,rl,rul,rvl,rwl,rel,rr,rur, & 
-                                             rvr,rwr,rer,pr,ksg)      
+                                             rvr,rwr,rer,pr)      
         ELSE
           CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
         END IF ! gasModel

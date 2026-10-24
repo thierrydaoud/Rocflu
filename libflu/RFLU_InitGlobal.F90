@@ -246,7 +246,6 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
   global%postWriteSoundSpeed  = .FALSE.
   global%postWriteEnergy      = .FALSE.
   global%postWriteGradRho     = .FALSE.
-  global%postWritePT          = .FALSE.
   global%postWriteOldOutput   = .FALSE.
   global%nFilesRemoved     = 0
   global%iterSinceRestart  = 0

@@ -427,7 +427,7 @@ CONTAINS
     pGrid  => pRegion%grid
     nCells = pGrid%nCells
 
-! State of the step: gas, PICL and pseudo-turbulence fields, NSCBC faces
+! State of the step: gas and PICL fields, NSCBC faces
     global%currentStep = stepNumber
     CALL RFLU_ReadRestartData(pRegion)
     pRegion%mixt%cvState = CV_MIXT_STATE_CONS
@@ -507,12 +507,6 @@ CONTAINS
         END DO ! c
         CALL AddPostField(fields,nFields,'Gradient Gas Density',work)
       END IF ! global%postWriteGradRho
-      IF ( global%postWritePT .AND. (global%piclPseudoTurbFlag >= 1) ) THEN
-        work = pRegion%mixt%DivPhiRsg(1:3,1:nCells)
-        CALL AddPostField(fields,nFields,'DivPhiRsg',work)
-        work = pRegion%mixt%FCell(1:3,1:nCells)
-        CALL AddPostField(fields,nFields,'FCell',work)
-      END IF ! global%postWritePT
     END IF ! global%piclUsed
 #endif
 

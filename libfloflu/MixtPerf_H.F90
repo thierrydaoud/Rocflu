@@ -66,16 +66,16 @@
 !
 !******************************************************************************
 
-FUNCTION MixtPerf_Ho_CpTUVW(Cp,T,U,V,W,KSG)
+FUNCTION MixtPerf_Ho_CpTUVW(Cp,T,U,V,W)
 
   USE ModDataTypes
 
   IMPLICIT NONE
   
-  REAL(RFREAL), INTENT(IN) :: Cp,T,U,V,W,KSG
+  REAL(RFREAL), INTENT(IN) :: Cp,T,U,V,W
   REAL(RFREAL) :: MixtPerf_Ho_CpTUVW
    
-  MixtPerf_Ho_CpTUVW = Cp*T + 0.5_RFREAL*(U*U + V*V + W*W) + KSG
+  MixtPerf_Ho_CpTUVW = Cp*T + 0.5_RFREAL*(U*U + V*V + W*W)
 
 END FUNCTION MixtPerf_Ho_CpTUVW
 

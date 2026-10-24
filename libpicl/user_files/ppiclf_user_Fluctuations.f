@@ -339,7 +339,6 @@
       dvec    = dvec/denum
 
       ! Store and project back fqs_fluct values only if QSFLUCT = 2
-      ! Otherwise, need to call subroutine for PseudoTurbulence
       if(qs_fluct_flag .eq. 0) then
         fqs_fluct = 0.0d0
       else

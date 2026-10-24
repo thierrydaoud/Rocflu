@@ -127,7 +127,6 @@ SUBROUTINE RFLU_PrintSetup(regions)
     CALL AddItem('DU heat tr.',OnOff(global%piclHTUnsteadyFlag))
     CALL AddItem('Feedback',PickName(global%piclFeedbackFlag, &
                  (/ 'one-way','two-way' /)))
-    CALL AddItem('Pseudo-turb.',OnOff(global%piclPseudoTurbFlag))
     CALL PrintGroup
   END IF ! global%piclUsed
 

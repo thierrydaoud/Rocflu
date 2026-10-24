@@ -165,7 +165,6 @@ SUBROUTINE rfluinit(caseString,verbLevel)
                                      PLAG_SetDimensions, &
                                      PLAG_SetMaxDimensions
 #endif
-  USE ModMixture, ONLY: t_mixt
 
   IMPLICIT NONE
 

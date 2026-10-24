@@ -73,7 +73,7 @@ MODULE RFLU_ModNSCBC
   USE ModGlobal, ONLY: t_global
   USE ModBndPatch, ONLY: t_patch  
   USE ModDataStruct, ONLY: t_region
-  USE ModMixture, ONLY: t_mixt, t_mixt_input
+  USE ModMixture, ONLY: t_mixt_input
   USE ModError
   USE ModMPI
 
@@ -227,7 +227,6 @@ SUBROUTINE RFLU_NSCBC_CompFirstPatchFlux(pRegion,pPatch)
   TYPE(t_spec_input), POINTER :: pSpecInput
 #endif
 !FRED - Added JWL EOS capability - 9/11/15 
-  REAL(RFREAL) :: ksg
 
 
 ! ******************************************************************************
@@ -311,8 +310,6 @@ SUBROUTINE RFLU_NSCBC_CompFirstPatchFlux(pRegion,pPatch)
     wl  = cv(CV_MIXT_ZMOM,c1)*irl
     pl  = dv(DV_MIXT_PRES,c1)
     
-    ksg = pRegion%mixt%piclKsg(c1)
-
     IF (pRegion%mixtInput%gasModel == GAS_MODEL_MIXT_JWL) THEN
 #ifdef SPEC
      IF (global%specUsed .EQV. .TRUE.) THEN
@@ -326,7 +323,7 @@ SUBROUTINE RFLU_NSCBC_CompFirstPatchFlux(pRegion,pPatch)
     iCvSpecProducts = SPEC_GetSpeciesIndex(global,pSpecInput,'PRODUCTS')
     Yproducts = pRegion%spec%cv(iCvSpecProducts,c1)
     CALL RFLU_JWL_ComputeEnergyMixt(pRegion,c1,ggas,rgas,pl,rl,Yproducts,al,el,tl)
-    Hl = el + 0.5_RFREAL * (ul*ul + vl*vl + wl*wl) + (pl/rl) + ksg
+    Hl = el + 0.5_RFREAL * (ul*ul + vl*vl + wl*wl) + (pl/rl)
 
     IF (scalarConvFlag .EQV. .TRUE.) THEN
  CALL RFLU_ScalarConvertCvCons2Prim(pRegion,pRegion%spec%cv,pRegion%spec%cvState)
@@ -335,7 +332,7 @@ SUBROUTINE RFLU_NSCBC_CompFirstPatchFlux(pRegion,pPatch)
 #endif
     ELSE
        tl = MixtPerf_T_DPR(rl,pl,rgas)
-       Hl = MixtPerf_Ho_CpTUVW(cpgas,tl,ul,vl,wl,ksg)
+       Hl = MixtPerf_Ho_CpTUVW(cpgas,tl,ul,vl,wl)
     END IF
 
     ql = ul*nx + vl*ny + wl*nz - fs
@@ -352,8 +349,6 @@ SUBROUTINE RFLU_NSCBC_CompFirstPatchFlux(pRegion,pPatch)
     wr   = pPatch%mixt%cv(CV_MIXT_ZMOM,ifl)*irr
     pr   = pPatch%mixt%dv(DV_MIXT_PRES,ifl)
    
-    ksg = pRegion%mixt%piclKsg(ifl)
-
     IF (pRegion%mixtInput%gasModel == GAS_MODEL_MIXT_JWL) THEN
 #ifdef SPEC
      IF (global%specUsed .EQV. .TRUE.) THEN
@@ -366,7 +361,7 @@ SUBROUTINE RFLU_NSCBC_CompFirstPatchFlux(pRegion,pPatch)
     Yproducts = pRegion%spec%cv(iCvSpecProducts,c1)!Fred - see above
 
     CALL RFLU_JWL_ComputeEnergyMixt(pRegion,c1,ggas,rgas,pr,rr,Yproducts,ar,er,tr)
-    Hr = er + 0.5_RFREAL * (ur*ur + vr*vr + wr*wr) + (pr/rr) + ksg
+    Hr = er + 0.5_RFREAL * (ur*ur + vr*vr + wr*wr) + (pr/rr)
 
     IF (scalarConvFlag .EQV. .TRUE.) THEN
  CALL RFLU_ScalarConvertCvCons2Prim(pRegion,pRegion%spec%cv,pRegion%spec%cvState)
@@ -375,7 +370,7 @@ SUBROUTINE RFLU_NSCBC_CompFirstPatchFlux(pRegion,pPatch)
 #endif
     ELSE
     tr = MixtPerf_T_DPR(rr,pr,rgas)
-    Hr = MixtPerf_Ho_CpTUVW(cpgas,tr,ur,vr,wr,ksg)
+    Hr = MixtPerf_Ho_CpTUVW(cpgas,tr,ur,vr,wr)
     END IF
 
     qr = ur*nx + vr*ny + wr*nz - fs
@@ -643,7 +638,6 @@ SUBROUTINE RFLU_NSCBC_CompPatchFlux(pRegion,pPatch)
   TYPE(t_spec_input), POINTER :: pSpecInput
 #endif
   !Fred - Added JWL EOS Capabilities - 9/11/15
-  REAL(RFREAL) :: ksg
 
 ! ******************************************************************************
 ! Start
@@ -727,8 +721,6 @@ SUBROUTINE RFLU_NSCBC_CompPatchFlux(pRegion,pPatch)
     wr   = pPatch%mixt%cv(CV_MIXT_ZMOM,ifl)*irr
     pr   = pPatch%mixt%dv(DV_MIXT_PRES,ifl)
     
-    ksg = pRegion%mixt%piclKsg(ifl)
-
     IF (pRegion%mixtInput%gasModel == GAS_MODEL_MIXT_JWL) THEN
 #ifdef SPEC
      IF (global%specUsed .EQV. .TRUE.) THEN
@@ -745,7 +737,7 @@ SUBROUTINE RFLU_NSCBC_CompPatchFlux(pRegion,pPatch)
     Yproducts = pRegion%spec%cv(iCvSpecProducts,c1) !Fred - removed *irr
 
     CALL RFLU_JWL_ComputeEnergyMixt(pRegion,c1,ggas,rgas,pr,rr,Yproducts,ar,er,tr)
-    Hr = er + 0.5_RFREAL * (ur*ur + vr*vr + wr*wr) + (pr/rr) + ksg
+    Hr = er + 0.5_RFREAL * (ur*ur + vr*vr + wr*wr) + (pr/rr)
 
     IF (scalarConvFlag .EQV. .TRUE.) THEN
   CALL RFLU_ScalarConvertCvPrim2Cons(pRegion,pRegion%spec%cv,pRegion%spec%cvState)
@@ -754,7 +746,7 @@ SUBROUTINE RFLU_NSCBC_CompPatchFlux(pRegion,pPatch)
 #endif
     ELSE
     tr = MixtPerf_T_DPR(rr,pr,rgas)
-    Hr = MixtPerf_Ho_CpTUVW(cpgas,tr,ur,vr,wr,ksg)
+    Hr = MixtPerf_Ho_CpTUVW(cpgas,tr,ur,vr,wr)
    END IF
 
     qr = ur*nx + vr*ny + wr*nz - fs
@@ -1035,7 +1027,6 @@ SUBROUTINE RFLU_NSCBC_CompSecondPatchFlux(pRegion,pPatch)
   TYPE(t_spec_input), POINTER :: pSpecInput
 #endif
 !Fred - Added JWL EOS Capabilities - 9/11/15
-  REAL(RFREAL) :: ksg
 
 ! ******************************************************************************
 ! Start
@@ -1119,8 +1110,6 @@ SUBROUTINE RFLU_NSCBC_CompSecondPatchFlux(pRegion,pPatch)
     wl  = cv(CV_MIXT_ZMOM,c1)*irl
     pl  = dv(DV_MIXT_PRES,c1)
   
-    ksg = pRegion%mixt%piclKsg(c1)
-
     dx  = xc - pRegion%grid%cofg(XCOORD,c1)
     dy  = yc - pRegion%grid%cofg(YCOORD,c1)
     dz  = zc - pRegion%grid%cofg(ZCOORD,c1)
@@ -1155,7 +1144,7 @@ SUBROUTINE RFLU_NSCBC_CompSecondPatchFlux(pRegion,pPatch)
     Yproducts = pRegion%spec%cv(iCvSpecProducts,c1) !Fred - removed *irl
 
     CALL RFLU_JWL_ComputeEnergyMixt(pRegion,c1,ggas,rgas,pl,rl,Yproducts,al,el,tl)
-    Hl = el + 0.5_RFREAL * (ul*ul + vl*vl + wl*wl) + (pl/rl) + ksg
+    Hl = el + 0.5_RFREAL * (ul*ul + vl*vl + wl*wl) + (pl/rl)
 
     IF (scalarConvFlag .EQV. .TRUE.) THEN
   CALL RFLU_ScalarConvertCvPrim2Cons(pRegion,pRegion%spec%cv,pRegion%spec%cvState)
@@ -1164,7 +1153,7 @@ SUBROUTINE RFLU_NSCBC_CompSecondPatchFlux(pRegion,pPatch)
 #endif
     ELSE
     tl = MixtPerf_T_DPR(rl,pl,rgas)
-    Hl = MixtPerf_Ho_CpTUVW(cpgas,tl,ul,vl,wl,ksg)
+    Hl = MixtPerf_Ho_CpTUVW(cpgas,tl,ul,vl,wl)
     END IF
 
     ql = ul*nx + vl*ny + wl*nz - fs
@@ -1181,8 +1170,6 @@ SUBROUTINE RFLU_NSCBC_CompSecondPatchFlux(pRegion,pPatch)
     wr   = pPatch%mixt%cv(CV_MIXT_ZMOM,ifl)*irr
     pr   = pPatch%mixt%dv(DV_MIXT_PRES,ifl)
 
-    ksg = pRegion%mixt%piclKsg(ifl)
-
     IF (pRegion%mixtInput%gasModel == GAS_MODEL_MIXT_JWL) THEN
 #ifdef SPEC      
       IF (global%specUsed .EQV. .TRUE.) THEN
@@ -1196,7 +1183,7 @@ SUBROUTINE RFLU_NSCBC_CompSecondPatchFlux(pRegion,pPatch)
     Yproducts = pRegion%spec%cv(iCvSpecProducts,c1) !Fred - see above
 
     CALL RFLU_JWL_ComputeEnergyMixt(pRegion,c1,ggas,rgas,pr,rr,Yproducts,ar,er,tr)
-    Hr = er + 0.5_RFREAL * (ur*ur + vr*vr + wr*wr) + (pr/rr) + ksg
+    Hr = er + 0.5_RFREAL * (ur*ur + vr*vr + wr*wr) + (pr/rr)
 
     IF (scalarConvFlag .EQV. .TRUE.) THEN
   CALL RFLU_ScalarConvertCvPrim2Cons(pRegion,pRegion%spec%cv,pRegion%spec%cvState)
@@ -1205,7 +1192,7 @@ SUBROUTINE RFLU_NSCBC_CompSecondPatchFlux(pRegion,pPatch)
 #endif
     ELSE
     tr = MixtPerf_T_DPR(rr,pr,rgas)
-    Hr = MixtPerf_Ho_CpTUVW(cpgas,tr,ur,vr,wr,ksg)
+    Hr = MixtPerf_Ho_CpTUVW(cpgas,tr,ur,vr,wr)
     END IF
 
     qr = ur*nx + vr*ny + wr*nz - fs
@@ -1874,8 +1861,7 @@ SUBROUTINE RFLU_NSCBC_CompRhsFF(pRegion,pPatch)
       pRhs(CV_MIXT_ENER,ifl) = pRhs(CV_MIXT_ENER,ifl) &
                              + r*u*pRegion%mvfAcc(XCOORD) &
                              + r*v*pRegion%mvfAcc(YCOORD) &
-                             + r*w*pRegion%mvfAcc(ZCOORD) &
-                             + r*pRegion%mixt%piclKsg(ifl)
+                             + r*w*pRegion%mvfAcc(ZCOORD)
     END IF ! global%mvFrameFlag
   END DO ! ifl
 
@@ -2546,7 +2532,6 @@ SUBROUTINE RFLU_NSCBC_CompRhsOF(pRegion,pPatch)
   REAL(RFREAL) :: YProducts
   INTEGER :: iCvSpecAir,iCvSpecExplosive,iCvSpecProducts,iSpec
 #endif
-  REAL(RFREAL) :: ksg
 
 ! ******************************************************************************
 ! Start
@@ -2602,8 +2587,6 @@ SUBROUTINE RFLU_NSCBC_CompRhsOF(pRegion,pPatch)
     p  = pDv(DV_MIXT_PRES,ifl)
     a  = pDv(DV_MIXT_SOUN,ifl)
     
-    ksg = pRegion%mixt%piclKsg(ifl)
-
     IF (pRegion%mixtInput%gasModel == GAS_MODEL_MIXT_JWL) THEN
       ra   = pRegion%mixtInput%prepRealVal3   !Ambient farfield density
       rho0 = pRegion%mixtInput%prepRealVal24  !Reference density for HE material
@@ -2856,7 +2839,7 @@ SUBROUTINE RFLU_NSCBC_CompRhsOF(pRegion,pPatch)
    IF (pRegion%mixtInput%gasModel == GAS_MODEL_MIXT_JWL) THEN
     
     E  = pCv(CV_MIXT_ENER,ifl)/r !ie + 0.5_RFREAL*(un*un+us*us+ut*ut)
-    H  = E+(p/r) + ksg
+    H  = E+(p/r)
 
     rhs5 = (H-(a*a)/omega)*d1 + d2/omega + r*un*d3 &
            + r*us*d4 + r*ut*d5 + &
@@ -3332,8 +3315,6 @@ SUBROUTINE RFLU_NSCBC_InitFF(pRegion,pPatch)
   REAL(RFREAL), DIMENSION(:,:), POINTER :: cv,dv,gv,vals
   TYPE(t_global), POINTER :: global
 
-  REAL(RFREAL) :: ksg
-
 ! ******************************************************************************
 ! Start
 ! ******************************************************************************
@@ -3391,8 +3372,6 @@ SUBROUTINE RFLU_NSCBC_InitFF(pRegion,pPatch)
 
     pl  = pRegion%mixt%dv(DV_MIXT_PRES,c1)
     
-    ksg = pRegion%mixt%piclKsg(c1)
-
     mf  = vals(BCDAT_FARF_MACH  ,distrib*ifl)
     aoa = vals(BCDAT_FARF_ATTACK,distrib*ifl)
     aos = vals(BCDAT_FARF_SLIP  ,distrib*ifl)
@@ -3406,12 +3385,12 @@ SUBROUTINE RFLU_NSCBC_InitFF(pRegion,pPatch)
       gc = MixtPerf_R_M(mw)
       g  = MixtPerf_G_CpR(cp,gc)
 
-      rel = rl*MixtPerf_Eo_DGPUVW(rl,g,pl,ul,vl,wl,ksg)
+      rel = rl*MixtPerf_Eo_DGPUVW(rl,g,pl,ul,vl,wl)
       
       CALL RFLU_SetRindStateFarfieldPerf(global,cp,mw,nx,ny,nz,mf,pf,tf, &
                                          aoa,aos,corrFlag,liftCoef,xc,yc, &
                                          zc,rl,rul,rvl,rwl,rel,rr,rur, & 
-                                         rvr,rwr,rer,pr,ksg)     
+                                         rvr,rwr,rer,pr)     
     ELSE
       CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
     END IF ! gasModel
@@ -3487,7 +3466,6 @@ SUBROUTINE RFLU_NSCBC_InitIFTotAng(pRegion,pPatch)
                   rul,rvl,rwl,rur,rvr,rwr,ttot
   REAL(RFREAL), DIMENSION(:,:), POINTER :: cv,dv,gv,vals
   TYPE(t_global), POINTER :: global
-  REAL(RFREAL) :: ksg
 
 ! ******************************************************************************
 ! Start
@@ -3522,7 +3500,6 @@ SUBROUTINE RFLU_NSCBC_InitIFTotAng(pRegion,pPatch)
 
     mw = pRegion%mixt%gv(GV_MIXT_MOL,indMol*c1)
     cp = pRegion%mixt%gv(GV_MIXT_CP ,indCp *c1)
-    ksg = pRegion%mixt%piclKsg(c1)
 
     gc = MixtPerf_R_M(mw)
     g  = MixtPerf_G_CpR(cp,gc)
@@ -3550,7 +3527,7 @@ SUBROUTINE RFLU_NSCBC_InitIFTotAng(pRegion,pPatch)
 
     CALL BcondInflowPerf(bcOptType,bcOptFixed,ptot,ttot,betah,betav, &
                          mach,nx,ny,nz,cp,mw,rl,rul,rvl,rwl,rr,rur, &
-                         rvr,rwr,rer,pr,ksg)
+                         rvr,rwr,rer,pr)
 
     pPatch%mixt%cv(CV_MIXT_DENS,ifl) = rr 
     pPatch%mixt%cv(CV_MIXT_XMOM,ifl) = rur
@@ -3610,7 +3587,6 @@ SUBROUTINE RFLU_NSCBC_InitIFVelTemp(pRegion,pPatch)
   REAL(RFREAL) :: cp,Eo,g,gc,mw,pr,rl,rr,rur,rvr,rwr,tr,ur,vr,wr
   REAL(RFREAL), DIMENSION(:,:), POINTER :: cv,dv,gv,vals
   TYPE(t_global), POINTER :: global
-  REAL(RFREAL) :: ksg
 
 ! ******************************************************************************
 ! Start
@@ -3667,14 +3643,12 @@ SUBROUTINE RFLU_NSCBC_InitIFVelTemp(pRegion,pPatch)
     rvr = rr*vr
     rwr = rr*wr
     
-    ksg = pRegion%mixt%piclKsg(c1)
-
     pPatch%mixt%cv(CV_MIXT_DENS,ifl) = rr 
     pPatch%mixt%cv(CV_MIXT_XMOM,ifl) = rur
     pPatch%mixt%cv(CV_MIXT_YMOM,ifl) = rvr
     pPatch%mixt%cv(CV_MIXT_ZMOM,ifl) = rwr
 
-    Eo = MixtPerf_Eo_DGPUVW(rr,g,Pr,ur,vr,wr,ksg)
+    Eo = MixtPerf_Eo_DGPUVW(rr,g,Pr,ur,vr,wr)
 
     pPatch%mixt%cv(CV_MIXT_ENER,ifl) = rr*Eo
   END DO ! ifl
@@ -3941,7 +3915,6 @@ SUBROUTINE RFLU_NSCBC_InitOF(pRegion,pPatch)
 
 #endif 
 !Fred - 12/29/20 - Adding in species module to NSCBC init
-  REAL(RFREAL) :: ksg
 ! ******************************************************************************
 ! Start
 ! ******************************************************************************
@@ -3993,8 +3966,6 @@ SUBROUTINE RFLU_NSCBC_InitOF(pRegion,pPatch)
     rwl = pRegion%mixt%cv(CV_MIXT_ZMOM,c1)
     rel = pRegion%mixt%cv(CV_MIXT_ENER,c1)
 
-    ksg = pRegion%mixt%piclKsg(c1)
-
     
     IF (pRegion%mixtInput%gasModel == GAS_MODEL_MIXT_JWL) THEN
 #ifdef SPEC
@@ -4033,14 +4004,14 @@ SUBROUTINE RFLU_NSCBC_InitOF(pRegion,pPatch)
 #ifdef SPEC
     IF ( global%specUsed .EQV. .TRUE. ) THEN
         Eo = RFLU_JWL_E_PR(pRegion,pl,rl,YProducts)
-        Eo = Eo + 0.5_RFREAL*(ul*ul+vl*vl+wl*wl) + ksg
+        Eo = Eo + 0.5_RFREAL*(ul*ul+vl*vl+wl*wl)
     ELSE
         WRITE(*,*) 'Error - Must invoke Species module when using JWL NSCBC!!!'
         CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__) ! Defensive coding
     END IF !SpecUsed 
 #endif  
    ELSE 
-    Eo = MixtPerf_Eo_DGPUVW(rl,g,Pr,ul,vl,wl,ksg)
+    Eo = MixtPerf_Eo_DGPUVW(rl,g,Pr,ul,vl,wl)
    END IF !MixtJWL
 
     pPatch%mixt%cv(CV_MIXT_ENER,ifl) = rl*Eo
@@ -4109,7 +4080,6 @@ SUBROUTINE RFLU_NSCBC_InitSW(pRegion,pPatch)
   TYPE(t_spec_input), POINTER :: pSpecInput
 #endif
   !Fred - Added JWL EOS Capabilities - 9/11/15
-  REAL(RFREAL) :: ksg
 ! ******************************************************************************
 ! Start
 ! ******************************************************************************
@@ -4155,8 +4125,6 @@ SUBROUTINE RFLU_NSCBC_InitSW(pRegion,pPatch)
     rwl = pRegion%mixt%cv(CV_MIXT_ZMOM,c1)
     rel = pRegion%mixt%cv(CV_MIXT_ENER,c1)
     
-    ksg = pRegion%mixt%piclKsg(c1)
-
     ul = rul/rl
     vl = rvl/rl
     wl = rwl/rl
@@ -4271,7 +4239,7 @@ SUBROUTINE RFLU_NSCBC_InitSW(pRegion,pPatch)
     END IF !specUsed
 #endif
     ELSE
-    Eo = MixtPerf_Eo_DGPUVW(rr,g,Pr,ur,vr,wr,ksg)
+    Eo = MixtPerf_Eo_DGPUVW(rr,g,Pr,ur,vr,wr)
     END IF
 
     pPatch%mixt%cv(CV_MIXT_ENER,ifl) = rr*Eo

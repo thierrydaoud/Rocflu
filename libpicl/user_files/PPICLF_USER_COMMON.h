@@ -11,7 +11,7 @@
      >   rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag,
      >   qs_fluct_filter_adapt_flag,
      >   ViscousUnsteady_flag, ppiclf_nUnsteadyData,ppiclf_nTimeBH,
-     >   sbNearest_flag, flow_model, pseudoTurb_flag,
+     >   sbNearest_flag, flow_model,
      >   HTUnsteady_flag, out_particle_flag, out_gas_flag,
      >   out_gradgas_flag, out_model_flag
       real*8 :: rmu_ref, tref, suth, ksp, erest
@@ -22,7 +22,7 @@
      >   rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag,
      >   qs_fluct_filter_adapt_flag,
      >   ViscousUnsteady_flag, ppiclf_nUnsteadyData,ppiclf_nTimeBH,
-     >   sbNearest_flag, flow_model, pseudoTurb_flag,
+     >   sbNearest_flag, flow_model,
      >   HTUnsteady_flag, out_particle_flag, out_gas_flag,
      >   out_gradgas_flag, out_model_flag
 

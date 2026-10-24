@@ -85,7 +85,7 @@ SUBROUTINE PICL_ReadPiclSection( global )
   INTEGER :: nVals
 
   INTEGER :: iReg
-  INTEGER, PARAMETER :: NVALS_MAX = 29
+  INTEGER, PARAMETER :: NVALS_MAX = 28
 
   CHARACTER(20) :: keys(NVALS_MAX)
 
@@ -124,17 +124,16 @@ SUBROUTINE PICL_ReadPiclSection( global )
   keys(19)  = 'PERIODICY'
   keys(20)  = 'PERIODICZ'
   keys(21)  = 'SUBBIN'
-  keys(22)  = 'PSEUDOTURB'
-  keys(23)  = 'VUSTEPS'
+  keys(22)  = 'VUSTEPS'
 ! Optional groups of fields in the particle files (ppiclf_user_OutputFields).
 ! No key may be the start of another: ReadSection matches the start of a line.
-  keys(24)  = 'PARTICLE_WRT'
-  keys(25)  = 'GAS_WRT'
-  keys(26)  = 'GRADGAS_WRT'
-  keys(27)  = 'MODEL_WRT'
+  keys(23)  = 'PARTICLE_WRT'
+  keys(24)  = 'GAS_WRT'
+  keys(25)  = 'GRADGAS_WRT'
+  keys(26)  = 'MODEL_WRT'
 ! Particle material, the same for every particle
-  keys(28)  = 'DENSITY'
-  keys(29)  = 'SPECIFICHEAT'
+  keys(27)  = 'DENSITY'
+  keys(28)  = 'SPECIFICHEAT'
  
   CALL ReadSection( global,IF_INPUT,nVals,keys(1:nVals),vals(1:nVals), & 
                     defined(1:nVals) ) 
@@ -227,19 +226,15 @@ SUBROUTINE PICL_ReadPiclSection( global )
   END IF
 
   IF (defined(22) .EQV. .TRUE. ) THEN
-    global%piclPseudoTurbFlag = NINT(vals(22))
+    global%piclVUSteps = NINT(vals(22))
   END IF
 
-  IF (defined(23) .EQV. .TRUE. ) THEN
-    global%piclVUSteps = NINT(vals(23))
-  END IF
-
-  IF (defined(24) .EQV. .TRUE. ) global%piclOutParticle = NINT(vals(24))
-  IF (defined(25) .EQV. .TRUE. ) global%piclOutGas      = NINT(vals(25))
-  IF (defined(26) .EQV. .TRUE. ) global%piclOutGradGas  = NINT(vals(26))
-  IF (defined(27) .EQV. .TRUE. ) global%piclOutModel    = NINT(vals(27))
-  IF (defined(28) .EQV. .TRUE. ) global%piclDensity      = vals(28)
-  IF (defined(29) .EQV. .TRUE. ) global%piclSpecificHeat = vals(29)
+  IF (defined(23) .EQV. .TRUE. ) global%piclOutParticle = NINT(vals(23))
+  IF (defined(24) .EQV. .TRUE. ) global%piclOutGas      = NINT(vals(24))
+  IF (defined(25) .EQV. .TRUE. ) global%piclOutGradGas  = NINT(vals(25))
+  IF (defined(26) .EQV. .TRUE. ) global%piclOutModel    = NINT(vals(26))
+  IF (defined(27) .EQV. .TRUE. ) global%piclDensity      = vals(27)
+  IF (defined(28) .EQV. .TRUE. ) global%piclSpecificHeat = vals(28)
 
 ! Values and combinations are checked before the run by
 ! utilities/scripts/case_validator.py (./rocflu.sh validate)

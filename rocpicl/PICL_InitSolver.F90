@@ -151,7 +151,7 @@ INTEGER :: errorFlag,icg
         rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag, &
         qs_fluct_filter_adapt_flag, &
         ViscousUnsteady_flag, ppiclf_nUnsteadyData,ppiclf_nTimeBH, &
-        sbNearest_flag, flow_model, pseudoTurb_flag, &
+        sbNearest_flag, flow_model, &
         HTUnsteady_flag, out_particle_flag, out_gas_flag, &
         out_gradgas_flag, out_model_flag
    REAL(RFREAL) :: rmu_ref, tref, suth, ksp, erest
@@ -162,7 +162,7 @@ INTEGER :: errorFlag,icg
         rmu_fixed_param, rmu_suth_param, qs_fluct_filter_flag, &
         qs_fluct_filter_adapt_flag, &
         ViscousUnsteady_flag, ppiclf_nUnsteadyData,ppiclf_nTimeBH, &
-        sbNearest_flag, flow_model, pseudoTurb_flag, &
+        sbNearest_flag, flow_model, &
         HTUnsteady_flag, out_particle_flag, out_gas_flag, &
         out_gradgas_flag, out_model_flag
    ! entries per particle in y and rprop (ppiclf_user_Layout)
@@ -220,7 +220,6 @@ HTUnsteady_flag = global%piclHTUnsteadyFlag
 feedback_flag = global%piclFeedbackFlag
 qs_fluct_flag = global%piclQsFluctFlag
 sbNearest_flag = global%piclSBNearFlag
-pseudoTurb_flag = global%piclPseudoTurbFlag
 ! optional groups of fields in the particle files
 out_particle_flag = global%piclOutParticle
 out_gas_flag      = global%piclOutGas
@@ -852,7 +851,6 @@ IF ( showDetail ) then
    print*, 'Velocity Model              = ',global%piclVelocityModel
    print*, 'QS Flag                     = ',global%piclQsFlag
    print*, 'QS Fluct Flag               = ',global%piclQsFluctFlag
-   print*, 'Pseudo Turbulence Flag      = ',pseudoTurb_flag
    print*, 'Added Mass Flag             = ',global%piclAmFlag
    print*, 'Pressure Gradient Flag      = ',global%piclPgFlag
    print*, 'Collisions Flag             = ',global%piclCollisionFlag

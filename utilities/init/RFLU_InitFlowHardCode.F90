@@ -218,8 +218,6 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
 
 ! Rahul - End
 
-  REAL(RFREAL) :: ksg
-
 ! ******************************************************************************
 ! Start
 ! ******************************************************************************
@@ -336,12 +334,11 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                  cp = pGv(GV_MIXT_CP ,indCp *icg)
                  gc = MixtPerf_R_M(mw)
                  g  = MixtPerf_G_CpR(cp,gc)
-                 ksg = 0.0_RFREAL
                  pCv(CV_MIXT_DENS,icg) = d
                  pCv(CV_MIXT_XMOM,icg) = d*u
                  pCv(CV_MIXT_YMOM,icg) = d*v
                  pCv(CV_MIXT_ZMOM,icg) = d*w
-                 pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+                 pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
               END DO ! icg
 
               !DO icg = 1,pGrid%nCellsTot
@@ -373,13 +370,12 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
               !   gc = MixtPerf_R_M(mw)
               !   g  = MixtPerf_G_CpR(cp,gc)
               !   
-              !   ksg = 0.0_RFREAL
    
               !   pCv(CV_MIXT_DENS,icg) = d
               !   pCv(CV_MIXT_XMOM,icg) = d*u
               !   pCv(CV_MIXT_YMOM,icg) = d*v
               !   pCv(CV_MIXT_ZMOM,icg) = d*w
-              !   pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+              !   pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
     
               !END DO ! icg
            ENDIF ! non-JWL case
@@ -424,12 +420,10 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                  pCv(CV_MIXT_YMOM,icg) = d*v
                  pCv(CV_MIXT_ZMOM,icg) = d*w
                  
-                 ksg = 0.0_RFREAL
-
                  ! Compute or read e - jgarno
                  IF (d == pMixtInput%prepRealVal3) THEN
                     ! Ideal gas law for Air
-                    pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+                    pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
                  ELSE
                     ! JWL for Products
                     ! Note e2 should be read in from onedx_hmx_mgeos.dat
@@ -447,7 +441,7 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                     if ( e2 .lt. 2.00E+05_RFREAL ) then
                        e2 = 2.00E+05_RFREAL
                     endif
-                    pCv(CV_MIXT_ENER,icg) = d*(e2 + 0.5_RFREAL*w*w + ksg)
+                    pCv(CV_MIXT_ENER,icg) = d*(e2 + 0.5_RFREAL*w*w)
                     !pCv(CV_MIXT_ENER,icg) = d*e
                  ENDIF
               END DO ! icg
@@ -691,12 +685,10 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                  IF (Y  .LE. 1.0E-20_RFREAL) Y  = 0.0_RFREAL
                  IF (YR .LE. 1.0E-20_RFREAL) YR = 0.0_RFREAL
                  
-                 ksg = 0.0_RFREAL
-
                  ! We reset the minimum internal energy to the ambient
                  ! values because RocSDT assumes the strong shock approximation
                  if (e2 .lt. TLJ_eamb) e2 = TLJ_eamb
-                 etotal = d*(e2+0.5_RFREAL*(u*u+v*v+w*w) + ksg)
+                 etotal = d*(e2+0.5_RFREAL*(u*u+v*v+w*w))
                  p = e
 
                  ! TLJ - treatment for open or closed barrel
@@ -710,7 +702,7 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                  pCv(CV_MIXT_XMOM,icg) = d*u
                  pCv(CV_MIXT_YMOM,icg) = d*v
                  pCv(CV_MIXT_ZMOM,icg) = d*w
-                 pCv(CV_MIXT_ENER,icg) = d*(e2 + 0.5_RFREAL*(u*u+v*v+w*w) + ksg)
+                 pCv(CV_MIXT_ENER,icg) = d*(e2 + 0.5_RFREAL*(u*u+v*v+w*w))
    
                  ! We need these for plotting solutions
                  !pDv(DV_MIXT_PRES,icg) = p
@@ -735,13 +727,11 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
    
                  e2 = p/(d*0.4_RFREAL)  ! e = p/(\rho*(gamma-1))
                  
-                 ksg = 0.0_RFREAL
-   
                  pCv(CV_MIXT_DENS,icg) = d
                  pCv(CV_MIXT_XMOM,icg) = d*u
                  pCv(CV_MIXT_YMOM,icg) = d*v
                  pCv(CV_MIXT_ZMOM,icg) = d*w
-                 pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+                 pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
    
                  ! We need these for plotting solutions
                  !pDv(DV_MIXT_PRES,icg) = p
@@ -830,13 +820,11 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
 
-            ksg = 0.0_RFREAL
-                               
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 
@@ -917,13 +905,11 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                  gc = MixtPerf_R_M(mw)
                  g  = MixtPerf_G_CpR(cp,gc)
                  
-                 ksg = 0.0_RFREAL
-
                  pCv(CV_MIXT_DENS,icg) = d
                  pCv(CV_MIXT_XMOM,icg) = d*u
                  pCv(CV_MIXT_YMOM,icg) = d*v
                  pCv(CV_MIXT_ZMOM,icg) = d*w
-                 pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+                 pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
 
               END DO ! icg
 
@@ -982,12 +968,10 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                  pCv(CV_MIXT_YMOM,icg) = d*v
                  pCv(CV_MIXT_ZMOM,icg) = d*w
                  
-                 ksg = 0.0_RFREAL
-
                  ! Compute or read e - jgarno
                  IF (d == pMixtInput%prepRealVal3) THEN
                     ! Ideal gas law for Air
-                    pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+                    pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
                  ELSE
                     ! JWL for Products
                     ! Note e2 should be read in from onedx_hmx_mgeos.dat
@@ -1010,7 +994,7 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                        e2 = ea
                        p  = pa
                     endif
-                    pCv(CV_MIXT_ENER,icg) = d*(e2 + 0.5_RFREAL*(u*u+v*v+w*w) + ksg)
+                    pCv(CV_MIXT_ENER,icg) = d*(e2 + 0.5_RFREAL*(u*u+v*v+w*w))
                  ENDIF
               END DO ! icg
 
@@ -1241,12 +1225,10 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                  vy = u*sin(theta)
                  wz = w
                  
-                 ksg = 0.0_RFREAL
-
                  ! We reset the minimum internal energy to the ambient
                  ! values because RocSDT assumes the strong shock approximation
                  if (e2 .lt. TLJ_eamb) e2 = TLJ_eamb
-                 etotal = d*(e2+0.5_RFREAL*(ux*ux + vy*vy + wz*wz) + ksg)
+                 etotal = d*(e2+0.5_RFREAL*(ux*ux + vy*vy + wz*wz))
                  p = e
 
                  pCv(CV_MIXT_DENS,icg) = d
@@ -1276,15 +1258,13 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                  gc = MixtPerf_R_M(mw)
                  g  = MixtPerf_G_CpR(cp,gc)
                  
-                 ksg = 0.0_RFREAL
-   
                  e2 = p/(d*0.4_RFREAL)
 
                  pCv(CV_MIXT_DENS,icg) = d
                  pCv(CV_MIXT_XMOM,icg) = d*u
                  pCv(CV_MIXT_YMOM,icg) = d*v
                  pCv(CV_MIXT_ZMOM,icg) = d*w
-                 pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+                 pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
    
                  ! We need these for plotting solutions
                  !pDv(DV_MIXT_PRES,icg) = p
@@ -1373,13 +1353,11 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
              gc = MixtPerf_R_M(mw)
              g  = MixtPerf_G_CpR(cp,gc)
              
-             ksg = 0.0_RFREAL
- 
              pCv(CV_MIXT_DENS,icg) = d
              pCv(CV_MIXT_XMOM,icg) = d*u
              pCv(CV_MIXT_YMOM,icg) = d*v
              pCv(CV_MIXT_ZMOM,icg) = d*w
-             pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+             pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
 
           END DO ! icg
 
@@ -1425,12 +1403,10 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                  pCv(CV_MIXT_YMOM,icg) = d*v
                  pCv(CV_MIXT_ZMOM,icg) = d*w
                  
-                 ksg = 0.0_RFREAL
-
                  ! Compute or read e - jgarno
                  IF (d == pMixtInput%prepRealVal3) THEN
                     ! Ideal gas law for Air
-                    pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+                    pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
                  ELSE
                     ! JWL for Products
                     ! Note e2 should be read in from onedx_hmx_mgeos.dat
@@ -1449,7 +1425,7 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                     if ( e2 .lt. 2.00E+05_RFREAL ) then
                        e2 = 2.00E+05_RFREAL
                     endif
-                    pCv(CV_MIXT_ENER,icg) = d*(e2 + 0.5_RFREAL*w*w + ksg)
+                    pCv(CV_MIXT_ENER,icg) = d*(e2 + 0.5_RFREAL*w*w)
                     !pCv(CV_MIXT_ENER,icg) = d*e
                  ENDIF
               END DO ! icg
@@ -1597,8 +1573,6 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
               y = pGrid%cofg(YCOORD,icg)  !Extract y coordinate of cellcentroid
               z = pGrid%cofg(ZCOORD,icg)  !Extract z coordinate of cellcentroid
               
-              ksg = 0.0_RFREAL
-
               radius = SQRT(x**2 + y**2)
               theta = DATAN2(y,x)
 
@@ -1689,7 +1663,7 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                  ! We reset the minimum internal energy to the ambient
                  ! values because RocSDT assumes the strong shock approximation
                  if (e2 .lt. TLJ_eamb) e2 = TLJ_eamb
-                 etotal = d*(e2+0.5_RFREAL*(ux*ux + vy*vy + wz*wz) + ksg)
+                 etotal = d*(e2+0.5_RFREAL*(ux*ux + vy*vy + wz*wz))
                  p = e
 
                  pCv(CV_MIXT_DENS,icg) = d
@@ -1721,13 +1695,11 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
 
                  e2 = p/(d*0.4_RFREAL)
                  
-                 ksg = 0.0_RFREAL
-
                  pCv(CV_MIXT_DENS,icg) = d
                  pCv(CV_MIXT_XMOM,icg) = d*u
                  pCv(CV_MIXT_YMOM,icg) = d*v
                  pCv(CV_MIXT_ZMOM,icg) = d*w
-                 pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+                 pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
 
                  ! We need these for plotting solutions
                  !pDv(DV_MIXT_PRES,icg) = p
@@ -1820,13 +1792,11 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
               CALL RFLU_ComputeExactFlowAcoustic(global,x,t,ro,po,Mo,g, &
                                                  A1,A2,d,u,v,w,p)
               
-              ksg = 0.0_RFREAL
-
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
             END IF ! solverType
           END DO ! icg
 
@@ -1918,13 +1888,11 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
                                                 Lx,Ly,Lz,n1,n2,n3,omega, &
                                                 dTot,pTot,aTot,const,d,u,v,w,p) 
                                     
-              ksg = 0.0_RFREAL
-
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,gRef,p,u,v,w,ksg)               
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,gRef,p,u,v,w)               
             END DO ! icg    
           END IF ! solverType
  
@@ -1997,8 +1965,6 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
             y = pGrid%cofg(YCOORD,icg)
             z = pGrid%cofg(ZCOORD,icg)
             
-            ksg = 0.0_RFREAL
-
             IF (ABS(pMixtInput%prepIntVal1) == 0) THEN  !n=0 ; 2D(r-z)
              radius  = y
             ELSE                                        !2D(r-theta) or 3D(r-theta-z)
@@ -2018,13 +1984,12 @@ SUBROUTINE RFLU_InitFlowHardCode(pRegion)
               u = 0.0_RFREAL
               v = 0.0_RFREAL
               w = 0.0_RFREAL
-              ksg = 0.0_RFREAL
               mw = pGv(GV_MIXT_MOL,indMol*icg)
               cp = pGv(GV_MIXT_CP ,indCp *icg)
               gc = MixtPerf_R_M(mw)
               g  = MixtPerf_G_CpR(cp,gc)
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
-              e  = MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
+              e  = MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
             ELSE
               d = pMixtInput%prepRealVal4*pMixtInput%prepRealVal3
               u = 0.0_RFREAL
@@ -2100,7 +2065,7 @@ loop:           DO b=1,n-1
                     w = 0.0_RFREAL
                     e = ( wLow *eData(iLow ) + &
                           wHigh*eData(iHigh) )*wInv
-                pCv(CV_MIXT_ENER,icg) = d*Mixt_Eo_eUVW(e,u,v,w,ksg)
+                pCv(CV_MIXT_ENER,icg) = d*Mixt_Eo_eUVW(e,u,v,w)
               END IF ! global%ifReadFromFile  
 
             END IF ! radius
@@ -2215,13 +2180,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -2318,13 +2281,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
 
           END DO ! icg
 
@@ -2402,12 +2363,11 @@ loop:           DO b=1,n-1
               pCvOld(CV_MIXT_DENS,icg) = d
               pCvOld(CV_MIXT_PRES,icg) = p
             ELSE
-              ksg = 0.0_RFREAL
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
             END IF ! solverType
           END DO ! icg
 
@@ -2458,12 +2418,11 @@ loop:           DO b=1,n-1
               pCvOld(CV_MIXT_DENS,icg) = d
               pCvOld(CV_MIXT_PRES,icg) = p
             ELSE
-              ksg = 0.0_RFREAL
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
             END IF ! solverType
           END DO ! icg
 
@@ -2503,12 +2462,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
 
-            ksg = 0.0_RFREAL
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! End Subbu - Sep 2011
@@ -2547,12 +2505,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
 
-            ksg = 0.0_RFREAL
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
   
 ! ----- With backchamber -----------------------------------------------------	  
@@ -2583,13 +2540,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg	  
 
 ! ------------------------------------------------------------------------------
@@ -2631,13 +2586,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
             
-            ksg = 0.0_RFREAL
-                               
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -2670,13 +2623,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)            
             
-            ksg = 0.0_RFREAL
-            
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)               
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)               
           END DO ! icg     
 
   
@@ -2762,13 +2713,11 @@ loop:           DO b=1,n-1
                 x = x - L/2.0_RFREAL
               END IF ! x
               
-              ksg = 0.0_RFREAL
-
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
             END IF ! solverType
           END DO ! icg
 
@@ -2804,13 +2753,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)            
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)               
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)               
           END DO ! icg     	  
 
 ! ------------------------------------------------------------------------------
@@ -2859,13 +2806,11 @@ loop:           DO b=1,n-1
             d = d + dOffs 
             p = p + pOffs                  
             
-            ksg = 0.0_RFREAL
-                               
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ----- Trigonometric function -------------------------------------------------
@@ -2898,13 +2843,11 @@ loop:           DO b=1,n-1
             d = d + dOffs 
             p = p + pOffs                  
             
-            ksg = 0.0_RFREAL
-                               
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -2977,13 +2920,11 @@ loop:           DO b=1,n-1
             Cvm = (rl*pl*cvl + rg*pg*cvg + rv*pv*cvv)/d
             Vm2 = u*u+v*v+w*w
 
-            ksg = 0.0_RFREAL
- 
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -3015,13 +2956,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
 
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)             
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)             
           END DO ! icg
 
         CASE ( "kjet2","kjet2v3","kjet2v4","kjet2v5" ) 
@@ -3048,13 +2987,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
 
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)             
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)             
           END DO ! icg
 
         CASE ( "kjet2v3mp","kjet2v4mp","kjet2v5mp" )
@@ -3081,13 +3018,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
 
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -3149,13 +3084,11 @@ loop:           DO b=1,n-1
             Cvm = (rl*pl*cvl + rg*pg*cvg + rv*pv*cvv)/d 
             Vm2 = u*u+v*v+w*w
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2)
           END DO ! icg
 
         CASE ( "MShock_H2O_Air002" )
@@ -3213,13 +3146,11 @@ loop:           DO b=1,n-1
             Cvm = (rl*pl*cvl + rg*pg*cvg + rv*pv*cvv)/d
             Vm2 = u*u+v*v+w*w
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -3294,13 +3225,11 @@ loop:           DO b=1,n-1
             Cvm = (rl*pl*cvl + rg*pg*cvg + rv*pv*cvv)/d
             Vm2 = u*u+v*v+w*w
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -3331,13 +3260,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)            
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)               
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)               
           END DO ! icg     
 
 ! ------------------------------------------------------------------------------
@@ -3381,13 +3308,11 @@ loop:           DO b=1,n-1
             v = um*SIN(ATAN2(y,x))
             w = 0.0_RFREAL
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -3422,13 +3347,11 @@ loop:           DO b=1,n-1
             v = 0.0_RFREAL
             w = 0.0_RFREAL
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
         CASE ( "nscbc2" ) 
@@ -3459,13 +3382,11 @@ loop:           DO b=1,n-1
             v = 0.0_RFREAL
             w = 0.0_RFREAL
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
         CASE ( "nscbc3" ) 
@@ -3496,13 +3417,11 @@ loop:           DO b=1,n-1
             u = 0.0_RFREAL
             w = 0.0_RFREAL
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
         CASE ( "nscbc4" ) 
@@ -3533,13 +3452,11 @@ loop:           DO b=1,n-1
             v = uo
             w = 0.0_RFREAL
 
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
         CASE ( "nscbc5" ) 
@@ -3575,13 +3492,11 @@ loop:           DO b=1,n-1
             v = um*SIN(global%pi/4.0_RFREAL)
             w = 0.0_RFREAL
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
         CASE ( "nscbc6" ) 
@@ -3617,13 +3532,11 @@ loop:           DO b=1,n-1
             v = uo*SIN(global%pi/4.0_RFREAL)
             w = 0.0_RFREAL
 
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
         CASE ( "nscbc7" ) 
@@ -3665,13 +3578,11 @@ loop:           DO b=1,n-1
               w = 0.0_RFREAL
             END IF ! x
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -3702,13 +3613,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
                                
-           ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------          
@@ -3770,13 +3679,11 @@ loop:           DO b=1,n-1
             Cvm = (rl*pl*cvl + rg*pg*cvg + rv*pv*cvv)/d
             Vm2 = u*u+v*v+w*w
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -3817,12 +3724,11 @@ loop:           DO b=1,n-1
               pCvOld(CV_MIXT_DENS,icg) = d
               pCvOld(CV_MIXT_PRES,icg) = p
             ELSE 
-              ksg = 0.0_RFREAL
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)               
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)               
             END IF ! global%solverType
           END DO ! icg 
           
@@ -3858,12 +3764,11 @@ loop:           DO b=1,n-1
               pCvOld(CV_MIXT_DENS,icg) = d
               pCvOld(CV_MIXT_PRES,icg) = p
             ELSE 
-              ksg = 0.0_RFREAL
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)               
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)               
             END IF ! global%solverType
           END DO ! icg            
 
@@ -3950,12 +3855,11 @@ loop:           DO b=1,n-1
                                                 L,ro,iBc,im,in,iq,etaqm,omega, &
                                                 dTot,pTot,aTot,const,d,u,v,w,p) 
                                     
-              ksg = 0.0_RFREAL
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,gRef,p,u,v,w,ksg)               
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,gRef,p,u,v,w)               
             END DO ! icg    
           END IF ! solverType
 
@@ -4021,12 +3925,11 @@ loop:           DO b=1,n-1
                                                       uo,po,c,g,L,A,d,u,v,w,p)
               END IF ! radius
 
-              ksg = 0.0_RFREAL
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
             END IF ! solverType
           END DO ! icg
 
@@ -4067,12 +3970,11 @@ loop:           DO b=1,n-1
               pCvOld(CV_MIXT_DENS,icg) = d
               pCvOld(CV_MIXT_PRES,icg) = p
             ELSE
-              ksg = 0.0_RFREAL
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
             END IF ! solverType
           END DO ! icg
 
@@ -4090,13 +3992,11 @@ loop:           DO b=1,n-1
 
             CALL RFLU_ComputeExactFlowRingleb(x,y,gcRef,pTot,tTot,d,u,v,w,p)  
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,1.4_RFREAL,p,u,v,w,ksg)               
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,1.4_RFREAL,p,u,v,w)               
           END DO ! icg    
 
 ! ------------------------------------------------------------------------------
@@ -4172,13 +4072,11 @@ loop:           DO b=1,n-1
             Cvm = (rl*pl*cvl + rg*pg*cvg + rv*pv*cvv)/d
             Vm2 = u*u + v*v + w*w
             
-            ksg = 0.0_RFREAL
-            
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCV(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2)
           END DO ! icg
 
 
@@ -4210,13 +4108,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)            
             
-            ksg = 0.0_RFREAL
-            
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)               
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)               
           END DO ! icg           
   
 ! ------------------------------------------------------------------------------
@@ -4247,13 +4143,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)            
 
-            ksg = 0.0_RFREAL
-            
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)               
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)               
           END DO ! icg           
   
 ! ------------------------------------------------------------------------------
@@ -4284,13 +4178,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)                              
             
-            ksg = 0.0_RFREAL
-                               
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -4330,12 +4222,11 @@ loop:           DO b=1,n-1
               pCvOld(CV_MIXT_DENS,icg) = d
               pCvOld(CV_MIXT_PRES,icg) = p
             ELSE
-              ksg = 0.0_RFREAL
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
             END IF ! solverType
           END DO ! icg
 
@@ -4376,13 +4267,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg 
 
 ! ----- Sod case 1 -------------------------------------------------------------  
@@ -4411,13 +4300,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg                       
   
 ! ----- Sod case 2 -------------------------------------------------------------  
@@ -4446,13 +4333,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
 
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg     
   
 ! ------------------------------------------------------------------------------
@@ -4480,13 +4365,12 @@ loop:           DO b=1,n-1
 
             CALL RFLU_ComputeExactFlowSsVortex(x,y,gRef,gcRef,ri,Mi,pTot, & 
                                                tTot,d,u,v,w,p)
-            ksg = 0.0_RFREAL
 
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,gRef,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,gRef,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -4541,13 +4425,12 @@ loop:           DO b=1,n-1
               t = global%currentTime
               CALL RFLU_ComputeExactFlowTaylorVortex(t,pi,x,y,L,refL,refNu, &
                                                      refU,refD,refP,u,v,w,p)
-              ksg = 0.0_RFREAL
 
               pCv(CV_MIXT_DENS,icg) = d
               pCv(CV_MIXT_XMOM,icg) = d*u
               pCv(CV_MIXT_YMOM,icg) = d*v
               pCv(CV_MIXT_ZMOM,icg) = d*w
-              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+              pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
             END IF ! solverType
           END DO ! icg
 
@@ -4610,13 +4493,11 @@ loop:           DO b=1,n-1
             Cvm = (rl*pl*cvl + rg*pg*cvg + rv*pv*cvv)/d
             Vm2 = u*u+v*v+w*w
             
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCV(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -4649,13 +4530,11 @@ loop:           DO b=1,n-1
 
             d = MixtPerf_D_PRT(p,gc,t)
 
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -4701,13 +4580,11 @@ loop:           DO b=1,n-1
             w = 0.0_RFREAL
             p = po + (d*A*psi)/(Rc*Rc)
 
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -4731,13 +4608,11 @@ loop:           DO b=1,n-1
             w = 0.0_RFREAL
             p = 1.0E+5_RFREAL  
 
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------
@@ -4769,13 +4644,11 @@ loop:           DO b=1,n-1
             gc = MixtPerf_R_M(mw)
             g  = MixtPerf_G_CpR(cp,gc)
 
-            ksg = 0.0_RFREAL
-
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w,ksg)                   
+            pCv(CV_MIXT_ENER,icg) = d*MixtPerf_Eo_DGPUVW(d,g,p,u,v,w)                   
           END DO ! icg
           
 ! ------------------------------------------------------------------------------
@@ -4836,13 +4709,12 @@ loop:           DO b=1,n-1
 
             Cvm = (rl*pl*cvl + rg*pg*cvg + rv*pv*cvv)/d
             Vm2 = u*u+v*v+w*w
-            ksg = 0.0_RFREAL
 
             pCv(CV_MIXT_DENS,icg) = d
             pCv(CV_MIXT_XMOM,icg) = d*u
             pCv(CV_MIXT_YMOM,icg) = d*v
             pCv(CV_MIXT_ZMOM,icg) = d*w
-            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2,ksg)
+            pCv(CV_MIXT_ENER,icg) = d*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2)
           END DO ! icg
 
 ! ------------------------------------------------------------------------------

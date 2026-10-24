@@ -97,7 +97,7 @@
 SUBROUTINE BcondOutflowPerf_GL(bcOpt,ro,Po,To,betaP,betaT,cvl,cvv,cvg,Rg,Rv, &
                                 pout,sxn,syn,szn,rho,rhou,rhov,rhow,rhoe, &
                                 rhogpg,rhovpv,pin,rhob,rhoub,rhovb,rhowb, &
-                                rhoeb,rhogpgb,rhovpvb,ksg)
+                                rhoeb,rhogpgb,rhovpvb)
 
   USE ModDataTypes
   USE ModParameters
@@ -120,8 +120,7 @@ SUBROUTINE BcondOutflowPerf_GL(bcOpt,ro,Po,To,betaP,betaT,cvl,cvv,cvg,Rg,Rv, &
   
   INTEGER :: bcOpt
   REAL(RFREAL), INTENT(IN) :: betaP,betaT,cvg,cvl,cvv,pin,Po,pout,Rg,rho,rhoe, &
-                              rhogpg,rhou,rhov,rhovpv,rhow,ro,Rv,sxn,syn,szn,To,&
-                              ksg
+                              rhogpg,rhou,rhov,rhovpv,rhow,ro,Rv,sxn,syn,szn,To
   REAL(RFREAL), INTENT(OUT) :: rhob,rhoeb,rhogpgb,rhoub,rhovb,rhovpvb,rhowb 
 
 ! ==============================================================================
@@ -144,7 +143,7 @@ SUBROUTINE BcondOutflowPerf_GL(bcOpt,ro,Po,To,betaP,betaT,cvl,cvv,cvg,Rg,Rv, &
   rholpl = rho - rhovpv - rhogpg 
   cvm    = (rholpl*cvl + rhovpv*cvv + rhogpg*cvg)/rho
   e      = rhoe/rho
-  t      = MixtPerf_T_CvEoVm2(cvm,e,Vel2,ksg)
+  t      = MixtPerf_T_CvEoVm2(cvm,e,Vel2)
 
   Cl2 = MixtLiq_C2_Bp(betaP)
   Cv2 = MixtPerf_C2_GRT(1.0_RFREAL,Rv,t)

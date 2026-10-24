@@ -101,7 +101,6 @@ SUBROUTINE RFLU_CentralFirstPatch_GL(pRegion,pPatch)
                            MixtPerf_R_CpG, &
                            RFLU_DecidePrint, &
                            RFLU_PrintLocInfo
-  USE ModMixture, ONLY: t_mixt
 
   IMPLICIT NONE
 
@@ -135,7 +134,6 @@ SUBROUTINE RFLU_CentralFirstPatch_GL(pRegion,pPatch)
   REAL(RFREAL), DIMENSION(:), POINTER :: mfMixt
   REAL(RFREAL), DIMENSION(:,:), POINTER :: cv,dv,gv,pCvSpec,rhs,vals,sd
   TYPE(t_global), POINTER :: global
-  REAL(RFREAL) :: ksg
 
 ! ******************************************************************************
 ! Start
@@ -229,8 +227,6 @@ SUBROUTINE RFLU_CentralFirstPatch_GL(pRegion,pPatch)
         pl  = dv(DV_MIXT_PRES,c1)
         cml = dv(DV_MIXT_SOUN,c1)
         
-        ksg = pRegion%mixt%piclKsg(c1)
-
         rgpgl = pCvSpec(1,c1)
         rvpvl = pCvSpec(2,c1)
         rlpll = rl - rgpgl - rvpvl  
@@ -269,7 +265,7 @@ SUBROUTINE RFLU_CentralFirstPatch_GL(pRegion,pPatch)
                                 Rg,Rv,ur,vr,wr,vfgr,vfvr,vflr,temp, &  
                                 press,nx,ny,nz,rl,rul,rvl,rwl,rel, &  
                                 rgpgl,rvpvl,pl,rr,rur,rvr,rwr,rer, &
-                                rgpgr,rvpvr,pr,ksg)
+                                rgpgr,rvpvr,pr)
 
         ql = (rul*nx + rvl*ny + rwl*nz)/rl - fs
         qr = (rur*nx + rvr*ny + rwr*nz)/rr - fs
@@ -365,8 +361,6 @@ SUBROUTINE RFLU_CentralFirstPatch_GL(pRegion,pPatch)
         rel = cv(CV_MIXT_ENER,c1)
         pl  = dv(DV_MIXT_PRES,c1)
         
-        ksg = pRegion%mixt%piclKsg(c1)
-
         rgpgl = pCvSpec(1,c1)
         rvpvl = pCvSpec(2,c1)
         rlpll = rl - rgpgl - rvpvl
@@ -380,7 +374,7 @@ SUBROUTINE RFLU_CentralFirstPatch_GL(pRegion,pPatch)
         CALL BcondOutflowPerf_GL(bcOptType,ro,po,to,Bp,Bt,cvl, &
                                  cvv,cvg,Rg,Rv,pr,nx,ny,nz,rl, &
                                  rul,rvl,rwl,rel,rgpgl,rvpvl,pl, &
-                                 rr,rur,rvr,rwr,rer,rgpgr,rvpvr,ksg)
+                                 rr,rur,rvr,rwr,rer,rgpgr,rvpvr)
 
         ql = (rul*nx + rvl*ny + rwl*nz)/rl - fs
         qr = (rur*nx + rvr*ny + rwr*nz)/rr - fs

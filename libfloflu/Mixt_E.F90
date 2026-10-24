@@ -67,16 +67,16 @@
 !
 !******************************************************************************
 
-FUNCTION Mixt_Eo_eUVW(e,U,V,W,KSG)
+FUNCTION Mixt_Eo_eUVW(e,U,V,W)
 
   USE ModDataTypes
 
   IMPLICIT NONE
   
-  REAL(RFREAL), INTENT(IN) :: e,U,V,W,KSG
+  REAL(RFREAL), INTENT(IN) :: e,U,V,W
   REAL(RFREAL) :: Mixt_Eo_eUVW
    
-  Mixt_Eo_eUVW = e + 0.5_RFREAL*(U*U + V*V + W*W) + KSG
+  Mixt_Eo_eUVW = e + 0.5_RFREAL*(U*U + V*V + W*W)
 
 END FUNCTION Mixt_Eo_eUVW
 

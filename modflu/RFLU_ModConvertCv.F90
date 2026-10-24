@@ -81,7 +81,6 @@ MODULE RFLU_ModConvertCv
 #ifdef PLAG
     USE PLAG_ModParameters
 #endif   
-  USE ModMixture, ONLY: t_mixt 
 
   IMPLICIT NONE
    
@@ -409,7 +408,6 @@ MODULE RFLU_ModConvertCv
     USE ModInterfacesSpecies, ONLY: SPEC_GetSpeciesIndex
     USE SPEC_RFLU_ModPBAUtils, ONLY: SPEC_RFLU_PBA_GetSolution
 #endif
-    USE ModMixture, ONLY: t_mixt
 
 ! ******************************************************************************
 !   Definitions and declarations
@@ -435,7 +433,6 @@ MODULE RFLU_ModConvertCv
     REAL(RFREAL) :: r_pure !Varaible to hold pure (non-vf weighted) density for conversions/EoS calls
 #endif                    
 
-    REAL(RFREAL) :: ksg ! Variable for Pseudo-turbulent kinetic energy
 #ifdef PICL    
     REAL(RFREAL) :: r_pure !Varaible to hold pure (non-vf weighted) density for conversions/EoS calls
 #endif
@@ -516,8 +513,6 @@ MODULE RFLU_ModConvertCv
                   w = pCv(CV_MIXT_ZVEL,icg)
                   p = pCv(CV_MIXT_PRES,icg)
 
-                  ksg = pRegion%mixt%piclKsg(icg) 
-
                   pCv(CV_MIXT_XMOM,icg) = r*u
                   pCv(CV_MIXT_YMOM,icg) = r*v
                   pCv(CV_MIXT_ZMOM,icg) = r*w
@@ -527,17 +522,17 @@ MODULE RFLU_ModConvertCv
 #ifdef PLAG
                       IF(global%plagUsed .EQV. .TRUE.) THEN
                       r_pure = r/(1.0_RFREAL-pRegion%plag%vFracE(1,indVFracE*icg))
-                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r_pure,g,p,u,v,w,ksg)
+                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r_pure,g,p,u,v,w)
                       ELSE
-                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w,ksg)
+                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w)
                       END IF !plagUsed
 #elif defined(PICL)
                       IF ( global%piclUsed .EQV. .TRUE. ) THEN
                        r_pure = r/(1.0_RFREAL-pRegion%mixt%piclVF(icg))
-                       pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r_pure,g,p,u,v,w,ksg)
+                       pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r_pure,g,p,u,v,w)
                       END IF
 #else
-                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w,ksg)
+                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w)
 #endif
 
 
@@ -553,8 +548,6 @@ MODULE RFLU_ModConvertCv
                     w = pCv(CV_MIXT_ZVEL,icg)
                     p = pDv(DV_MIXT_PRES,icg)
                     
-                    ksg = pRegion%mixt%piclKsg(icg) 
-
                     pCv(CV_MIXT_XMOM,icg) = r*u
                     pCv(CV_MIXT_YMOM,icg) = r*v
                     pCv(CV_MIXT_ZMOM,icg) = r*w
@@ -567,17 +560,17 @@ MODULE RFLU_ModConvertCv
 #ifdef PLAG
                       IF(global%plagUsed .EQV. .TRUE.) THEN
                       r_pure = r/(1.0_RFREAL-pRegion%plag%vFracE(1,indVFracE*icg))
-                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r_pure,g,p,u,v,w,ksg)
+                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r_pure,g,p,u,v,w)
                       ELSE
-                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w,ksg)
+                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w)
                       END IF !plagUsed
 #elif defined (PICL)
                       IF ( global%piclUsed .EQV. .TRUE. ) THEN
                        r_pure = r/(1.0_RFREAL-pRegion%mixt%piclVF(icg))
-                       pCv(CV_MIXT_ENER,icg) =r*MixtPerf_Eo_DGPUVW(r_pure,g,p,u,v,w,ksg)
+                       pCv(CV_MIXT_ENER,icg) =r*MixtPerf_Eo_DGPUVW(r_pure,g,p,u,v,w)
                       END IF
 #else
-                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w,ksg)
+                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w)
 #endif
 
                   END DO ! icg 
@@ -621,8 +614,6 @@ MODULE RFLU_ModConvertCv
                     gc = MixtPerf_R_M(mw)
                     g  = MixtPerf_G_CpR(cp,gc)
                     
-                    ksg = pRegion%mixt%piclKsg(icg) 
-
                     !vFrac = (1.0_RFREAL - pRegion%plag%vFracE(1,indVFracE*icg))
 
 #ifdef PLAG
@@ -650,14 +641,14 @@ MODULE RFLU_ModConvertCv
                      IF(global%plagUsed .EQV. .TRUE.) THEN
                      pCv(CV_MIXT_ENER,icg) =r*MIxtPerf_Eo_DGPUVW(r_pure,g,p,u,v,w)
                      ELSE
-                     pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w,ksg)
+                     pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w)
                      END IF !plagUsed
 #elif defined(PICL)
                       IF ( global%piclUsed .EQV. .TRUE. ) THEN
-                       pCv(CV_MIXT_ENER,icg) =r*MixtPerf_Eo_DGPUVW(r_pure,g,p,u,v,w,ksg)
+                       pCv(CV_MIXT_ENER,icg) =r*MixtPerf_Eo_DGPUVW(r_pure,g,p,u,v,w)
                       END IF
 #else
-                     pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w,ksg)
+                     pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w)
 #endif
                     ELSEIF ( ABS(1.0_RFREAL-YExplosive) < nTol ) THEN
                       ro = pRegion%mixtInput%prepRealVal6
@@ -666,17 +657,17 @@ MODULE RFLU_ModConvertCv
                       CALL SPEC_RFLU_PBA_GetSolution(gProducts,gcProducts,ro,po,ud, &
                                                      YProducts,e,p,d,dummyVal,dummyVal)
 
-                      pCv(CV_MIXT_ENER,icg) = d*(e + 0.5_RFREAL*(u*u+v*v+w*w) + ksg)
+                      pCv(CV_MIXT_ENER,icg) = d*(e + 0.5_RFREAL*(u*u+v*v+w*w))
                     ELSE
                       p                     = p/YProducts
 #ifdef PLAG
                       IF(global%plagUsed .EQV. .TRUE.) THEN
-                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r_pure,gProducts,p,u,v,w,ksg)
+                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r_pure,gProducts,p,u,v,w)
                       ELSE
-                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w,ksg)
+                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w)
                       END IF !plagUsed
 #else
-                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w,ksg)
+                      pCv(CV_MIXT_ENER,icg) = r*MixtPerf_Eo_DGPUVW(r,g,p,u,v,w)
 #endif 
                       !Fred Note - This implemntation is most likely correct now
                       !if running program burn + plag...but should be double
@@ -687,7 +678,7 @@ MODULE RFLU_ModConvertCv
 
 #ifdef PICL
                       IF ( global%piclUsed .EQV. .TRUE. ) THEN
-                       pCv(CV_MIXT_ENER,icg) =r*MixtPerf_Eo_DGPUVW(r_pure,gProducts,p,u,v,w,ksg)
+                       pCv(CV_MIXT_ENER,icg) =r*MixtPerf_Eo_DGPUVW(r_pure,gProducts,p,u,v,w)
                       END IF
 #endif
                     END IF ! YExplosive
@@ -731,9 +722,8 @@ MODULE RFLU_ModConvertCv
 
                 Cvm = (rYl*cvl + rYg*cvg + rYv*cvv)/r
                 Vm2 = u*u + v*v + w*w
-                ksg = pRegion%mixt%piclKsg(icg)
 
-                pCv(CV_MIXT_ENER,icg) = r*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2,ksg)
+                pCv(CV_MIXT_ENER,icg) = r*MixtGasLiq_Eo_CvmTVm2(Cvm,t,Vm2)
               END DO ! icg
 #else
               CALL ErrorStop(global,ERR_GASMODEL_INVALID,__LINE__, & 
@@ -767,8 +757,6 @@ MODULE RFLU_ModConvertCv
                   w = pCv(CV_MIXT_ZVEL,icg)
                   p = pDv(DV_MIXT_PRES,icg)
                   
-                  ksg = pRegion%mixt%piclKsg(icg)
-
                   pCv(CV_MIXT_XMOM,icg) = r*u
                   pCv(CV_MIXT_YMOM,icg) = r*v
                   pCv(CV_MIXT_ZMOM,icg) = r*w
@@ -783,7 +771,7 @@ MODULE RFLU_ModConvertCv
                   e = YProducts*pDv(DV_MIXT_EJWL,icg) &
                     + (1.0_RFREAL-YProducts)*pDv(DV_MIXT_EPERF,icg) 
                   
-                  pCv(CV_MIXT_ENER,icg) = r*(e + 0.5_RFREAL*(u*u+v*v+w*w) + ksg) 
+                  pCv(CV_MIXT_ENER,icg) = r*(e + 0.5_RFREAL*(u*u+v*v+w*w)) 
 
                 END DO ! icg 
                 

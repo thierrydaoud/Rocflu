@@ -15,7 +15,6 @@ set(PPICLF_RULE_KEYS
   COLLISIONS      global%piclCollisionFlag
   HEATTRANSFER    global%piclHeatTransferFlag
   QSFLUCT         global%piclQSFluctFlag
-  PSEUDOTURB      global%piclPseudoTurbFlag
   MODEL_WRT        global%piclOutModel
   AMFORCE         global%piclAmFlag
   PGFORCE         global%piclPgFlag

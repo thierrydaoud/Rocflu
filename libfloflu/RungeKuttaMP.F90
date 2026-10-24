@@ -283,10 +283,10 @@ SUBROUTINE RungeKuttaMP( regions )
 
 #ifdef PICL
 IF ( global%piclUsed .EQV. .true. ) THEN
-! Update virtual cells with the particle volume fraction (and the
-! pseudo-turbulent kinetic energy) set by PICL_Runge in this stage.
+! Update virtual cells with the particle volume fraction set by
+! PICL_Runge in this stage.
 ! Must precede the dependent variables of virtual cells, computed after
-! the RK update below: the pressure uses 1/(1-phi) (and ksg), and stale
+! the RK update below: the pressure uses 1/(1-phi), and stale
 ! virtual-cell values made the two sides of a region border disagree.
       DO iReg = 1,global%nRegionsLocal
         pRegion => regions(iReg)
@@ -304,26 +304,6 @@ IF ( global%piclUsed .EQV. .true. ) THEN
         pRegion => regions(iReg)
         CALL RFLU_MPI_ClearRequestWrapper(pRegion)
       END DO ! iReg
-
-!! ------ Update PTKE Ksg array for ghost cells ---------
-      if(global%piclPseudoTurbFlag .gt. 0) then
-        DO iReg = 1,global%nRegionsLocal
-          pRegion => regions(iReg)
-          CALL RFLU_MPI_Ksg_ISendWrapper(pRegion)
-        END DO ! iReg
-
-        CALL RFLU_MPI_Ksg_CopyWrapper(regions)
-
-        DO iReg = 1,global%nRegionsLocal
-          pRegion => regions(iReg)
-          CALL RFLU_MPI_Ksg_RecvWrapper(pRegion)
-        END DO ! iReg
-
-        DO iReg = 1,global%nRegionsLocal
-          pRegion => regions(iReg)
-          CALL RFLU_MPI_ClearRequestWrapper(pRegion)
-        END DO ! iReg
-      endif ! PseudoTurbFlag
 
 END IF
 #endif

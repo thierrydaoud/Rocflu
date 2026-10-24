@@ -86,7 +86,7 @@ SUBROUTINE ReadPostSection(global)
 
 ! ... local variables
   INTEGER :: nVals  
-  INTEGER, PARAMETER :: NVALS_MAX = 37
+  INTEGER, PARAMETER :: NVALS_MAX = 36
 
   CHARACTER(CHRLEN) :: RCSIdentString
   CHARACTER(20) :: keys(NVALS_MAX)  
@@ -141,9 +141,8 @@ SUBROUTINE ReadPostSection(global)
   keys(33) = 'SOUNDSPEED_WRT'
   keys(34) = 'ENERGY_WRT'
   keys(35) = 'GRADRHO_WRT'
-  keys(36) = 'PT_WRT'
 ! The old-style output (SOL_*, PARAVIEW_*, par*.vtu, bin*.vtu), 0 or 1
-  keys(37) = 'OLD_OUTPUT_WRT'
+  keys(36) = 'OLD_OUTPUT_WRT'
 
   CALL ReadSection(global,IF_INPUT,nVals,keys,vals,defined)
 
@@ -373,11 +372,7 @@ SUBROUTINE ReadPostSection(global)
   END IF ! defined
 
   IF ( defined(36) .EQV. .TRUE. ) THEN
-    global%postWritePT = (NINT(vals(36)) == 1)
-  END IF ! defined
-
-  IF ( defined(37) .EQV. .TRUE. ) THEN
-    global%postWriteOldOutput = (NINT(vals(37)) == 1)
+    global%postWriteOldOutput = (NINT(vals(36)) == 1)
   END IF ! defined
 
 ! finalize

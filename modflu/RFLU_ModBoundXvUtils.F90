@@ -74,7 +74,7 @@ MODULE RFLU_ModBoundXvUtils
   USE ModGrid, ONLY: t_grid
   USE ModBndPatch, ONLY: t_patch  
   USE ModDataStruct, ONLY: t_region
-  USE ModMixture, ONLY: t_mixt, t_mixt_input
+  USE ModMixture, ONLY: t_mixt_input
   USE ModError
   USE ModMPI
 
@@ -299,7 +299,6 @@ SUBROUTINE RFLU_BXV_CompEnergyPatch(pRegion,pPatch)
   TYPE(t_spec_input), POINTER :: pSpecInput
 #endif
 !FRED - Added JWL EOS capability - 9/11/15
-  REAL(RFREAL) :: ksg
 
 
 ! ******************************************************************************
@@ -340,8 +339,6 @@ SUBROUTINE RFLU_BXV_CompEnergyPatch(pRegion,pPatch)
     rw = pCv(CV_MIXT_ZMOM,ifl)
     p  = pDv(DV_MIXT_PRES,ifl)
 
-    ksg = pRegion%mixt%piclKsg(ifl)
-
     u = ru/r
     v = rv/r
     w = rw/r
@@ -374,7 +371,7 @@ SUBROUTINE RFLU_BXV_CompEnergyPatch(pRegion,pPatch)
 #endif
     ELSE
 
-    Eo = MixtPerf_Eo_DGPUVW(r,g,p,u,v,w,ksg)
+    Eo = MixtPerf_Eo_DGPUVW(r,g,p,u,v,w)
     END IF
 
     pCv(CV_MIXT_ENER,ifl) = r*Eo
@@ -442,7 +439,6 @@ SUBROUTINE RFLU_BXV_CompMomEnergyPatch(pRegion,pPatch)
   INTEGER :: iCvSpecProducts
   TYPE(t_spec_input), POINTER :: pSpecInput
 #endif
-  REAL(RFREAL) :: ksg
 
 ! ******************************************************************************
 ! Start
@@ -474,8 +470,6 @@ SUBROUTINE RFLU_BXV_CompMomEnergyPatch(pRegion,pPatch)
 
     r  = pCv(CV_MIXT_DENS,ifl)
 
-    ksg = pRegion%mixt%piclKsg(ifl)
-
     u = vals(BCDAT_INFLOW_U,distrib*ifl) 
     v = vals(BCDAT_INFLOW_V,distrib*ifl)
     w = vals(BCDAT_INFLOW_W,distrib*ifl)
@@ -504,7 +498,7 @@ SUBROUTINE RFLU_BXV_CompMomEnergyPatch(pRegion,pPatch)
     p = pRegion%mixt%dv(DV_MIXT_PRES,icg) !For Jacob's Case...2/13/20
 
     CALL RFLU_JWL_ComputeEnergyMixt(pRegion,icg,g,gc,p,r,Yproducts,a,Eo,td)
-    Eo = Eo + 0.5_RFREAL*(u*u+v*v+w*w) + ksg
+    Eo = Eo + 0.5_RFREAL*(u*u+v*v+w*w)
 
     IF (scalarConvFlag .EQV. .TRUE.) THEN
   CALL RFLU_ScalarConvertcvPrim2Cons(pRegion,pRegion%spec%cv,pRegion%spec%cvState)
@@ -512,7 +506,7 @@ SUBROUTINE RFLU_BXV_CompMomEnergyPatch(pRegion,pPatch)
     END IF !specUsed
 #endif
     ELSE
-    Eo = MixtPerf_Eo_GRTUVW(g,gc,T,u,v,w,ksg)
+    Eo = MixtPerf_Eo_GRTUVW(g,gc,T,u,v,w)
     END IF
 
     pCv(CV_MIXT_XMOM,ifl) = r*u
@@ -2000,7 +1994,6 @@ SUBROUTINE RFLU_BXV_SetDependentVarsPatch(pRegion,pPatch)
   INTEGER :: iCvSpecProducts,iCvSpecAir
   TYPE(t_spec_input), POINTER :: pSpecInput
 #endif
-  REAL(RFREAL) :: ksg
 
 ! ******************************************************************************
 ! Start
@@ -2073,9 +2066,7 @@ SUBROUTINE RFLU_BXV_SetDependentVarsPatch(pRegion,pPatch)
             
             Vm2 = u*u + v*v + w*w
 
-            ksg = pRegion%mixt%piclKsg(ifl)
-
-            p = MixtPerf_P_DEoGVm2(r,Eo,gGas,Vm2,ksg)
+            p = MixtPerf_P_DEoGVm2(r,Eo,gGas,Vm2)
 
             pDv(DV_MIXT_PRES,ifl) = p 
             pDv(DV_MIXT_TEMP,ifl) = MixtPerf_T_DPR(r,pDv(DV_MIXT_PRES,ifl),rGas)
@@ -2121,7 +2112,7 @@ end if
 
             Vm2 = u*u + v*v + w*w
 
-            e = Eo - 0.5_RFREAL*Vm2 - ksg
+            e = Eo - 0.5_RFREAL*Vm2
 
             iCvSpecProducts = SPEC_GetSpeciesIndex(global,pSpecInput,'PRODUCTS')
             Y = pRegion%spec%cv(iCvSpecProducts,icg)
@@ -2143,7 +2134,7 @@ IF ( (e .LE. 1.E04_RFREAL) .OR. (isNan(e) .EQV. .TRUE.) ) THEN
 
             Vm2 = u*u + v*v + w*w
 
-            e = Eo - 0.5_RFREAL*Vm2 - ksg
+            e = Eo - 0.5_RFREAL*Vm2
 
                 
             pCv(CV_MIXT_DENS,ifl) = r

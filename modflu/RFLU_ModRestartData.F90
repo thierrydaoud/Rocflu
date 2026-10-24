@@ -10,21 +10,17 @@
 !   (raw bytes, no Fortran record markers, native byte order):
 !
 !     CHARACTER(8)  'RFLUDUMP'
-!     INTEGER(4)    format version (3)
+!     INTEGER(4)    format version (4)
 !     INTEGER(8)    step
 !     REAL(8)       time
 !     INTEGER(4)    region, nCells, nCv
 !     INTEGER(4)    form of the gas state: 1 = pure (rho, rho*u, ..., rho*E),
 !                   2 = volume-weighted ((1-phi)*rho, ...; PICL runs)
 !     INTEGER(4)    1 if the PICL fields follow, else 0
-!     INTEGER(4)    1 if the pseudo-turbulence fields follow (PSEUDOTURB),
-!                   else 0
 !     REAL(8)       cv(iCv,1:nCells) for iCv = 1..nCv, one variable after
 !                   the other
 !     REAL(8)       PICL only: piclVF(1:nCells), then piclgradRhog(i,1,1:nCells)
 !                   for i = 1..3
-!     REAL(8)       PSEUDOTURB only: DivPhiRsg(i,1:nCells), then FCell(i,1:nCells),
-!                   for i = 1..3 (output only)
 !     INTEGER(4)    number of NSCBC patches (non-reflecting boundaries, whose
 !                   face state evolves in time), then per patch: INTEGER(4)
 !                   global patch number, nBFaces; REAL(8) face state
@@ -92,7 +88,7 @@ MODULE RFLU_ModRestartData
   INTEGER, PARAMETER, PUBLIC :: RESTART_FORM_PURE = 1, &
                                 RESTART_FORM_VOLUME_WEIGHTED = 2
 
-  INTEGER, PARAMETER :: RESTART_DATA_VERSION = 3
+  INTEGER, PARAMETER :: RESTART_DATA_VERSION = 4
 
   INTERFACE
     FUNCTION c_mkdir(path,mode) BIND(C,NAME='mkdir')
@@ -136,8 +132,7 @@ CONTAINS
     TYPE(t_region), POINTER :: pRegion
 
     CHARACTER(CHRLEN) :: dirName,fileName
-    INTEGER :: errorFlag,form,i,iCv,iFile,iPatch,nCells,nPatchesNSCBC,withPicl, &
-               withPT
+    INTEGER :: errorFlag,form,i,iCv,iFile,iPatch,nCells,nPatchesNSCBC,withPicl
     TYPE(t_global), POINTER :: global
     TYPE(t_grid), POINTER :: pGrid
     TYPE(t_patch), POINTER :: pPatch
@@ -151,13 +146,11 @@ CONTAINS
 
     form     = RESTART_FORM_PURE
     withPicl = 0
-    withPT   = 0
 #ifdef PICL
     IF ( (global%piclUsed .EQV. .TRUE.) .AND. &
          (global%moduleType /= MODULE_TYPE_INIT) ) THEN
       form     = RESTART_FORM_VOLUME_WEIGHTED
       withPicl = 1
-      IF ( global%piclPseudoTurbFlag >= 1 ) withPT = 1
     END IF ! global%piclUsed
 #endif
 
@@ -181,8 +174,7 @@ CONTAINS
     WRITE(iFile) 'RFLUDUMP',INT(RESTART_DATA_VERSION,4), &
                  INT(global%currentStep,8),REAL(global%currentTime,8), &
                  INT(pRegion%iRegionGlobal,4),INT(nCells,4), &
-                 INT(pRegion%mixtInput%nCv,4),INT(form,4),INT(withPicl,4), &
-                 INT(withPT,4)
+                 INT(pRegion%mixtInput%nCv,4),INT(form,4),INT(withPicl,4)
 
     DO iCv = 1,pRegion%mixtInput%nCv
       WRITE(iFile) REAL(pRegion%mixt%cv(iCv,1:nCells),8)
@@ -195,14 +187,6 @@ CONTAINS
         WRITE(iFile) REAL(pRegion%mixt%piclgradRhog(i,1,1:nCells),8)
       END DO ! i
     END IF ! withPicl
-    IF ( withPT == 1 ) THEN
-      DO i = 1,3
-        WRITE(iFile) REAL(pRegion%mixt%DivPhiRsg(i,1:nCells),8)
-      END DO ! i
-      DO i = 1,3
-        WRITE(iFile) REAL(pRegion%mixt%FCell(i,1:nCells),8)
-      END DO ! i
-    END IF ! withPT
 #endif
 
 ! NSCBC face states (HasFaceStates)
@@ -696,7 +680,7 @@ CONTAINS
     CHARACTER(CHRLEN) :: fileName
     INTEGER :: errorFlag,expectedForm,i,iCv,iFile,iPatch,iPatchDump,iVar
     INTEGER(4) :: dumpRegion,form,nBFacesDump,nCellsDump,nCvDump, &
-                  nPatchesNSCBC,patchGlobalDump,version,withPicl,withPT
+                  nPatchesNSCBC,patchGlobalDump,version,withPicl
     INTEGER(8) :: step
     REAL(8) :: dumpTime
     REAL(8), ALLOCATABLE :: values(:)
@@ -724,7 +708,7 @@ CONTAINS
     END IF ! errorFlag
 
     READ(iFile,IOSTAT=errorFlag) magic,version,step,dumpTime,dumpRegion, &
-                                 nCellsDump,nCvDump,form,withPicl,withPT
+                                 nCellsDump,nCvDump,form,withPicl
     IF ( errorFlag /= 0 .OR. magic /= 'RFLUDUMP' .OR. &
          version /= RESTART_DATA_VERSION ) THEN
       CALL ErrorStop(global,ERR_INVALID_MARKER,__LINE__,TRIM(fileName)// &
@@ -771,22 +755,6 @@ CONTAINS
       END DO ! iVar
     END IF ! withPicl
 
-! Pseudo-turbulence fields: 6 arrays (DivPhiRsg x, y, z, FCell x, y, z)
-    IF ( withPT == 1 ) THEN
-      DO iVar = 1,6
-        READ(iFile,IOSTAT=errorFlag) values
-        IF ( errorFlag /= 0 ) THEN
-          CALL ErrorStop(global,ERR_FILE_READ,__LINE__,TRIM(fileName))
-        END IF ! errorFlag
-#ifdef PICL
-        IF ( iVar <= 3 ) THEN
-          pRegion%mixt%DivPhiRsg(iVar,1:pGrid%nCells) = REAL(values,RFREAL)
-        ELSE
-          pRegion%mixt%FCell(iVar-3,1:pGrid%nCells) = REAL(values,RFREAL)
-        END IF ! iVar
-#endif
-      END DO ! iVar
-    END IF ! withPT
     DEALLOCATE(values)
 
 ! NSCBC face states, matched to the local patches by global patch number

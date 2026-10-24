@@ -29,7 +29,7 @@ PICL_KEYS = [
     "VELOCITYMODEL", "USED", "QSFLUCT", "TEMP", "DU HEATTRANSFER",
     "NEIGHBORWIDTH", "KSP", "EREST", "QSFLUCTFILT", "QSFLUCTFILTADAPT",
     "VISCOUSUNSTEADY", "PERIODICX", "PERIODICY", "PERIODICZ", "SUBBIN",
-    "PSEUDOTURB", "VUSTEPS", "PARTICLE_WRT", "GAS_WRT", "GRADGAS_WRT", "MODEL_WRT",
+    "VUSTEPS", "PARTICLE_WRT", "GAS_WRT", "GRADGAS_WRT", "MODEL_WRT",
     "DENSITY", "SPECIFICHEAT",
 ]
 
@@ -41,7 +41,7 @@ PICL_DEFAULTS = {
     "QSFLUCT": 0, "TEMP": 0.0, "DU HEATTRANSFER": 0, "NEIGHBORWIDTH": 0.0,
     "QSFLUCTFILT": 0, "QSFLUCTFILTADAPT": 0, "VISCOUSUNSTEADY": 0,
     "PERIODICX": 0, "PERIODICY": 0, "PERIODICZ": 0, "SUBBIN": 0,
-    "PSEUDOTURB": 0, "VUSTEPS": 50, "PARTICLE_WRT": 0, "GAS_WRT": 0,
+    "VUSTEPS": 50, "PARTICLE_WRT": 0, "GAS_WRT": 0,
     "GRADGAS_WRT": 0, "MODEL_WRT": 0, "DENSITY": 0.0, "SPECIFICHEAT": 0.0,
 }
 
@@ -59,7 +59,6 @@ PICL_FLAGS = {
     "HEATTRANSFER": (0, 5),         # none, Stokes, Ranz-Marshall, Gunn, Fox, Sun
     "DU HEATTRANSFER": (0, 1),
     "FEEDBACK": (0, 1),
-    "PSEUDOTURB": (0, 1),
     "SUBBIN": (0, 1),
     "PERIODICX": (0, 1), "PERIODICY": (0, 1), "PERIODICZ": (0, 1),
     "PARTICLE_WRT": (0, 1), "GAS_WRT": (0, 1), "GRADGAS_WRT": (0, 1),
@@ -80,6 +79,7 @@ REMOVED_KEYS = {
                    "(2 x the largest cell length around the particles); remove the line",
     "REACTIVE": "the particle burn-rate model was removed; remove the line",
     "PICLDEBUG": "removed; remove the line",
+    "PSEUDOTURB": "the pseudo-turbulence model is not supported yet; remove the line",
     "ANGULARPERIODIC": "angular periodicity is not available; remove the line",
     "ANGLE": "angular periodicity is not available; remove the line",
     "XANGLE": "angular periodicity is not available; remove the line",
@@ -310,7 +310,7 @@ class Validator:
 
         v = value
         # Values that are only read with their model on
-        if v["QSFLUCT"] >= 1 or v["PSEUDOTURB"] >= 1:
+        if v["QSFLUCT"] >= 1:
             for key, (lo, hi) in DEPENDENT_FLAGS.items():
                 flag_ok(key, lo, hi)
         if v["COLLISIONS"] >= 1:
@@ -343,16 +343,6 @@ class Validator:
         self.prohibit(v["QSFLUCT"] >= 1 and v["QSFORCE"] == 0,
                       "QSFLUCT %d needs a quasi-steady force (QSFORCE >= 1): the "
                       "fluctuation is added to it" % v["QSFLUCT"], line.get("QSFLUCT"))
-        self.prohibit(v["PSEUDOTURB"] == 1 and v["QSFORCE"] == 0,
-                      "PSEUDOTURB 1 needs a quasi-steady force (QSFORCE >= 1): the "
-                      "pseudo-turbulence model uses the drag", line.get("PSEUDOTURB"))
-        self.prohibit(v["PSEUDOTURB"] == 1 and v["QSFLUCT"] != 2,
-                      "PSEUDOTURB 1 needs QSFLUCT 2 (Osnes fluctuations)",
-                      line.get("PSEUDOTURB"))
-        self.prohibit(v["PSEUDOTURB"] == 1 and v["HEATTRANSFER"] == 0,
-                      "PSEUDOTURB 1 needs HEATTRANSFER >= 1 for now: its heat flux "
-                      "divides by the Nusselt number (until the PT refactor)",
-                      line.get("PSEUDOTURB"))
         self.prohibit(v["DU HEATTRANSFER"] == 1 and v["VISCOUSUNSTEADY"] == 0,
                       "DU HEATTRANSFER 1 needs VISCOUSUNSTEADY >= 1 (they share "
                       "the history)", line.get("DU HEATTRANSFER"))
@@ -395,7 +385,7 @@ class Validator:
 
     POST_FIELD_KEYS = ("DENSITY_WRT", "VELOCITY_WRT", "PRESSURE_WRT", "PHI_WRT",
                        "TEMPERATURE_WRT", "SOUNDSPEED_WRT", "ENERGY_WRT", "GRADRHO_WRT",
-                       "PT_WRT", "OLD_OUTPUT_WRT")
+                       "OLD_OUTPUT_WRT")
 
     def check_post(self, sections):
         """Fields of the post program (rflupost): the *_WRT keys of # POST are 0 or 1."""
@@ -404,6 +394,9 @@ class Validator:
             number, value = simple_value(body, key)
             if number is not None:
                 self.prohibit(value not in (0, 1), "%s must be 0 or 1" % key, number)
+        number, _ = simple_value(body, "PT_WRT")
+        self.prohibit(number is not None, "PT_WRT: the pseudo-turbulence fields are not "
+                      "supported yet; remove the line", number)
         # Moving grids and the HM solver write their files into the old-style
         # SOL_* directories, which only OLD_OUTPUT_WRT 1 creates
         _, old_output = simple_value(body, "OLD_OUTPUT_WRT")

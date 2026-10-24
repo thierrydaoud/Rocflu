@@ -416,7 +416,6 @@ MODULE SPEC_RFLU_ModPBA
     TYPE(t_grid), POINTER :: pGrid
     TYPE(t_mixt_input), POINTER :: pMixtInput
     TYPE(t_spec_input), POINTER :: pSpecInput
-    REAL(RFREAL) :: ksg
 
 ! ******************************************************************************
 !   Start, if pbaBurnFlag is FALSE then no need to go further
@@ -523,7 +522,6 @@ MODULE SPEC_RFLU_ModPBA
 
         DO icg = 1,pGrid%nCellsTot
           x = pGrid%cofg(XCOORD,icg)
-          ksg = pRegion%mixt%piclKsg(icg)
 
           IF ( x <= flameLoc-flameWidth ) THEN
 !           Region before reaction zone. Do nothing                  
@@ -542,7 +540,7 @@ MODULE SPEC_RFLU_ModPBA
             pCvMixt(CV_MIXT_XMOM,icg) = d*u
             pCvMixt(CV_MIXT_YMOM,icg) = d*v
             pCvMixt(CV_MIXT_ZMOM,icg) = d*w
-            pCvMixt(CV_MIXT_ENER,icg) = d*(e+0.5_RFREAL*(u*u+v*v+w*w)+ksg)
+            pCvMixt(CV_MIXT_ENER,icg) = d*(e+0.5_RFREAL*(u*u+v*v+w*w))
           END IF
         END DO ! icg
 

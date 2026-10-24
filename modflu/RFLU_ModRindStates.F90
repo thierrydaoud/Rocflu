@@ -86,7 +86,6 @@ MODULE RFLU_ModRindStates
                                  RFLU_ScalarConvertCvPrim2Cons
   USE RFLU_ModJWL
 
-  USE ModMixture, ONLY: t_mixt
 
   IMPLICIT NONE
     
@@ -250,7 +249,7 @@ MODULE RFLU_ModRindStates
                                            machInf,pInf,tInf,alphaInf, &
                                            betaInf,corrFlag,liftCoef,xc,yc, &
                                            zc,rl,rul,rvl,rwl,rel,rr,rur,rvr, &
-                                           rwr,rer,pr,ksg)
+                                           rwr,rer,pr)
  
     IMPLICIT NONE
 
@@ -265,7 +264,7 @@ MODULE RFLU_ModRindStates
     LOGICAL, INTENT(IN) :: corrFlag
     REAL(RFREAL), INTENT(IN) :: alphaInf,betaInf,cpGas,liftCoef,machInf, &
                                 mmGas,nx,ny,nz,pInf,rl,rel,rul,rvl,rwl, & 
-                                tInf,xc,yc,zc,ksg
+                                tInf,xc,yc,zc
     REAL(RFREAL), INTENT(OUT) :: pr,rer,rr,rur,rvr,rwr 
     TYPE(t_global), POINTER :: global
 
@@ -300,7 +299,7 @@ MODULE RFLU_ModRindStates
  
     el  = rel/rl   
     sl2 = ul*ul + vl*vl + wl*wl
-    pl  = MixtPerf_P_DEoGVm2(rl,el,gGas,sl2,ksg)
+    pl  = MixtPerf_P_DEoGVm2(rl,el,gGas,sl2)
           
 ! ******************************************************************************
 !   Compute state at infinity without vortex correction
@@ -379,7 +378,7 @@ MODULE RFLU_ModRindStates
       rur = rb*ub
       rvr = rb*vb
       rwr = rb*wb
-      rer = rb*MixtPerf_Eo_DGPUVW(rb,gGas,pb,ub,vb,wb,ksg)
+      rer = rb*MixtPerf_Eo_DGPUVW(rb,gGas,pb,ub,vb,wb)
       pr  = pb
 
 ! ==============================================================================  
@@ -397,7 +396,7 @@ MODULE RFLU_ModRindStates
         rur = ri*ui
         rvr = ri*vi
         rwr = ri*wi
-        rer = ri*MixtPerf_Eo_DGPVm(ri,gGas,pi,qi,ksg)
+        rer = ri*MixtPerf_Eo_DGPVm(ri,gGas,pi,qi)
         pr  = pi
 
 ! ------------------------------------------------------------------------------
@@ -472,7 +471,6 @@ MODULE RFLU_ModRindStates
 
     REAL(RFREAL), INTENT(IN) :: cpGas,fs,mInj,mmGas,nx,ny,nz,pl,tInj
     REAL(RFREAL), INTENT(OUT) :: Hl,rl,ul,vl,wl 
-    REAL(RFREAL) :: ksg
 
 ! ==============================================================================  
 !   Locals 
@@ -494,9 +492,7 @@ MODULE RFLU_ModRindStates
     vl = ql*ny
     wl = ql*nz
      
-    ! Zero pseudo-turbulence for injection boundary
-    ksg = 0.0d0
-    Hl = MixtPerf_Ho_CpTUVW(cpGas,tInj,ul,vl,wl,ksg)
+    Hl = MixtPerf_Ho_CpTUVW(cpGas,tInj,ul,vl,wl)
  
 ! ******************************************************************************
 !   End

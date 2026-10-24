@@ -132,36 +132,6 @@
             call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
      >                                    PPICLF_R_WDOTZ, 'Wdot_z')
          endif
-         if (pseudoTurb_flag .ge. 1) then
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                    PPICLF_R_XIPAR, 'xi_par')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                    PPICLF_R_XIPERP, 'xi_perp')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                    PPICLF_R_XIT, 'xi_T')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_RTildePar, 'Rtilde_par')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                               PPICLF_R_RTildePerp, 'Rtilde_perp')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                    PPICLF_R_R11, 'R11')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                    PPICLF_R_R22, 'R22')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                    PPICLF_R_R33, 'R33')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                    PPICLF_R_KMehra, 'k_Mehra')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                    PPICLF_R_KOsnes, 'k_Osnes')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_RparMehra, 'Rpar_Mehra')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                               PPICLF_R_RperpMehra, 'Rperp_Mehra')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                                 PPICLF_R_RTerm2Par, 'Rterm2_par')
-            call ppiclf_io_AddOutputField(PPICLF_OUT_RPROP,
-     >                               PPICLF_R_RTerm2Perp, 'Rterm2_perp')
-         endif
       endif
 
       return
