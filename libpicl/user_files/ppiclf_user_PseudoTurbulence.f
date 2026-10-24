@@ -16,7 +16,7 @@
 !        pseudoTurb_flag==2
 !
 ! Input: fqs_mean = mean quasi-steady drag beta*v
-! Output: Rsg(3x3), T_par(1x3), alpha_PT(3x3)
+! Output: Rsg(3x3), Tsg(3), alpha_PT(3x3)
 !
 ! Notes: none.
 ! 
@@ -67,7 +67,7 @@
       real*8 avec(3), bvec(3), cvec(3)
       real*8 eunit(3)
       real*8 s_par, s_perp, s_T, Rmean_par, Rmean_perp, R_par, R_perp
-      real*8 R(3,3), Q(3,3), Qt(3,3), Tmean_par(3), T_par(3)
+      real*8 R(3,3), Q(3,3), Qt(3,3), Tmean_par, T_par
       real*8 k_tilde, k_Mach, b_tilde, b_Mach, b_par, b_perp,
      >       k_Osnes, b_Osnes, KE_mean
       real*8 alpha_fluid, alpha_par, alpha_num, alpha_denum, 
@@ -299,11 +299,6 @@ c--  Multiply by the mean relative flow kinetic energy to dimentionalize
 
       ! Mean Triple Velocity Correlation
       Tmean_par = E1 + E2*rphip/(E3 + re/300.0) + E4*mp
-        
-c--  Multiply by the mean relative velocity & flow kinetic energy to dimentionalize 
-      Tmean_par(1)  = Tmean_par(1) * vx * k_Osnes
-      Tmean_par(2)  = Tmean_par(2) * vy * k_Osnes
-      Tmean_par(3)  = Tmean_par(3) * vz * k_Osnes
 
 c------ Lagrangian Model
   
@@ -393,21 +388,9 @@ c--- Now Rotate the matrix, Rsg = Q . R . Q^T
 
 c--- Osnes Formulation for Triple Velocity Correlation
 
-      T_par = A4*CD_ratio + xi_T
-
-c--  Multiply by the mean relative velocity & flow kinetic energy to dimentionalize      
-c--  then add mean
-      ! check if I mu;itply by avec(1)*vmag instead of vx
-      T_par(1) = T_par(1) * vx * k_Osnes
-     >           + Tmean_par(1)
-
-      T_par(2) = T_par(2) * vy * k_Osnes
-     >           + Tmean_par(2)
-
-      T_par(3) = T_par(3) * vz * k_Osnes
-     >           + Tmean_par(3)
-
-      Tsg = matmul(Q, T_par)
+      ! Flow-parallel T [m^3/s^3], along the slip direction avec
+      T_par = (Tmean_par + A4*CD_ratio + xi_T) * vmag * k_Osnes
+      Tsg   = T_par * avec
 
       ! Zhou et al.,  Eq. (31)
       ! Parallel component of Pseudo-Turbulent Diffusivity Tensor
