@@ -15,8 +15,9 @@
 !        pseudoTurb_flag==1
 !        pseudoTurb_flag==2
 !
-! Input:
-!      
+! Input: i (particle), iStage, Nu (Nusselt number of the heat
+!        transfer model), fqs_mean (mean quasi-steady drag beta*v,
+!        without the fluctuation: C_D'/<C_D> divides by it)
 ! Output: Rsg(3x3), T_par(1x3), alpha_PT(3x3)
 !
 ! Notes: none.
@@ -43,7 +44,8 @@
 !      
 !******************************************************************************
 
-      subroutine ppiclf_user_PseudoTurb(i,iStage,Nu,fqsx,fqsy,fqsz,
+      subroutine ppiclf_user_PseudoTurb(i,iStage,Nu,
+     >                         fqs_meanx,fqs_meany,fqs_meanz,
      >                         xi_par,xi_perp,xi_T,
      >                         Rsg, Tsg, alpha_PT)
       use ppiclf_data
@@ -54,7 +56,7 @@
 !
 ! Input:
       integer*4 i, iStage
-      real*8 Nu, fqsx, fqsy, fqsz
+      real*8 Nu, fqs_meanx, fqs_meany, fqs_meanz
 !
 ! Output:
       real*8 xi_par, xi_perp, xi_T, Rsg(3,3), alpha_PT(3,3), Tsg(3) 
@@ -178,10 +180,10 @@
      >             ppiclf_rprop(PPICLF_R_FLUCTFY,i)*avec(2) +
      >             ppiclf_rprop(PPICLF_R_FLUCTFZ,i)*avec(3)
 
-        ! CD_average has unit of Force, is zero at early time steps
-        CD_average = fqsx*avec(1) +
-     >               fqsy*avec(2) +
-     >               fqsz*avec(3)
+        ! CD_average has unit of Force: the mean drag along avec
+        CD_average = fqs_meanx*avec(1) +
+     >               fqs_meany*avec(2) +
+     >               fqs_meanz*avec(3)
       endif
 
       ! avoiding singularity (also zero slip)

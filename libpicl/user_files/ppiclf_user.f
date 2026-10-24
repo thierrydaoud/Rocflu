@@ -557,7 +557,12 @@
 
 !         elseif(pseudoTurb_flag==2) then
            ! All included
-           call ppiclf_user_PseudoTurb(i,iStage,Nuss,fqsx,fqsy,fqsz,
+           ! The model needs C_D'/<C_D>, the fluctuation over the mean
+           ! drag, so it gets the mean quasi-steady drag beta*v: fqsx
+           ! already holds the fluctuation (Step 3), and a total drag
+           ! near zero made the ratio blow up (negative R and ksg)
+           call ppiclf_user_PseudoTurb(i,iStage,Nuss,
+     >                                 beta*vx,beta*vy,beta*vz,
      >                                 xi_par,xi_perp,xi_T,
      >                                 Rsg, Tsg, alpha_PT)
          endif
