@@ -15,9 +15,7 @@
 !        pseudoTurb_flag==1
 !        pseudoTurb_flag==2
 !
-! Input: i (particle), iStage, Nu (Nusselt number of the heat
-!        transfer model), fqs_mean (mean quasi-steady drag beta*v,
-!        without the fluctuation: C_D'/<C_D> divides by it)
+! Input: fqs_mean = mean quasi-steady drag beta*v
 ! Output: Rsg(3x3), T_par(1x3), alpha_PT(3x3)
 !
 ! Notes: none.
@@ -133,18 +131,7 @@
       re = rep
       rem = (1.0d0-rphip)*re
 
-      if (qs_fluct_filter_flag==0) then
-         denum = max(dfloat(icpmean),1.d0)  ! for arithmetic mean
-      else if (qs_fluct_filter_flag==1) then
-         denum = max(phipmean,1.0e-6)  ! for volume mean
-      endif
-      
-      upmean = upmean / denum
-      vpmean = vpmean / denum
-      wpmean = wpmean / denum
-      u2pmean = u2pmean / denum
-      v2pmean = v2pmean / denum
-      w2pmean = w2pmean / denum
+      ! upmean ... w2pmean are already means (ppiclf_user.f, Step 1b)
 
 ! Particle velocity fluctuation and Granular Temperature
 ! Need particle velocity mean
@@ -186,10 +173,7 @@
      >               fqs_meanz*avec(3)
       endif
 
-      ! No pseudo-turbulence without a mean drag: the caller sets
-      ! beta = 0 at zero slip and with QSFORCE 0, otherwise the mean
-      ! drag is > 0. The fluctuation scales with the drag, so the
-      ! ratio C_D'/<C_D> stays of order 1 even at small slip
+      ! No mean drag (zero slip or QSFORCE 0): no pseudo-turbulence
       if(CD_average <= 0.0d0) then
         xi_par  = 0.0d0
         xi_perp = 0.0d0

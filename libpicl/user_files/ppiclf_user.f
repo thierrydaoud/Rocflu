@@ -52,7 +52,7 @@
       common /RFLU_ppiclf_misc03/ ppiclf_p0, ppiclf_moveparticle
       real*8 fqsx, fqsy, fqsz
       real*8 fqsforce
-      real*8 fqs_fluct(3)
+      real*8 fqs_fluct(3), sum_weight
       real*8 xi_par, xi_perp, xi_T, Rsg(3,3), Tsg(3), alpha_PT(3,3)
       real*8 famx, famy, famz 
       real*8 fdpdx, fdpdy, fdpdz
@@ -279,8 +279,7 @@
          if ((am_flag==2).or.(collisional_flag>=1)
      >          .or.(qs_fluct_flag>=1)) then
 
-         !AVERY - we should fix vmag ~0 bug and remove conditional check
-         if ((qs_fluct_flag>=1) .and. (vmag .gt. 1.d-8)) then
+         if (qs_fluct_flag>=1) then
             ! Compute mean for particle i
             !    add neighbor particle j afterward
             ! Box filter is used if qs_fluct_filter_flag=0
@@ -330,14 +329,26 @@
             end if
          end if
 
-         ! add neighbors
-         ! AVERY - always use subbins
-         IF ( 1 .EQ. 1 ) THEN !sbNearest_flag .EQ. 1) THEN
-            CALL ppiclf_solve_NearestNeighborSB(
-     >           i,tot_SBin,SBin_start,SBin_list,n_SBin)
-            IF (collisional_flag>=1 .AND. ppiclf_nwall>0)
-     >         CALL ppiclf_solve_WallContacts(i)
-         END IF
+         ! add neighbors (always with subbins)
+         CALL ppiclf_solve_NearestNeighborSB(
+     >        i,tot_SBin,SBin_start,SBin_list,n_SBin)
+         IF (collisional_flag>=1 .AND. ppiclf_nwall>0)
+     >      CALL ppiclf_solve_WallContacts(i)
+
+         ! Neighbour sums -> means
+         if (qs_fluct_flag>=1) then
+            if (qs_fluct_filter_flag==0) then
+               sum_weight = max(dfloat(icpmean),1.d0) ! arithmetic mean
+            else
+               sum_weight = max(phipmean,1.0e-6)      ! volume mean
+            endif
+            upmean  = upmean /sum_weight
+            vpmean  = vpmean /sum_weight
+            wpmean  = wpmean /sum_weight
+            u2pmean = u2pmean/sum_weight
+            v2pmean = v2pmean/sum_weight
+            w2pmean = w2pmean/sum_weight
+         endif
 
          end if ! end Step 1b; nearestneighbor
 
@@ -345,10 +356,7 @@
 !
 ! Step 2: Force component quasi-steady
 !
-         ! Same numbering as MFC (particle_params%qs_force). Before
-         ! 2026-10, 1 = Parmar, 2 = Osnes, 3 = Modified Parmar
-         ! (removed) and 4 = Gidaspow; 4 now stops with an error.
-         ! Zero at zero slip, where the correlations are singular
+        ! Zero at zero slip, where the correlations are singular
          if (qs_flag==0 .or. vmag <= 0.0d0) then
            beta = 0.0d0
          else if (qs_flag==1) then
@@ -373,9 +381,6 @@
 !
          ! Note: QS fluctuations needs nearest neighbors,
          !   and is called above in Step 1b
-         ! QSFLUCT 1 = Osnes. Before 2026-10, 1 = Lattanzi and
-         ! 2 = Osnes; ppiclf_user_QS_fluct_Lattanzi is kept but can
-         ! no longer be selected
          if (qs_fluct_flag==1) then
             call ppiclf_user_QS_fluct_Osnes(i,iStage,fqs_fluct)
          endif
@@ -558,10 +563,7 @@
 
 !         elseif(pseudoTurb_flag==2) then
            ! All included
-           ! The model needs C_D'/<C_D>, the fluctuation over the mean
-           ! drag, so it gets the mean quasi-steady drag beta*v: fqsx
-           ! already holds the fluctuation (Step 3), and a total drag
-           ! near zero made the ratio blow up (negative R and ksg)
+           ! Mean drag beta*v: the model uses C_D'/<C_D>
            call ppiclf_user_PseudoTurb(i,iStage,Nuss,
      >                                 beta*vx,beta*vy,beta*vz,
      >                                 xi_par,xi_perp,xi_T,

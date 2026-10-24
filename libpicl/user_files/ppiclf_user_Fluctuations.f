@@ -27,8 +27,7 @@
 ! Right now they use the same filter width and are assumed to
 ! be the same. 
 !
-! Not called: since 2026-10 QSFLUCT 1 selects Osnes and Lattanzi
-! cannot be selected. Kept for reference.
+! Not used: QSFLUCT 1 selects Osnes.
 !
 !-----------------------------------------------------------------------
 !
@@ -54,19 +53,7 @@
       TwoPi = 2.0d0*acos(-1.0d0)
 
 
-      if (qs_fluct_filter_flag==0) then
-         denum = max(dfloat(icpmean),1.d0)  ! for arithmetic mean
-      else if (qs_fluct_filter_flag==1) then
-         denum = max(phipmean,1.0e-6)  ! for volume mean
-      endif
-      
-
-      upmean = upmean / denum
-      vpmean = vpmean / denum
-      wpmean = wpmean / denum
-      u2pmean = u2pmean / denum
-      v2pmean = v2pmean / denum
-      w2pmean = w2pmean / denum
+      ! upmean ... w2pmean are already means (ppiclf_user.f, Step 1b)
 
       ! Lattenzi is valid only for incompressible flows,
       !   so here we use the compressible correction of Osnes
@@ -204,18 +191,7 @@
 !
       TwoPi = 2.0d0*acos(-1.0d0)
 
-      if (qs_fluct_filter_flag==0) then
-         denum = max(dfloat(icpmean),1.d0)  ! for arithmetic mean
-      else if (qs_fluct_filter_flag==1) then
-         denum = max(phipmean,1.0e-6)  ! for volume mean
-      endif
-      
-      upmean = upmean / denum
-      vpmean = vpmean / denum
-      wpmean = wpmean / denum
-      u2pmean = u2pmean / denum
-      v2pmean = v2pmean / denum
-      w2pmean = w2pmean / denum
+      ! upmean ... w2pmean are already means (ppiclf_user.f, Step 1b)
 
       ! Equations (9-12) of Osnes paper, with eqn (9) corrected
       ! Note that sigD has units of force; N = Pa-m^2
@@ -263,8 +239,8 @@
 ! Added 3/6/24 
 ! Modified 3/14/24 
 !
-      ! 03/13/2025 - Thierry - if velocity is very small, don't impose fluctuations
-      if(vmag > 1.d-8) then
+      ! No slip: no direction and no noise (sigD scales with vmag)
+      if(vmag > 0.0d0) then
         avec = [vx,vy,vz]/vmag
 
         CD_prime = ppiclf_rprop(PPICLF_R_FLUCTFX,i)*avec(1) +
