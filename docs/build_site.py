@@ -4,20 +4,27 @@
     python3 docs/build_site.py
 
 writes docs/site/index.html and one page per Markdown file, with a sidebar
-listing the pages and the sections of the current page. The Markdown files stay
-the source: re-run the script after editing them. Needs the Python package
-'markdown' (pip install --user markdown).
+listing the pages and the sections of the current page. The figures and the
+manual are copied into docs/site/, so the directory is the whole website (it is
+what .github/workflows/docs.yml publishes on GitHub Pages); links to other files
+of the repository point at them on GitHub. The Markdown files stay the source:
+re-run the script after editing them. Needs the Python package 'markdown'
+(pip install --user markdown).
 """
 
 import html
 import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import markdown
 
 DOCS = Path(__file__).resolve().parent
 SITE = DOCS / "site"
+REPO = DOCS.parent
+GITHUB = "https://github.com/thierrydaoud/Rocflu/blob"
 
 # Pages in sidebar order: (Markdown file relative to docs/, generated page,
 # short title for the sidebar).
@@ -81,9 +88,26 @@ def slugify(value, separator):
     return value.replace(" ", separator)
 
 
+def branch():
+    """The branch the links to repository files point at on GitHub."""
+    name = os.environ.get("GITHUB_REF_NAME")
+    if not name:
+        name = subprocess.run(["git", "-C", str(REPO), "rev-parse", "--abbrev-ref", "HEAD"],
+                              capture_output=True, text=True).stdout.strip()
+    return name if name and name != "HEAD" else "main"
+
+
+def asset(file):
+    """Copy a file of docs/ (a figure, the manual) into the site; its path there."""
+    relative = Path(file).relative_to(DOCS)
+    (SITE / relative).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(file, SITE / relative)
+    return relative.as_posix()
+
+
 def rewrite_links(body, source):
-    """Point links to the Markdown pages at the generated pages, and any other
-    relative link (figures, scripts) at the file in the repository."""
+    """Point links to the Markdown pages at the generated pages, files of docs/
+    at their copy in the site, and other files of the repository at GitHub."""
     pages = {os.path.normpath(DOCS / md): page for md, page, _ in PAGES}
     here = (DOCS / source).parent
 
@@ -95,8 +119,11 @@ def rewrite_links(body, source):
         file = os.path.normpath(here / path)
         if file in pages:
             target = pages[file] + ("#" + anchor if anchor else "")
+        elif Path(file).is_relative_to(DOCS):
+            target = asset(file)
         else:
-            target = os.path.relpath(file, SITE) + ("#" + anchor if anchor else "")
+            target = (f"{GITHUB}/{branch()}/{Path(file).relative_to(REPO).as_posix()}"
+                      + ("#" + anchor if anchor else ""))
         return f'{attr}="{target}"'
 
     return re.sub(r'(href|src)="([^"]*)"', link, body)
@@ -170,7 +197,7 @@ def main():
     index = ('<h1>Rocflu documentation</h1>'
              f'<ul class="cards">{"".join(cards)}</ul>'
              '<p>The full RocfluMP manual is a PDF: '
-             '<a href="../Rocflu_manual.pdf">Rocflu_manual.pdf</a>.</p>')
+             f'<a href="{asset(DOCS / "Rocflu_manual.pdf")}">Rocflu_manual.pdf</a>.</p>')
     write_page("index.html", "Rocflu documentation",
                sidebar("index.html", None), index)
     print(f"wrote {SITE / 'index.html'}")
