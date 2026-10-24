@@ -22,7 +22,8 @@ SITE = DOCS / "site"
 # Pages in sidebar order: (Markdown file relative to docs/, generated page,
 # short title for the sidebar).
 PAGES = [
-    ("Building.md", "Building.html", "Building and running"),
+    ("Building.md", "Building.html", "Building"),
+    ("Running.md", "Running.html", "Running a case"),
     ("InputFile.md", "InputFile.html", "Input file"),
     ("PseudoTurb_fixes.md", "PseudoTurb_fixes.html", "PseudoTurb fixes"),
     ("../tests/README.md", "tests.html", "Regression tests"),
@@ -125,7 +126,7 @@ def sidebar(current, toc):
             items.append(toc_list(toc))
         items.append("</li>")
     home = ' aria-current="page"' if current == "index.html" else ""
-    return (f'<a class="home" href="index.html"{home}>Rocflu + ppiclF</a>'
+    return (f'<a class="home" href="index.html"{home}>Rocflu</a>'
             f'<ul class="pages">{"".join(items)}</ul>')
 
 
@@ -166,11 +167,11 @@ def main():
                      f'<p>{intro}</p></li>')
         print(f"wrote {SITE / page}")
 
-    index = ('<h1>Rocflu + ppiclF documentation</h1>'
+    index = ('<h1>Rocflu documentation</h1>'
              f'<ul class="cards">{"".join(cards)}</ul>'
              '<p>The full RocfluMP manual is a PDF: '
              '<a href="../Rocflu_manual.pdf">Rocflu_manual.pdf</a>.</p>')
-    write_page("index.html", "Rocflu + ppiclF documentation",
+    write_page("index.html", "Rocflu documentation",
                sidebar("index.html", None), index)
     print(f"wrote {SITE / 'index.html'}")
 

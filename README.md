@@ -80,8 +80,9 @@ and submits the simulation:
 ./rocflu.sh run /path/to/case/rectshktb.inp -N 1 -n 4 -p hpg-default -w 02:00:00
 ```
 
-See [`docs/Building.md`](docs/Building.md) for all options, `rocflu.sh run`, using CMake
-directly, and how the build is organised, and [`docs/InputFile.md`](docs/InputFile.md)
+See [`docs/Building.md`](docs/Building.md) for all build options, using CMake directly
+and how the build is organised, [`docs/Running.md`](docs/Running.md) for `rocflu.sh run`
+and `rocflu.sh post`, and [`docs/InputFile.md`](docs/InputFile.md)
 for the input file, `points.dat` and the checks `./rocflu.sh validate` makes before a run.
 
 ## 🧪 Testing

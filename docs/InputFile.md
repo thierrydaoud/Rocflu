@@ -1,6 +1,6 @@
 # The case input file (`<case>.inp`), `<case>.bc` and `points.dat`
 
-A Rocflu + ppiclF case is described by `<case>.inp` (this page), `<case>.bc` (boundary
+A Rocflu case is described by `<case>.inp` (this page), `<case>.bc` (boundary
 conditions), the grid (`<case>.hyb.asc`) and, with particles, `points.dat`. Before a run,
 [`./rocflu.sh validate`](#the-case-validator) checks the input file, the `.bc` file and `points.dat`;
 `./rocflu.sh run` does this first and stops before building anything if it finds a
@@ -269,7 +269,7 @@ every `WRITIME` and the end of the run:
 
 Layouts: `modflu/RFLU_ModRestartData.F90`. A file is written as `.tmp` and renamed when it
 is complete. The same files are what a restart reads and what the post program converts
-(`./rocflu.sh post`, see [Building.md](Building.md#results-rocflush-post)), so results
+(`./rocflu.sh post`, see [Running.md](Running.md#results-rocflush-post)), so results
 can be looked at during a run or after it stopped.
 
 **Starting a run** (`START_STEP` in `# TIMESTEP`): `0` (default) is a new run from

@@ -1,4 +1,4 @@
-# Rocflu + ppiclF fixes on the `PseudoTurb` branch
+# Rocflu fixes on the `PseudoTurb` branch
 
 The goal of this branch is to validate the subgrid pseudo-turbulence (PT) model. Before
 the PT results can be trusted, the particle–gas coupling has to be correct: interpolating

@@ -1,4 +1,4 @@
-# Rocflu + ppiclF regression tests
+# Rocflu regression tests
 
 Small cases (a few hundred cells, 1–40 particles) that run in seconds each. Every
 case is compared against a stored golden, and most cases also have physics checks
@@ -69,7 +69,7 @@ script. The solver runs through `srun`:
   to the first cores and run ~10x slower.
 
 Each case's input file goes through the case validator
-(`utilities/scripts/case_validator.py`, see docs/Building.md) before it runs; a case
+(`utilities/scripts/case_validator.py`, see docs/Running.md) before it runs; a case
 it rejects fails with the validator's messages. The validator has its own tests,
 which need no cluster: `python3 tests/test_case_validator.py`.
 
