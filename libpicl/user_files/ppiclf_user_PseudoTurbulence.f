@@ -65,7 +65,7 @@
       integer*4 m, j
       real*8 aSDE,bq,chi,denum,dW1,dW2,dW3,tF_inv,theta,Z1,Z2,Z3
       real*8 TwoPi
-      real*8 bSDE_CD, bSDE_CL, bSDE_CT, CD_prime, CD_average
+      real*8 bSDE_CD, bSDE_CL, bSDE_CT, CD_prime, CD_average, CD_ratio
       real*8 avec(3), bvec(3), cvec(3)
       real*8 eunit(3)
       real*8 s_par, s_perp, s_T, Rmean_par, Rmean_perp, R_par, R_perp
@@ -186,8 +186,11 @@
      >               fqs_meanz*avec(3)
       endif
 
-      ! avoiding singularity (also zero slip)
-      if(CD_average .lt. 1.d-8) then
+      ! No pseudo-turbulence without a mean drag: the caller sets
+      ! beta = 0 at zero slip and with QSFORCE 0, otherwise the mean
+      ! drag is > 0. The fluctuation scales with the drag, so the
+      ! ratio C_D'/<C_D> stays of order 1 even at small slip
+      if(CD_average <= 0.0d0) then
         xi_par  = 0.0d0
         xi_perp = 0.0d0
         xi_T    = 0.0d0
@@ -196,6 +199,7 @@
         alpha_PT = 0.0d0
         return
       endif
+      CD_ratio = CD_prime/CD_average
 
 ! Calculate the three orthogonal unit vectors
 ! The first vector (avec) is vx/vmag, vy/vmag, and vz/vmag
@@ -366,10 +370,10 @@ c---   We ditch Osnes expression for s_perp and assume it as big as s_par
 
 
       ! Lagrangian Reynolds Subgrid Stress - Parallel Component
-      R_par = 1.0 + A1 + A2*CD_prime/max(CD_average, 1.0d-8) + xi_par
+      R_par = 1.0 + A1 + A2*CD_ratio + xi_par
   
       ! Lagrangian Reynolds Subgrid Stress - Perpendicular Component
-      R_perp = 1.0 + A3*CD_prime/max(CD_average, 1.0d-8) + xi_perp
+      R_perp = 1.0 + A3*CD_ratio + xi_perp
 
 c--  Multiply Lagrangian Model by Eulerian Model and gas density
       R_par  = R_par  * Rmean_par * rhof
@@ -399,15 +403,13 @@ c--- Now Rotate the matrix, Rsg = Q . R . Q^T
       ppiclf_rprop(PPICLF_R_KOsnes,i)      = 2.0*rhof*k_Osnes
       ppiclf_rprop(PPICLF_R_RparMehra,i)   = Rpar_Mehra
       ppiclf_rprop(PPICLF_R_RperpMehra,i)   = Rperp_Mehra
-      ppiclf_rprop(PPICLF_R_RTerm2Par,i) = 
-     >                    A2*CD_prime/max(CD_average,1.0d-8) 
-      ppiclf_rprop(PPICLF_R_RTerm2Perp,i) = 
-     >                    A3*CD_prime/max(CD_average,1.0d-8) 
+      ppiclf_rprop(PPICLF_R_RTerm2Par,i)  = A2*CD_ratio
+      ppiclf_rprop(PPICLF_R_RTerm2Perp,i) = A3*CD_ratio
 #endif
 
 c--- Osnes Formulation for Triple Velocity Correlation
 
-      T_par = A4 * CD_prime/max(CD_average, 1.0d-8) + xi_T
+      T_par = A4*CD_ratio + xi_T
 
 c--  Multiply by the mean relative velocity & flow kinetic energy to dimentionalize      
 c--  then add mean
