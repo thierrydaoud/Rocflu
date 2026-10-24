@@ -1,33 +1,11 @@
 {
- "created": "2026-10-17T14:51:52",
- "host": "login10.ufhpc",
- "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocpicl_Dec23_dump/build/install/release/bin",
+ "created": "2026-10-24T00:09:38",
+ "host": "login9.ufhpc",
+ "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocflu_qsfluct/build/bin",
  "git": {
-  "commit": "598df0db1dbf11c3cfe3db5ec7e1a82255a0b06f",
+  "commit": "d99d584e9390f76b88abe6877c74200700bf3f76",
   "branch": "HEAD",
-  "modified_sources": [
-   "libfloflu/ReadTimestepSection.F90",
-   "libflu/RFLU_InitGlobal.F90",
-   "libpicl/source/ppiclf_comm.f",
-   "libpicl/source/ppiclf_data.f",
-   "libpicl/source/ppiclf_io.f",
-   "libpicl/source/ppiclf_op.f",
-   "libpicl/source/ppiclf_solve.f",
-   "libpicl/user_files/ppiclf_user_Fluctuations.f",
-   "libpicl/user_files/ppiclf_user_PseudoTurbulence.f",
-   "modfloflu/ModGlobal.F90",
-   "modflu/RFLU_ModNewtonKrylov.F90",
-   "modflu/RFLU_ModReadWriteFlow.F90",
-   "rocflu/RFLU_EndFlowSolver.F90",
-   "rocflu/RFLU_InitFlowSolver.F90",
-   "rocflu/RFLU_PrintSetup.F90",
-   "rocflu/RFLU_PrintWriteConvergence.F90",
-   "rocflu/RFLU_TimeStepping.F90",
-   "rocpicl/PICL_InitSolver.F90",
-   "rocpicl/PICL_ModInterfaces.F90",
-   "simulation/rflump.F90",
-   "utilities/init/rfluinit.F90"
-  ]
+  "modified_sources": []
  },
  "modules": "gcc/14.2.0:openmpi/5.0.7"
 }
