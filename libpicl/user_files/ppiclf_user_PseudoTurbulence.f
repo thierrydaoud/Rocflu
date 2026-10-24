@@ -16,7 +16,8 @@
 !        pseudoTurb_flag==2
 !
 ! Input: fqs_mean = mean quasi-steady drag beta*v
-! Output: Rsg(3x3), Tsg(3), alpha_PT(3x3)
+! Output: Rsg(3x3) [m^2/s^2], Tsg(3) [m^3/s^3], alpha_PT(3x3) [m^2/s],
+!         all per unit mass: PICL_Runge multiplies by the cell density
 !
 ! Notes: none.
 ! 
@@ -286,9 +287,9 @@ c--  Multiply by the mean relative flow kinetic energy to dimentionalize
       KE_mean = 0.5d0 * vmag**2
       k_Osnes = k_Osnes * KE_mean
 
-      Rpar_Mehra  = 2.0d0*rhof*k_tilde*KE_mean
+      Rpar_Mehra  = 2.0d0*k_tilde*KE_mean
      >                 *(b_par  + 1.0d0/3.0d0)
-      Rperp_Mehra  = 2.0d0*rhof*k_tilde*KE_mean
+      Rperp_Mehra  = 2.0d0*k_tilde*KE_mean
      >                 *(-b_par/2.0  + 1.0d0/3.0d0)
 
       ! Mean Eulerian Reynolds Subgrid Stress - Parallel Component   
@@ -354,9 +355,10 @@ c---   We ditch Osnes expression for s_perp and assume it as big as s_par
       ! Lagrangian Reynolds Subgrid Stress - Perpendicular Component
       R_perp = 1.0 + A3*CD_ratio + xi_perp
 
-c--  Multiply Lagrangian Model by Eulerian Model and gas density
-      R_par  = R_par  * Rmean_par * rhof
-      R_perp = R_perp * Rmean_perp * rhof
+c--  Multiply Lagrangian Model by Eulerian Model
+c--  Rsg is per unit mass [m^2/s^2]: PICL_Runge multiplies by rho_g
+      R_par  = R_par  * Rmean_par
+      R_perp = R_perp * Rmean_perp
 
 c--- R = |R_par,   0   ,   0   |
 c---     | 0   , R_perp,   0   |
@@ -373,13 +375,13 @@ c--- Now Rotate the matrix, Rsg = Q . R . Q^T
 
 ! Diagnostics: built only with MODEL_WRT (ppiclf_slots.txt, ptdiag)
 #if PPICLF_R_RTildePar > 0
-      ppiclf_rprop(PPICLF_R_RTildePar, i)  = Rmean_par*rhof
-      ppiclf_rprop(PPICLF_R_RTildePerp, i) = Rmean_perp*rhof
+      ppiclf_rprop(PPICLF_R_RTildePar, i)  = Rmean_par
+      ppiclf_rprop(PPICLF_R_RTildePerp, i) = Rmean_perp
       ppiclf_rprop(PPICLF_R_R11,i)         = Rsg(1,1)
       ppiclf_rprop(PPICLF_R_R22,i)         = Rsg(2,2)
       ppiclf_rprop(PPICLF_R_R33,i)         = Rsg(3,3)
-      ppiclf_rprop(PPICLF_R_KMehra,i)      = 2.0*rhof*k_tilde*KE_mean
-      ppiclf_rprop(PPICLF_R_KOsnes,i)      = 2.0*rhof*k_Osnes
+      ppiclf_rprop(PPICLF_R_KMehra,i)      = k_tilde*KE_mean
+      ppiclf_rprop(PPICLF_R_KOsnes,i)      = k_Osnes
       ppiclf_rprop(PPICLF_R_RparMehra,i)   = Rpar_Mehra
       ppiclf_rprop(PPICLF_R_RperpMehra,i)   = Rperp_Mehra
       ppiclf_rprop(PPICLF_R_RTerm2Par,i)  = A2*CD_ratio

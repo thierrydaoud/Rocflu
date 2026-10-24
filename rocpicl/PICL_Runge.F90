@@ -634,10 +634,9 @@ IF(global%piclFeedbackFlag == 1) THEN
            ugas(ZCOORD,i) = pRegion%mixt%cv(CV_MIXT_ZMOM,i)&
                           /pRegion%mixt%cv(CV_MIXT_DENS,i)
  
-           ! Subgrid Kinetic Energy
-           ! K_sg = 1/(2*rhof) * tr(Rsg), dimension of (nCellsTot)
-           ! K_sg is added to the Total Gas Energy term
-           pRegion%mixt%piclKsg(i) = 1.0_RFREAL/(2.0_RFREAL*rhog(i)) &
+           ! Subgrid Kinetic Energy K_sg = tr(Rsg)/2, added to the total
+           ! gas energy. Rsg from ppiclF is per unit mass [m^2/s^2]
+           pRegion%mixt%piclKsg(i) = 0.5_RFREAL &
                                   * (JRSGCell(1,i) + JRSGCell(5,i) + JRSGCell(9,i))
 
            if(pRegion%mixt%piclKsg(i) .lt. 0.0_RFREAL) then
@@ -647,6 +646,9 @@ IF(global%piclFeedbackFlag == 1) THEN
                      "Rsg(3,3) =", JRSGCell(9,i)
              !STOP
            endif
+
+           ! Reynolds stress [Pa] = cell gas density * Rsg
+           JRSGCell(:,i) = rhog(i)*JRSGCell(:,i)
 
            do j=1,9
              ! \phi_g \rho_g R_sg
