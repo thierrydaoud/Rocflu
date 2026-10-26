@@ -1,0 +1,11 @@
+{
+ "created": "2026-10-26T16:15:24",
+ "host": "login7.ufhpc",
+ "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocflu-docs/build/bin",
+ "git": {
+  "commit": "90619578829894ee0e7551cbd8bff8db9d9ca999",
+  "branch": "main",
+  "modified_sources": []
+ },
+ "modules": "gcc/14.2.0:openmpi/5.0.7"
+}

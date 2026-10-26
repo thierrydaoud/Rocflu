@@ -389,6 +389,13 @@ for n in (1, 2):
                     "periodic faces must conserve",
         nranks=n, grid=BOX, bc="periodic", inp={**uniform_gas(0.0), **JUMP},
         checks=["mass", "gas_energy"])
+# Symmetry virtual cells had the same fault (drift ~3e-5 in 100 us; 11dc640)
+for n in (1, 2):
+    add(name="box/gas-jump/symmetry/np%d" % n,
+        description="Same jump with symmetry patches on all six faces; second-order "
+                    "fluxes across symmetry faces must conserve",
+        nranks=n, grid=BOX, bc="symmetry", inp={**uniform_gas(0.0), **JUMP},
+        checks=["mass", "gas_energy"])
 
 
 # Cases that also write the old-style output (OLD_OUTPUT_WRT 1): the harness checks
