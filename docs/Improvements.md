@@ -54,7 +54,7 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
 | Projection | Cells just outside the bin domain were dropped, so cloud-edge particles reached 8 cells instead of 27; φ was ~8% too high at the edge | Map those cells to particle bins | [affad85](https://github.com/thierrydaoud/Rocflu/commit/affad85) |
 | Closures | Forces and heat transfer were skipped below 1 mm/s slip, and the old value was kept | Evaluate at any slip; skip only the quasi-steady drag at zero slip | [f0ae123](https://github.com/thierrydaoud/Rocflu/commit/f0ae123) |
 | Quasi-steady drag | Gidaspow's C_D was capped below Re = 0.1 (100% error); Osnes had a spurious Knudsen reduction (25% error) | Correlations match the published ones; QSFORCE renumbered | [94607fd](https://github.com/thierrydaoud/Rocflu/commit/94607fd) |
-| MPI | Gas state in virtual cells was stale at rank borders with particles, causing spurious gas motion in a quiescent cloud and a 1% difference between 1 and 2 ranks | Convert and re-exchange after φ is known; exchange φ every stage | [e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370) |
+| MPI | Gas state in virtual cells was stale at rank borders with particles, setting the gas around a quiescent cloud moving (1e-4 m/s) on 2+ ranks; total gas energy differed from 1 rank by 5e-8 | Convert and re-exchange after φ is known; exchange φ every stage | [e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370) |
 | Conservation | Fluxes on periodic and symmetry patches were not conservative | Exchange and transform gradients in virtual cells | [11dc640](https://github.com/thierrydaoud/Rocflu/commit/11dc640) |
 | Robustness | Uninitialized reads gave NaN on 2+ ranks; a single particle gave a filter width of 0 | Initialize; filter width from cell–box overlap | [b10c5f1](https://github.com/thierrydaoud/Rocflu/commit/b10c5f1), [48f64b7](https://github.com/thierrydaoud/Rocflu/commit/48f64b7) |
 | Build | Required `SPEC=1` | Builds without it; stops if species are requested | [aa3c0b6](https://github.com/thierrydaoud/Rocflu/commit/aa3c0b6) |
@@ -966,9 +966,9 @@ on 1, 2 and 4 ranks.
 
 - **Stale virtual cells at rank borders ([e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370)).** `PICL_InitSolver` converted the
   conserved variables before virtual cells had φ, and did not exchange them again. A
-  quiescent particle cloud set the gas in motion, and results differed by 1% between 1 and
-  2 ranks. φ is now exchanged before the virtual-cell state is computed in every
-  stage.
+  quiescent particle cloud set the gas in motion (1e-4 m/s) on 2 and 4 ranks, and the
+  total gas energy differed from the 1-rank run by 5e-8. φ is now exchanged before the
+  virtual-cell state is computed in every stage.
 
   ![Quiescent cloud, old vs new](figures/fig_quiescent_cloud.png)
 

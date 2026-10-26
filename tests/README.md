@@ -253,7 +253,8 @@ None at the moment. Fixed and now guarded:
 - non-conservative periodic and symmetry patches (`box/gas-jump/periodic`,
   `box/gas-jump/symmetry`, 11dc640);
 - stale gas state in virtual cells at region borders with particles, which set the gas
-  moving around fixed particles and made 1- and 2-rank runs differ by ~1%
+  moving around fixed particles (1e-4 m/s) and made the total gas energy of 2- and 4-rank
+  runs differ from 1 rank by 5e-8
   (`box/quiescent-cloud/np2`, `np4`, and the `same_as` check of
   `box/momentum-exchange/np2`, e3ed370);
 - resting particles skipping heat transfer (`box/resting-heat-exchange`, f0ae123);
