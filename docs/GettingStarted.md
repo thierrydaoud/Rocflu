@@ -199,8 +199,6 @@ cmake --build build/staging/mine -j 16 --target rflump   # executables in build/
 |---|---|---|
 | `CMAKE_BUILD_TYPE` | `--debug` (= `Debug`) | `Release` |
 | `ROCFLU_PICL` | `--no-picl` | `ON` |
-| `ROCFLU_SPEC` | `--spec` (disabled) | `OFF` (`ON` refused for now) |
-| `ROCFLU_PLAG` | `--plag` (disabled) | `OFF` (`ON` refused for now) |
 | `ROCFLU_FOLDER` | `--no-folder` | `ON` |
 | `ROCFLU_UTILITIES` | (off: only `rflump`) | `ON` |
 | `METIS_ROOT` | `--metis-root` | empty (bundled) |
