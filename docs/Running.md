@@ -1,4 +1,4 @@
-# Running a case
+# Running a simulation
 
 `./rocflu.sh run` checks a case, builds the code for it, pre-processes it and submits the
 job; `./rocflu.sh post` converts the results for ParaView. How the code is built is in
@@ -14,7 +14,7 @@ job; `./rocflu.sh post` converts the results for ParaView. How the code is built
 ## `rocflu.sh run`
 
 ```bash
-./rocflu.sh run /path/to/case/rectshktb.inp -N 1 -n 4 -p hpg-default -w 02:00:00 -@ you@ufl.edu
+./rocflu.sh run /path/to/case/<case>.inp -N 1 -n 4 -p hpg-default -w 02:00:00 -@ you@ufl.edu
 ```
 
 The case directory must hold `<case>.inp`, `<case>.bc`, the grid (`<case>.hyb.asc`) and,
@@ -82,7 +82,7 @@ grids (a million cells and more) can take long there (to be improved).
 ## Checking a case: `rocflu.sh validate`
 
 ```bash
-./rocflu.sh validate /path/to/case/rectshktb.inp
+./rocflu.sh validate /path/to/case/<case>.inp
 ```
 
 `utilities/scripts/case_validator.py` reads the input file the way Rocflu does and
@@ -126,8 +126,8 @@ warnings and errors; `2` the detailed messages of every stage (Rocflu and ppiclF
 `3` debugging detail as well. The pre-processing tools keep their own levels.
 
 A case build stops at start-up if the input asks for a model whose slots it does not
-have, with a message such as *Input needs ppiclF slots 'qsfluct' (QSFLUCT >= 1 or
-PSEUDOTURB >= 1), not in this build: use ./rocflu.sh run*.
+have, with a message such as *Input needs ppiclF slots 'qsfluct' (QSFLUCT >= 1), not in
+this build: use ./rocflu.sh run*.
 
 The post program runs on one process, in the case directory:
 `$B/rflupost -c <case> [-s new|all|last|N,M]`.
@@ -135,9 +135,9 @@ The post program runs on one process, in the case directory:
 ## Results: `rocflu.sh post`
 
 ```bash
-./rocflu.sh post /path/to/case/rectshktb.inp            # the steps not yet in post/
-./rocflu.sh post /path/to/case/rectshktb.inp -s all     # every step again
-./rocflu.sh post /path/to/case/rectshktb.inp -e batch   # as a one-task Slurm job
+./rocflu.sh post /path/to/case/<case>.inp               # the steps not yet in post/
+./rocflu.sh post /path/to/case/<case>.inp -s all        # every step again
+./rocflu.sh post /path/to/case/<case>.inp -e batch      # as a one-task Slurm job
 ```
 
 `rflump` writes its results as raw dumps in `restart_data/` (the same files a restart

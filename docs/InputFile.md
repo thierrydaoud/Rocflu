@@ -289,8 +289,8 @@ program writes velocity and energy per mass.
 ## The case validator
 
 ```bash
-./rocflu.sh validate /path/to/case/rectshktb.inp
-python3 utilities/scripts/case_validator.py /path/to/case/rectshktb.inp   # the same
+./rocflu.sh validate /path/to/case/<case>.inp
+python3 utilities/scripts/case_validator.py /path/to/case/<case>.inp      # the same
 ```
 
 [`utilities/scripts/case_validator.py`](../utilities/scripts/case_validator.py) reads

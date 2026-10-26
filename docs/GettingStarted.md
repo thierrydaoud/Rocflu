@@ -39,8 +39,8 @@ On HiPerGator:
 ```bash
 ./rocflu.sh build        # optimised build of everything (about 30 s on 16 cores)
 ./rocflu.sh test         # regression suite (36 cases, about a minute)
-./rocflu.sh run /path/to/case/rectshktb.inp -n 4   # build for the case, pre-process, submit
-./rocflu.sh post /path/to/case/rectshktb.inp       # dumps -> ParaView files in post/
+./rocflu.sh run /path/to/case/<case>.inp -n 4      # build for the case, pre-process, submit
+./rocflu.sh post /path/to/case/<case>.inp          # dumps -> ParaView files in post/
 ```
 
 The executables are in `build/bin`. There is nothing to set up first: the script loads
