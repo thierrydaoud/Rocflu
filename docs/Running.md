@@ -7,9 +7,9 @@ job; `./rocflu.sh post` converts the results for ParaView. How the code is built
 ## Contents
 
 - [`rocflu.sh run`](#rocflush-run)
-- [Checking a case: `rocflu.sh validate`](#checking-a-case-rocflush-validate)
+- [Validate a case: `rocflu.sh validate`](#validate-a-case-rocflush-validate)
 - [Running the steps by hand](#running-the-steps-by-hand)
-- [Results: `rocflu.sh post`](#results-rocflush-post)
+- [Post-process: `rocflu.sh post`](#post-process-rocflush-post)
 
 ## `rocflu.sh run`
 
@@ -20,7 +20,7 @@ job; `./rocflu.sh post` converts the results for ParaView. How the code is built
 The case directory must hold `<case>.inp`, `<case>.bc`, the grid (`<case>.hyb.asc`) and,
 with particles, `points.dat`. `run` then:
 
-0. **Checks the case** ([`rocflu.sh validate`](#checking-a-case-rocflush-validate)). An
+0. **Checks the case** ([`rocflu.sh validate`](#validate-a-case-rocflush-validate)). An
    error stops here, before anything is built.
 1. **Builds the code for this case.** It reads the PICL and FLOWMODEL sections of the
    input and builds only the particle slots the models that are on need (see
@@ -79,7 +79,7 @@ with particles, `points.dat`. `run` then:
 Pre-processing runs on the login node, which is fine for test-size grids; very large
 grids (a million cells and more) can take long there (to be improved).
 
-## Checking a case: `rocflu.sh validate`
+## Validate a case: `rocflu.sh validate`
 
 ```bash
 ./rocflu.sh validate /path/to/case/<case>.inp
@@ -132,7 +132,7 @@ this build: use ./rocflu.sh run*.
 The post program runs on one process, in the case directory:
 `$B/rflupost -c <case> [-s new|all|last|N,M]`.
 
-## Results: `rocflu.sh post`
+## Post-process: `rocflu.sh post`
 
 ```bash
 ./rocflu.sh post /path/to/case/<case>.inp               # the steps not yet in post/
