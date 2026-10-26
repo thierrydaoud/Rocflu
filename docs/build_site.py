@@ -30,10 +30,10 @@ GITHUB = "https://github.com/thierrydaoud/Rocflu/blob"
 # short title for the sidebar).
 PAGES = [
     ("GettingStarted.md", "GettingStarted.html", "Getting Started"),
-    ("Running.md", "Running.html", "Running a Simulation"),
+    ("Running.md", "Running.html", "Running A Simulation"),
     ("InputFile.md", "InputFile.html", "Input File"),
     ("BoundaryConditions.md", "BoundaryConditions.html", "Boundary Conditions"),
-    ("Improvements.md", "Improvements.html", "Recent Improvements and Fixes"),
+    ("Improvements.md", "Improvements.html", "Recent Improvements And Fixes"),
     ("../tests/README.md", "tests.html", "Regression Tests"),
 ]
 

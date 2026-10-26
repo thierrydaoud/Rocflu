@@ -1,4 +1,4 @@
-# Running a Simulation
+# Running A Simulation
 
 `./rocflu.sh run` checks a case, builds the code for it, pre-processes it and submits the
 job; `./rocflu.sh post` converts the results for ParaView. How the code is built is in
@@ -6,12 +6,12 @@ job; `./rocflu.sh post` converts the results for ParaView. How the code is built
 
 ## Contents
 
-- [Run a Case](#run-a-case)
-- [Validate a Case](#validate-a-case)
-- [Running the Steps by Hand](#running-the-steps-by-hand)
+- [Run A Case](#run-a-case)
+- [Validate A Case](#validate-a-case)
+- [Running The Steps By Hand](#running-the-steps-by-hand)
 - [Post-Process](#post-process)
 
-## Run a Case
+## Run A Case
 
 ```bash
 ./rocflu.sh run /path/to/case/<case>.inp -N 1 -n 4 -p hpg-default -w 02:00:00 -@ you@ufl.edu
@@ -79,7 +79,7 @@ with particles, `points.dat`. `run` then:
 Pre-processing runs on the login node, which is fine for test-size grids; very large
 grids (a million cells and more) can take long there (to be improved).
 
-## Validate a Case
+## Validate A Case
 
 ```bash
 ./rocflu.sh validate /path/to/case/<case>.inp
@@ -108,7 +108,7 @@ Settings of a model that is off (e.g. `KSP` without collisions) are ignored. `ro
 run` and the regression suite run the same checks. The validator's own tests:
 `python3 tests/test_case_validator.py`.
 
-## Running the Steps by Hand
+## Running The Steps By Hand
 
 With the modules loaded (`source ./rocflu.sh load`) and N MPI ranks, using a full build
 (`build/bin`) or a case build (`build/install/<name>/bin`):

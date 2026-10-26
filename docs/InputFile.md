@@ -1,4 +1,4 @@
-# The Case Input File (`<case>.inp`) and `points.dat`
+# The Case Input File (`<case>.inp`) And `points.dat`
 
 A Rocflu case is described by `<case>.inp` (this page), `<case>.bc`
 ([Boundary conditions](BoundaryConditions.md)), the grid (`<case>.hyb.asc`) and, with
@@ -11,16 +11,16 @@ is a complete, working example.
 
 ## Contents
 
-- [How Rocflu Reads the File](#how-rocflu-reads-the-file)
+- [How Rocflu Reads The File](#how-rocflu-reads-the-file)
 - [Gas-Side Sections](#gas-side-sections)
 - [`# PICL`: The Particles](#picl-the-particles)
   - [Models That Need Other Models](#models-that-need-other-models)
 - [`points.dat`: The Particles' Initial State](#pointsdat-the-particles-initial-state)
-- [Output and Restarts](#output-and-restarts)
+- [Output And Restarts](#output-and-restarts)
 - [The Case Validator](#the-case-validator)
   - [Removed Keys](#removed-keys)
 
-## How Rocflu Reads the File
+## How Rocflu Reads The File
 
 ```
 # PICL
@@ -170,7 +170,7 @@ Older forms are no longer read: a material name in the first column (removed wit
 `# MATERIAL` for particles), and `x y z dp [u v w]` (diameter before the velocity).
 The validator and `rflump` both stop on them.
 
-## Output and Restarts
+## Output And Restarts
 
 `rflump` writes its results as raw dumps in `restart_data/`, at step 0 (the particles),
 every `WRITIME` and the end of the run:
