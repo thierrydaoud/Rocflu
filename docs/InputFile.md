@@ -130,7 +130,7 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 The filter width of the particle projection is not an input: it is twice the largest cell
 length around the particles. `./rocflu.sh run` builds only the particle data the models
 that are on need (`libpicl/user_files/ppiclf_slots.txt`, see
-[Getting started](GettingStarted.md#particle-slots-ppiclf_slotstxt)).
+[Getting started](GettingStarted.md#particle-slots)).
 
 ### Models that need other models
 
@@ -269,7 +269,7 @@ every `WRITIME` and the end of the run:
 
 Layouts: `modflu/RFLU_ModRestartData.F90`. A file is written as `.tmp` and renamed when it
 is complete. The same files are what a restart reads and what the post program converts
-(`./rocflu.sh post`, see [Running.md](Running.md#results-rocflush-post)), so results
+(`./rocflu.sh post`, see [Running a simulation](Running.md#results-rocflush-post)), so results
 can be looked at during a run or after it stopped.
 
 **Starting a run** (`START_STEP` in `# TIMESTEP`): `0` (default) is a new run from
