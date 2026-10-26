@@ -77,7 +77,6 @@ pre-processing tools are built from `utilities/map`, `utilities/part` and
 |---|---|
 | `-t, --targets T ...` | build only these targets: `simulation`, `pre_process`, or executable names (`rflump rflumap rflupart rfluinit`). Default: all |
 | `--debug` | debug build: `-g -O0 -fbacktrace -fcheck=all` everywhere |
-| `--spec`, `--plag` | species transport (needed by the mixture and JWL gas models, `GASMODEL` 3-7) and Rocpart Lagrangian particles: **disabled for now**, see below |
 | `--no-picl` | without the ppiclF particle solver |
 | `--no-folder` | write all output files in the run directory instead of sub-folders |
 | `-j, --jobs N` | compile with N processes (default 16) |
@@ -197,16 +196,16 @@ cmake -S . -B build/staging/mine -DCMAKE_BUILD_TYPE=Debug -DROCFLU_PICL=OFF
 cmake --build build/staging/mine -j 16 --target rflump   # executables in build/staging/mine/bin
 ```
 
-| CMake option | Default | `rocflu.sh` flag |
+| CMake option | `rocflu.sh` flag | Default |
 |---|---|---|
-| `CMAKE_BUILD_TYPE` | `Release` | `--debug` (= `Debug`) |
-| `ROCFLU_PICL` | `ON` | `--no-picl` |
-| `ROCFLU_SPEC` | `OFF` (`ON` refused for now) | `--spec` (disabled) |
-| `ROCFLU_PLAG` | `OFF` (`ON` refused for now) | `--plag` (disabled) |
-| `ROCFLU_FOLDER` | `ON` | `--no-folder` |
-| `ROCFLU_UTILITIES` | `ON` | (off: only `rflump`) |
-| `METIS_ROOT` | empty (bundled) | `--metis-root` |
-| `ROCFLU_CASE` | empty (every particle slot) | set by `rocflu.sh run` |
+| `CMAKE_BUILD_TYPE` | `--debug` (= `Debug`) | `Release` |
+| `ROCFLU_PICL` | `--no-picl` | `ON` |
+| `ROCFLU_SPEC` | `--spec` (disabled) | `OFF` (`ON` refused for now) |
+| `ROCFLU_PLAG` | `--plag` (disabled) | `OFF` (`ON` refused for now) |
+| `ROCFLU_FOLDER` | `--no-folder` | `ON` |
+| `ROCFLU_UTILITIES` | (off: only `rflump`) | `ON` |
+| `METIS_ROOT` | `--metis-root` | empty (bundled) |
+| `ROCFLU_CASE` | set by `rocflu.sh run` | empty (every particle slot) |
 
 ## How the build is organised
 
