@@ -34,7 +34,7 @@ collisions, walls) and [gas only](#gas-only-cases) (the flow solver without part
 ### 1. Build
 
 Build the code in the tree you want to test: `./rocflu.sh build` (see
-[`docs/Building.md`](../docs/Building.md)). The suite runs the executables `rflumap`,
+[`docs/GettingStarted.md`](../docs/GettingStarted.md)). The suite runs the executables `rflumap`,
 `rflupart`, `rfluinit` and `rflump` from `build/bin` (the last configuration built), or
 from the directory given with `--exe`. `./rocflu.sh test [options]` runs
 `./run_tests.py run` with the modules loaded and passes the options on.
@@ -210,7 +210,7 @@ They run to 20 µs.
 | `shocktube/two-way/viscous-unsteady` | 2 | + `VISCOUSUNSTEADY 1` | `particles_moved` | History force |
 | `shocktube/two-way/heat-transfer` | 2 | + `HEATTRANSFER 3` | `particles_moved` | Heat-transfer closure |
 | `shocktube/two-way/qs-fluctuations` | 2 | + `QSFLUCT 2` | `particles_moved` | Quasi-steady force fluctuations run; the four particles have no neighbours, so the noise amplitude is 0 (see `box/qs-fluctuations`) |
-| `shocktube/two-way/qs-parmar` | 2 | `QSFORCE 2` | `particles_moved` | Parmar drag (MFC numbering) |
+| `shocktube/two-way/qs-parmar` | 2 | `QSFORCE 2` | `particles_moved` | Parmar drag |
 | `shocktube/two-way/qs-gidaspow` | 2 | `QSFORCE 1` | `particles_moved` | Gidaspow drag |
 
 The force-model cases have no physics check beyond `particles_moved`. Their golden is
@@ -274,7 +274,7 @@ None at the moment. Fixed and now guarded:
   domain was dropped or crashed the run. The old code crashes on this case (the 300 m/s
   particle leaves the domain). `same_as` compares only the particle state (`y`): the gas
   in this closed box differs slightly between decompositions, so the gas seen by the
-  particles does too (see `docs/PseudoTurb_fixes.md`, Still open).
+  particles does too (see `docs/Improvements.md`, Still open).
 
 Guards with no known bug behind them:
 - ghost particles (`box/ghost-collisions/np1`, `np2`, `np4`). Ghosts must carry the

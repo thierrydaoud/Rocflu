@@ -29,10 +29,10 @@ GITHUB = "https://github.com/thierrydaoud/Rocflu/blob"
 # Pages in sidebar order: (Markdown file relative to docs/, generated page,
 # short title for the sidebar).
 PAGES = [
-    ("Building.md", "Building.html", "Building"),
-    ("Running.md", "Running.html", "Running a case"),
+    ("GettingStarted.md", "GettingStarted.html", "Getting started"),
+    ("Running.md", "Running.html", "Running a simulation"),
     ("InputFile.md", "InputFile.html", "Input file"),
-    ("PseudoTurb_fixes.md", "PseudoTurb_fixes.html", "PseudoTurb fixes"),
+    ("Improvements.md", "Improvements.html", "Recent improvements and fixes"),
     ("../tests/README.md", "tests.html", "Regression tests"),
 ]
 

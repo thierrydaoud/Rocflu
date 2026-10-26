@@ -2,7 +2,7 @@
 
 `./rocflu.sh run` checks a case, builds the code for it, pre-processes it and submits the
 job; `./rocflu.sh post` converts the results for ParaView. How the code is built is in
-[Building.md](Building.md), the input file and `points.dat` in [InputFile.md](InputFile.md).
+[GettingStarted.md](GettingStarted.md), the input file and `points.dat` in [InputFile.md](InputFile.md).
 
 ## Contents
 
@@ -24,7 +24,7 @@ with particles, `points.dat`. `run` then:
    error stops here, before anything is built.
 1. **Builds the code for this case.** It reads the PICL and FLOWMODEL sections of the
    input and builds only the particle slots the models that are on need (see
-   [Particle slots](Building.md#particle-slots-ppiclf_slotstxt)). The build is named after those
+   [Particle slots](GettingStarted.md#particle-slots-ppiclf_slotstxt)). The build is named after those
    slot groups, e.g. `build/install/release-case-qsfluct/bin`; every case with the same
    physics shares it, so a second case usually compiles nothing.
 2. **Pre-processes the case here**, on the login node: `rflumap` (into N x n regions),

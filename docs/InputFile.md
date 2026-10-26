@@ -130,7 +130,7 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 The filter width of the particle projection is not an input: it is twice the largest cell
 length around the particles. `./rocflu.sh run` builds only the particle data the models
 that are on need (`libpicl/user_files/ppiclf_slots.txt`, see
-[Building](Building.md#particle-slots-ppiclf_slotstxt)).
+[Getting started](GettingStarted.md#particle-slots-ppiclf_slotstxt)).
 
 ### Models that need other models
 

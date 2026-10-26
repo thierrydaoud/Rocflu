@@ -1,9 +1,20 @@
-# Building Rocflu
+# Getting started
+
+Rocflu is a finite volume solver that resolves shock fronts on both structured and
+unstructured grids. Lagrangian point-particles can be placed in the Eulerian fluid field
+and tracked via capabilities brought over from ppiclF and locally developed.
+
+To get the code:
+
+```bash
+git clone https://github.com/thierrydaoud/Rocflu.git
+cd Rocflu
+```
 
 The code is built with CMake. The script `rocflu.sh` at the top of the repository
-wraps CMake, in the style of MFC's `mfc.sh`. You pick what to build (targets) and
-how to build it (flags) on one command line, and the script does the rest: it loads
-the modules, configures, compiles and keeps each configuration in its own directory.
+wraps CMake. You pick what to build (targets) and how to build it (flags) on one
+command line, and the script does the rest: it loads the modules, configures, compiles
+and keeps each configuration in its own directory.
 
 Running a case (`rocflu.sh run`, `validate` and `post`) is described in
 [Running.md](Running.md), the input file and `points.dat` in [InputFile.md](InputFile.md).

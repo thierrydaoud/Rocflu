@@ -22,7 +22,7 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
   - [A faster stencil search](#a-faster-stencil-search)
 - [Projection: kernel width per direction, and cloud-edge cells](#projection-kernel-width-per-direction-and-cloud-edge-cells)
 - [Low-slip closures](#low-slip-closures)
-- [Quasi-steady drag, aligned with MFC](#quasi-steady-drag-aligned-with-mfc)
+- [Quasi-steady drag](#quasi-steady-drag)
 - [Random numbers for the stochastic models](#random-numbers-for-the-stochastic-models)
 - [Particle collisions](#particle-collisions)
   - [Contact stiffness from the pair's effective mass (3afd23a)](#contact-stiffness-from-the-pairs-effective-mass-3afd23a)
@@ -43,7 +43,6 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
   - [Ghosts carry only what the neighbour search reads (a7f5748)](#ghosts-carry-only-what-the-neighbour-search-reads-a7f5748)
   - [Particle output: a list of named fields](#particle-output-a-list-of-named-fields)
   - [Unused slots removed, the rest grouped by job](#unused-slots-removed-the-rest-grouped-by-job)
-- [Notes for the discussion with the MFC team](#notes-for-the-discussion-with-the-mfc-team)
 - [MPI and periodic boundaries](#mpi-and-periodic-boundaries)
 - [Still open](#still-open)
 - [Reproducing the figures](#reproducing-the-figures)
@@ -53,16 +52,16 @@ All changes are covered by the regression suite in [`tests/`](../tests/README.md
 | Area | Problem | Fix | Commit |
 |---|---|---|---|
 | Interpolation | Inverse distance (1/d³) had errors of up to ±18% of the change in density across one cell, even in a linear field, and was discontinuous at cell faces. A particle sheet hit by a planar shock rippled with the cell size (57 µm standard deviation after 250 µs) | Weighted linear least squares, exact for linear fields; the sheet stays flat (0.07 µm) | 89f9661, 6d00ca4 |
-| Projection | The kernel used one length for every direction, so the spread on stretched cells was wrong | Each direction is scaled by its own cell length, as in MFC | 414ce7f |
+| Projection | The kernel used one length for every direction, so the spread on stretched cells was wrong | Each direction is scaled by its own cell length | 414ce7f |
 | Projection | Cells just outside the bin domain were dropped, so cloud-edge particles reached 8 cells instead of 27; φ was ~8% too high at the edge | Map those cells to particle bins | affad85 |
 | Closures | Forces and heat transfer were skipped below 1 mm/s slip, and the old value was kept | Evaluate at any slip; skip only the quasi-steady drag at zero slip | f0ae123 |
-| Quasi-steady drag | Gidaspow's C_D was capped below Re = 0.1 (100% error); Osnes had a spurious Knudsen reduction (25% error) | Aligned with MFC; QSFORCE renumbered | 94607fd |
+| Quasi-steady drag | Gidaspow's C_D was capped below Re = 0.1 (100% error); Osnes had a spurious Knudsen reduction (25% error) | Correlations match the published ones; QSFORCE renumbered | 94607fd |
 | MPI | Gas state in virtual cells was stale at rank borders with particles, causing spurious gas motion in a quiescent cloud and a 1% difference between 1 and 2 ranks | Convert and re-exchange after φ is known; exchange φ and k_sg every stage | e3ed370 |
 | Conservation | Fluxes on periodic and symmetry patches were not conservative | Exchange and transform gradients in virtual cells | 11dc640 |
 | Robustness | Uninitialized reads gave NaN on 2+ ranks; a single particle gave a filter width of 0 | Initialize; filter width from cell–box overlap | b10c5f1, 48f64b7 |
 | Build | Required `SPEC=1` | Builds without it; stops if species are requested | aa3c0b6 |
-| Random numbers | QS fluctuations and pseudo-turbulence drew from one generator per rank, every rank seeded with 1: the same noise on every rank, and results that changed with the number of ranks | Each particle has its own stream (splitmix32, as MFC), seeded with its line in `points.dat` and carried with the particle; 1 and 2 ranks now give identical results | (section "Random numbers for the stochastic models") |
-| Collisions | The contact stiffness used particle i's own mass, so an unequal pair felt unequal forces: an 8:1 pair at 20 m/s ended with its total momentum reversed | Stiffness from the pair's effective mass (MFC soft-sphere model) | 3afd23a, 78eb711 |
+| Random numbers | QS fluctuations and pseudo-turbulence drew from one generator per rank, every rank seeded with 1: the same noise on every rank, and results that changed with the number of ranks | Each particle has its own stream (splitmix32), seeded with its line in `points.dat` and carried with the particle; 1 and 2 ranks now give identical results | (section "Random numbers for the stochastic models") |
+| Collisions | The contact stiffness used particle i's own mass, so an unequal pair felt unequal forces: an 8:1 pair at 20 m/s ended with its total momentum reversed | Stiffness from the pair's effective mass (soft-sphere model) | 3afd23a, 78eb711 |
 | Particle walls | Walls existed only through `filein.vtk`; a particle over the edge between two wall triangles was pushed by both (e = 0.60 instead of 0.70); a fast particle went through the wall and the run crashed | Walls from the fluid wall patches (`PARTWALL 1`), contacts computed like pair contacts, a fluid side that pushes back; `filein.vtk` removed | 2ff0cd8 |
 | Ghost particles | Overflowing the ghost arrays wrote past their end | Guards stop the run; ghost arrays 30% smaller | f7a3980, 0bb2e4b |
 | Neighbour search | Dense subbin tables: ~28 GB requested for 50,000 particles in one 2 cm bin | Compact lists: ~1.2 MB for the same bin (about 24,000 times less), byte-identical results | 82d4ca4 |
@@ -302,7 +301,7 @@ cube cells, the bottom row 2:1:1 cells.
 
 - On 2:1:1 cells the old spread along the long side fell to 0.07 cell lengths: the
   particle's φ landed almost entirely in one cell. The kernel now scales each direction by
-  the receiving cell's length, as in MFC, and the spread stays between 0.41 and 0.51 cell
+  the receiving cell's length, and the spread stays between 0.41 and 0.51 cell
   lengths in every direction.
 - On cube cells the old curve has a notch at the cell centre. Cells whose centre lay just
   outside the bin domain were dropped, so a particle reached only 8–12 cells instead of 27.
@@ -323,7 +322,7 @@ this width is the next physics question (see [Still open](#still-open)).
 - **(c) Fox Nusselt number.** The old code gave Nu = 0 below 1 mm/s and floored Re_p at
   0.1. The new formula tends smoothly to 2.
 
-## Quasi-steady drag, aligned with MFC
+## Quasi-steady drag
 
 Rows 1–2: C_D from each code's Fortran routine at M → 0 and φ = 0, compared with the
 published correlations. Row 3: a particle released at rest in gas at 1 m/s (Re₀ = 1),
@@ -338,9 +337,9 @@ compared with the ODE using the published correlation.
 | Osnes et al. (2023) / Loth et al. (2021) | 25% (M floored at 0.01, giving a spurious Knudsen reduction) | 1e-5 |
 
 The remaining "after" errors come from evaluating at M = 1e-9 and from the code's own
-M ≥ 1e-6 floor in Loth's terms, which MFC also has. The modified Parmar model was removed.
+M ≥ 1e-6 floor in Loth's terms. The modified Parmar model was removed.
 
-> **Input decks:** `QSFORCE` now follows MFC: 0 none, 1 Gidaspow, 2 Parmar, 3 Osnes.
+> **Input decks:** `QSFORCE` is now 0 none, 1 Gidaspow, 2 Parmar, 3 Osnes.
 > 4 stops with an error. Decks that used `QSFORCE 2` for Osnes must change to `3`.
 
 ## Random numbers for the stochastic models
@@ -360,12 +359,12 @@ rank drew in the order it visits its own particles. So:
 - a restart could only continue the same streams by saving every rank's generator state,
   and only on the same number of ranks with particles in the same order.
 
-**Now (as MFC, `s_prng_splitmix32` in `m_helper.fpp`):** each particle carries its own
+**Now:** each particle carries its own
 generator state in the `rprop` slot `R_SEED` (group `qsfluct`). The state starts at the
 particle's line number in `points.dat` and advances by one splitmix32 step per draw
 (`ppiclf_op_UniformRandom` in `ppiclf_op.f`). splitmix32 hashes a Weyl sequence, so
 different seeds give unrelated streams: the first draws of particles 1 to 100,000 have a
-correlation of −0.006 between neighbouring seeds (MFC measured −0.009). The state is an
+correlation of −0.006 between neighbouring seeds. The state is an
 integer below 2³², exact in a double, and moves with the particle like every other
 `rprop` slot. Draws equal to 0 are raised to the smallest positive double, so `log(u)`
 stays finite.
@@ -378,12 +377,11 @@ The advantages:
 | Result on 1 vs 2 ranks | different | identical |
 | Particle moving to another rank | switches to that rank's stream | keeps its own stream |
 | Restart | needs every rank's generator state, same rank count | the state is in the particle's data; any rank count |
-| Same as MFC | no | yes (same generator, seeded by the particle's ID) |
 
 **How it was checked**
 
-- The Fortran routine gives the same numbers as MFC's formula for seeds 1–3 (six draws
-  each).
+- The Fortran routine gives the same numbers as the reference splitmix32 formula for
+  seeds 1–3 (six draws each).
 - A cloud of 40 particles (the `box/momentum-exchange` set-up with a ±1 m/s velocity
   spread, `QSFLUCT 2`, `NEIGHBORWIDTH 3e-3` so the particles have neighbours) on 1 and 2
   ranks: before, the fluctuation forces differed between the two runs and the particle
@@ -400,8 +398,8 @@ Collisions use a soft-sphere model: overlapping particles push each other apart 
 spring and a dashpot. The spring stiffness is the softer of two values:
 
 - **k₁ = m_eff (π² + ln² e) / (KSP·dt)²**. With this stiffness a contact lasts exactly
-  KSP time steps and rebounds with restitution e = `EREST` (the linear model in MFC's
-  `m_collisions`). dt is the current time step, so the contact time follows dt.
+  KSP time steps and rebounds with restitution e = `EREST` (the linear
+  spring–dashpot model). dt is the current time step, so the contact time follows dt.
 - **k₂ = (4/3) E\* √(R\*) √δ**, the Hertz stiffness at overlap δ, with E = 1 GPa and
   ν = 0.35 for every particle.
 
@@ -807,7 +805,7 @@ Planned, one commit at a time:
 2. Choose the fields of the particle output with a list, and name them (done, below).
 3. Remove the unused slots and group the rest by job (done, below).
 4. A double-precision particle dump (`restart_data/particles_<step>.dat`) holding the
-   state a run needs to continue, as MFC does (done). Of `rprop` it holds the slots a
+   state a run needs to continue (done). Of `rprop` it holds the slots a
    restart needs, listed in `ppiclf_user_Layout` with `ppiclf_solve_AddRestartSlot`
    (properties, quasi-steady fluctuation and its random-stream state, pseudo-turbulence
    variables, added-mass Ẇ), and the slots of the particle output; the gas values at the
@@ -897,7 +895,7 @@ written. Positions are always written, as the points of the file.
   another, because Rocflu's `ReadSection` matches the start of each input line (a key
   `GAS` would also match a line `GASGRAD 1`).
 - They were called `OUTPARTICLE`, `OUTGAS`, `OUTGRADGAS` and `OUTMODEL` at first, and were
-  renamed in the MFC style of the fluid output keys (`DENSITY_WRT`, ...); the case validator
+  renamed in the style of the fluid output keys (`DENSITY_WRT`, ...); the case validator
   tells an input with an old name what it is now.
 - The superparticle loading (always 1 for now) and the unused slots are not written.
 - To add a field: one `call ppiclf_io_AddOutputField(source, slot, 'name')` in
@@ -967,32 +965,6 @@ and `QSFLUCT` and `PSEUDOTURB` variants with `MODEL_WRT 1`, 62 fields) every nam
 bit-identical to the old field it replaces in the files of 74b8f87, and the flow files
 are byte-identical.
 
-## Notes for the discussion with the MFC team
-
-- **The normal force turns attractive at the end of a contact.** The normal force is
-  −k δ − η v_n. While the particles separate, v_n changes sign, and near the end of the
-  contact the dashpot term exceeds the spring term. The animation of the binary
-  collisions shows a pull of 1–2% of the rebound speed. MFC's `m_collisions` has the same
-  form. The usual fix allows only repulsive normal forces (clip at 0, as in LIGGGHTS).
-  Clipping removes some damping, so the actual e comes out above EREST unless η is
-  recalibrated (linear spring–dashpot, Schwager & Pöschel 2007):
-
-  | EREST | e with clipping |
-  |---|---|
-  | 0.5 | 0.550 |
-  | 0.7 | 0.718 |
-  | 0.9 | 0.902 |
-
-  The friction and rolling torques use |F_n|, so they also act during the attractive
-  phase. The code keeps the unclipped force for now, as in MFC.
-- **min(k₁, k₂).** MFC uses only the linear spring–dashpot (k₁). ppiclF takes the softer
-  of k₁ and the Hertz stiffness. In the Hertz branch e depends on the impact speed (0.725
-  for an equal pair at 2 m/s).
-- **Material constants.** E = 1 GPa and ν = 0.35 are fixed in the code for every particle
-  and wall. Aluminium is about 70 GPa.
-- **Resolution.** KSP·dt sets the contact time, so fast impacts penetrate by
-  v·KSP·dt/π (see above). A time-step limit from the particle speeds would bound it.
-
 ## MPI and periodic boundaries
 
 These fixes have no figure. Each is checked by a regression case that compares 1, 2 and
@@ -1016,6 +988,31 @@ Next physics step:
 - **Sensitivity of k_sg to the projection width.** The width is about 0.46h and depends on
   the mesh. The options are a fixed physical width or deposit-and-diffuse
   (Capecelatro & Desjardins).
+
+Collision model:
+- **The normal force turns attractive at the end of a contact.** The normal force is
+  −k δ − η v_n. While the particles separate, v_n changes sign, and near the end of the
+  contact the dashpot term exceeds the spring term. The animation of the binary
+  collisions shows a pull of 1–2% of the rebound speed. The usual fix allows only
+  repulsive normal forces (clip at 0, as in LIGGGHTS). Clipping
+  removes some damping, so the actual e comes out above EREST unless η is recalibrated
+  (linear spring–dashpot, Schwager & Pöschel 2007):
+
+  | EREST | e with clipping |
+  |---|---|
+  | 0.5 | 0.550 |
+  | 0.7 | 0.718 |
+  | 0.9 | 0.902 |
+
+  The friction and rolling torques use |F_n|, so they also act during the attractive
+  phase. The code keeps the unclipped force for now.
+- **min(k₁, k₂).** ppiclF takes the softer of the linear stiffness k₁ and the Hertz
+  stiffness k₂. In the Hertz branch e depends on the impact speed (0.725 for an equal
+  pair at 2 m/s).
+- **Material constants.** E = 1 GPa and ν = 0.35 are fixed in the code for every particle
+  and wall. Aluminium is about 70 GPa.
+- **Resolution.** KSP·dt sets the contact time, so fast impacts penetrate by
+  v·KSP·dt/π (see above). A time-step limit from the particle speeds would bound it.
 
 Known limitations:
 - Walls that only the particles see (a screen or an obstacle that is not in the fluid
