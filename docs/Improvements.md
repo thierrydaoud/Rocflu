@@ -7,7 +7,7 @@ across MPI ranks and periodic boundaries. For each: what was wrong, how it was f
 how the fix was checked.
 
 All changes are covered by the regression suite in [Regression Tests](../tests/README.md):
-35 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks.
+38 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks.
 
 ## Contents
 
@@ -94,7 +94,7 @@ them, from `tests/`:
 
 ```bash
 module purge; module load gcc/14.2.0 openmpi/5.0.7
-./run_tests.py run                     # all 35 cases against the goldens
+./run_tests.py run                     # all 38 cases against the goldens
 ./run_tests.py run -o box/walls        # a subset
 ```
 
@@ -960,17 +960,34 @@ are byte-identical.
 
 ## MPI and Periodic Boundaries
 
-These fixes have no figure. Each is checked by a regression case that compares 1, 2 and
-4 ranks and checks the conservation budgets.
+Each fix is checked by a regression case that compares 1, 2 and 4 ranks and checks the
+conservation budgets. The figures compare the commit before each fix with the current code,
+on 1, 2 and 4 ranks.
 
 - **Stale virtual cells at rank borders ([e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370)).** `PICL_InitSolver` converted the
   conserved variables before virtual cells had φ, and did not exchange them again. A
   quiescent particle cloud set the gas in motion, and results differed by 1% between 1 and
   2 ranks. φ is now exchanged before the virtual-cell state is computed in every
   stage.
+
+  ![Quiescent cloud, old vs new](figures/fig_quiescent_cloud.png)
+
+  Fixed particles in gas at rest (`box/quiescent-cloud`). Before the fix the gas on 2 and
+  4 ranks reached 1e-4 m/s and its total energy differed from the 1-rank run by 5e-8; on
+  1 rank, with no rank border, the gas stayed at rest. Now every rank count stays at rest
+  (below 1e-13 m/s) and agrees with 1 rank to 6e-16.
 - **Periodic and symmetry patches ([11dc640](https://github.com/thierrydaoud/Rocflu/commit/11dc640)).** Virtual cells used their own gradients, so
   the fluxes through these patches did not cancel. Gradients are now exchanged
-  (`RFLU_MPI_ExchangeGradCells`) and transformed (`RFLU_RELP_TransformGradWrapper`).
+  (`RFLU_MPI_ExchangeGradCells`) and transformed (`RFLU_RELP_TransformGradWrapper`), so
+  every virtual cell uses the gradient of the real cell it mirrors.
+
+  ![Periodic and symmetry patches, old vs new](figures/fig_periodic_conservation.png)
+
+  A pressure jump in a box without particles, at second order, with periodic patches
+  (`box/gas-jump/periodic`) and with symmetry patches on all six faces
+  (`box/gas-jump/symmetry`). Before the fix, mass and energy drifted by 3–5e-5 within the
+  first 10 µs, the same on 1, 2 and 4 ranks: the error came from the patches, not from MPI.
+  Now both are conserved to 1e-14.
 - **Uninitialized reads ([b10c5f1](https://github.com/thierrydaoud/Rocflu/commit/b10c5f1)).** PICL arrays are zeroed, the NSCBC patch `dv`
   is set at initialization, and an out-of-bounds read of `dv(4)` is fixed.
 
@@ -1038,3 +1055,12 @@ the old ([3afd23a](https://github.com/thierrydaoud/Rocflu/commit/3afd23a)) and n
 sheet, `run`, `runpoly`, `plot2`, `animate`; its runs went to Slurm on hpg-dev, 8 ranks
 each) run and plot the interpolation comparisons in shock-driven flow, with [aa3c0b6](https://github.com/thierrydaoud/Rocflu/commit/aa3c0b6) as
 the old interpolation.
+
+For the MPI and boundary figures, `run_all.sh` runs `mpi_periodic.py` (the gas-jump box
+with periodic or symmetry patches, and the quiescent cloud) on 1, 2 and 4 ranks with built
+trees of [47b0940](https://github.com/thierrydaoud/Rocflu/commit/47b0940) (before
+[11dc640](https://github.com/thierrydaoud/Rocflu/commit/11dc640)),
+[8885909](https://github.com/thierrydaoud/Rocflu/commit/8885909) (before
+[e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370)) and the current code,
+each with its own test harness; `plot_mpi_periodic.py` draws both figures from the saved
+totals.

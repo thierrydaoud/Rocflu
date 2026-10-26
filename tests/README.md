@@ -25,7 +25,7 @@ on needs them (`ppiclf_user_Layout`), so cases without pressure-gradient, added-
 viscous-unsteady or rotational-collision models have no `dpdx_g` and similar fields. A
 field that is in a golden but no longer written fails the comparison.
 
-The 36 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
+The 38 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
 collisions, walls) and [gas only](#gas-only-cases) (the flow solver without particles).
 
@@ -79,8 +79,8 @@ messages are shown next to the case.
 
 ### 3. Read the Result
 
-The script prints one line per case, a total (e.g. `36 PASS`) and a closing line
-(`✔ All 36 cases passed in 29 s`, or `✗ 2 of 36 cases failed`). On a terminal the statuses
+The script prints one line per case, a total (e.g. `38 PASS`) and a closing line
+(`✔ All 38 cases passed in 29 s`, or `✗ 2 of 38 cases failed`). On a terminal the statuses
 are coloured (PASS green, FAIL red, XFAIL yellow, XPASS cyan); `NO_COLOR=1` turns that off. See [Results](#results)
 for what each status means.
 
@@ -245,11 +245,13 @@ the flow solver's own conservation.
 |---|---|---|---|---|
 | `box/gas-jump/closed` | 2 | Slip walls, two regions | `mass`, `gas_energy` | Conservation across a region border |
 | `box/gas-jump/periodic` | 1, 2 | Periodic on all faces | `mass`, `gas_energy` | Conservative fluxes across periodic faces (11dc640) |
+| `box/gas-jump/symmetry` | 1, 2 | Symmetry on all faces | `mass`, `gas_energy` | Conservative fluxes across symmetry faces (11dc640) |
 
 ## Known Issues Tracked by the Suite
 
 None at the moment. Fixed and now guarded:
-- non-conservative periodic patches (`box/gas-jump/periodic`, 11dc640);
+- non-conservative periodic and symmetry patches (`box/gas-jump/periodic`,
+  `box/gas-jump/symmetry`, 11dc640);
 - stale gas state in virtual cells at region borders with particles, which set the gas
   moving around fixed particles and made 1- and 2-rank runs differ by ~1%
   (`box/quiescent-cloud/np2`, `np4`, and the `same_as` check of
