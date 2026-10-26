@@ -158,10 +158,9 @@ def sidebar(current, toc):
 
 
 def toc_list(tokens):
-    # The page title (h1) is the top token; list its sections, skipping 'Contents'.
-    sections = [t for top in tokens for t in top["children"]] or tokens
+    # The tokens are the page's sections (h2, with their h3); 'Contents' is skipped.
     out = ['<ul class="toc">']
-    for t in sections:
+    for t in tokens:
         if t["id"] == "contents":
             continue
         out.append(f'<li><a href="#{t["id"]}">{t["name"]}</a>')
