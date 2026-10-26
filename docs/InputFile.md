@@ -1,7 +1,7 @@
 # The Case Input File (`<case>.inp`) And `points.dat`
 
 A Rocflu case is described by `<case>.inp` (this page), `<case>.bc`
-([Boundary conditions](BoundaryConditions.md)), the grid (`<case>.hyb.asc`) and, with
+([Boundary Conditions](BoundaryConditions.md)), the grid (`<case>.hyb.asc`) and, with
 particles, `points.dat`. Before a run, [`./rocflu.sh validate`](#the-case-validator)
 checks the input file, the `.bc` file and `points.dat`; `./rocflu.sh run` does this first and stops before building anything if it finds a
 problem.
@@ -129,7 +129,7 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 The filter width of the particle projection is not an input: it is twice the largest cell
 length around the particles. `./rocflu.sh run` builds only the particle data the models
 that are on need (`libpicl/user_files/ppiclf_slots.txt`, see
-[Getting started](GettingStarted.md#particle-slots)).
+[Getting Started](GettingStarted.md#particle-slots)).
 
 ### Models That Need Other Models
 
@@ -185,7 +185,7 @@ every `WRITIME` and the end of the run:
 
 Layouts: `modflu/RFLU_ModRestartData.F90`. A file is written as `.tmp` and renamed when it
 is complete. The same files are what a restart reads and what the post program converts
-(`./rocflu.sh post`, see [Running a simulation](Running.md#post-process)), so results
+(`./rocflu.sh post`, see [Running A Simulation](Running.md#post-process)), so results
 can be looked at during a run or after it stopped.
 
 **Starting a run** (`START_STEP` in `# TIMESTEP`): `0` (default) is a new run from
@@ -226,7 +226,7 @@ before building, and the regression suite runs it on every case. It checks:
   above (the count matches the lines, `dp` > 0); no `filein.vtk` (particle walls come from
   `PARTWALL 1` in the `.bc` file); no `par00002.vtu` from an earlier run (it would start a
   particle restart, which is not available yet);
-- the `.bc` file: every rule of [Boundary conditions](BoundaryConditions.md)
+- the `.bc` file: every rule of [Boundary Conditions](BoundaryConditions.md)
   (sections, keys, values, required keys, every grid patch once, periodic pairs, order 1
   where boundary gradients are needed). The patch count comes from the grid
   (`<case>.hyb.asc`, `GRIDSRC 0`); without it, patches 1 to the highest one used must

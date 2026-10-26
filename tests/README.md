@@ -34,7 +34,7 @@ collisions, walls) and [gas only](#gas-only-cases) (the flow solver without part
 ### 1. Build
 
 Build the code in the tree you want to test: `./rocflu.sh build` (see
-[Getting started](../docs/GettingStarted.md)). The suite runs the executables `rflumap`,
+[Getting Started](../docs/GettingStarted.md)). The suite runs the executables `rflumap`,
 `rflupart`, `rfluinit` and `rflump` from `build/bin` (the last configuration built), or
 from the directory given with `--exe`. `./rocflu.sh test [options]` runs
 `./run_tests.py run` with the modules loaded and passes the options on.

@@ -171,7 +171,7 @@ source ./rocflu.sh load             # load the modules into your own shell
 ```
 
 `test` passes its options on to `tests/run_tests.py`; see
-[Regression tests](../tests/README.md). `load` is only needed when you run the
+[Regression Tests](../tests/README.md). `load` is only needed when you run the
 executables yourself, outside the script, because they need the same compiler
 libraries they were built with.
 

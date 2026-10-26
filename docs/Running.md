@@ -2,7 +2,7 @@
 
 `./rocflu.sh run` checks a case, builds the code for it, pre-processes it and submits the
 job; `./rocflu.sh post` converts the results for ParaView. How the code is built is in
-[Getting started](GettingStarted.md), the input file and `points.dat` in [Input file](InputFile.md).
+[Getting Started](GettingStarted.md), the input file and `points.dat` in [Input File](InputFile.md).
 
 ## Contents
 
@@ -141,7 +141,7 @@ The post program runs on one process, in the case directory:
 ```
 
 `rflump` writes its results as raw dumps in `restart_data/` (the same files a restart
-reads, see [Input file](InputFile.md#output-and-restarts)). `post` converts them into
+reads, see [Input File](InputFile.md#output-and-restarts)). `post` converts them into
 ParaView files in `post/`, with the case's build: open `post/collection.pvd`, which lists
 every step with its time. Each step is one dataset, `post/root/collection_<step>.vtm`,
 with three blocks: the fluid of every region (`post/p<k>/<step>.vtu`, region k+1), the
