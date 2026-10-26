@@ -1,4 +1,4 @@
-# The Case Input File (`<case>.inp`) And `points.dat`
+# The Case Input File (`<case>.inp`) and `points.dat`
 
 A Rocflu case is described by `<case>.inp` (this page), `<case>.bc`
 ([Boundary Conditions](BoundaryConditions.md)), the grid (`<case>.hyb.asc`) and, with
@@ -11,16 +11,16 @@ is a complete, working example.
 
 ## Contents
 
-- [How Rocflu Reads The File](#how-rocflu-reads-the-file)
+- [How Rocflu Reads the File](#how-rocflu-reads-the-file)
 - [Gas-Side Sections](#gas-side-sections)
 - [`# PICL`: The Particles](#picl-the-particles)
   - [Models That Need Other Models](#models-that-need-other-models)
 - [`points.dat`: The Particles' Initial State](#pointsdat-the-particles-initial-state)
-- [Output And Restarts](#output-and-restarts)
+- [Output and Restarts](#output-and-restarts)
 - [The Case Validator](#the-case-validator)
   - [Removed Keys](#removed-keys)
 
-## How Rocflu Reads The File
+## How Rocflu Reads the File
 
 ```
 # PICL
@@ -170,7 +170,7 @@ Older forms are no longer read: a material name in the first column (removed wit
 `# MATERIAL` for particles), and `x y z dp [u v w]` (diameter before the velocity).
 The validator and `rflump` both stop on them.
 
-## Output And Restarts
+## Output and Restarts
 
 `rflump` writes its results as raw dumps in `restart_data/`, at step 0 (the particles),
 every `WRITIME` and the end of the run:
@@ -185,7 +185,7 @@ every `WRITIME` and the end of the run:
 
 Layouts: `modflu/RFLU_ModRestartData.F90`. A file is written as `.tmp` and renamed when it
 is complete. The same files are what a restart reads and what the post program converts
-(`./rocflu.sh post`, see [Running A Simulation](Running.md#post-process)), so results
+(`./rocflu.sh post`, see [Running a Simulation](Running.md#post-process)), so results
 can be looked at during a run or after it stopped.
 
 **Starting a run** (`START_STEP` in `# TIMESTEP`): `0` (default) is a new run from

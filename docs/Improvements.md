@@ -1,4 +1,4 @@
-# Rocflu Fixes On The `PseudoTurb` Branch
+# Recent Improvements and Fixes
 
 The goal of this branch is to validate the subgrid pseudo-turbulence (PT) model. Before
 the PT results can be trusted, the particle–gas coupling has to be correct: interpolating
@@ -16,62 +16,62 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
 - [Summary](#summary)
 - [Regression Tests](#regression-tests)
 - [Interpolation: Weighted Linear Least Squares](#interpolation-weighted-linear-least-squares)
-  - [Interpolation In Shock-Driven Flows](#interpolation-in-shock-driven-flows)
-- [Where A Particle Stage Spends Its Time, And A Faster Stencil Search](#where-a-particle-stage-spends-its-time-and-a-faster-stencil-search)
+  - [Interpolation in Shock-Driven Flows](#interpolation-in-shock-driven-flows)
+- [Where a Particle Stage Spends Its Time, and a Faster Stencil Search](#where-a-particle-stage-spends-its-time-and-a-faster-stencil-search)
   - [Measured Breakdown](#measured-breakdown)
   - [A Faster Stencil Search](#a-faster-stencil-search)
-- [Projection: Kernel Width Per Direction, And Cloud-Edge Cells](#projection-kernel-width-per-direction-and-cloud-edge-cells)
+- [Projection: Kernel Width per Direction, and Cloud-Edge Cells](#projection-kernel-width-per-direction-and-cloud-edge-cells)
 - [Low-Slip Closures](#low-slip-closures)
 - [Quasi-Steady Drag](#quasi-steady-drag)
-- [Random Numbers For The Stochastic Models](#random-numbers-for-the-stochastic-models)
+- [Random Numbers for the Stochastic Models](#random-numbers-for-the-stochastic-models)
 - [Particle Collisions](#particle-collisions)
-  - [Contact Stiffness From The Pair's Effective Mass (3afd23a)](#contact-stiffness-from-the-pairs-effective-mass-3afd23a)
-  - [Ghost Particles And The Neighbour Search (f7a3980, 0bb2e4b, 82d4ca4)](#ghost-particles-and-the-neighbour-search-f7a3980-0bb2e4b-82d4ca4)
-- [Particle–Wall Collisions (2ff0cd8)](#particlewall-collisions-2ff0cd8)
+  - [Contact Stiffness from the Pair's Effective Mass](#contact-stiffness-from-the-pairs-effective-mass)
+  - [Ghost Particles and the Neighbour Search](#ghost-particles-and-the-neighbour-search)
+- [Particle–Wall Collisions](#particlewall-collisions)
   - [Turning Walls On](#turning-walls-on)
   - [What Changed](#what-changed)
   - [Results](#results)
-- [Memory: ppiclF Arrays Sized At Run Time (c1ac692, 0d4d86c, e227f99, 074d58d)](#memory-ppiclf-arrays-sized-at-run-time-c1ac692-0d4d86c-e227f99-074d58d)
+- [Memory: ppiclF Arrays Sized at Run Time](#memory-ppiclf-arrays-sized-at-run-time)
   - [The Problem](#the-problem)
   - [What Changed](#what-changed-1)
-  - [How The Arrays Grow](#how-the-arrays-grow)
-  - [Two Bugs Found On The Way](#two-bugs-found-on-the-way)
+  - [How the Arrays Grow](#how-the-arrays-grow)
+  - [Two Bugs Found on the Way](#two-bugs-found-on-the-way)
   - [How It Was Checked](#how-it-was-checked)
-  - [What Changes For Users And Developers](#what-changes-for-users-and-developers)
-  - [Field Sizes Set At Run Time](#field-sizes-set-at-run-time)
+  - [What Changes for Users and Developers](#what-changes-for-users-and-developers)
+  - [Field Sizes Set at Run Time](#field-sizes-set-at-run-time)
 - [Particle Properties (rprop)](#particle-properties-rprop)
-  - [Ghosts Carry Only What The Neighbour Search Reads (a7f5748)](#ghosts-carry-only-what-the-neighbour-search-reads-a7f5748)
-  - [Particle Output: A List Of Named Fields](#particle-output-a-list-of-named-fields)
-  - [Unused Slots Removed, The Rest Grouped By Job](#unused-slots-removed-the-rest-grouped-by-job)
-- [MPI And Periodic Boundaries](#mpi-and-periodic-boundaries)
+  - [Ghosts Carry Only What the Neighbour Search Reads](#ghosts-carry-only-what-the-neighbour-search-reads)
+  - [Particle Output: A List of Named Fields](#particle-output-a-list-of-named-fields)
+  - [Unused Slots Removed, the Rest Grouped by Job](#unused-slots-removed-the-rest-grouped-by-job)
+- [MPI and Periodic Boundaries](#mpi-and-periodic-boundaries)
 - [Still Open](#still-open)
-- [Reproducing The Figures](#reproducing-the-figures)
+- [Reproducing the Figures](#reproducing-the-figures)
 
 ## Summary
 
 | Area | Problem | Fix | Commit |
 |---|---|---|---|
-| Interpolation | Inverse distance (1/d³) had errors of up to ±18% of the change in density across one cell, even in a linear field, and was discontinuous at cell faces. A particle sheet hit by a planar shock rippled with the cell size (57 µm standard deviation after 250 µs) | Weighted linear least squares, exact for linear fields; the sheet stays flat (0.07 µm) | 89f9661, 6d00ca4 |
-| Projection | The kernel used one length for every direction, so the spread on stretched cells was wrong | Each direction is scaled by its own cell length | 414ce7f |
-| Projection | Cells just outside the bin domain were dropped, so cloud-edge particles reached 8 cells instead of 27; φ was ~8% too high at the edge | Map those cells to particle bins | affad85 |
-| Closures | Forces and heat transfer were skipped below 1 mm/s slip, and the old value was kept | Evaluate at any slip; skip only the quasi-steady drag at zero slip | f0ae123 |
-| Quasi-steady drag | Gidaspow's C_D was capped below Re = 0.1 (100% error); Osnes had a spurious Knudsen reduction (25% error) | Correlations match the published ones; QSFORCE renumbered | 94607fd |
-| MPI | Gas state in virtual cells was stale at rank borders with particles, causing spurious gas motion in a quiescent cloud and a 1% difference between 1 and 2 ranks | Convert and re-exchange after φ is known; exchange φ and k_sg every stage | e3ed370 |
-| Conservation | Fluxes on periodic and symmetry patches were not conservative | Exchange and transform gradients in virtual cells | 11dc640 |
-| Robustness | Uninitialized reads gave NaN on 2+ ranks; a single particle gave a filter width of 0 | Initialize; filter width from cell–box overlap | b10c5f1, 48f64b7 |
-| Build | Required `SPEC=1` | Builds without it; stops if species are requested | aa3c0b6 |
+| Interpolation | Inverse distance (1/d³) had errors of up to ±18% of the change in density across one cell, even in a linear field, and was discontinuous at cell faces. A particle sheet hit by a planar shock rippled with the cell size (57 µm standard deviation after 250 µs) | Weighted linear least squares, exact for linear fields; the sheet stays flat (0.07 µm) | [89f9661](https://github.com/thierrydaoud/Rocflu/commit/89f9661), [6d00ca4](https://github.com/thierrydaoud/Rocflu/commit/6d00ca4) |
+| Projection | The kernel used one length for every direction, so the spread on stretched cells was wrong | Each direction is scaled by its own cell length | [414ce7f](https://github.com/thierrydaoud/Rocflu/commit/414ce7f) |
+| Projection | Cells just outside the bin domain were dropped, so cloud-edge particles reached 8 cells instead of 27; φ was ~8% too high at the edge | Map those cells to particle bins | [affad85](https://github.com/thierrydaoud/Rocflu/commit/affad85) |
+| Closures | Forces and heat transfer were skipped below 1 mm/s slip, and the old value was kept | Evaluate at any slip; skip only the quasi-steady drag at zero slip | [f0ae123](https://github.com/thierrydaoud/Rocflu/commit/f0ae123) |
+| Quasi-steady drag | Gidaspow's C_D was capped below Re = 0.1 (100% error); Osnes had a spurious Knudsen reduction (25% error) | Correlations match the published ones; QSFORCE renumbered | [94607fd](https://github.com/thierrydaoud/Rocflu/commit/94607fd) |
+| MPI | Gas state in virtual cells was stale at rank borders with particles, causing spurious gas motion in a quiescent cloud and a 1% difference between 1 and 2 ranks | Convert and re-exchange after φ is known; exchange φ and k_sg every stage | [e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370) |
+| Conservation | Fluxes on periodic and symmetry patches were not conservative | Exchange and transform gradients in virtual cells | [11dc640](https://github.com/thierrydaoud/Rocflu/commit/11dc640) |
+| Robustness | Uninitialized reads gave NaN on 2+ ranks; a single particle gave a filter width of 0 | Initialize; filter width from cell–box overlap | [b10c5f1](https://github.com/thierrydaoud/Rocflu/commit/b10c5f1), [48f64b7](https://github.com/thierrydaoud/Rocflu/commit/48f64b7) |
+| Build | Required `SPEC=1` | Builds without it; stops if species are requested | [aa3c0b6](https://github.com/thierrydaoud/Rocflu/commit/aa3c0b6) |
 | Random numbers | QS fluctuations and pseudo-turbulence drew from one generator per rank, every rank seeded with 1: the same noise on every rank, and results that changed with the number of ranks | Each particle has its own stream (splitmix32), seeded with its line in `points.dat` and carried with the particle; 1 and 2 ranks now give identical results | (section "Random numbers for the stochastic models") |
-| Collisions | The contact stiffness used particle i's own mass, so an unequal pair felt unequal forces: an 8:1 pair at 20 m/s ended with its total momentum reversed | Stiffness from the pair's effective mass (soft-sphere model) | 3afd23a, 78eb711 |
-| Particle walls | Walls existed only through `filein.vtk`; a particle over the edge between two wall triangles was pushed by both (e = 0.60 instead of 0.70); a fast particle went through the wall and the run crashed | Walls from the fluid wall patches (`PARTWALL 1`), contacts computed like pair contacts, a fluid side that pushes back; `filein.vtk` removed | 2ff0cd8 |
-| Ghost particles | Overflowing the ghost arrays wrote past their end | Guards stop the run; ghost arrays 30% smaller | f7a3980, 0bb2e4b |
-| Neighbour search | Dense subbin tables: ~28 GB requested for 50,000 particles in one 2 cm bin | Compact lists: ~1.2 MB for the same bin (about 24,000 times less), byte-identical results | 82d4ca4 |
-| Clean-up | ppiclF's own unit tests no longer matched the code; the burn-rate model and the `PICLDEBUG` output were unused | Removed; the regression suite replaces the unit tests. Input files that still ask for `REACTIVE` or a negative `STATIONARY` stop with a message | 3c41db2 |
-| Memory | ppiclF reserved fixed arrays for 80,000 particles, 640,000 ghosts and 120,000 cells per rank, plus 50 steps of viscous-unsteady history even when it was off: 1.34 GB for a run with one particle. A run with more particles on a rank stopped and needed a recompile | Arrays sized from the run and grown when needed; the history is allocated only with `VISCOUSUNSTEADY` (`VUSTEPS` steps). 265 MB for the same run; no particle, ghost, cell or wall limits | c1ac692, 0d4d86c, e227f99 |
+| Collisions | The contact stiffness used particle i's own mass, so an unequal pair felt unequal forces: an 8:1 pair at 20 m/s ended with its total momentum reversed | Stiffness from the pair's effective mass (soft-sphere model) | [3afd23a](https://github.com/thierrydaoud/Rocflu/commit/3afd23a), [78eb711](https://github.com/thierrydaoud/Rocflu/commit/78eb711) |
+| Particle walls | Walls existed only through `filein.vtk`; a particle over the edge between two wall triangles was pushed by both (e = 0.60 instead of 0.70); a fast particle went through the wall and the run crashed | Walls from the fluid wall patches (`PARTWALL 1`), contacts computed like pair contacts, a fluid side that pushes back; `filein.vtk` removed | [2ff0cd8](https://github.com/thierrydaoud/Rocflu/commit/2ff0cd8) |
+| Ghost particles | Overflowing the ghost arrays wrote past their end | Guards stop the run; ghost arrays 30% smaller | [f7a3980](https://github.com/thierrydaoud/Rocflu/commit/f7a3980), [0bb2e4b](https://github.com/thierrydaoud/Rocflu/commit/0bb2e4b) |
+| Neighbour search | Dense subbin tables: ~28 GB requested for 50,000 particles in one 2 cm bin | Compact lists: ~1.2 MB for the same bin (about 24,000 times less), byte-identical results | [82d4ca4](https://github.com/thierrydaoud/Rocflu/commit/82d4ca4) |
+| Clean-up | ppiclF's own unit tests no longer matched the code; the burn-rate model and the `PICLDEBUG` output were unused | Removed; the regression suite replaces the unit tests. Input files that still ask for `REACTIVE` or a negative `STATIONARY` stop with a message | [3c41db2](https://github.com/thierrydaoud/Rocflu/commit/3c41db2) |
+| Memory | ppiclF reserved fixed arrays for 80,000 particles, 640,000 ghosts and 120,000 cells per rank, plus 50 steps of viscous-unsteady history even when it was off: 1.34 GB for a run with one particle. A run with more particles on a rank stopped and needed a recompile | Arrays sized from the run and grown when needed; the history is allocated only with `VISCOUSUNSTEADY` (`VUSTEPS` steps). 265 MB for the same run; no particle, ghost, cell or wall limits | [c1ac692](https://github.com/thierrydaoud/Rocflu/commit/c1ac692), [0d4d86c](https://github.com/thierrydaoud/Rocflu/commit/0d4d86c), [e227f99](https://github.com/thierrydaoud/Rocflu/commit/e227f99) |
 | Particle output | Every file held all 72 particle fields, named `y01`…, `rpro01`…, `tag01`… (300 bytes per particle) | A list of named fields: velocity, volume fraction, diameter and ID by default (44 bytes per particle); more groups with `PARTICLE_WRT`, `GAS_WRT`, `GRADGAS_WRT`, `MODEL_WRT`. Restarts read the particle dump in `restart_data/` ([Input File](InputFile.md#output-and-restarts)) | (this section) |
 | Interpolation speed | 60% of a particle stage went to finding the cells around each particle | Marker per cell, an early exit and contiguous reads: that search is 45% faster, the whole run 14–20% faster, results bit-identical | (section "Where a particle stage spends its time") |
-| Ghost particles | A ghost carried all 59 particle properties; the neighbour search reads 6 | A ghost carries those 6 (16 doubles instead of 69), byte-identical results | a7f5748 |
-| Field sizes | The number of fields per particle and per cell (state, properties, interpolated, projected) was fixed at compile time; Rocflu's number of interpolated fields had to match it by hand; every run interpolated 29 gas fields and projected 31 | Set at start-up by `ppiclf_user_Layout` from the physics that is on: 7 interpolated fields for drag only, 10 projected without pseudo-turbulence; ppiclF stops if a needed field is not given; byte-identical flow files | 074d58d, (section "Field sizes set at run time") |
-| Input | Mistakes in the input were found at run time, after the job started, or never: a typo or misplaced key was silently ignored, `QSFLUCT` ran without a drag, unused keys (`FILTERWIDTH`, angular periodicity, `REACTIVE`) had to be given; the particle material came from `# MATERIAL` by name; the build without particles did not compile | Case validator (`./rocflu.sh validate`, run first by `rocflu.sh run` and the suite) checks keys, values, model combinations, `points.dat` and the particles' position before anything is built ([Input File](InputFile.md)); `VELOCITYMODEL` replaces `STATIONARY`; `DENSITY`, `SPECIFICHEAT` in `# PICL`; `points.dat` is `x y z vx vy vz dp`; `--no-picl` builds and runs | 2b0c7a7, 59da501, 488e5df, b12cb48, 88542ac, 9d8be80, 4add494 |
+| Ghost particles | A ghost carried all 59 particle properties; the neighbour search reads 6 | A ghost carries those 6 (16 doubles instead of 69), byte-identical results | [a7f5748](https://github.com/thierrydaoud/Rocflu/commit/a7f5748) |
+| Field sizes | The number of fields per particle and per cell (state, properties, interpolated, projected) was fixed at compile time; Rocflu's number of interpolated fields had to match it by hand; every run interpolated 29 gas fields and projected 31 | Set at start-up by `ppiclf_user_Layout` from the physics that is on: 7 interpolated fields for drag only, 10 projected without pseudo-turbulence; ppiclF stops if a needed field is not given; byte-identical flow files | [074d58d](https://github.com/thierrydaoud/Rocflu/commit/074d58d), (section "Field sizes set at run time") |
+| Input | Mistakes in the input were found at run time, after the job started, or never: a typo or misplaced key was silently ignored, `QSFLUCT` ran without a drag, unused keys (`FILTERWIDTH`, angular periodicity, `REACTIVE`) had to be given; the particle material came from `# MATERIAL` by name; the build without particles did not compile | Case validator (`./rocflu.sh validate`, run first by `rocflu.sh run` and the suite) checks keys, values, model combinations, `points.dat` and the particles' position before anything is built ([Input File](InputFile.md)); `VELOCITYMODEL` replaces `STATIONARY`; `DENSITY`, `SPECIFICHEAT` in `# PICL`; `points.dat` is `x y z vx vy vz dp`; `--no-picl` builds and runs | [2b0c7a7](https://github.com/thierrydaoud/Rocflu/commit/2b0c7a7), [59da501](https://github.com/thierrydaoud/Rocflu/commit/59da501), [488e5df](https://github.com/thierrydaoud/Rocflu/commit/488e5df), [b12cb48](https://github.com/thierrydaoud/Rocflu/commit/b12cb48), [88542ac](https://github.com/thierrydaoud/Rocflu/commit/88542ac), [9d8be80](https://github.com/thierrydaoud/Rocflu/commit/9d8be80), [4add494](https://github.com/thierrydaoud/Rocflu/commit/4add494) |
 
 ## Regression Tests
 
@@ -118,7 +118,7 @@ round-off, and its value is continuous as the particle crosses a face. Each cell
 enters each bin's stencil only once; before, a two-bin periodic case counted some cells
 twice.
 
-### Interpolation In Shock-Driven Flows
+### Interpolation in Shock-Driven Flows
 
 **Same instant, different places in the cells.** Stationary tracers sit at four fixed x
 positions in a planar shock (Ms 1.27, 1 mm cells): one behind the shock and three inside
@@ -214,7 +214,7 @@ at every cell face, clearest in dp/dx (bottom row), so a particle crossing a fac
 sudden change in its pressure-gradient force. Both methods converge to the same profile
 when the cells are halved.
 
-## Where A Particle Stage Spends Its Time, And A Faster Stencil Search
+## Where a Particle Stage Spends Its Time, and a Faster Stencil Search
 
 ### Measured Breakdown
 
@@ -283,7 +283,7 @@ Changes (`ppiclf_solve.f`), none of which changes a result:
 
 Checked: 35 PASS twice; all 39 cases with particles (suite, `AMFORCE 2`, `QSFLUCT` and
 `PSEUDOTURB` variants) write bit-identical particle fields and byte-identical flow files compared
-with 74b8f87; the flow files of the 50,653-particle case above (two-way coupled, so they depend
+with [74b8f87](https://github.com/thierrydaoud/Rocflu/commit/74b8f87); the flow files of the 50,653-particle case above (two-way coupled, so they depend
 on every particle) are byte-identical before and after.
 
 The search is still the largest part of a stage. Narrower subbins would scan fewer cells, but
@@ -291,7 +291,7 @@ they change the order cells arrive in, which decides between cells at exactly th
 at the edge of the 27-cell projection list, so results could change in the last bits; that is
 left for later.
 
-## Projection: Kernel Width Per Direction, And Cloud-Edge Cells
+## Projection: Kernel Width per Direction, and Cloud-Edge Cells
 
 A single particle is moved along x, and the panels show how its volume fraction φ is
 shared among the cells (left) and the spread σ/Δl of that share (right). The top row uses
@@ -342,7 +342,7 @@ M ≥ 1e-6 floor in Loth's terms. The modified Parmar model was removed.
 > **Input decks:** `QSFORCE` is now 0 none, 1 Gidaspow, 2 Parmar, 3 Osnes.
 > 4 stops with an error. Decks that used `QSFORCE 2` for Osnes must change to `3`.
 
-## Random Numbers For The Stochastic Models
+## Random Numbers for the Stochastic Models
 
 The quasi-steady force fluctuations (`QSFLUCT` 1 Lattanzi, 2 Osnes) and pseudo-turbulence
 (`PSEUDOTURB`) add Gaussian noise to each particle (Box–Muller from uniform numbers).
@@ -405,7 +405,9 @@ spring and a dashpot. The spring stiffness is the softer of two values:
 
 The dashpot is set from the chosen stiffness so that a linear contact rebounds with e.
 
-### Contact Stiffness From The Pair's Effective Mass (3afd23a)
+### Contact Stiffness from the Pair's Effective Mass
+
+Commit: [3afd23a](https://github.com/thierrydaoud/Rocflu/commit/3afd23a).
 
 k₁ used particle i's own mass instead of the pair's effective mass m₁m₂/(m₁+m₂). With
 unequal masses each particle of a pair used a different stiffness (and could pick a
@@ -416,7 +418,7 @@ instead of KSP.
 
 The test case `box/binary-collisions` (np 1, 2, 4) collides four pairs across a bin face,
 a rank border and the periodic faces. Particles start with an initial velocity, which
-`points.dat` now accepts as `material x y z dp u v w` (786ecb1).
+`points.dat` now accepts as `material x y z dp u v w` ([786ecb1](https://github.com/thierrydaoud/Rocflu/commit/786ecb1)).
 
 ![Binary collisions](figures/anim_binary_collisions.gif)
 
@@ -427,7 +429,9 @@ the approach speed rebounds to e = 0.697 for the head-on pairs (EREST = 0.7). Mo
 conserved to 1e-5 and angular momentum about the centre of mass to 0.5%, including in
 the oblique pair (panel 4), where friction sets both particles spinning.
 
-### Ghost Particles And The Neighbour Search (f7a3980, 0bb2e4b, 82d4ca4)
+### Ghost Particles and the Neighbour Search
+
+Commits: [f7a3980](https://github.com/thierrydaoud/Rocflu/commit/f7a3980), [0bb2e4b](https://github.com/thierrydaoud/Rocflu/commit/0bb2e4b), [82d4ca4](https://github.com/thierrydaoud/Rocflu/commit/82d4ca4).
 
 A particle near a bin face is sent to the neighbouring bins as a ghost, so that pairs
 across bins, ranks and periodic faces are found. The ghost algorithm was compared with
@@ -451,8 +455,8 @@ momentum is unchanged.
 
 Two robustness fixes came with this:
 - Sending or receiving more ghosts than `PPICLF_LPART_GP` wrote past the end of the ghost
-  arrays. The run now stopped with a message; since e227f99 the ghost arrays grow instead
-  (see [Memory](#memory-ppiclf-arrays-sized-at-run-time-c1ac692-0d4d86c-e227f99-074d58d)). Ghosts no longer carry the projection values,
+  arrays. The run now stopped with a message; since [e227f99](https://github.com/thierrydaoud/Rocflu/commit/e227f99) the ghost arrays grow instead
+  (see [Memory](#memory-ppiclf-arrays-sized-at-run-time)). Ghosts no longer carry the projection values,
   which shrinks the ghost arrays by 30% (about 520 to 360 MB per rank at LPART = 80000).
 - The subbin contents were dense tables of (subbins × particles) 4-byte integers. A 2 cm
   bin with 0.4 mm subbins has 140,608 subbins, so 50,000 particles requested about 28 GB
@@ -462,7 +466,9 @@ Two robustness fixes came with this:
   grew with the square of the cells per bin; it uses the same lists now. Results are
   byte-identical.
 
-## Particle–Wall Collisions (2ff0cd8)
+## Particle–Wall Collisions
+
+Commit: [2ff0cd8](https://github.com/thierrydaoud/Rocflu/commit/2ff0cd8).
 
 ### Turning Walls On
 
@@ -554,7 +560,9 @@ fails it: the 300 m/s particle leaves the domain and the run crashes. At an edge
 corner each wall's friction also slows the motion towards the other walls (e ≈ 0.55 at
 the edge, 0.47 in the corner with μ = 0.4), so there the test only checks the rebound.
 
-## Memory: ppiclF Arrays Sized At Run Time (c1ac692, 0d4d86c, e227f99, 074d58d)
+## Memory: ppiclF Arrays Sized at Run Time
+
+Commits: [c1ac692](https://github.com/thierrydaoud/Rocflu/commit/c1ac692), [0d4d86c](https://github.com/thierrydaoud/Rocflu/commit/0d4d86c), [e227f99](https://github.com/thierrydaoud/Rocflu/commit/e227f99), [074d58d](https://github.com/thierrydaoud/Rocflu/commit/074d58d).
 
 ### The Problem
 
@@ -587,20 +595,20 @@ touched every page:
 The change was made in three steps, each built and run through the whole regression
 suite twice before the next one:
 
-1. **c1ac692: the viscous-unsteady history.** The history arrays and `rprop3` (the same
+1. **[c1ac692](https://github.com/thierrydaoud/Rocflu/commit/c1ac692): the viscous-unsteady history.** The history arrays and `rprop3` (the same
    history packed per particle, so that it moves with a particle that changes rank) became
    allocatable, in module `ppiclf_unsteady` (`ppiclf_unsteady.f`). They are allocated at
    start-up only when `VISCOUSUNSTEADY ≥ 1`, with as many steps as the new PICL key
    `VUSTEPS` (default 50, the old `PPICLF_VU`). `PPICLF_VU` and `PPICLF_LRP3` are gone.
    `DU HEATTRANSFER` is computed in the same routines, so it now needs
    `VISCOUSUNSTEADY ≥ 1`; before, it was silently zero without it.
-2. **0d4d86c: move the arrays into a module.** Every array sized by `LPART`, `LPART_GP`,
+2. **[0d4d86c](https://github.com/thierrydaoud/Rocflu/commit/0d4d86c): move the arrays into a module.** Every array sized by `LPART`, `LPART_GP`,
    `LEE` or `LWALL` moved from the COMMON blocks (`PPICLF_SOLN.h`, `PPICLF_PARALLEL.h`,
    `PPICLF_GRID.h`, `PPICLF_GEOM.h`) into module `ppiclf_data` (`ppiclf_data.f`) as an
    allocatable array. Every routine that includes `PPICLF` got a `use ppiclf_data` line.
    The sizes were still the old fixed values, so this step changed only where the memory
    lives; results were bit-for-bit the same.
-3. **e227f99: size from the run, and grow.** The fixed sizes are gone. Each group of
+3. **[e227f99](https://github.com/thierrydaoud/Rocflu/commit/e227f99): size from the run, and grow.** The fixed sizes are gone. Each group of
    arrays has a capacity (`ppiclf_maxpart`, `ppiclf_maxghost`, `ppiclf_maxcell`,
    `ppiclf_maxfv`, `ppiclf_maxwall`) that starts at 1 and grows whenever a count would
    exceed it.
@@ -609,7 +617,7 @@ The modules and allocatable arrays are standard Fortran 90; the files stay in fi
 (72 columns), which gfortran compiles as before. The module files (`.mod`) are written to
 `libpicl/build/`.
 
-### How The Arrays Grow
+### How the Arrays Grow
 
 The number of particles on a rank changes during a run: ppiclF assigns particles to ranks
 by spatial bins, and a cloud that is compressed or swept downstream piles into fewer
@@ -641,7 +649,7 @@ particles each. It now gives every rank an equal block, ⌈total / ranks⌉, the
 Rocflu uses for `points.dat`; ppiclF then moves the particles to the ranks that own their
 bins, as before. (Restart itself is still unverified; see [Still open](#still-open).)
 
-### Two Bugs Found On The Way
+### Two Bugs Found on the Way
 
 - **Cells dropped without a message (`MapOverlapGrid`).** Only the number of cells a rank
   *sent* was checked against `PPICLF_LEE`; the number it *received* was not. A rank whose
@@ -671,14 +679,14 @@ bins, as before. (Restart itself is still unverified; see [Still open](#still-op
 | Build | Memory |
 |---|---|
 | Before (fixed arrays, 50-step history) | 1,342 MB |
-| c1ac692 (history only when `VISCOUSUNSTEADY ≥ 1`) | 807 MB |
-| e227f99 (everything sized from the run) | 265 MB |
+| [c1ac692](https://github.com/thierrydaoud/Rocflu/commit/c1ac692) (history only when `VISCOUSUNSTEADY ≥ 1`) | 807 MB |
+| [e227f99](https://github.com/thierrydaoud/Rocflu/commit/e227f99) (everything sized from the run) | 265 MB |
 
 Most of the remaining 265 MB is Rocflu and MPI. The fixed-size data of the solver
 executable `rflump` (its `bss` segment) went from 1.8 GB to 0.5 MB. With `VISCOUSUNSTEADY 1` the history is allocated as
 before, per particle (about 12 kB per particle for 50 steps).
 
-### What Changes For Users And Developers
+### What Changes for Users and Developers
 
 - `PPICLF_USER.h` no longer has `PPICLF_LPART`, `PPICLF_LEE`, `PPICLF_LWALL`, `PPICLF_VU` or
   `PPICLF_LRP3`. There is nothing to raise for a larger run.
@@ -695,7 +703,7 @@ before, per particle (about 12 kB per particle for 50 steps).
 - The number of entries per particle or cell is set at run time too; see the next
   section.
 
-### Field Sizes Set At Run Time
+### Field Sizes Set at Run Time
 
 The three steps above size each array's particle, ghost, cell or wall dimension from
 the run. The other dimension, how many entries a particle or a cell carries, was still a
@@ -734,10 +742,10 @@ when the run starts.
 - **Local arrays** sized by these numbers (the neighbour routine's `yi`, `rpropi`, `yj`,
   `rpropj`) are sized from the module variables, so `-fcheck=all` still checks them.
 
-In 074d58d the layout is the one the macros gave: every field on. Checked: in all 42
+In [074d58d](https://github.com/thierrydaoud/Rocflu/commit/074d58d) the layout is the one the macros gave: every field on. Checked: in all 42
 cases (the suite, `AMFORCE 2` variants of the ghost and binary-collision cases, and
 `QSFLUCT` and `PSEUDOTURB` variants with `MODEL_WRT 1`) every particle and flow file is
-byte-identical to f4d6486; 35 PASS twice.
+byte-identical to [f4d6486](https://github.com/thierrydaoud/Rocflu/commit/f4d6486); 35 PASS twice.
 
 #### Only the fields the physics needs
 
@@ -770,7 +778,7 @@ no longer written as a failure, instead of stopping with an error.
 
 Checked: the suite and 12 variants (`AMFORCE 1` and 2, `VISCOUSUNSTEADY` with `AMFORCE 1` and
 `PGFORCE`, `COLLISIONS 3` and 4, `QSFLUCT` and `PSEUDOTURB` with `MODEL_WRT 1`), 44 runs with
-particles. Against 074d58d the flow files are byte-identical and every particle field that is
+particles. Against [074d58d](https://github.com/thierrydaoud/Rocflu/commit/074d58d) the flow files are byte-identical and every particle field that is
 still written is bit-identical; the fields no longer written are exactly the ones the table
 leaves out for each case. The 32 goldens with particles were regenerated: all 7,641 values
 they share with the old ones are unchanged; ∇p is gone where no model uses it; and spin
@@ -812,7 +820,9 @@ Planned, one commit at a time:
    particle are interpolated again before every stage. The suite's restart test shows that
    this is enough: a restarted run ends byte-identical to one that never stopped.
 
-### Ghosts Carry Only What The Neighbour Search Reads (a7f5748)
+### Ghosts Carry Only What the Neighbour Search Reads
+
+Commit: [a7f5748](https://github.com/thierrydaoud/Rocflu/commit/a7f5748).
 
 A ghost carried `y` and all of `rprop`: 69 doubles. The neighbour routine
 (`ppiclf_user_EvalNearestNeighbor`) reads only dp, ρp, Vp and Ẇ from its neighbour, so a
@@ -845,8 +855,8 @@ Each ghost is 584 bytes before and 160 bytes after: its reals (69 or 16 doubles)
 
 Measured on a periodic 8 mm box with a 37³ lattice of particles (50,653 particles,
 dp = 100 µm, about 5% by volume, 16³ cells), collisions on, 155 steps (480 ghost exchanges, one per
-RK stage), one 16-core node, 3 runs of each build alternating. The two builds are 74b8f87
-and a7f5748 with the same temporary timers: a barrier, then `CreateGhost`, a barrier, then
+RK stage), one 16-core node, 3 runs of each build alternating. The two builds are [74b8f87](https://github.com/thierrydaoud/Rocflu/commit/74b8f87)
+and [a7f5748](https://github.com/thierrydaoud/Rocflu/commit/a7f5748) with the same temporary timers: a barrier, then `CreateGhost`, a barrier, then
 `MoveGhost`, a barrier. The barriers keep a rank's wait for slower ranks out of the timers.
 
 | Ranks | Ghosts per rank (real particles per rank) | Ghost exchange, 480 calls: before → after | Ghost data sent per rank per exchange | Ghost arrays per rank | Peak memory per rank | Whole run |
@@ -873,7 +883,7 @@ Times are medians of the 3 runs; the ghost exchange varied by up to ±0.6 s betw
 The case and scripts are in `tests/_work/bench` (not tracked): `bench_setup.py` makes the case,
 `bench_run.sh` runs it and `analyze.py` reads the `GHOSTT` lines the timed builds print.
 
-### Particle Output: A List Of Named Fields
+### Particle Output: A List of Named Fields
 
 Being in `rprop` and being written to the particle files are now separate questions.
 The writer (`ppiclf_io_WriteParticleVTU`) used to write all of `y`, all 59 `rprop`
@@ -920,11 +930,11 @@ goldens with particles use the new names; the conversion renamed keys only (8,79
 values compared, none changed) and dropped the superparticle loading, which was 1.0 in
 every golden. Checked: in all 37 cases with particles (the 35 suite cases plus
 `AMFORCE 2` variants with `MODEL_WRT 1`), every named field is bit-identical to the
-field it replaces in the files of 74b8f87 (e.g. `rho_g` to `rpro02`), and the flow
+field it replaces in the files of [74b8f87](https://github.com/thierrydaoud/Rocflu/commit/74b8f87) (e.g. `rho_g` to `rpro02`), and the flow
 files are byte-identical. The default output alone and `MODEL_WRT` with `QSFLUCT` and
 `PSEUDOTURB` were also run.
 
-### Unused Slots Removed, The Rest Grouped By Job
+### Unused Slots Removed, the Rest Grouped by Job
 
 `PPICLF_LRP` is 53 (was 59) and `PPICLF_LRP_INT` 29 (was 30). The `PPICLF_R_*` names are
 unchanged; only their numbers moved, so each job is one block (`PPICLF_USER.h`):
@@ -962,23 +972,23 @@ Rocflu then has to hand it over with an `InterpFieldUser` call in both
 
 Checked: 35 PASS twice; in all 39 cases with particles (the suite, `AMFORCE 2` variants,
 and `QSFLUCT` and `PSEUDOTURB` variants with `MODEL_WRT 1`, 62 fields) every named field is
-bit-identical to the old field it replaces in the files of 74b8f87, and the flow files
+bit-identical to the old field it replaces in the files of [74b8f87](https://github.com/thierrydaoud/Rocflu/commit/74b8f87), and the flow files
 are byte-identical.
 
-## MPI And Periodic Boundaries
+## MPI and Periodic Boundaries
 
 These fixes have no figure. Each is checked by a regression case that compares 1, 2 and
 4 ranks and checks the conservation budgets.
 
-- **Stale virtual cells at rank borders (e3ed370).** `PICL_InitSolver` converted the
+- **Stale virtual cells at rank borders ([e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370)).** `PICL_InitSolver` converted the
   conserved variables before virtual cells had φ, and did not exchange them again. A
   quiescent particle cloud set the gas in motion, and results differed by 1% between 1 and
   2 ranks. φ and k_sg are now exchanged before the virtual-cell state is computed in every
   stage.
-- **Periodic and symmetry patches (11dc640).** Virtual cells used their own gradients, so
+- **Periodic and symmetry patches ([11dc640](https://github.com/thierrydaoud/Rocflu/commit/11dc640)).** Virtual cells used their own gradients, so
   the fluxes through these patches did not cancel. Gradients are now exchanged
   (`RFLU_MPI_ExchangeGradCells`) and transformed (`RFLU_RELP_TransformGradWrapper`).
-- **Uninitialized reads (b10c5f1).** k_sg was missing in the `VELTEMP` inflow branch, which
+- **Uninitialized reads ([b10c5f1](https://github.com/thierrydaoud/Rocflu/commit/b10c5f1)).** k_sg was missing in the `VELTEMP` inflow branch, which
   gave NaN on 2+ ranks. Also fixed: PICL arrays zeroed, NSCBC patch `dv` set at
   initialization, and an out-of-bounds read of `dv(4)`.
 
@@ -1034,20 +1044,20 @@ Known limitations:
 - `FEEDBACK 0` (one-way) still changes the gas through φ in the pressure.
 - PICL supports only one region per MPI rank, and there is no check for this.
 
-## Reproducing The Figures
+## Reproducing the Figures
 
 Each figure compares the commit before a fix with the commit after it. The run and plot
 scripts (`sweeps.py`, `make_plots.py`, `qs_driver.F`) are kept locally under the
 git-ignored `tests/_work/plots/`. They need a built tree of each old commit
-(aa3c0b6, 6d00ca4, 1a954d7, eb59a6c) as well as the current one.
+([aa3c0b6](https://github.com/thierrydaoud/Rocflu/commit/aa3c0b6), [6d00ca4](https://github.com/thierrydaoud/Rocflu/commit/6d00ca4), [1a954d7](https://github.com/thierrydaoud/Rocflu/commit/1a954d7), [eb59a6c](https://github.com/thierrydaoud/Rocflu/commit/eb59a6c)) as well as the current one.
 
 The collision figures use the same folder: `animate_collisions.py` animates a run of
 `box/binary-collisions` written every 0.1 µs; `walls.py` sets up and runs the wall probe
 (`WALLS=vtk` or `WALLS=patch`, `SHOTS=` a subset) with any built tree, and
 `animate_walls.py` and `wall_summary.py` draw the animation and the summary figure from
-the old (3afd23a) and new (2ff0cd8) probe runs. `shock_interp.py` (planar shock),
+the old ([3afd23a](https://github.com/thierrydaoud/Rocflu/commit/3afd23a)) and new ([2ff0cd8](https://github.com/thierrydaoud/Rocflu/commit/2ff0cd8)) probe runs. `shock_interp.py` (planar shock),
 `static_interp.py` (tracers across the cells at one instant), `periodic_ghosts.py`
 (collisions through periodic boundaries) and `sheet.py` (particle
 sheet, `run`, `runpoly`, `plot2`, `animate`; its runs went to Slurm on hpg-dev, 8 ranks
-each) run and plot the interpolation comparisons in shock-driven flow, with aa3c0b6 as
+each) run and plot the interpolation comparisons in shock-driven flow, with [aa3c0b6](https://github.com/thierrydaoud/Rocflu/commit/aa3c0b6) as
 the old interpolation.

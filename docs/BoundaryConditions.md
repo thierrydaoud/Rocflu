@@ -7,8 +7,8 @@ checks the file against the rules on this page.
 ## Contents
 
 - [The File](#the-file)
-- [Sections And Their Keys](#sections-and-their-keys)
-- [Removed Sections And Keys](#removed-sections-and-keys)
+- [Sections and Their Keys](#sections-and-their-keys)
+- [Removed Sections and Keys](#removed-sections-and-keys)
 
 ## The File
 
@@ -46,7 +46,7 @@ How Rocflu reads the file (`modflu/RFLU_ModReadBcInputFile.F90`, `ReadPatchSecti
 - Values out of range are replaced by defaults without a word (`KIND 5` becomes 0,
   `ORDER 3` becomes 1).
 
-## Sections And Their Keys
+## Sections and Their Keys
 
 Every section takes `PATCH` and `NAME` (both required) and `DISTRIB` (0: the values below;
 1: a value per face from the file that `rfluinit` writes, so the data values are not needed).
@@ -80,7 +80,7 @@ Rules across sections:
   those patches must have order 1 (`ORDER 1`, or `ORDERBF 1` when `ORDER` is not given).
   Otherwise `rflump` stops in `RFLU_CreateWtsBF2C` with "reached default statement".
 
-## Removed Sections And Keys
+## Removed Sections and Keys
 
 | In `<case>.bc` | Instead |
 |---|---|

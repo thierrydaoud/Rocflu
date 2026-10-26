@@ -6,18 +6,18 @@ and tracked via capabilities brought over from ppiclF and locally developed.
 
 ## Contents
 
-- [Get The Code](#get-the-code)
+- [Get the Code](#get-the-code)
 - [Build](#build)
   - [What Gets Built](#what-gets-built)
   - [Options](#options)
   - [Build Directories](#build-directories)
-  - [Build Output And Times](#build-output-and-times)
-  - [Test, Clean And Load](#test-clean-and-load)
+  - [Build Output and Times](#build-output-and-times)
+  - [Test, Clean and Load](#test-clean-and-load)
   - [Using CMake Directly](#using-cmake-directly)
 - [Particle Slots](#particle-slots)
 - [Troubleshooting](#troubleshooting)
 
-## Get The Code
+## Get the Code
 
 ```bash
 git clone https://github.com/thierrydaoud/Rocflu.git
@@ -117,7 +117,7 @@ specific configuration, use its `install/` directory, for example
 only those are in that configuration's `bin/`; build the others too before running
 `rocflu.sh test` with it.
 
-### Build Output And Times
+### Build Output and Times
 
 **What a build shows.** On a terminal, a progress bar with the file being compiled, and a
 line for each part as it finishes, then the summary:
@@ -159,7 +159,7 @@ of cores you have.
 changed files and the files that depend on them are recompiled. A change to one
 Rocflu routine takes about 10 seconds; a change to a ppiclF header about 25 seconds.
 
-### Test, Clean And Load
+### Test, Clean and Load
 
 ```bash
 ./rocflu.sh test                    # run the suite with build/bin

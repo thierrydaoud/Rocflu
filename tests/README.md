@@ -77,7 +77,7 @@ A case whose solver run fails is set up again and retried once; `srun` on a shar
 partition can fail when the Slurm controller is unresponsive. The retry and any Slurm
 messages are shown next to the case.
 
-### 3. Read The Result
+### 3. Read the Result
 
 The script prints one line per case, a total (e.g. `36 PASS`) and a closing line
 (`✔ All 36 cases passed in 29 s`, or `✗ 2 of 36 cases failed`). On a terminal the statuses
@@ -90,7 +90,7 @@ input files and one log per step: `mesh.log`, `rflumap.log`, `rflupart.log`,
 `rfluinit.log`, `rflump.log`. A golden mismatch names the worst particle or cell and
 its value against the golden.
 
-### 4. After Changing The Code
+### 4. After Changing the Code
 
 - **Results should not change** (a clean-up, a speed-up): run the suite. It must pass
   as it is.
@@ -122,7 +122,7 @@ Tolerances:
 - Gas fields are double precision: relative 1e-10 of each field's maximum.
 - Particle files (`par*.vtu`) are single precision: relative 2e-6.
 
-## What A Case Is
+## What a Case Is
 
 Cases are defined in `rocpicl_tests/cases.py`. Each one specifies:
 - a box grid made with `mesh_generator`;
@@ -246,7 +246,7 @@ the flow solver's own conservation.
 | `box/gas-jump/closed` | 2 | Slip walls, two regions | `mass`, `gas_energy` | Conservation across a region border |
 | `box/gas-jump/periodic` | 1, 2 | Periodic on all faces | `mass`, `gas_energy` | Conservative fluxes across periodic faces (11dc640) |
 
-## Known Issues Tracked By The Suite
+## Known Issues Tracked by the Suite
 
 None at the moment. Fixed and now guarded:
 - non-conservative periodic patches (`box/gas-jump/periodic`, 11dc640);
@@ -299,7 +299,7 @@ Goldens store the arrays in the old-style form above (made from the dumps). Cons
 totals convert to bulk quantities with `phi` from the fluid dump (at step 0, the particle
 volume projected at the start of the run over the cell volume).
 
-## Adding A Case
+## Adding a Case
 
 1. Add it to `rocpicl_tests/cases.py`.
 2. Run `./run_tests.py run --generate -o <name>`. The golden is written only if the
