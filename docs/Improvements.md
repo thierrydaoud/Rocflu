@@ -14,6 +14,7 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
 - [Summary](#summary)
 - [Regression Tests](#regression-tests)
 - [Interpolation: Weighted Linear Least Squares](#interpolation-weighted-linear-least-squares)
+  - [Choosing the Interpolation Method](#choosing-the-interpolation-method)
   - [Interpolation in Shock-Driven Flows](#interpolation-in-shock-driven-flows)
 - [Where a Particle Stage Spends Its Time, and a Faster Stencil Search](#where-a-particle-stage-spends-its-time-and-a-faster-stencil-search)
   - [Measured Breakdown](#measured-breakdown)
@@ -115,6 +116,84 @@ at every face. Weighted linear least squares (radius 1.8h) reproduces linear fie
 round-off, and its value is continuous as the particle crosses a face. Each cell also now
 enters each bin's stencil only once; before, a two-bin periodic case counted some cells
 twice.
+
+### Choosing the Interpolation Method
+
+Rocflu stores each field as one value per cell, at the cell centroid. ppiclF has to turn
+those values into the value at a particle. Four common ways to do it:
+
+- **Inverse distance** (Shepard, 1968; the old ppiclF method): a weighted mean of the
+  nearby cell values, weight 1/d³. ppiclF used the cells within 1.5 cell lengths.
+- **Trilinear**: the 8 cell centres around the particle form a box; the value is the
+  product of linear interpolations in x, y and z.
+- **Barycentric**: the cell centres are split into tetrahedra; the value is the linear
+  function through the 4 corners of the tetrahedron that contains the particle. Finding
+  that tetrahedron is a point-location search on the dual mesh, as for particles on
+  unstructured grids (Haselbacher, Najjar and Ferry, 2007).
+- **Weighted linear least squares** (moving least squares, Lancaster and Salkauskas, 1981;
+  the current method, `ppiclf_solve_InterpLS`): fit a + b·(x − x_p) to the cells within
+  R = 1.8 cell lengths in each direction, each cell weighted by
+  Π_l (1 − (Δx_l/R)²)⁶, and take a, clamped to the range of the stencil's values.
+
+| | Inverse distance | Trilinear | Barycentric | Least squares |
+|---|---|---|---|---|
+| Cells used | about 27 | 8 | 4 | up to 64 |
+| Exact for a linear field | no | yes | yes | yes |
+| Continuous as the particle moves | no | yes | yes | yes, and smooth |
+| Passes through the cell values | yes | yes | yes | no (a local fit) |
+| Needs to know the mesh | no | the box of 8 centres (structured, hexahedral) | tetrahedra of the centres, and a search for the one containing the particle | no: only the nearby centroids |
+| Irregular or unstructured cells | yes | no | yes | yes |
+| Next to a wall | | no box: needs ghost values or one-sided formulas | outside the tetrahedra: needs the same | fewer cells, still a linear fit |
+
+ppiclF gets no mesh connectivity from Rocflu: each cell arrives as its centroid, its
+extent in x, y and z and its volume (`ppiclf_comm_InitOverlapGrid`). A cloud of nearby
+centroids is what its stencil search already returns, and that is all least squares
+needs. Trilinear needs to know which 8 centres form the box around the particle;
+barycentric needs a tetrahedral mesh of the centres, kept consistent across bins and
+ranks. Both would need ghost values or special formulas near walls, where the particle
+lies outside the box or the tetrahedra of the centres.
+
+How the four compare on the same cell-centred data (a stand-alone model, not ppiclF;
+the least-squares part uses ppiclF's weights, radius and clamp):
+
+![Four interpolation methods](figures/fig_interp_methods.png)
+
+- **(a) Linear field.** Inverse distance is off by up to 14% of the change across one
+  cell and jumps at every face. The other three are exact.
+- **(b) A sine along x, 8 cells per wavelength.** Trilinear and barycentric pass through
+  the cell values (zero error at the centres, a kink at each one); least squares does not
+  pass through them, but its error is about the same size (largest 0.068 against 0.067)
+  and it varies smoothly. Inverse distance has twice the error and jumps of 0.08 at the
+  faces.
+- **(c) Uniform cells, a 3D wave.** Trilinear, barycentric and least squares are second
+  order, with errors within 20% of each other (0.022–0.026 at 32 cells across). Inverse
+  distance converges more slowly and is 2.5 times worse at the finest mesh.
+- **(d) Irregular cell centres** (each moved by up to ±0.2 cell lengths, as the centroids
+  of an unstructured mesh). Trilinear does not apply. Barycentric and least squares stay
+  second order; least squares' error is 15–30% larger than barycentric's. Inverse distance
+  falls to about first order.
+
+So least squares is as accurate as trilinear and barycentric (same order, similar
+errors), works on any cell layout, and needs nothing from the mesh but the centroids.
+What it costs: a wider stencil (up to 64 cells), one small (at most 4×4) solve per
+particle, shared by all fields, and a fit that does not pass through the cell values,
+so it can overshoot them and is clamped. On a regular hexahedral mesh, trilinear is
+cheaper and equally accurate, and is also exact for bilinear terms such as xy. Higher
+order schemes (cubic splines, Taylor series) need structured grids and more cells
+(Yeung and Pope, 1988).
+
+References:
+- D. Shepard, "A two-dimensional interpolation function for irregularly-spaced data,"
+  *Proc. 23rd ACM National Conference*, 517–524 (1968),
+  [doi:10.1145/800186.810616](https://doi.org/10.1145/800186.810616).
+- P. Lancaster and K. Salkauskas, "Surfaces generated by moving least squares methods,"
+  *Mathematics of Computation* 37, 141–158 (1981),
+  [AMS](https://www.ams.org/journals/mcom/1981-37-155/S0025-5718-1981-0616367-1/).
+- P. K. Yeung and S. B. Pope, "An algorithm for tracking fluid particles in numerical
+  simulations of homogeneous turbulence," *J. Comput. Phys.* 79, 373–416 (1988).
+- A. Haselbacher, F. M. Najjar and J. P. Ferry, "An efficient and robust
+  particle-localization algorithm for unstructured grids," *J. Comput. Phys.* 225,
+  2198–2213 (2007).
 
 ### Interpolation in Shock-Driven Flows
 
@@ -1064,3 +1143,6 @@ trees of [47b0940](https://github.com/thierrydaoud/Rocflu/commit/47b0940) (befor
 [e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370)) and the current code,
 each with its own test harness; `plot_mpi_periodic.py` draws both figures from the saved
 totals.
+
+The interpolation comparison: `tests/_work/interp_model/interp_compare.py` (Python, no
+build needed) computes all four methods and draws the figure.
