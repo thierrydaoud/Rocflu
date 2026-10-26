@@ -1,4 +1,4 @@
-# Getting started
+# Getting Started
 
 Rocflu is a finite volume solver that resolves shock fronts on both structured and
 unstructured grids. Lagrangian point-particles can be placed in the Eulerian fluid field
@@ -6,18 +6,18 @@ and tracked via capabilities brought over from ppiclF and locally developed.
 
 ## Contents
 
-- [Get the code](#get-the-code)
+- [Get the Code](#get-the-code)
 - [Build](#build)
-  - [What gets built](#what-gets-built)
+  - [What Gets Built](#what-gets-built)
   - [Options](#options)
-  - [Build directories](#build-directories)
-  - [Build output and times](#build-output-and-times)
-  - [Test, clean and load](#test-clean-and-load)
-  - [Using CMake directly](#using-cmake-directly)
-- [Particle slots](#particle-slots)
+  - [Build Directories](#build-directories)
+  - [Build Output and Times](#build-output-and-times)
+  - [Test, Clean and Load](#test-clean-and-load)
+  - [Using CMake Directly](#using-cmake-directly)
+- [Particle Slots](#particle-slots)
 - [Troubleshooting](#troubleshooting)
 
-## Get the code
+## Get the Code
 
 ```bash
 git clone https://github.com/thierrydaoud/Rocflu.git
@@ -46,7 +46,7 @@ On HiPerGator:
 The executables are in `build/bin`. There is nothing to set up first: the script loads
 `gcc/14.2.0` and `openmpi/5.0.7` itself, and METIS is built from the copy in `3rd_party/`.
 
-### What gets built
+### What Gets Built
 
 | Executable | Target name | Purpose |
 |---|---|---|
@@ -94,7 +94,7 @@ are still in the code; to re-enable one, remove it from the check near the top o
 `CMakeLists.txt`. Inputs that need species (`# SPECIES USED 1`, `GASMODEL` 3-7) stop in
 pre-processing and are reported by the case validator.
 
-### Build directories
+### Build Directories
 
 **One directory per configuration.** Each combination of build type and physics
 options has a name: `release`, `debug`, `release-nopicl`, `debug-nopicl`, and so on.
@@ -117,7 +117,7 @@ specific configuration, use its `install/` directory, for example
 only those are in that configuration's `bin/`; build the others too before running
 `rocflu.sh test` with it.
 
-### Build output and times
+### Build Output and Times
 
 **What a build shows.** On a terminal, a progress bar with the file being compiled, and a
 line for each part as it finishes, then the summary:
@@ -159,7 +159,7 @@ of cores you have.
 changed files and the files that depend on them are recompiled. A change to one
 Rocflu routine takes about 10 seconds; a change to a ppiclF header about 25 seconds.
 
-### Test, clean and load
+### Test, Clean and Load
 
 ```bash
 ./rocflu.sh test                    # run the suite with build/bin
@@ -185,7 +185,7 @@ default. On a terminal the help and the script's messages are coloured (options 
 defaults yellow, errors red); in a log file or a pipe they are plain. Set `NO_COLOR=1` to
 turn the colours off.
 
-### Using CMake directly
+### Using CMake Directly
 
 `rocflu.sh` only runs CMake, so the same build can be done by hand:
 
@@ -204,7 +204,7 @@ cmake --build build/staging/mine -j 16 --target rflump   # executables in build/
 | `METIS_ROOT` | `--metis-root` | empty (bundled) |
 | `ROCFLU_CASE` | set by `rocflu.sh run` | empty (every particle slot) |
 
-## Particle slots
+## Particle Slots
 
 ppiclF stores each particle's state in `ppiclf_y` (position, velocity, temperature,
 spin) and its properties and the gas values at the particle in `ppiclf_rprop`; the

@@ -29,12 +29,12 @@ GITHUB = "https://github.com/thierrydaoud/Rocflu/blob"
 # Pages in sidebar order: (Markdown file relative to docs/, generated page,
 # short title for the sidebar).
 PAGES = [
-    ("GettingStarted.md", "GettingStarted.html", "Getting started"),
-    ("Running.md", "Running.html", "Running a simulation"),
-    ("InputFile.md", "InputFile.html", "Input file"),
-    ("BoundaryConditions.md", "BoundaryConditions.html", "Boundary conditions"),
-    ("Improvements.md", "Improvements.html", "Recent improvements and fixes"),
-    ("../tests/README.md", "tests.html", "Regression tests"),
+    ("GettingStarted.md", "GettingStarted.html", "Getting Started"),
+    ("Running.md", "Running.html", "Running a Simulation"),
+    ("InputFile.md", "InputFile.html", "Input File"),
+    ("BoundaryConditions.md", "BoundaryConditions.html", "Boundary Conditions"),
+    ("Improvements.md", "Improvements.html", "Recent Improvements and Fixes"),
+    ("../tests/README.md", "tests.html", "Regression Tests"),
 ]
 
 TOP_ITEM = re.compile(r"^([-*+]|\d+\.) ")

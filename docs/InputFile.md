@@ -1,4 +1,4 @@
-# The case input file (`<case>.inp`) and `points.dat`
+# The Case Input File (`<case>.inp`) and `points.dat`
 
 A Rocflu case is described by `<case>.inp` (this page), `<case>.bc`
 ([Boundary conditions](BoundaryConditions.md)), the grid (`<case>.hyb.asc`) and, with
@@ -11,16 +11,16 @@ is a complete, working example.
 
 ## Contents
 
-- [How Rocflu reads the file](#how-rocflu-reads-the-file)
-- [Gas-side sections](#gas-side-sections)
-- [`# PICL`: the particles](#picl-the-particles)
-  - [Models that need other models](#models-that-need-other-models)
-- [`points.dat`: the particles' initial state](#pointsdat-the-particles-initial-state)
-- [Output and restarts](#output-and-restarts)
-- [The case validator](#the-case-validator)
-  - [Removed keys](#removed-keys)
+- [How Rocflu Reads the File](#how-rocflu-reads-the-file)
+- [Gas-Side Sections](#gas-side-sections)
+- [`# PICL`: The Particles](#picl-the-particles)
+  - [Models That Need Other Models](#models-that-need-other-models)
+- [`points.dat`: The Particles' Initial State](#pointsdat-the-particles-initial-state)
+- [Output and Restarts](#output-and-restarts)
+- [The Case Validator](#the-case-validator)
+  - [Removed Keys](#removed-keys)
 
-## How Rocflu reads the file
+## How Rocflu Reads the File
 
 ```
 # PICL
@@ -46,7 +46,7 @@ QSFORCE          3
 The validator reports all of these (with the line number), so they need not be
 remembered.
 
-## Gas-side sections
+## Gas-Side Sections
 
 Only the keys in the test template are listed; the readers (`libfloflu/Read*Section.F90`)
 accept more.
@@ -91,7 +91,7 @@ accept more.
 | | other keys | | settings of the old-style ParaView output, as in the template |
 | `# MISC` | | | miscellaneous settings, as in the template |
 
-## `# PICL`: the particles
+## `# PICL`: The Particles
 
 Defaults are those of `libflu/RFLU_InitGlobal.F90`. A key that belongs to a model that is
 off (e.g. `KSP` without collisions) is not read and may stay in the file with any value.
@@ -131,7 +131,7 @@ length around the particles. `./rocflu.sh run` builds only the particle data the
 that are on need (`libpicl/user_files/ppiclf_slots.txt`, see
 [Getting started](GettingStarted.md#particle-slots)).
 
-### Models that need other models
+### Models That Need Other Models
 
 With `USED 1`, these combinations are rejected:
 
@@ -148,7 +148,7 @@ With `USED 1`, these combinations are rejected:
 Other sections, with `USED 1`: `RKSCHEME 2` in `# TIMESTEP`, `VISCOSITY` in
 `# VISCMODEL`, no `AXIFLAG 1` in `# NUMERICS`.
 
-## `points.dat`: the particles' initial state
+## `points.dat`: The Particles' Initial State
 
 `points.dat` (this name, in the case directory) lists the particles:
 
@@ -170,7 +170,7 @@ Older forms are no longer read: a material name in the first column (removed wit
 `# MATERIAL` for particles), and `x y z dp [u v w]` (diameter before the velocity).
 The validator and `rflump` both stop on them.
 
-## Output and restarts
+## Output and Restarts
 
 `rflump` writes its results as raw dumps in `restart_data/`, at step 0 (the particles),
 every `WRITIME` and the end of the run:
@@ -202,7 +202,7 @@ to check that it agrees with the dumps and the post program. Without particles i
 `Velocity` and `Energy` fields hold the momentum and the energy per volume; the post
 program writes velocity and energy per mass.
 
-## The case validator
+## The Case Validator
 
 ```bash
 ./rocflu.sh validate /path/to/case/<case>.inp
@@ -242,7 +242,7 @@ The validator mirrors `rocpicl/PICL_ReadPiclSection.F90` (keys and their order),
 `.bc` sections and keys): change it with them. Its tests need no cluster:
 `python3 tests/test_case_validator.py`.
 
-### Removed keys
+### Removed Keys
 
 | Key | Instead |
 |---|---|
