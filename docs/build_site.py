@@ -32,6 +32,7 @@ PAGES = [
     ("GettingStarted.md", "GettingStarted.html", "Getting started"),
     ("Running.md", "Running.html", "Running a simulation"),
     ("InputFile.md", "InputFile.html", "Input file"),
+    ("BoundaryConditions.md", "BoundaryConditions.html", "Boundary conditions"),
     ("Improvements.md", "Improvements.html", "Recent improvements and fixes"),
     ("../tests/README.md", "tests.html", "Regression tests"),
 ]
