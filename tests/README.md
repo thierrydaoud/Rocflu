@@ -28,6 +28,7 @@ field that is in a golden but no longer written fails the comparison.
 The 38 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
 collisions, walls) and [gas only](#gas-only-cases) (the flow solver without particles).
+One [unit test](#unit-test) runs with them.
 
 ## Running
 
@@ -246,6 +247,15 @@ the flow solver's own conservation.
 | `box/gas-jump/closed` | 2 | Slip walls, two regions | `mass`, `gas_energy` | Conservation across a region border |
 | `box/gas-jump/periodic` | 1, 2 | Periodic on all faces | `mass`, `gas_energy` | Conservative fluxes across periodic faces (11dc640) |
 | `box/gas-jump/symmetry` | 1, 2 | Symmetry on all faces | `mass`, `gas_energy` | Conservative fluxes across symmetry faces (11dc640) |
+
+### Unit Test
+
+`unit/bin-counts` compiles `bin_counts/bin_counts_test.f` with ppiclF's bin-count routine
+(`libpicl/source/ppiclf_bincounts.f`) and runs it, without MPI. It checks a table of bin
+boxes against the counts they must get (the wedge bed as it stretches, a cube, a slab, a
+long bed, one rank) and that every layout over about 330 000 boxes and rank counts is
+valid: no more bins than ranks, bins at least the minimum length. The cases run on at most
+4 ranks with small boxes, so they never reach these layouts.
 
 ## Known Issues Tracked by the Suite
 

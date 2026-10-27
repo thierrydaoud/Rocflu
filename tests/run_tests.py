@@ -185,6 +185,31 @@ def cross_checks(results):
         r["physics"] += ["differs from %s: %s" % (ref_name, e) for e in errs]
 
 
+UNIT_BIN_COUNTS = "unit/bin-counts"
+
+
+def run_bin_counts():
+    """Compile and run tests/bin_counts against ppiclF's bin-count routine."""
+    res = {"case": rcase.Case(name=UNIT_BIN_COUNTS, description=""), "errors": [],
+           "physics": [], "note": ""}
+    work = os.path.join(WORK, UNIT_BIN_COUNTS)
+    os.makedirs(work, exist_ok=True)
+    exe = os.path.join(work, "bin_counts_test")
+    sources = [os.path.join(TESTS_DIR, "bin_counts", "bin_counts_test.f"),
+               os.path.join(TESTS_DIR, "..", "libpicl", "source", "ppiclf_bincounts.f")]
+    build = subprocess.run(["gfortran", "-O2", "-o", exe] + sources,
+                           capture_output=True, text=True)
+    if build.returncode != 0:
+        res["errors"].append("compile failed: " + build.stderr.strip())
+        return res
+    run = subprocess.run([exe], capture_output=True, text=True)
+    lines = run.stdout.strip().splitlines()
+    res["note"] = lines[-1] if lines else ""
+    if run.returncode != 0:
+        res["errors"] += lines[:-1] or ["exit code %d" % run.returncode]
+    return res
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument("command", choices=["list", "run"])
@@ -208,8 +233,11 @@ def main():
     names = {c.name for c in selected}
     selected += [c for c in CASES if c.name not in names
                  and any(s.same_as == c.name for s in selected)]
+    unit = not args.only or any(o in UNIT_BIN_COUNTS for o in args.only)
 
     if args.command == "list":
+        if unit:
+            print("%-48s       %s" % (UNIT_BIN_COUNTS, "ppiclF bin counts (no MPI)"))
         for c in selected:
             print("%-48s np=%d  %s" % (c.name, c.nranks, c.description))
         return 0
@@ -220,12 +248,14 @@ def main():
                         % (exe, args.exe), "1;31"))
             return 2
 
-    print(paint("Running %s" % cases_text(len(selected)), "1") + " with %s (%s)" % (
+    print(paint("Running %s" % cases_text(len(selected) + unit), "1") + " with %s (%s)" % (
         args.exe, "generate" if args.generate else "compare"))
     start = datetime.datetime.now()
     with ThreadPoolExecutor(max_workers=args.jobs) as pool:
         results = list(pool.map(lambda c: run_case(c, args), selected))
     cross_checks(results)
+    if unit:
+        results.append(run_bin_counts())
 
     counts = {}
     for r in sorted(results, key=lambda r: r["case"].name):
