@@ -42,6 +42,7 @@ set(PPICLF_SOURCES
     ${PPICLF_USER_DIR}/ppiclf_user_OutputFields.f
     ${PPICLF_USER_DIR}/ppiclf_user_Layout.f
     ${PPICLF_SOURCE_DIR}/ppiclf_comm.f
+    ${PPICLF_SOURCE_DIR}/ppiclf_bincounts.f
     ${PPICLF_SOURCE_DIR}/ppiclf_op.f
     ${PPICLF_SOURCE_DIR}/ppiclf_io.f
     ${PPICLF_SOURCE_DIR}/ppiclf_solve.f
