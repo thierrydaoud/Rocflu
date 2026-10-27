@@ -176,8 +176,8 @@
 
       ! define Nusselt number Nu = Nu(Pr,Re,phi)
       Nuss = (7.0d0-10.0d0*vg+5.0d0*vg*vg)
-     >           *(1.0d0+0.7d0*(rep**0.2d0)*(rpr**OneThird))
-     >     + (1.33d0-2.4d0*vg+1.2d0*vg*vg)*(rep**0.7d0)*(rpr**OneThird)
+     >           *(1.0d0+0.7d0*(rem**0.2d0)*(rpr**OneThird))
+     >     + (1.33d0-2.4d0*vg+1.2d0*vg*vg)*(rem**0.7d0)*(rpr**OneThird)
 
       return
       end
@@ -268,10 +268,12 @@
 
       ! define Nusselt number Nu = Nu(Pr,Re,M)
       Nuss = (-0.46d0 + 1.77d0*rphif + 0.69d0*rphif**2)*(rphif**(-3))
-     > +(1.37d0 - 2.4d0*rphif + 1.2*rphif**2)*(rep**0.7)*(rpr**OneThird)
+     > +(1.37d0 - 2.4d0*rphif + 1.2d0*rphif**2)
+     >  *(rem**0.7d0)*(rpr**OneThird)
 
       theta = 1.0d0 - 1.6d0*rphip*(1.0d0 - rphip) 
-     >        - (3.0d0*rphip*(1.0d0 - rphip)**4)*exp(-(rep**0.4)*rphip)
+     >        - (3.0d0*rphip*(1.0d0 - rphip)**4)
+     >          *exp(-(rem**0.4d0)*rphip)
 
       ! Sun's formulation Eq. (29) of the paprt is per volume of grid cell
       ! This is transformed to per particle by multiplying by 
