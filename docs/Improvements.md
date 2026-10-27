@@ -7,7 +7,8 @@ across MPI ranks and periodic boundaries. For each: what was wrong, how it was f
 how the fix was checked.
 
 All changes are covered by the regression suite in [Regression Tests](../tests/README.md):
-38 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks.
+38 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks,
+and one unit test.
 
 ## Contents
 
@@ -46,6 +47,10 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
   - [Ghosts Carry Only What the Neighbour Search Reads](#ghosts-carry-only-what-the-neighbour-search-reads)
   - [Particle Output: A List of Named Fields](#particle-output-a-list-of-named-fields)
   - [Unused Slots Removed, the Rest Grouped by Job](#unused-slots-removed-the-rest-grouped-by-job)
+- [Particle Bins: Number of Bins per Direction](#particle-bins-number-of-bins-per-direction)
+  - [What Went Wrong](#what-went-wrong)
+  - [The New Count](#the-new-count)
+  - [How the New Count Was Checked](#how-the-new-count-was-checked)
 - [MPI and Periodic Boundaries](#mpi-and-periodic-boundaries)
 - [Still Open](#still-open)
 - [Reproducing the Figures](#reproducing-the-figures)
@@ -76,6 +81,7 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
 | Ghost particles | A ghost carried all 59 particle properties; the neighbour search reads 6 | A ghost carries those 6 (16 doubles instead of 69), byte-identical results | [a7f5748](https://github.com/thierrydaoud/Rocflu/commit/a7f5748) |
 | Field sizes | The number of fields per particle and per cell (state, properties, interpolated, projected) was fixed at compile time; Rocflu's number of interpolated fields had to match it by hand; every run interpolated 29 gas fields and projected 31 | Set at start-up by `ppiclf_user_Layout` from the physics that is on: 7 interpolated fields for drag only; ppiclF stops if a needed field is not given; byte-identical flow files | [074d58d](https://github.com/thierrydaoud/Rocflu/commit/074d58d), (section "Field sizes set at run time") |
 | Input | Mistakes in the input were found at run time, after the job started, or never: a typo or misplaced key was silently ignored, `QSFLUCT` ran without a drag, unused keys (`FILTERWIDTH`, angular periodicity, `REACTIVE`) had to be given; the particle material came from `# MATERIAL` by name; the build without particles did not compile | Case validator (`./rocflu.sh validate`, run first by `rocflu.sh run` and the suite) checks keys, values, model combinations, `points.dat` and the particles' position before anything is built ([Input File](InputFile.md)); `VELOCITYMODEL` replaces `STATIONARY`; `DENSITY`, `SPECIFICHEAT` in `# PICL`; `points.dat` is `x y z vx vy vz dp`; `--no-picl` builds and runs | [2b0c7a7](https://github.com/thierrydaoud/Rocflu/commit/2b0c7a7), [59da501](https://github.com/thierrydaoud/Rocflu/commit/59da501), [488e5df](https://github.com/thierrydaoud/Rocflu/commit/488e5df), [b12cb48](https://github.com/thierrydaoud/Rocflu/commit/b12cb48), [88542ac](https://github.com/thierrydaoud/Rocflu/commit/88542ac), [9d8be80](https://github.com/thierrydaoud/Rocflu/commit/9d8be80), [4add494](https://github.com/thierrydaoud/Rocflu/commit/4add494) |
+| Particle bins | A particle bed stretched along one direction stopped the run with "Error in Createbins": the bin count split the bins with a wrong formula and went on with too many bins when its search failed (12% of bin boxes in a scan) | Bins added one at a time to the direction with the longest bins; valid for every box. Unit test in the suite | [0688f68](https://github.com/thierrydaoud/Rocflu/commit/0688f68), [0887252](https://github.com/thierrydaoud/Rocflu/commit/0887252) |
 
 ## Regression Tests
 
@@ -85,22 +91,24 @@ each one in two ways: against a stored golden, which catches any change, and aga
 physics checks (conservation, exact interpolation of a linear field, restitution,
 decomposition independence), which say whether the result is right. The cases are:
 
-- **Shock tube** (13 cases): a Mach 1.27 shock over 1 or 4 particles, one- and two-way,
+- **Shock tube** (12 cases): a Mach 1.27 shock over 1 or 4 particles, one- and two-way,
   with each force model switched on in turn (added mass, pressure gradient, viscous
   unsteady, heat transfer, quasi-steady fluctuations, Parmar and Gidaspow drag).
-- **Box** (19 cases): an 8 mm cube, periodic or closed. Momentum and energy exchange,
+- **Box** (21 cases): an 8 mm cube, periodic or closed. Momentum and energy exchange,
   a quiescent cloud, heat exchange at rest, interpolation of a linear field, the
   projection on elongated cells, collisions through ghosts and periodic faces, binary
   collisions, and particle–wall collisions.
-- **Gas only** (3 cases): a pressure jump in a closed and a periodic box, testing the
-  flow solver's own conservation.
+- **Gas only** (5 cases): a pressure jump in a closed, a periodic and a symmetry box,
+  testing the flow solver's own conservation.
+- **Unit** (1 test): ppiclF's bin count, without MPI (see
+  [Particle Bins](#particle-bins-number-of-bins-per-direction)).
 
 Most cases run on 1, 2 and 4 ranks and must give the same particles on each. To run
 them, from `tests/`:
 
 ```bash
 module purge; module load gcc/14.2.0 openmpi/5.0.7
-./run_tests.py run                     # all 38 cases against the goldens
+./run_tests.py run                     # all 38 cases and the unit test
 ./run_tests.py run -o box/walls        # a subset
 ```
 
@@ -1128,6 +1136,83 @@ Rocflu then has to hand it over with an `InterpFieldUser` call in both
 Checked: 35 PASS twice; in all cases with particles (the suite and model variants) every named field is
 bit-identical to the old field it replaces in the files of [74b8f87](https://github.com/thierrydaoud/Rocflu/commit/74b8f87), and the flow files
 are byte-identical.
+
+## Particle Bins: Number of Bins per Direction
+
+ppiclF splits the box around the particles into bins, at most one per MPI rank, and each
+rank holds the particles in its bin. Particles within a filter width of a bin face are
+also copied to the neighbouring bin as ghosts. Each bin must be at least `BinMinLen` long
+in every direction (the larger of the projection filter width and the neighbour-search
+width), and there can be no more bins than ranks. The bins are recomputed when a particle
+leaves the previous bin box.
+
+### What Went Wrong
+
+A particle bed that stretched along one direction stopped the run:
+
+```
+ correct bin combination not found
+ binERROR: Num Bins > NumProcessors          35          32          32
+PPICLF: ERROR (rank     0) Error in Createbins
+```
+
+A wedge case (a strong shock through a thin bed, 32 ranks) stopped this way just after
+12 µs, when the bin box had stretched from 5.8 × 4.8 × 1.4 mm to about 36.7 × 5.8 × 1.4 mm.
+
+The bin count used since April 2025 estimated a count per direction that gives bins
+close to cubes, then searched one bin more or less in each direction for a combination
+within the ranks. It had two bugs:
+
+- **Wrong split between two long directions.** When the estimate gave too many bins, the
+  code kept one bin in the short direction and split the N ranks between the other two
+  as √N·L_med/L_large and √N·L_large/L_med. A split in proportion to the lengths is
+  √(N·L_med/L_large) and √(N·L_large/L_med). For the wedge bed this gave 35.7 × 0.9 bins
+  instead of 14.2 × 2.25; rounded to 36 × 1, and one bin less still makes 35 > 32.
+- **No safe fallback.** When the search found no combination within the ranks, the code
+  went on with the estimate minus one in every direction (35 bins for 32 ranks), and the
+  check after it stopped the run.
+
+Compiled on its own and run over 61,705 bin boxes on 8 to 128 ranks, this count failed on
+7,713 (12%): 4,686 stuck in its iteration ("CreateBin stuck in infinite loop") and 3,027
+as above. With the formula corrected, 4,261 still failed.
+
+### The New Count
+
+`ppiclf_comm_BinCounts` (`libpicl/source/ppiclf_bincounts.f`, [0688f68](https://github.com/thierrydaoud/Rocflu/commit/0688f68)) starts from one
+bin and keeps adding a bin to the direction whose bins are longest, among the directions
+where one more bin keeps the total within the ranks and the bins at least `BinMinLen`
+long. It stops when no direction can take another bin. Every step keeps the layout
+valid, so there is no failure case.
+
+ppiclF's original count (before April 2025) also started from one bin, but added bins to
+x, y and z in turn, whatever the shape of the box: a stretched bed got long, thin bins and
+more ghost particles. Splitting the longest direction keeps the bins close to square, as
+the April 2025 count intended. The internal bin-face area measures how many particles are
+copied as ghosts:
+
+| Bin box (mm) | Ranks | Original ppiclF | April 2025, formula corrected | New |
+|---|---|---|---|---|
+| Wedge bed at t = 0, 5.8 × 4.8 × 1.4 | 32 | 6 × 5 × 1, 65 mm² | 6 × 5 × 1, 65 mm² | 6 × 5 × 1, 65 mm² |
+| Wedge bed at the crash, 36.7 × 5.8 × 1.4 | 32 | 6 × 5 × 1, 242 mm² | 15 × 2 × 1, 163 mm² | 16 × 2 × 1, 171 mm² |
+| Slab, 40 × 40 × 4 | 64 | 4 × 4 × 4, 5,760 mm² | 8 × 8 × 1, 2,240 mm² | 8 × 8 × 1, 2,240 mm² |
+| Long bed, 100 × 5 × 5 | 128 | 5 × 5 × 5, 4,100 mm² | 42 × 1 × 3, 2,025 mm² | 32 × 2 × 2, 1,775 mm² |
+
+The original column uses ppiclF's single minimum length, the largest of the three. As
+committed, the April 2025 count stops on the wedge bed at the crash.
+
+Unchanged: the bin box (the particles' extent plus a buffer, snapped to the walls),
+`BinMinLen`, and keeping the bins while every particle stays inside the previous bin box.
+
+### How the New Count Was Checked
+
+- Over 222,138 bin boxes on 8 to 256 ranks, the new count gives no invalid layout.
+- `unit/bin-counts` in [Regression Tests](../tests/README.md#unit-test) ([0887252](https://github.com/thierrydaoud/Rocflu/commit/0887252)) checks 10
+  bin boxes against fixed counts and 333,207 layouts for validity. A copy of the count
+  with the rank limit doubled fails it.
+- The wedge case (slip walls, 32 ranks) runs to 20 µs, where it stopped just after 12 µs. The
+  bins are the same as before up to 11 µs, then stay at 16 × 2 × 1 as the bed stretches to
+  64.8 × 6.9 × 1.4 mm.
+- The 38 regression cases pass.
 
 ## MPI and Periodic Boundaries
 
