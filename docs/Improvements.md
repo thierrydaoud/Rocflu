@@ -22,6 +22,10 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
 - [Projection: Kernel Width per Direction, and Cloud-Edge Cells](#projection-kernel-width-per-direction-and-cloud-edge-cells)
 - [Low-Slip Closures](#low-slip-closures)
 - [Quasi-Steady Drag](#quasi-steady-drag)
+- [Heat Transfer: Reynolds Number in the Gunn and Sun Correlations](#heat-transfer-reynolds-number-in-the-gunn-and-sun-correlations)
+  - [Nusselt Number against PR-DNS](#nusselt-number-against-pr-dns)
+  - [Mean Scaled Fluid Temperature](#mean-scaled-fluid-temperature)
+  - [Heat Rate in a Run](#heat-rate-in-a-run)
 - [Random Numbers for the Stochastic Models](#random-numbers-for-the-stochastic-models)
 - [Particle Collisions](#particle-collisions)
   - [Contact Stiffness from the Pair's Effective Mass](#contact-stiffness-from-the-pairs-effective-mass)
@@ -55,6 +59,7 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
 | Projection | Cells just outside the bin domain were dropped, so cloud-edge particles reached 8 cells instead of 27; φ was ~8% too high at the edge | Map those cells to particle bins | [affad85](https://github.com/thierrydaoud/Rocflu/commit/affad85) |
 | Closures | Forces and heat transfer were skipped below 1 mm/s slip, and the old value was kept | Evaluate at any slip; skip only the quasi-steady drag at zero slip | [f0ae123](https://github.com/thierrydaoud/Rocflu/commit/f0ae123) |
 | Quasi-steady drag | Gidaspow's C_D was capped below Re = 0.1 (100% error); Osnes had a spurious Knudsen reduction (25% error) | Correlations match the published ones; QSFORCE renumbered | [94607fd](https://github.com/thierrydaoud/Rocflu/commit/94607fd) |
+| Heat transfer | Gunn's and Sun's Nusselt correlations were evaluated with the particle Reynolds number Re_p instead of the mean slip Reynolds number Re_m = ε_f Re_p they were fitted with: Nu up to 35% too high (Sun) and 62% (Gunn) at ε_s = 0.5 | Both use Re_m; Sun's Nu is within 7.9% of its PR-DNS data on average (20.9% before) | [3c677d9](https://github.com/thierrydaoud/Rocflu/commit/3c677d9) |
 | MPI | Gas state in virtual cells was stale at rank borders with particles, setting the gas around a quiescent cloud moving (1e-4 m/s) on 2+ ranks; total gas energy differed from 1 rank by 5e-8 | Convert and re-exchange after φ is known; exchange φ every stage | [e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370) |
 | Conservation | Fluxes on periodic and symmetry patches were not conservative | Exchange and transform gradients in virtual cells | [11dc640](https://github.com/thierrydaoud/Rocflu/commit/11dc640) |
 | Robustness | A single particle gave a filter width of 0 | Filter width from cell–box overlap | [48f64b7](https://github.com/thierrydaoud/Rocflu/commit/48f64b7) |
@@ -414,6 +419,93 @@ M ≥ 1e-6 floor in Loth's terms. The modified Parmar model was removed.
 
 > **Input decks:** `QSFORCE` is now 0 none, 1 Gidaspow, 2 Parmar, 3 Osnes.
 > 4 stops with an error. Decks that used `QSFORCE 2` for Osnes must change to `3`.
+
+## Heat Transfer: Reynolds Number in the Gunn and Sun Correlations
+
+The convective heat rate into particle p is
+
+Q_p = π k_f d_p (T_f − T_p) · Nu,
+
+with Nu from the model set by `HEATTRANSFER`. Two of the five models were fitted to beds
+of particles, and both define their Reynolds number with the superficial slip velocity:
+
+- **Gunn (1978), `HEATTRANSFER 3`**: Re = d U ρ/μ, with U the superficial velocity
+  (nomenclature of the paper). For a suspension U = ε_f |u_f − u_p|.
+- **Sun et al. (2015), `HEATTRANSFER 5`**: fitted to PR-DNS of random fixed assemblies
+  against the mean slip Reynolds number Re_m = ε_f ρ_f |u_f − u_p| d_p / μ_f.
+
+Both were evaluated with the particle Reynolds number Re_p = ρ_f |u_f − u_p| d_p / μ_f,
+which is larger by 1/ε_f. Both now use Re_m (`rem` in `ppiclf_user.f`). Stokes,
+Ranz–Marshall and Fox (`HEATTRANSFER` 1, 2, 4) are single-sphere correlations and keep
+Re_p. Grawe & Capecelatro (2025) use the same definitions in their Euler–Lagrange model.
+
+Sun's Nu is defined with the bulk (mixing-cup) fluid temperature, while the code only has
+the average fluid temperature. Their consistent model (eq. 29) corrects for this with the
+mean scaled fluid temperature ⟨θ⟩ (eq. 30):
+
+q‴ = 6π ε_s k_f Nu / (4 d_p² ⟨θ⟩) · (T_f − T_p),
+
+⟨θ⟩ = 1 − 1.6 ε_s ε_f − 3 ε_s ε_f⁴ exp(−Re_m^0.4 ε_s).
+
+Divided by the number density 6ε_s/(π d_p³), this gives Q_p with Nu replaced by
+π/4 · Nu/⟨θ⟩, which is what `HTModel_Sun` returns. That conversion was already right; ⟨θ⟩
+now also uses Re_m. Sun's constants were single precision (1.4e-7 relative error) and are
+now double.
+
+The compiled `HTModel_Gunn` and `HTModel_Sun` agree with the published formulas to 4e-16
+and 2e-16.
+
+### Nusselt Number against PR-DNS
+
+The PR-DNS points (with 95% confidence intervals) are those of Sun et al. (2015) Fig. 5,
+read from the vector paths of the PDF. Read back the same way, the paper's own correlation
+curves match eq. 27 at Re_m to 0.2%, and the Gunn curve of their Fig. 4 matches Gunn at
+Re_m to 0.1% (3.7% with Re_p), so the paper evaluates both at Re_m.
+
+![Nusselt number with Re_m and Re_p against PR-DNS](figures/fig_ht_nusselt.png)
+
+Solid lines: with Re_m (now). Dashed lines: with Re_p (before).
+
+| Model | Re | Mean error | Largest error | Points inside the 95% interval |
+|---|---|---|---|---|
+| Sun | Re_m (now) | 7.9% | 24% | 23 of 24 |
+| Sun | Re_p (before) | 20.9% | 48% | 13 of 24 |
+| Gunn | Re_m (now) | 31% | 63% | 6 of 24 |
+| Gunn | Re_p (before) | 47% | 79% | 4 of 24 |
+
+Sun's 7.9% matches the "about 7%" the paper gives. Gunn's correlation overpredicts this
+PR-DNS by 20–60% even with Re_m (as in Sun's Fig. 4); Re_p added another 10–40%.
+
+### Mean Scaled Fluid Temperature
+
+![⟨θ⟩ with Re_m and Re_p against PR-DNS](figures/fig_ht_theta.png)
+
+PR-DNS points from Sun et al. (2015) Fig. 8. Eq. 30 is within 5.0% of them on average
+with Re_m (the paper gives 5%) and 5.4% with Re_p; 27 of 30 points lie inside the 95%
+interval. Re only enters ⟨θ⟩ through exp(−Re^0.4 ε_s), so Re_m against Re_p changes it by
+2% at most: almost all of the old error came from Nu.
+
+### Heat Rate in a Run
+
+A periodic 8 mm box with 13,824 particles fixed on a lattice (3 × 3 × 3 per cell, so ε_s
+is uniform), held at 394 K with `VELOCITYMODEL 0`, in gas at 294 K moving at Re_m = 50.
+The gas energy gain rate over 1e-7 s is compared with N·Q_p from the published formulas:
+
+| Model | ε_s | Run / formula with Re_m | Run / formula with Re_p |
+|---|---|---|---|
+| Gunn | 0.1 | 0.9973 | 0.968 |
+| Sun | 0.1 | 0.9973 | 0.963 |
+| Gunn | 0.3 | 0.9970 | 0.883 |
+| Sun | 0.3 | 0.9970 | 0.879 |
+
+The remaining 0.3% shrinks with the length of the run (0.16% over 2e-7 s, 0.14% over
+4e-7 s): it is a fixed start-up loss of about a quarter of a time step plus the gas
+warming, which lowers T_f − T_p. With those two removed the run matches the formulas to
+1e-4. The per-particle rate, projected to the cells, gives back the volumetric rate of
+the paper.
+
+The `shocktube/two-way/heat-transfer` golden (Gunn) was refreshed; its four particles sit
+where ε_f ≈ 1, so it changed by less than 1e-5 of each field's maximum.
 
 ## Random Numbers for the Stochastic Models
 
@@ -1146,3 +1238,9 @@ totals.
 
 The interpolation comparison: `tests/_work/interp_model/interp_compare.py` (Python, no
 build needed) computes all four methods and draws the figure.
+
+The heat transfer figures: `tests/_work/plots/heat_transfer/` holds `ext5.py` and
+`ext8.py` (read the PR-DNS points from Sun et al. 2015 Figs. 5 and 8, needs PyMuPDF),
+`ref.py` (the published formulas), `plot_ht.py` and `plot_theta.py` (the figures and the
+error tables), `htdrive.f` (calls the compiled models; linked against a built tree's
+`libppiclF.a`) and `htbox.py` (the periodic box runs, given a built tree).
