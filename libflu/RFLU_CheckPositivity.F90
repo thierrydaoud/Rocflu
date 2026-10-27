@@ -110,7 +110,7 @@ SUBROUTINE RFLU_CheckPositivity(pRegion)
   INTEGER, PARAMETER :: MAX_NEGATIVE_LOCS = 10
   INTEGER :: icg,indCp,indMol,indVFracE,nLocs
   INTEGER :: loc(MAX_NEGATIVE_LOCS,MIN_VAL:MAX_VAL)
-  REAL(RFREAL) :: Eo,gamma,p,rgas,rho,rrho,t,u,v,Vm2,w,VFracE
+  REAL(RFREAL) :: Eo,gamma,p,pBefore,rgas,rho,rrho,t,u,v,Vm2,w,VFracE
   REAL(RFREAL) :: x,y,z
   REAL(RFREAL), DIMENSION(:,:), POINTER :: cv,dv,gv
   TYPE(t_global), POINTER :: global
@@ -179,29 +179,26 @@ SUBROUTINE RFLU_CheckPositivity(pRegion)
     ! Subbu - End correction
 
     ! Subbu - Check for negative pressure
-    ! TLJ - added some extra print statements 01/17/2025
     IF ( p <= 0.0_RFREAL ) THEN
       !p  = dv(DV_MIXT_PRES,icg)
       !Eo = p/((gamma-1.0_RFREAL)*rho) + 0.5_RFREAL*Vm2
       !t  = MixtPerf_T_DPR(rho,p,rgas)
       !cv(CV_MIXT_ENER,icg) = rho*Eo
 
-      WRITE(*,'(A,I8,A)') "  ========  Fixed -ve pressure in cell",icg,"  ========  "
-      
       IF (pRegion%mixtInput%gasModel == GAS_MODEL_TCPERF) THEN
-       WRITE(*,'(A,I8,F10.4,F14.4,F14.4,F10.4,A)') &
-               "  ========  Ideal Gas - Before fix values:{cell,rho,e,P,T}" &
-               ,icg,rho,Eo,p,t,"  ========  "
+       ! Reported with the progress line (RFLU_PrintWriteConvergence)
+       global%posFixCount = global%posFixCount + 1
+       global%posFixBox = MIN(global%posFixBox,(/x,y,z,-x,-y,-z/))
+       pBefore = p
        Eo = 1.0e4_RFREAL + 0.5_RFREAL*Vm2 !Energy floor
        p = MixtPerf_P_DEoGVm2(rho,Eo,gamma,Vm2)
        t = MixtPerf_T_DPR(rho,p,rgas) !Recompute P,T
        dv(DV_MIXT_PRES,icg) = p
        dv(DV_MIXT_TEMP,icg) = t  !Reset Dep Var Array
        cv(CV_MIXT_ENER,icg) = rho*Eo !Reset Total energy array
-       WRITE(*,'(A,I8,F10.4,F14.4,F14.4,F10.4,A)') &
-               "  ========  Ideal Gas - Fix attempted:{cell,rho,e,P,T}" &
-               ,icg,rho,Eo,p,t,"  ========  "
-       WRITE(*,'(A,2x,3F10.4)') " Location {x,y,z}",x,y,z
+       IF ( pBefore < global%posFixWorst(1) ) THEN
+         global%posFixWorst = (/pBefore,p,rho,x,y,z/)
+       END IF ! pBefore
       ELSE
        STOP
       END IF 

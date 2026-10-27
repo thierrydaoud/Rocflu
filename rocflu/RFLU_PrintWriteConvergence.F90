@@ -99,10 +99,12 @@ SUBROUTINE RFLU_PrintWriteConvergence(global)
 ! ==============================================================================
 
   CHARACTER(CHRLEN) :: timing
-  INTEGER :: errorFlag,percent,stepsSinceLast
+  INTEGER :: errorFlag,nFix,percent,stepsSinceLast,worstProc
   REAL(RFREAL) :: endTime,eta,resNorm,secAverage,secElapsed,secPerStep, &
                   timeDone,wallNow
-  REAL(RFREAL), DIMENSION(6) :: localVals,globalVals
+  REAL(RFREAL), DIMENSION(2) :: worstLocal,worstGlobal
+  REAL(RFREAL), DIMENSION(6) :: box,worst
+  REAL(RFREAL), DIMENSION(7) :: localVals,globalVals
 
 ! ******************************************************************************
 ! Start
@@ -120,8 +122,9 @@ SUBROUTINE RFLU_PrintWriteConvergence(global)
   localVals(4) = global%massIn
   localVals(5) = global%massOut
   localVals(6) = global%stopRun
+  localVals(7) = REAL(global%posFixCount,RFREAL)
 
-  CALL MPI_Allreduce(localVals,globalVals,6,MPI_RFREAL,MPI_SUM,global%mpiComm, &
+  CALL MPI_Allreduce(localVals,globalVals,7,MPI_RFREAL,MPI_SUM,global%mpiComm, &
                      errorFlag)
   global%error = errorFlag
   IF ( global%error /= ERR_NONE ) THEN 
@@ -205,6 +208,41 @@ SUBROUTINE RFLU_PrintWriteConvergence(global)
     global%progressWallLast = wallNow
     global%progressStepLast = global%iterSinceRestart
   END IF ! global%flowType
+
+! ******************************************************************************
+! Negative-pressure fixes since the last call, e.g.
+!         negative pressure fixed 6820 times, cells in x [ 1.002E-01, 1.002E-01]
+!           y [-8.381E-04, 8.381E-04] z [ 1.000E-04, 9.000E-04]  (one line)
+!         lowest p -2.523E+03 Pa, set to  7.507E+01 Pa (rho  1.877E-02) at
+!           ( 1.002E-01,-3.644E-05, 5.000E-04)  (one line)
+! ******************************************************************************
+
+  nFix = NINT(globalVals(7))
+  IF ( nFix > 0 ) THEN
+    CALL MPI_Allreduce(global%posFixBox,box,6,MPI_RFREAL,MPI_MIN, &
+                       global%mpiComm,errorFlag)
+    worstLocal(1) = global%posFixWorst(1)
+    worstLocal(2) = REAL(global%myProcid,RFREAL)
+    CALL MPI_Allreduce(worstLocal,worstGlobal,1,MPI_2DOUBLE_PRECISION, &
+                       MPI_MINLOC,global%mpiComm,errorFlag)
+    worstProc = NINT(worstGlobal(2))
+    worst = global%posFixWorst
+    CALL MPI_Bcast(worst,6,MPI_RFREAL,worstProc,global%mpiComm,errorFlag)
+
+    IF ( global%myProcid == MASTERPROC ) THEN
+      WRITE(STDOUT,'(8X,A,I0,A,3(1X,A,ES10.3,A,ES10.3,A)/8X,A,ES10.3,A, &
+                    &ES10.3,A,ES10.3,A,ES10.3,A,ES10.3,A,ES10.3,A)') &
+        'negative pressure fixed ',nFix,' times, cells in', &
+        'x [',box(1),',',-box(4),']','y [',box(2),',',-box(5),']', &
+        'z [',box(3),',',-box(6),']', &
+        'lowest p ',worst(1),' Pa, set to ',worst(2),' Pa (rho ',worst(3), &
+        ') at (',worst(4),',',worst(5),',',worst(6),')'
+    END IF ! global%myProcid
+
+    global%posFixCount = 0
+    global%posFixBox   = HUGE(1.0_RFREAL)
+    global%posFixWorst = HUGE(1.0_RFREAL)
+  END IF ! nFix
 
 ! ******************************************************************************
 ! Start
