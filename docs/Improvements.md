@@ -57,7 +57,7 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
 | Quasi-steady drag | Gidaspow's C_D was capped below Re = 0.1 (100% error); Osnes had a spurious Knudsen reduction (25% error) | Correlations match the published ones; QSFORCE renumbered | [94607fd](https://github.com/thierrydaoud/Rocflu/commit/94607fd) |
 | MPI | Gas state in virtual cells was stale at rank borders with particles, setting the gas around a quiescent cloud moving (1e-4 m/s) on 2+ ranks; total gas energy differed from 1 rank by 5e-8 | Convert and re-exchange after φ is known; exchange φ every stage | [e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370) |
 | Conservation | Fluxes on periodic and symmetry patches were not conservative | Exchange and transform gradients in virtual cells | [11dc640](https://github.com/thierrydaoud/Rocflu/commit/11dc640) |
-| Robustness | Uninitialized reads gave NaN on 2+ ranks; a single particle gave a filter width of 0 | Initialize; filter width from cell–box overlap | [b10c5f1](https://github.com/thierrydaoud/Rocflu/commit/b10c5f1), [48f64b7](https://github.com/thierrydaoud/Rocflu/commit/48f64b7) |
+| Robustness | A single particle gave a filter width of 0 | Filter width from cell–box overlap | [48f64b7](https://github.com/thierrydaoud/Rocflu/commit/48f64b7) |
 | Build | Required `SPEC=1` | Builds without it; stops if species are requested | [aa3c0b6](https://github.com/thierrydaoud/Rocflu/commit/aa3c0b6) |
 | Random numbers | QS fluctuations drew from one generator per rank, every rank seeded with 1: the same noise on every rank, and results that changed with the number of ranks | Each particle has its own stream (splitmix32), seeded with its line in `points.dat` and carried with the particle; 1 and 2 ranks now give identical results | (section "Random numbers for the stochastic models") |
 | Collisions | The contact stiffness used particle i's own mass, so an unequal pair felt unequal forces: an 8:1 pair at 20 m/s ended with its total momentum reversed | Stiffness from the pair's effective mass (soft-sphere model) | [3afd23a](https://github.com/thierrydaoud/Rocflu/commit/3afd23a), [78eb711](https://github.com/thierrydaoud/Rocflu/commit/78eb711) |
@@ -1067,8 +1067,8 @@ on 1, 2 and 4 ranks.
   (`box/gas-jump/symmetry`). Before the fix, mass and energy drifted by 3–5e-5 within the
   first 10 µs, the same on 1, 2 and 4 ranks: the error came from the patches, not from MPI.
   Now both are conserved to 1e-14.
-- **Uninitialized reads ([b10c5f1](https://github.com/thierrydaoud/Rocflu/commit/b10c5f1)).** PICL arrays are zeroed, the NSCBC patch `dv`
-  is set at initialization, and an out-of-bounds read of `dv(4)` is fixed.
+- **Uninitialized reads ([b10c5f1](https://github.com/thierrydaoud/Rocflu/commit/b10c5f1)).** The NSCBC patch `dv` is set at initialization, and an
+  out-of-bounds read of `dv(4)` is fixed.
 
 ## Still Open
 
