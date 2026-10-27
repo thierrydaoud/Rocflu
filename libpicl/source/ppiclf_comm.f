@@ -146,14 +146,12 @@
 !
 ! Internal:
 !
-      INTEGER*4 ix, iy, iz, npt_total, i, j, k, idum, jdum, kdum, 
-     >          ppiclf_iglsum, ierr, BinCheck, ppiclf_iglmax
+      INTEGER*4 ix, iy, iz, npt_total, i, j, k, idum, jdum, kdum,
+     >          ppiclf_iglsum, BinCheck
       REAL*8    xmin, ymin, zmin, xmax, ymax, zmax, temp1, temp2,
-     >          binb_length(3), BinMinLen(3), ppiclf_glmin, 
-     >          ppiclf_glmax, ppiclf_glsum, periodicDistCheck,
-     >          BinBuffer(3)
-      EXTERNAL  ppiclf_iglsum, ppiclf_glmin, ppiclf_glmax, ppiclf_glsum,
-     >          ppiclf_iglmax
+     >          binb_length(3), BinMinLen(3), periodicDistCheck,
+     >          BinBuffer(3), extent(6), work(6)
+      EXTERNAL  ppiclf_iglsum
 !
 
       ix = 1
@@ -207,15 +205,21 @@
          IF(temp2 .GT. zmax) zmax = temp2
       END DO
 
-      ! Finds global bin domain boundaries across MPI ranks
-      ppiclf_binb(1) = ppiclf_glmin(xmin,1)
-      ppiclf_binb(2) = ppiclf_glmax(xmax,1)
-      ppiclf_binb(3) = ppiclf_glmin(ymin,1)
-      ppiclf_binb(4) = ppiclf_glmax(ymax,1)
-      ppiclf_binb(5) = ppiclf_glmin(zmin,1)
-      ppiclf_binb(6) = ppiclf_glmax(zmax,1)
-
-      CALL MPI_BARRIER(ppiclf_comm,ierr)
+      ! Finds global bin domain boundaries across MPI ranks, in one
+      ! reduction: the minimum of the mins and of the negated maxes
+      extent(1) =  xmin
+      extent(2) =  ymin
+      extent(3) =  zmin
+      extent(4) = -xmax
+      extent(5) = -ymax
+      extent(6) = -zmax
+      CALL ppiclf_gop(extent,work,'m  ',6)
+      ppiclf_binb(1) =  extent(1)
+      ppiclf_binb(2) = -extent(4)
+      ppiclf_binb(3) =  extent(2)
+      ppiclf_binb(4) = -extent(5)
+      ppiclf_binb(5) =  extent(3)
+      ppiclf_binb(6) = -extent(6)
 
       ! Restart: the box of the dump (ppiclf_restart_bins), then the bins
       ! are built from it as below
@@ -246,11 +250,7 @@
         END IF
       END DO
 
-      CALL MPI_BARRIER(ppiclf_comm,ierr)
-
-      BinCheck = ppiclf_iglmax(BinCheck,1)
-
-
+      ! Same on every rank (global bin boxes), so no reduction needed
       IF(BinCheck .EQ. 0) THEN
         DO i = 1,3
           ppiclf_binb(2*i-1) = ppiclf_previousbinb(2*i-1)
@@ -352,7 +352,7 @@
 !
 ! Internal:
 !
-      INTEGER*4  i, ii, jj, kk, nrank, ierr, partcheck
+      INTEGER*4  i, ii, jj, kk, nrank, partcheck
       EXTERNAL   ppiclf_iglmax
       INTEGER*4  ppiclf_iglmax
 !
@@ -377,7 +377,6 @@
          ppiclf_iprop(8,i) = nrank ! total bin number
       END DO
       ppiclf_particleMoved = ppiclf_iglmax(partcheck,1)
-      CALL mpi_barrier(ppiclf_comm,ierr)
 
       RETURN
       END
