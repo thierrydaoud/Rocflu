@@ -7,7 +7,7 @@ across MPI ranks and periodic boundaries. For each: what was wrong, how it was f
 how the fix was checked.
 
 All changes are covered by the regression suite in [Regression Tests](../tests/README.md):
-38 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks,
+39 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks,
 and one unit test.
 
 ## Contents
@@ -112,7 +112,7 @@ them, from `tests/`:
 
 ```bash
 module purge; module load gcc/14.2.0 openmpi/5.0.7
-./run_tests.py run                     # all 38 cases and the unit test
+./run_tests.py run                     # all 39 cases and the unit test
 ./run_tests.py run -o box/walls        # a subset
 ```
 

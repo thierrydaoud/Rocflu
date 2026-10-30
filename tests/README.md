@@ -25,7 +25,7 @@ on needs them (`ppiclf_user_Layout`), so cases without pressure-gradient, added-
 viscous-unsteady or rotational-collision models have no `dpdx_g` and similar fields. A
 field that is in a golden but no longer written fails the comparison.
 
-The 38 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
+The 39 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
 collisions, walls) and [gas only](#gas-only-cases) (the flow solver without particles).
 One [unit test](#unit-test) runs with them.
@@ -80,8 +80,8 @@ messages are shown next to the case.
 
 ### 3. Read the Result
 
-The script prints one line per case, a total (e.g. `38 PASS`) and a closing line
-(`✔ All 38 cases passed in 29 s`, or `✗ 2 of 38 cases failed`). On a terminal the statuses
+The script prints one line per case, a total (e.g. `40 PASS`) and a closing line
+(`✔ All 40 cases passed in 29 s`, or `✗ 2 of 40 cases failed`). On a terminal the statuses
 are coloured (PASS green, FAIL red, XFAIL yellow, XPASS cyan); `NO_COLOR=1` turns that off. See [Results](#results)
 for what each status means.
 
@@ -228,6 +228,7 @@ walls. The gas is uniform (1.2 kg/m³, 101 325 Pa) unless stated otherwise.
 | `box/qs-fluctuations` | 1, 2 | Periodic; gas at 50 m/s through 40 particles (20 µm) with a ±1 m/s velocity spread, `QSFLUCT 1`, `MODEL_WRT 1`, `NEIGHBORWIDTH 3e-3` | `particles_moved`, `fluctuations_active`, `same_as` | Each particle draws from its own random stream: 1 and 2 ranks agree (96b28a4; one generator per rank failed this) |
 | `box/quiescent-cloud` | 2, 4 | Periodic; 30 fixed particles (300 µm, uneven) in gas at rest, `VELOCITYMODEL 0`, `PGFORCE 1` | `quiescent`, `mass` | Stale virtual cells at rank borders set the gas moving (e3ed370) |
 | `box/resting-heat-exchange` | 1 | Periodic; particles at rest at 296.4 K in gas at rest at 294.2 K, `HEATTRANSFER 2` | `particles_heat_exchange`, `mass`, `energy` | Heat transfer at zero slip used to be skipped (f0ae123) |
+| `box/sun-dilute` | 1 | Periodic; gas at 5 m/s through 40 particles (450 µm) at 394 K, two-way, `HEATTRANSFER 5`; cell ε_s up to 0.075 | `particles_heat_exchange`, `mass`, `momentum`, `energy` | Sun's model below ε_s = 0.1, blended into Ranz–Marshall (955ba8e) |
 | `box/linear-interp` | 1, 2, 4 | Closed; gas at rest with density linear in x, y, z; 40 tracers (1 µm) | `linear_interp`, `mass` | Interpolation is exact for a linear field (89f9661) |
 | `box/elongated-projection` | 1, 2 | Closed, 2:1:1 cells; one fixed particle | `projection_shape`, `mass` | The projection kernel spreads ~0.44 cell lengths in every direction (414ce7f, affad85) |
 | `box/ghost-collisions` | 1, 2, 4 | Periodic; 9 overlapping pairs at rest, collisions as the only force | `collision_pairs`, `same_as` | Pairs across bin faces, rank borders, periodic faces, edges and corners all behave like a pair inside one bin (ghost particles) |
