@@ -27,6 +27,9 @@ and one unit test.
   - [Nusselt Number against PR-DNS](#nusselt-number-against-pr-dns)
   - [Mean Scaled Fluid Temperature](#mean-scaled-fluid-temperature)
   - [Heat Rate in a Run](#heat-rate-in-a-run)
+- [Heat Transfer: Sun's Correlation in Dilute Regions](#heat-transfer-suns-correlation-in-dilute-regions)
+  - [Mean Temperature Decay against PR-DNS](#mean-temperature-decay-against-pr-dns)
+  - [Heat Rate in a Dilute Run](#heat-rate-in-a-dilute-run)
 - [Random Numbers for the Stochastic Models](#random-numbers-for-the-stochastic-models)
 - [Particle Collisions](#particle-collisions)
   - [Contact Stiffness from the Pair's Effective Mass](#contact-stiffness-from-the-pairs-effective-mass)
@@ -65,6 +68,7 @@ and one unit test.
 | Closures | Forces and heat transfer were skipped below 1 mm/s slip, and the old value was kept | Evaluate at any slip; skip only the quasi-steady drag at zero slip | [f0ae123](https://github.com/thierrydaoud/Rocflu/commit/f0ae123) |
 | Quasi-steady drag | Gidaspow's C_D was capped below Re = 0.1 (100% error); Osnes had a spurious Knudsen reduction (25% error) | Correlations match the published ones; QSFORCE renumbered | [94607fd](https://github.com/thierrydaoud/Rocflu/commit/94607fd) |
 | Heat transfer | Gunn's and Sun's Nusselt correlations were evaluated with the particle Reynolds number Re_p instead of the mean slip Reynolds number Re_m = ε_f Re_p they were fitted with: Nu up to 35% too high (Sun) and 62% (Gunn) at ε_s = 0.5 | Both use Re_m; Sun's Nu is within 7.9% of its PR-DNS data on average (20.9% before) | [3c677d9](https://github.com/thierrydaoud/Rocflu/commit/3c677d9) |
+| Heat transfer | Sun's correlation, fitted for ε_s = 0.1–0.5, was extrapolated below 0.1: as ε_s → 0 the per-particle Nu went to π/2 instead of 2, 33–41% below a single sphere at Re_m = 1–100 | Below ε_s = 0.1, Sun's value at 0.1 is blended into Ranz–Marshall | [955ba8e](https://github.com/thierrydaoud/Rocflu/commit/955ba8e) |
 | MPI | Gas state in virtual cells was stale at rank borders with particles, setting the gas around a quiescent cloud moving (1e-4 m/s) on 2+ ranks; total gas energy differed from 1 rank by 5e-8 | Convert and re-exchange after φ is known; exchange φ every stage | [e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370) |
 | Conservation | Fluxes on periodic and symmetry patches were not conservative | Exchange and transform gradients in virtual cells | [11dc640](https://github.com/thierrydaoud/Rocflu/commit/11dc640) |
 | Robustness | A single particle gave a filter width of 0 | Filter width from cell–box overlap | [48f64b7](https://github.com/thierrydaoud/Rocflu/commit/48f64b7) |
@@ -445,7 +449,7 @@ of particles, and both define their Reynolds number with the superficial slip ve
 Both were evaluated with the particle Reynolds number Re_p = ρ_f |u_f − u_p| d_p / μ_f,
 which is larger by 1/ε_f. Both now use Re_m (`rem` in `ppiclf_user.f`). Stokes,
 Ranz–Marshall and Fox (`HEATTRANSFER` 1, 2, 4) are single-sphere correlations and keep
-Re_p. Grawe & Capecelatro (2025) use the same definitions in their Euler–Lagrange model.
+Re_p. Grawe & Capecelatro (2026) use the same definitions in their Euler–Lagrange model.
 
 Sun's Nu is defined with the bulk (mixing-cup) fluid temperature, while the code only has
 the average fluid temperature. Their consistent model (eq. 29) corrects for this with the
@@ -514,6 +518,71 @@ the paper.
 
 The `shocktube/two-way/heat-transfer` golden (Gunn) was refreshed; its four particles sit
 where ε_f ≈ 1, so it changed by less than 1e-5 of each field's maximum.
+
+## Heat Transfer: Sun's Correlation in Dilute Regions
+
+Sun et al. (2015) fitted their correlation for 0.1 ≤ ε_s ≤ 0.5 and 1 ≤ Re_m ≤ 100. Below
+ε_s = 0.1 the code extrapolated it, and it reaches the wrong single-sphere limit.
+
+The π/4 in π/4 · Nu/⟨θ⟩ is not a cell-to-particle factor. Sun's heat transfer coefficient
+is per unit **perimeter** of plane sections through the spheres (Sun's thesis, eq. B.13),
+and for random plane sections the perimeter per unit section area is π/4 times the
+sphere surface per unit volume (Appendix D). So π/4 · Nu is the usual Nusselt number per
+unit sphere surface. As ε_s → 0, ⟨θ⟩ → 1 and
+
+π/4 · Nu → π/4 · (2 + 0.17 Re_m^0.7 Pr^1/3),
+
+which is π/2 at Re_m = 0 instead of 2. Against Ranz–Marshall it is 33% low at Re_m = 1
+and 41% low at Re_m = 50.
+
+From ε_s = 0.1 up, nothing changed. Below 0.1, `HTModel_Sun` holds Sun's value at
+ε_s = 0.1 (same Re_m) and blends it into Ranz–Marshall (`HEATTRANSFER 2`, with Re_p):
+
+Nu = w Nu_RM + (1 − w) Nu_Sun(ε_s = 0.1),  w = 1 − 3s² + 2s³,  s = ε_s/0.1.
+
+Nu is continuous, but its slope jumps at ε_s = 0.1, where Sun's Nu rises with ε_s and the
+blend is flat. For Re_m ≳ 3, Nu at ε_s = 0 is above Nu at 0.1, so a curve that also
+matched the slope would have to dip 4–8% below Sun's value just under 0.1. The kink is
+the smaller error. Blending into Gunn instead dips 19–26%.
+
+![Per-particle Nu against ε_s, before and now](figures/fig_ht_sun_dilute.png)
+
+This is a modelling choice: no data fixes Nu between a single sphere and ε_s = 0.1.
+
+### Mean Temperature Decay against PR-DNS
+
+Zhou et al. (2024, Fig. 7) give PR-DNS of the axial decay rate λ_m of the mean fluid
+temperature in a fixed bed down to ε_s = 0.01. Their eq. 28 makes λ_m proportional to
+ε_s Nu, so these points test Nu below 0.1.
+
+![λ_m from eq. 28 against Zhou's PR-DNS](figures/fig_ht_lambda.png)
+
+Mean error against the 24 PR-DNS points (Re_m = 1, 50, 100):
+
+| Nu in eq. 28 | ε_s < 0.1 (9 points) | ε_s ≥ 0.1 (15 points) |
+|---|---|---|
+| `HTModel_Sun` now | 18.7% | 3.1% |
+| Sun extrapolated (before) | 29.3% | 3.1% |
+| Zhou's fit (D₁ in place of ε_s, their eq. 30) | 23.6% | 3.6% |
+
+Below 0.1 the new model is still low at Re_m = 1 (0.57–0.82 of the PR-DNS) and high at
+ε_s = 0.01 for Re_m ≥ 50 (1.20–1.22). Turning these λ_m back into Nu is not reliable below
+ε_s ≈ 0.03: eq. 28 uses ε_s, while Zhou's fit uses D₁, which is about twice as large at 0.01.
+So the points check the trend, not the blend's shape.
+
+### Heat Rate in a Dilute Run
+
+The lattice box of [Heat Rate in a Run](#heat-rate-in-a-run) with `HEATTRANSFER 5` at
+Re_m = 50, against N·Q_p from the blended formula:
+
+| ε_s | Run / formula |
+|---|---|
+| 0.01 (blend weight on Ranz–Marshall 0.97) | 0.9974 |
+| 0.05 (weight 0.5) | 0.9974 |
+| 0.10 (Sun only) | 0.9973 |
+
+The 0.3% is the same start-up loss as above. The regression case `box/sun-dilute/np1`
+(gas at 5 m/s through 40 particles at 394 K, cell ε_s up to 0.075) covers the blend.
 
 ## Random Numbers for the Stochastic Models
 
