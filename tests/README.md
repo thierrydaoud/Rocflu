@@ -1,4 +1,4 @@
-# Rocflu regression tests
+# Rocflu Regression Tests
 
 Small cases (a few hundred cells, 1–40 particles) that run in seconds each. Every
 case is compared against a stored golden, and most cases also have physics checks
@@ -25,16 +25,17 @@ on needs them (`ppiclf_user_Layout`), so cases without pressure-gradient, added-
 viscous-unsteady or rotational-collision models have no `dpdx_g` and similar fields. A
 field that is in a golden but no longer written fails the comparison.
 
-The 36 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
+The 38 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
 collisions, walls) and [gas only](#gas-only-cases) (the flow solver without particles).
+One [unit test](#unit-test) runs with them.
 
 ## Running
 
 ### 1. Build
 
 Build the code in the tree you want to test: `./rocflu.sh build` (see
-[`docs/Building.md`](../docs/Building.md)). The suite runs the executables `rflumap`,
+[Getting Started](../docs/GettingStarted.md)). The suite runs the executables `rflumap`,
 `rflupart`, `rfluinit` and `rflump` from `build/bin` (the last configuration built), or
 from the directory given with `--exe`. `./rocflu.sh test [options]` runs
 `./run_tests.py run` with the modules loaded and passes the options on.
@@ -77,10 +78,10 @@ A case whose solver run fails is set up again and retried once; `srun` on a shar
 partition can fail when the Slurm controller is unresponsive. The retry and any Slurm
 messages are shown next to the case.
 
-### 3. Read the result
+### 3. Read the Result
 
-The script prints one line per case, a total (e.g. `36 PASS`) and a closing line
-(`✔ All 36 cases passed in 29 s`, or `✗ 2 of 36 cases failed`). On a terminal the statuses
+The script prints one line per case, a total (e.g. `38 PASS`) and a closing line
+(`✔ All 38 cases passed in 29 s`, or `✗ 2 of 38 cases failed`). On a terminal the statuses
 are coloured (PASS green, FAIL red, XFAIL yellow, XPASS cyan); `NO_COLOR=1` turns that off. See [Results](#results)
 for what each status means.
 
@@ -90,7 +91,7 @@ input files and one log per step: `mesh.log`, `rflumap.log`, `rflupart.log`,
 `rfluinit.log`, `rflump.log`. A golden mismatch names the worst particle or cell and
 its value against the golden.
 
-### 4. After changing the code
+### 4. After Changing the Code
 
 - **Results should not change** (a clean-up, a speed-up): run the suite. It must pass
   as it is.
@@ -122,7 +123,7 @@ Tolerances:
 - Gas fields are double precision: relative 1e-10 of each field's maximum.
 - Particle files (`par*.vtu`) are single precision: relative 2e-6.
 
-## What a case is
+## What a Case Is
 
 Cases are defined in `rocpicl_tests/cases.py`. Each one specifies:
 - a box grid made with `mesh_generator`;
@@ -145,7 +146,7 @@ Particles are matched by their line number in `points.dat`, which is recovered f
 ppiclF tags. That's what lets `same_as` compare a 2-rank run with a 1-rank run particle
 by particle.
 
-## Physics checks (`rocpicl_tests/checks.py`)
+## Physics Checks (`rocpicl_tests/checks.py`)
 
 | Check | What it requires |
 |---|---|
@@ -188,14 +189,14 @@ to be **byte-identical** to the uninterrupted run's. It runs on `box/momentum-ex
 outflow), `box/qs-fluctuations/np2` (random streams) and `box/binary-collisions/np2`
 (collisions).
 
-## The test cases
+## The Test Cases
 
 Every case writes two solution dumps and is compared at the last one. "np*N*" in a name
 is the number of MPI ranks. Where a case exists on several rank counts, the 2- and
 4-rank versions also run `same_as` against the 1-rank one (except where noted), so
 they test that the result does not depend on the decomposition.
 
-### Shock tube cases
+### Shock Tube Cases
 
 A 40 × 4 × 4 mm tube of 1 mm cells, periodic in y and z, with a Mach 1.27 shock starting at
 x = −10 mm and running into particles at rest (100 µm, quasi-steady drag, Osnes).
@@ -210,13 +211,13 @@ They run to 20 µs.
 | `shocktube/two-way/viscous-unsteady` | 2 | + `VISCOUSUNSTEADY 1` | `particles_moved` | History force |
 | `shocktube/two-way/heat-transfer` | 2 | + `HEATTRANSFER 3` | `particles_moved` | Heat-transfer closure |
 | `shocktube/two-way/qs-fluctuations` | 2 | + `QSFLUCT 1` | `particles_moved` | Quasi-steady force fluctuations run; the four particles have no neighbours, so the noise amplitude is 0 (see `box/qs-fluctuations`) |
-| `shocktube/two-way/qs-parmar` | 2 | `QSFORCE 2` | `particles_moved` | Parmar drag (MFC numbering) |
+| `shocktube/two-way/qs-parmar` | 2 | `QSFORCE 2` | `particles_moved` | Parmar drag |
 | `shocktube/two-way/qs-gidaspow` | 2 | `QSFORCE 1` | `particles_moved` | Gidaspow drag |
 
 The force-model cases have no physics check beyond `particles_moved`. Their golden is
 what guards them: any change in the model's result shows up as a golden mismatch.
 
-### Box cases
+### Box Cases
 
 An 8 mm cube of 1 mm cells (8 × 8 × 8), either periodic on all faces or closed by slip
 walls. The gas is uniform (1.2 kg/m³, 101 325 Pa) unless stated otherwise.
@@ -236,7 +237,7 @@ walls. The gas is uniform (1.2 kg/m³, 101 325 Pa) unless stated otherwise.
 All box cases with particles also check `particles_moved` where the particles are
 meant to move.
 
-### Gas-only cases
+### Gas-Only Cases
 
 No particles (`USED 0`): a pressure and density jump at x = 4.3 mm in the box, to test
 the flow solver's own conservation.
@@ -245,13 +246,25 @@ the flow solver's own conservation.
 |---|---|---|---|---|
 | `box/gas-jump/closed` | 2 | Slip walls, two regions | `mass`, `gas_energy` | Conservation across a region border |
 | `box/gas-jump/periodic` | 1, 2 | Periodic on all faces | `mass`, `gas_energy` | Conservative fluxes across periodic faces (11dc640) |
+| `box/gas-jump/symmetry` | 1, 2 | Symmetry on all faces | `mass`, `gas_energy` | Conservative fluxes across symmetry faces (11dc640) |
 
-## Known issues tracked by the suite
+### Unit Test
+
+`unit/bin-counts` compiles `bin_counts/bin_counts_test.f` with ppiclF's bin-count routine
+(`libpicl/source/ppiclf_bincounts.f`) and runs it, without MPI. It checks a table of bin
+boxes against the counts they must get (the wedge bed as it stretches, a cube, a slab, a
+long bed, one rank) and that every layout over about 330 000 boxes and rank counts is
+valid: no more bins than ranks, bins at least the minimum length. The cases run on at most
+4 ranks with small boxes, so they never reach these layouts.
+
+## Known Issues Tracked by the Suite
 
 None at the moment. Fixed and now guarded:
-- non-conservative periodic patches (`box/gas-jump/periodic`, 11dc640);
+- non-conservative periodic and symmetry patches (`box/gas-jump/periodic`,
+  `box/gas-jump/symmetry`, 11dc640);
 - stale gas state in virtual cells at region borders with particles, which set the gas
-  moving around fixed particles and made 1- and 2-rank runs differ by ~1%
+  moving around fixed particles (1e-4 m/s) and made the total gas energy of 2- and 4-rank
+  runs differ from 1 rank by 5e-8
   (`box/quiescent-cloud/np2`, `np4`, and the `same_as` check of
   `box/momentum-exchange/np2`, e3ed370);
 - resting particles skipping heat transfer (`box/resting-heat-exchange`, f0ae123);
@@ -274,7 +287,7 @@ None at the moment. Fixed and now guarded:
   domain was dropped or crashed the run. The old code crashes on this case (the 300 m/s
   particle leaves the domain). `same_as` compares only the particle state (`y`): the gas
   in this closed box differs slightly between decompositions, so the gas seen by the
-  particles does too (see `docs/PseudoTurb_fixes.md`, Still open).
+  particles does too (see `docs/Improvements.md`, Still open).
 
 Guards with no known bug behind them:
 - ghost particles (`box/ghost-collisions/np1`, `np2`, `np4`). Ghosts must carry the
@@ -283,7 +296,7 @@ Guards with no known bug behind them:
   fast) and `same_as` on 2 and 4 ranks. ppiclF splits bins in z on 2 ranks and in y and z
   on 4 ranks; the x direction only uses periodic ghosts.
 
-## Flow-file conventions
+## Flow-File Conventions
 
 What the five arrays of `SOL_*/<case>.mixt.cva_*` hold depends on whether particles are
 on (`RFLU_TimeStepping` converts real cells just before each dump):
@@ -299,7 +312,7 @@ Goldens store the arrays in the old-style form above (made from the dumps). Cons
 totals convert to bulk quantities with `phi` from the fluid dump (at step 0, the particle
 volume projected at the start of the run over the cell volume).
 
-## Adding a case
+## Adding a Case
 
 1. Add it to `rocpicl_tests/cases.py`.
 2. Run `./run_tests.py run --generate -o <name>`. The golden is written only if the

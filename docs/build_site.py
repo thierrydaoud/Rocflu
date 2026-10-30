@@ -29,11 +29,12 @@ GITHUB = "https://github.com/thierrydaoud/Rocflu/blob"
 # Pages in sidebar order: (Markdown file relative to docs/, generated page,
 # short title for the sidebar).
 PAGES = [
-    ("Building.md", "Building.html", "Building"),
-    ("Running.md", "Running.html", "Running a case"),
-    ("InputFile.md", "InputFile.html", "Input file"),
-    ("PseudoTurb_fixes.md", "PseudoTurb_fixes.html", "PseudoTurb fixes"),
-    ("../tests/README.md", "tests.html", "Regression tests"),
+    ("GettingStarted.md", "GettingStarted.html", "Getting Started"),
+    ("Running.md", "Running.html", "Running a Simulation"),
+    ("InputFile.md", "InputFile.html", "Input File"),
+    ("BoundaryConditions.md", "BoundaryConditions.html", "Boundary Conditions"),
+    ("Improvements.md", "Improvements.html", "Recent Improvements and Fixes"),
+    ("../tests/README.md", "tests.html", "Regression Tests"),
 ]
 
 TOP_ITEM = re.compile(r"^([-*+]|\d+\.) ")
@@ -158,10 +159,9 @@ def sidebar(current, toc):
 
 
 def toc_list(tokens):
-    # The page title (h1) is the top token; list its sections, skipping 'Contents'.
-    sections = [t for top in tokens for t in top["children"]] or tokens
+    # The tokens are the page's sections (h2, with their h3); 'Contents' is skipped.
     out = ['<ul class="toc">']
-    for t in sections:
+    for t in tokens:
         if t["id"] == "contents":
             continue
         out.append(f'<li><a href="#{t["id"]}">{t["name"]}</a>')

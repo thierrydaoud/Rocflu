@@ -1,46 +1,52 @@
-# Building Rocflu
+# Getting Started
 
-The code is built with CMake. The script `rocflu.sh` at the top of the repository
-wraps CMake, in the style of MFC's `mfc.sh`. You pick what to build (targets) and
-how to build it (flags) on one command line, and the script does the rest: it loads
-the modules, configures, compiles and keeps each configuration in its own directory.
-
-Running a case (`rocflu.sh run`, `validate` and `post`) is described in
-[Running.md](Running.md), the input file and `points.dat` in [InputFile.md](InputFile.md).
+Rocflu is a finite volume solver that resolves shock fronts on both structured and
+unstructured grids. Lagrangian point-particles can be placed in the Eulerian fluid field
+and tracked via capabilities brought over from ppiclF and locally developed.
 
 ## Contents
 
-- [Quick start](#quick-start)
-- [What gets built](#what-gets-built)
-- [`rocflu.sh build`](#rocflush-build)
-- [`rocflu.sh test`, `clean` and `load`](#rocflush-test-clean-and-load)
-- [Using CMake directly](#using-cmake-directly)
-- [How the build is organised](#how-the-build-is-organised)
-  - [Adding a source file](#adding-a-source-file)
-  - [Compiler flags](#compiler-flags)
-  - [ppiclF](#ppiclf)
-  - [METIS](#metis)
-  - [Particle slots: `ppiclf_slots.txt`](#particle-slots-ppiclf_slotstxt)
+- [Get the Code](#get-the-code)
+- [Build](#build)
+  - [What Gets Built](#what-gets-built)
+  - [Options](#options)
+  - [Build Directories](#build-directories)
+  - [Build Output and Times](#build-output-and-times)
+  - [Test, Clean and Load](#test-clean-and-load)
+  - [Using CMake Directly](#using-cmake-directly)
+- [Particle Slots](#particle-slots)
 - [Troubleshooting](#troubleshooting)
 
-## Quick start
+## Get the Code
+
+```bash
+git clone https://github.com/thierrydaoud/Rocflu.git
+cd Rocflu
+```
+
+You need CMake 3.20 or newer, a Fortran, C and C++ compiler (only gfortran has been
+tested), and MPI. HiPerGator's default `cmake` (3.31) is new enough.
+
+## Build
+
+The code is built with CMake. The script `rocflu.sh` at the top of the repository
+wraps CMake. You pick what to build (targets) and how to build it (flags) on one
+command line, and the script does the rest: it loads the modules, configures, compiles
+and keeps each configuration in its own directory.
 
 On HiPerGator:
 
 ```bash
 ./rocflu.sh build        # optimised build of everything (about 30 s on 16 cores)
-./rocflu.sh test         # regression suite (36 cases, about a minute)
-./rocflu.sh run /path/to/case/rectshktb.inp -n 4   # build for the case, pre-process, submit
-./rocflu.sh post /path/to/case/rectshktb.inp       # dumps -> ParaView files in post/
+./rocflu.sh test         # regression suite (38 cases and a unit test, about a minute)
+./rocflu.sh run /path/to/case/<case>.inp -n 4      # build for the case, pre-process, submit
+./rocflu.sh post /path/to/case/<case>.inp          # dumps -> ParaView files in post/
 ```
 
 The executables are in `build/bin`. There is nothing to set up first: the script loads
 `gcc/14.2.0` and `openmpi/5.0.7` itself, and METIS is built from the copy in `3rd_party/`.
 
-You need CMake 3.20 or newer, a Fortran, C and C++ compiler (only gfortran has been
-tested), and MPI. HiPerGator's default `cmake` (3.31) is new enough.
-
-## What gets built
+### What Gets Built
 
 | Executable | Target name | Purpose |
 |---|---|---|
@@ -56,7 +62,7 @@ tested), and MPI. HiPerGator's default `cmake` (3.31) is new enough.
 pre-processing tools are built from `utilities/map`, `utilities/part` and
 `utilities/init`, the post program from `utilities/post`, each plus `libflu`.
 
-## `rocflu.sh build`
+### Options
 
 ```bash
 ./rocflu.sh build [options]
@@ -66,7 +72,6 @@ pre-processing tools are built from `utilities/map`, `utilities/part` and
 |---|---|
 | `-t, --targets T ...` | build only these targets: `simulation`, `pre_process`, or executable names (`rflump rflumap rflupart rfluinit`). Default: all |
 | `--debug` | debug build: `-g -O0 -fbacktrace -fcheck=all` everywhere |
-| `--spec`, `--plag` | species transport (needed by the mixture and JWL gas models, `GASMODEL` 3-7) and Rocpart Lagrangian particles: **disabled for now**, see below |
 | `--no-picl` | without the ppiclF particle solver |
 | `--no-folder` | write all output files in the run directory instead of sub-folders |
 | `-j, --jobs N` | compile with N processes (default 16) |
@@ -89,6 +94,8 @@ are still in the code; to re-enable one, remove it from the check near the top o
 `CMakeLists.txt`. Inputs that need species (`# SPECIES USED 1`, `GASMODEL` 3-7) stop in
 pre-processing and are reported by the case validator.
 
+### Build Directories
+
 **One directory per configuration.** Each combination of build type and physics
 options has a name: `release`, `debug`, `release-nopicl`, `debug-nopicl`, and so on.
 Everything lives under `build/`:
@@ -109,6 +116,8 @@ specific configuration, use its `install/` directory, for example
 `build/install/debug/bin/rflump`. If you build only some targets (`-t simulation`),
 only those are in that configuration's `bin/`; build the others too before running
 `rocflu.sh test` with it.
+
+### Build Output and Times
 
 **What a build shows.** On a terminal, a progress bar with the file being compiled, and a
 line for each part as it finishes, then the summary:
@@ -150,7 +159,7 @@ of cores you have.
 changed files and the files that depend on them are recompiled. A change to one
 Rocflu routine takes about 10 seconds; a change to a ppiclF header about 25 seconds.
 
-## `rocflu.sh test`, `clean` and `load`
+### Test, Clean and Load
 
 ```bash
 ./rocflu.sh test                    # run the suite with build/bin
@@ -162,7 +171,7 @@ source ./rocflu.sh load             # load the modules into your own shell
 ```
 
 `test` passes its options on to `tests/run_tests.py`; see
-[`tests/README.md`](../tests/README.md). `load` is only needed when you run the
+[Regression Tests](../tests/README.md). `load` is only needed when you run the
 executables yourself, outside the script, because they need the same compiler
 libraries they were built with.
 
@@ -176,7 +185,7 @@ default. On a terminal the help and the script's messages are coloured (options 
 defaults yellow, errors red); in a log file or a pipe they are plain. Set `NO_COLOR=1` to
 turn the colours off.
 
-## Using CMake directly
+### Using CMake Directly
 
 `rocflu.sh` only runs CMake, so the same build can be done by hand:
 
@@ -186,75 +195,16 @@ cmake -S . -B build/staging/mine -DCMAKE_BUILD_TYPE=Debug -DROCFLU_PICL=OFF
 cmake --build build/staging/mine -j 16 --target rflump   # executables in build/staging/mine/bin
 ```
 
-| CMake option | Default | `rocflu.sh` flag |
+| CMake option | `rocflu.sh` flag | Default |
 |---|---|---|
-| `CMAKE_BUILD_TYPE` | `Release` | `--debug` (= `Debug`) |
-| `ROCFLU_PICL` | `ON` | `--no-picl` |
-| `ROCFLU_SPEC` | `OFF` (`ON` refused for now) | `--spec` (disabled) |
-| `ROCFLU_PLAG` | `OFF` (`ON` refused for now) | `--plag` (disabled) |
-| `ROCFLU_FOLDER` | `ON` | `--no-folder` |
-| `ROCFLU_UTILITIES` | `ON` | (off: only `rflump`) |
-| `METIS_ROOT` | empty (bundled) | `--metis-root` |
-| `ROCFLU_CASE` | empty (every particle slot) | set by `rocflu.sh run` |
+| `CMAKE_BUILD_TYPE` | `--debug` (= `Debug`) | `Release` |
+| `ROCFLU_PICL` | `--no-picl` | `ON` |
+| `ROCFLU_FOLDER` | `--no-folder` | `ON` |
+| `ROCFLU_UTILITIES` | (off: only `rflump`) | `ON` |
+| `METIS_ROOT` | `--metis-root` | empty (bundled) |
+| `ROCFLU_CASE` | set by `rocflu.sh run` | empty (every particle slot) |
 
-## How the build is organised
-
-| File | Role |
-|---|---|
-| `CMakeLists.txt` | options, flags, `libflu`, the four executables |
-| `cmake/RocfluFilelist.cmake` | reads the `Filelist.txt` of each source directory |
-| `libpicl/CMakeLists.txt` | gslib and ppiclF |
-| `cmake/PpiclfCommonBlocks.cmake`, `cmake/PpiclfConcatenate.cmake` | generate ppiclF's `PPICLF` include file and `ppiclf.f` |
-| `3rd_party/CMakeLists.txt` | GKlib and METIS |
-
-### Adding a source file
-
-Rocflu's source lists are the `Filelist.txt` files in each directory. To add a routine, put the file in the right directory and add
-its name to that directory's `Filelist.txt`. The next build notices the changed
-Filelist and reconfigures by itself. `ifdef SPEC`-style blocks in a Filelist are
-honoured, so a file listed under `ifdef SPEC` is compiled only with `ROCFLU_SPEC` (disabled for now).
-
-A new ppiclF user file goes into the list `PPICLF_SOURCES` in
-`libpicl/CMakeLists.txt`.
-
-### Compiler flags
-
-| Part | Release | Debug |
-|---|---|---|
-| Rocflu (Fortran) | `-O -fallow-argument-mismatch` | `-g -O0 -fbacktrace -fcheck=all -ffpe-trap=invalid,zero,overflow` |
-| ppiclF | `-O3 -g -fcheck=all -fbacktrace -std=legacy -w` | as Rocflu's debug flags, with `-std=legacy -w` |
-| Rocflu C++ (`main.C`, METIS interface) | none | `-g` |
-| gslib | `-O2` | `-g -O0` |
-| METIS, GKlib | `-O3 -std=c99` | `-O3 -std=c99` |
-
-These are the flags the code was always built with (the make build used until
-October 2026), and a release build gives results identical to it, byte for byte. `-fcheck=all` stays on in ppiclF in release builds: it costs about
-2% and has caught real bugs. `-ffpe-trap` has no effect because the main program is C++
-(see `simulation/rflump.F90` to trap floating-point errors).
-
-Fortran `.F90` files are preprocessed by gfortran itself (`-cpp`). The defines are
-`RFLU`, `FOLDER`, `INRT` (with any particle or species module), and `PICL`, `SPEC`,
-`PLAG` from the options. The build prints no warnings; please keep it that way.
-
-### ppiclF
-
-ppiclF is compiled as a single file: CMake concatenates the core and user files into
-`build/staging/<config>/libpicl/generated/ppiclf.f`, behind the headers `PPICLF_USER.h` and
-`PPICLF_STD.h`, as the old ppiclF makefile did. It also generates the include file
-`PPICLF` (all ppiclF common blocks) by running the C preprocessor over the
-`PPICLF_*.h` headers. The user's headers in `libpicl/user_files/` take precedence over
-the copies in `libpicl/source/`.
-
-### METIS
-
-`rflupart` partitions the grid with METIS 5. CMake builds METIS and its helper library
-GKlib from `3rd_party/METIS` and `3rd_party/GKlib`, with the settings of METIS's own
-build (32-bit integers and reals). The partitions are identical, file for file, to
-those of the prebuilt libraries used before. To use another installation instead, pass
-`--metis-root DIR` (or `-DMETIS_ROOT=DIR`), where `DIR` holds `lib/libmetis.a`,
-`lib/libGKlib.a` and `include/metis.h`.
-
-### Particle slots: `ppiclf_slots.txt`
+## Particle Slots
 
 ppiclF stores each particle's state in `ppiclf_y` (position, velocity, temperature,
 spin) and its properties and the gas values at the particle in `ppiclf_rprop`; the
@@ -266,8 +216,8 @@ physics that needs them, with a rule for each optional group:
 
 ```
 rule   spin     COLLISIONS >= 2
-rule   qsfluct  QSFLUCT >= 1 or PSEUDOTURB >= 1
-rule   ptdiag   PSEUDOTURB >= 1 and MODEL_WRT >= 1
+rule   qsfluct  QSFLUCT >= 1
+rule   am2      AMFORCE == 2
 ...
 y      core     JX JY JZ JVX JVY JVZ JT
 y      spin     JOX JOY JOZ
@@ -279,7 +229,7 @@ CMake numbers the slots of the groups a build includes and writes `PPICLF_LAYOUT
 into the build directory (`PPICLF_USER.h` includes it). A build without a case
 (`rocflu.sh build`) includes every group; a case build (`rocflu.sh run`, or
 `-DROCFLU_CASE=<case>.inp`) only the groups whose rule holds for that input, so a
-drag-only case carries 7 values in `y` and 11 in `rprop` per particle instead of 10 and 53.
+drag-only case carries 7 values in `y` and 11 in `rprop` per particle instead of 10 and 40.
 Slots a build does not have are defined as 0: code that only runs with a model is never
 reached, and the few places that always write a slot are compiled out
 (`#if PPICLF_JOX > 0`). A generated check in `PICL_InitSolver` stops a run whose input

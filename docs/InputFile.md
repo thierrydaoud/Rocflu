@@ -1,9 +1,9 @@
-# The case input file (`<case>.inp`), `<case>.bc` and `points.dat`
+# The Case Input File (`<case>.inp`) and `points.dat`
 
-A Rocflu case is described by `<case>.inp` (this page), `<case>.bc` (boundary
-conditions), the grid (`<case>.hyb.asc`) and, with particles, `points.dat`. Before a run,
-[`./rocflu.sh validate`](#the-case-validator) checks the input file, the `.bc` file and `points.dat`;
-`./rocflu.sh run` does this first and stops before building anything if it finds a
+A Rocflu case is described by `<case>.inp` (this page), `<case>.bc`
+([Boundary Conditions](BoundaryConditions.md)), the grid (`<case>.hyb.asc`) and, with
+particles, `points.dat`. Before a run, [`./rocflu.sh validate`](#the-case-validator)
+checks the input file, the `.bc` file and `points.dat`; `./rocflu.sh run` does this first and stops before building anything if it finds a
 problem.
 
 The template used by the regression tests, [`tests/templates/rectshktb.inp`](../tests/templates/rectshktb.inp),
@@ -11,17 +11,16 @@ is a complete, working example.
 
 ## Contents
 
-- [How Rocflu reads the file](#how-rocflu-reads-the-file)
-- [Gas-side sections](#gas-side-sections)
-- [`# PICL`: the particles](#picl-the-particles)
-  - [Models that need other models](#models-that-need-other-models)
-- [`<case>.bc`: the boundary conditions](#casebc-the-boundary-conditions)
-- [`points.dat`: the particles' initial state](#pointsdat-the-particles-initial-state)
-- [Output and restarts](#output-and-restarts)
-- [The case validator](#the-case-validator)
-  - [Removed keys](#removed-keys)
+- [How Rocflu Reads the File](#how-rocflu-reads-the-file)
+- [Gas-Side Sections](#gas-side-sections)
+- [`# PICL`: The Particles](#picl-the-particles)
+  - [Models That Need Other Models](#models-that-need-other-models)
+- [`points.dat`: The Particles' Initial State](#pointsdat-the-particles-initial-state)
+- [Output and Restarts](#output-and-restarts)
+- [The Case Validator](#the-case-validator)
+  - [Removed Keys](#removed-keys)
 
-## How Rocflu reads the file
+## How Rocflu Reads the File
 
 ```
 # PICL
@@ -47,7 +46,7 @@ QSFORCE          3
 The validator reports all of these (with the line number), so they need not be
 remembered.
 
-## Gas-side sections
+## Gas-Side Sections
 
 Only the keys in the test template are listed; the readers (`libfloflu/Read*Section.F90`)
 accept more.
@@ -92,7 +91,7 @@ accept more.
 | | other keys | | settings of the old-style ParaView output, as in the template |
 | `# MISC` | | | miscellaneous settings, as in the template |
 
-## `# PICL`: the particles
+## `# PICL`: The Particles
 
 Defaults are those of `libflu/RFLU_InitGlobal.F90`. A key that belongs to a model that is
 off (e.g. `KSP` without collisions) is not read and may stay in the file with any value.
@@ -130,9 +129,9 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 The filter width of the particle projection is not an input: it is twice the largest cell
 length around the particles. `./rocflu.sh run` builds only the particle data the models
 that are on need (`libpicl/user_files/ppiclf_slots.txt`, see
-[Building](Building.md#particle-slots-ppiclf_slotstxt)).
+[Getting Started](GettingStarted.md#particle-slots)).
 
-### Models that need other models
+### Models That Need Other Models
 
 With `USED 1`, these combinations are rejected:
 
@@ -149,90 +148,7 @@ With `USED 1`, these combinations are rejected:
 Other sections, with `USED 1`: `RKSCHEME 2` in `# TIMESTEP`, `VISCOSITY` in
 `# VISCMODEL`, no `AXIFLAG 1` in `# NUMERICS`.
 
-## `<case>.bc`: the boundary conditions
-
-Each grid patch gets its boundary condition from one section of `<case>.bc`:
-
-```
-# BC_OUTFLOW
-PATCH      1 3          ! first and last patch: always two numbers (PATCH 3 3 for one patch)
-NAME       Outflow
-TYPE       0
-KIND       1
-ORDER      1
-#                       ! every section ends with a line '#'
-
-# BC_SLIPW
-PATCH      4 7
-NAME       Walls
-PARTWALL   1
-#
-
-# END
-```
-
-How Rocflu reads it (`modflu/RFLU_ModReadBcInputFile.F90`, `ReadPatchSection` in
-`libfloflu/ReadInputUtil.F90`), and why each rule below exists:
-
-- A header is the whole line `# NAME`, with one space. An unknown header is skipped
-  silently, and its patches get no boundary condition.
-- A section ends at the next line that starts with `#`, and Rocflu reads that line as
-  part of the section. If the next header follows directly, it is used up as the end,
-  and that whole section is skipped.
-- `PATCH` is read as two whole numbers. With one number (`PATCH 3`, or `PATCH 3 ! comment`)
-  Rocflu stops with `Fortran runtime error: End of file`. A comment after the two numbers
-  is fine.
-- A key is taken from a line that *starts with* it. A key the section does not know, or
-  an indented one, is ignored; `PRESSURE` would be read as `PRESS`.
-- Values out of range are replaced by defaults without a word (`KIND 5` becomes 0,
-  `ORDER 3` becomes 1).
-
-### Sections and their keys
-
-Every section takes `PATCH` and `NAME` (both required) and `DISTRIB` (0: the values below;
-1: a value per face from the file that `rfluinit` writes, so the data values are not needed).
-
-| Section | Keys (whole-number values) | Required |
-|---|---|---|
-| `BC_OUTFLOW` | `TYPE` (0 supersonic, 1 subsonic, 2 mixed), `PRESS`, `KIND` (0, 1), `REFLECT` (0, 1), `NSCBCK`, `ORDER` (1, 2), `THRUSTFLAG` (0, 1) | `TYPE`; `PRESS` unless `TYPE 0` |
-| `BC_FARF` | `CORR` (0, 1), `MACH`, `ATTACK`, `SLIP`, `PRESS`, `TEMP`, `KIND`, `ORDER`, `THRUSTFLAG` | `CORR`, `MACH`, `ATTACK`, `SLIP`, `PRESS`, `TEMP` |
-| `BC_INFLOW_TOTANG` | `TYPE` (0, 1, 2), `FIXED` (0, 1), `PTOT`, `TTOT`, `BETAH`, `BETAV`, `MACH`, `KIND`, `REFLECT`, `ORDER`, `THRUSTFLAG` | `TYPE`, `PTOT`, `TTOT`, `BETAH`, `BETAV`; `MACH` unless `TYPE 1` |
-| `BC_INFLOW_VELTEMP` | `TYPE` (0, 1, 2), `VELX`, `VELY`, `VELZ`, `TEMP`, `PRESS`, `KIND`, `REFLECT`, `ORDER`, `THRUSTFLAG` | `TYPE`, `VELX`, `VELY`, `VELZ`, `TEMP`; `PRESS` unless `TYPE 1` |
-| `BC_INJECT` | `MFRATE`, `TEMP`, `CRECONST` (0, 1), `KIND`, `ORDER`, `THRUSTFLAG` | `MFRATE`, `TEMP` |
-| `BC_NOSLIP_HFLUX` | `HFLUX`, `CRECONST`, `KIND`, `ORDER`, `THRUSTFLAG`, `PARTWALL` (0, 1) | `HFLUX` |
-| `BC_NOSLIP_TEMP` | `TEMP`, `CRECONST`, `KIND`, `ORDER`, `THRUSTFLAG`, `PARTWALL` | `TEMP` |
-| `BC_SLIPW` | `CRECONST`, `KIND`, `ORDER`, `THRUSTFLAG`, `PARTWALL` | |
-| `BC_PERIODIC` | `RELPATCH`, `AXIS` (1, 2, 3), `ANGLE` | all three |
-| `BC_SYMMETRY`, `BC_VIRTUAL` | | |
-
-`KIND 1` is NSCBC (non-reflecting characteristic BC; 0 is the simple one). `ORDER` is the
-order of the boundary reconstruction; without it the patch uses `ORDERBF` from
-`# NUMERICS` (default 1). `PARTWALL 1` makes the patch a wall for the particles.
-`THRUSTFLAG` only matters with `# FORCES` on.
-
-Rules across sections:
-
-- every patch of the grid in exactly one section. Rocflu drops the grid patches that have
-  no faces and renumbers the others, so the patch numbers are the ones after that;
-- `BC_PERIODIC` takes one patch per section, its `RELPATCH` is a `BC_PERIODIC` patch
-  that points back at it, the pair has the same `AXIS`, and the two `ANGLE`s add up to 0;
-- boundary gradients exist only at first order (`RFLU_CreateWtsBF2C`). An NSCBC patch
-  (`KIND 1`) needs them, and with `MODEL 1` (Navier-Stokes) every patch needs them, so
-  those patches must have order 1 (`ORDER 1`, or `ORDERBF 1` when `ORDER` is not given).
-  Otherwise `rflump` stops in `RFLU_CreateWtsBF2C` with "reached default statement".
-
-### Removed sections and keys
-
-| In `<case>.bc` | Instead |
-|---|---|
-| `# BC_INFLOW` | `# BC_INFLOW_TOTANG` (the same section) |
-| `# BC_NOSLIP` | `# BC_NOSLIP_HFLUX` (the same section) |
-| `MVPATCH`, `SMGRID` | nothing: no longer used |
-| `COUPLED` | nothing: only for the GENX coupling, which is gone |
-| `MOVEDIR` | nothing: only for moving grids |
-| `STATS`, `BFLAG`, `FILE` | nothing: nothing reads them |
-
-## `points.dat`: the particles' initial state
+## `points.dat`: The Particles' Initial State
 
 `points.dat` (this name, in the case directory) lists the particles:
 
@@ -254,7 +170,7 @@ Older forms are no longer read: a material name in the first column (removed wit
 `# MATERIAL` for particles), and `x y z dp [u v w]` (diameter before the velocity).
 The validator and `rflump` both stop on them.
 
-## Output and restarts
+## Output and Restarts
 
 `rflump` writes its results as raw dumps in `restart_data/`, at step 0 (the particles),
 every `WRITIME` and the end of the run:
@@ -269,7 +185,7 @@ every `WRITIME` and the end of the run:
 
 Layouts: `modflu/RFLU_ModRestartData.F90`. A file is written as `.tmp` and renamed when it
 is complete. The same files are what a restart reads and what the post program converts
-(`./rocflu.sh post`, see [Running.md](Running.md#results-rocflush-post)), so results
+(`./rocflu.sh post`, see [Running a Simulation](Running.md#post-process)), so results
 can be looked at during a run or after it stopped.
 
 **Starting a run** (`START_STEP` in `# TIMESTEP`): `0` (default) is a new run from
@@ -286,11 +202,11 @@ to check that it agrees with the dumps and the post program. Without particles i
 `Velocity` and `Energy` fields hold the momentum and the energy per volume; the post
 program writes velocity and energy per mass.
 
-## The case validator
+## The Case Validator
 
 ```bash
-./rocflu.sh validate /path/to/case/rectshktb.inp
-python3 utilities/scripts/case_validator.py /path/to/case/rectshktb.inp   # the same
+./rocflu.sh validate /path/to/case/<case>.inp
+python3 utilities/scripts/case_validator.py /path/to/case/<case>.inp      # the same
 ```
 
 [`utilities/scripts/case_validator.py`](../utilities/scripts/case_validator.py) reads
@@ -310,7 +226,7 @@ before building, and the regression suite runs it on every case. It checks:
   above (the count matches the lines, `dp` > 0); no `filein.vtk` (particle walls come from
   `PARTWALL 1` in the `.bc` file); no `par00002.vtu` from an earlier run (it would start a
   particle restart, which is not available yet);
-- the `.bc` file: every rule of [`<case>.bc`](#casebc-the-boundary-conditions) above
+- the `.bc` file: every rule of [Boundary Conditions](BoundaryConditions.md)
   (sections, keys, values, required keys, every grid patch once, periodic pairs, order 1
   where boundary gradients are needed). The patch count comes from the grid
   (`<case>.hyb.asc`, `GRIDSRC 0`); without it, patches 1 to the highest one used must
@@ -326,7 +242,7 @@ The validator mirrors `rocpicl/PICL_ReadPiclSection.F90` (keys and their order),
 `.bc` sections and keys): change it with them. Its tests need no cluster:
 `python3 tests/test_case_validator.py`.
 
-### Removed keys
+### Removed Keys
 
 | Key | Instead |
 |---|---|

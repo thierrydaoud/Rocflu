@@ -49,6 +49,7 @@ class Case:
     # "periodic":  periodic in x, y and z
     # "closed":    slip walls on all six faces
     # "partwall":  slip walls on all six faces, particle walls too (PARTWALL 1)
+    # "symmetry":  symmetry patches on all six faces
     bc: str = "shocktube"
     # {("SECTION", "KEY"): value} applied to templates/rectshktb.inp
     inp: Dict[Tuple[str, str], object] = field(default_factory=dict)
@@ -132,6 +133,8 @@ def bc_text(kind):
     if kind == "partwall":
         return ("# BC_SLIPW\nPATCH      1 6\nNAME       SlipWalls\nPARTWALL   1\n#\n\n"
                 "# END\n")
+    if kind == "symmetry":
+        return "# BC_SYMMETRY\nPATCH      1 6\nNAME       Symmetry\n#\n\n# END\n"
     raise ValueError("Unknown bc layout: " + kind)
 
 

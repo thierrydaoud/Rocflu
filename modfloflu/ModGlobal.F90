@@ -201,6 +201,12 @@ MODULE ModGlobal
     ! the last progress line, and the step of the last progress line
     REAL(RFREAL) :: progressWallStart,progressWallLast
     INTEGER :: progressStepLast
+    ! Negative-pressure fixes since the last progress line: count, box of the
+    ! fixed cells (xmin,ymin,zmin,-xmax,-ymax,-zmax), lowest p with the fixed
+    ! p, rho, x, y, z of its cell
+    INTEGER :: posFixCount = 0
+    REAL(RFREAL) :: posFixBox(6) = HUGE(1.0_RFREAL)
+    REAL(RFREAL) :: posFixWorst(6) = HUGE(1.0_RFREAL)
     !end BBR
     ! begin TLJ
     INTEGER :: SafeWrite

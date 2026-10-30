@@ -1,30 +1,30 @@
-# Running a case
+# Running a Simulation
 
 `./rocflu.sh run` checks a case, builds the code for it, pre-processes it and submits the
 job; `./rocflu.sh post` converts the results for ParaView. How the code is built is in
-[Building.md](Building.md), the input file and `points.dat` in [InputFile.md](InputFile.md).
+[Getting Started](GettingStarted.md), the input file and `points.dat` in [Input File](InputFile.md).
 
 ## Contents
 
-- [`rocflu.sh run`](#rocflush-run)
-- [Checking a case: `rocflu.sh validate`](#checking-a-case-rocflush-validate)
-- [Running the steps by hand](#running-the-steps-by-hand)
-- [Results: `rocflu.sh post`](#results-rocflush-post)
+- [Run a Case](#run-a-case)
+- [Validate a Case](#validate-a-case)
+- [Running the Steps by Hand](#running-the-steps-by-hand)
+- [Post-Process](#post-process)
 
-## `rocflu.sh run`
+## Run a Case
 
 ```bash
-./rocflu.sh run /path/to/case/rectshktb.inp -N 1 -n 4 -p hpg-default -w 02:00:00 -@ you@ufl.edu
+./rocflu.sh run /path/to/case/<case>.inp -N 1 -n 4 -p hpg-default -w 02:00:00 -@ you@ufl.edu
 ```
 
 The case directory must hold `<case>.inp`, `<case>.bc`, the grid (`<case>.hyb.asc`) and,
 with particles, `points.dat`. `run` then:
 
-0. **Checks the case** ([`rocflu.sh validate`](#checking-a-case-rocflush-validate)). An
+0. **Checks the case** ([`rocflu.sh validate`](#validate-a-case)). An
    error stops here, before anything is built.
 1. **Builds the code for this case.** It reads the PICL and FLOWMODEL sections of the
    input and builds only the particle slots the models that are on need (see
-   [Particle slots](Building.md#particle-slots-ppiclf_slotstxt)). The build is named after those
+   [Particle slots](GettingStarted.md#particle-slots)). The build is named after those
    slot groups, e.g. `build/install/release-case-qsfluct/bin`; every case with the same
    physics shares it, so a second case usually compiles nothing.
 2. **Pre-processes the case here**, on the login node: `rflumap` (into N x n regions),
@@ -79,10 +79,10 @@ with particles, `points.dat`. `run` then:
 Pre-processing runs on the login node, which is fine for test-size grids; very large
 grids (a million cells and more) can take long there (to be improved).
 
-## Checking a case: `rocflu.sh validate`
+## Validate a Case
 
 ```bash
-./rocflu.sh validate /path/to/case/rectshktb.inp
+./rocflu.sh validate /path/to/case/<case>.inp
 ```
 
 `utilities/scripts/case_validator.py` reads the input file the way Rocflu does and
@@ -108,7 +108,7 @@ Settings of a model that is off (e.g. `KSP` without collisions) are ignored. `ro
 run` and the regression suite run the same checks. The validator's own tests:
 `python3 tests/test_case_validator.py`.
 
-## Running the steps by hand
+## Running the Steps by Hand
 
 With the modules loaded (`source ./rocflu.sh load`) and N MPI ranks, using a full build
 (`build/bin`) or a case build (`build/install/<name>/bin`):
@@ -126,22 +126,22 @@ warnings and errors; `2` the detailed messages of every stage (Rocflu and ppiclF
 `3` debugging detail as well. The pre-processing tools keep their own levels.
 
 A case build stops at start-up if the input asks for a model whose slots it does not
-have, with a message such as *Input needs ppiclF slots 'qsfluct' (QSFLUCT >= 1 or
-PSEUDOTURB >= 1), not in this build: use ./rocflu.sh run*.
+have, with a message such as *Input needs ppiclF slots 'qsfluct' (QSFLUCT >= 1), not in
+this build: use ./rocflu.sh run*.
 
 The post program runs on one process, in the case directory:
 `$B/rflupost -c <case> [-s new|all|last|N,M]`.
 
-## Results: `rocflu.sh post`
+## Post-Process
 
 ```bash
-./rocflu.sh post /path/to/case/rectshktb.inp            # the steps not yet in post/
-./rocflu.sh post /path/to/case/rectshktb.inp -s all     # every step again
-./rocflu.sh post /path/to/case/rectshktb.inp -e batch   # as a one-task Slurm job
+./rocflu.sh post /path/to/case/<case>.inp               # the steps not yet in post/
+./rocflu.sh post /path/to/case/<case>.inp -s all        # every step again
+./rocflu.sh post /path/to/case/<case>.inp -e batch      # as a one-task Slurm job
 ```
 
 `rflump` writes its results as raw dumps in `restart_data/` (the same files a restart
-reads, see [InputFile.md](InputFile.md#output-and-restarts)). `post` converts them into
+reads, see [Input File](InputFile.md#output-and-restarts)). `post` converts them into
 ParaView files in `post/`, with the case's build: open `post/collection.pvd`, which lists
 every step with its time. Each step is one dataset, `post/root/collection_<step>.vtm`,
 with three blocks: the fluid of every region (`post/p<k>/<step>.vtu`, region k+1), the

@@ -7,8 +7,8 @@ The RocfluMP flow solver coupled to the ppiclF particle tracker.
 ```bash
 ./rocflu.sh build                                   # build everything
 ./rocflu.sh test                                    # regression suite
-./rocflu.sh run /path/to/case/rectshktb.inp -n 4    # check, build, pre-process and submit a case
-./rocflu.sh post /path/to/case/rectshktb.inp        # results -> ParaView files
+./rocflu.sh run /path/to/case/<case>.inp -n 4       # check, build, pre-process and submit a case
+./rocflu.sh post /path/to/case/<case>.inp           # results -> ParaView files
 ```
 
 Also: the [RocfluMP manual](docs/Rocflu_manual.pdf) (PDF) and the
