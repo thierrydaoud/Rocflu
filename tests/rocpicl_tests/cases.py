@@ -129,6 +129,18 @@ for n in (1, 2):
         same_as=None if n == 1 else "box/momentum-exchange/np1",
         restart_test=(n == 2))
 
+# -- Periodic box: Sun heat transfer in the dilute blend ----------------------
+# Gas at 5 m/s (Re_p ~ 150) through 40 hot particles; cell volume fractions
+# stay below 0.1 (max ~0.075), so Sun's model blends to Ranz-Marshall.
+add(name="box/sun-dilute/np1",
+    description="Gas at 5 m/s through 40 hot particles with Sun's heat transfer "
+                "below eps_s = 0.1 (Ranz-Marshall blend); energy must be conserved",
+    nranks=1, grid=BOX, bc="periodic",
+    inp={**uniform_gas(5.0), **TWO_WAY, ("PICL", "HEATTRANSFER"): 5,
+         ("PICL", "TEMP"): "394.17"},
+    particles=cloud(40, 4.5e-4),
+    checks=["particles_heat_exchange", "mass", "momentum", "energy"])
+
 # -- Periodic box: quasi-steady force fluctuations (QSFLUCT 2, Osnes) ---------
 # The noise amplitude grows with the granular temperature, the velocity spread
 # among a particle's neighbours, so the particles start with a spread of up to

@@ -11,6 +11,7 @@
 !                      = 2  Ranz-Marshall (1952)
 !                      = 3  Gunn (1977)
 !                      = 4  Fox (1978)
+!                      = 5  Sun et al. (2015)
 !
 !-----------------------------------------------------------------------
 !
@@ -24,7 +25,7 @@
 ! Internal:
 !
       integer*4 i
-      real*8 qq, Nuss, Q_conv
+      real*8 qq, Nuss, Q_conv, Nu_bulk, theta
 
 !
 ! Code:
@@ -42,7 +43,7 @@
       elseif (heattransfer_flag == 4) then
          call HTModel_Fox(i,Nuss)
       elseif (heattransfer_flag == 5) then
-         call HTModel_Sun(i,Nuss)
+         call HTModel_Sun(i,Nuss,Nu_bulk,theta)
       else
          call ppiclf_exittr('Unknown heat transfer model$', 0.0d0, 0)
       endif
@@ -245,7 +246,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      subroutine HTModel_Sun(i,Nuss)
+      subroutine HTModel_Sun(i,Nuss,Nu_bulk,theta)
       use ppiclf_data
 !
       implicit none
@@ -255,32 +256,54 @@
 ! Internal:
 !
       integer*4 i
-      real*8 Nuss, theta, q
+      real*8 Nuss, Nu_bulk, theta, Nu_held, theta_held, Nu_rm, s, w
 !
 ! Code:
-!     
-      ! Model is provided for 
-      ! mean slip Reynolds number (1-100)
-      ! particle volume fraction (0.1-0.5)
+!
+      ! Fitted for 0.1 <= eps_s <= 0.5 and 1 <= Re_m <= 100
+      call HTModel_Sun_NuTheta(rphip, rem, Nu_bulk, theta)
 
-      ! Need to validate that the model works and doesn't blow up 
-      ! in our kind of simulations
+      ! Per unit sphere surface (pi/4) and average fluid T (1/theta)
+      if (rphip >= 0.1d0) then
+         Nuss = rpi/4.0d0 * Nu_bulk/theta
+      else
+         ! Below eps_s = 0.1: Sun at 0.1, blended to Ranz-Marshall
+         call HTModel_Sun_NuTheta(0.1d0, rem, Nu_held, theta_held)
+         Nu_held = rpi/4.0d0 * Nu_held/theta_held
+         call HTModel_RM(i,Nu_rm)
+         s = rphip/0.1d0
+         w = 1.0d0 - s*s*(3.0d0 - 2.0d0*s)
+         Nuss = w*Nu_rm + (1.0d0 - w)*Nu_held
+      endif
 
-      ! define Nusselt number Nu = Nu(Pr,Re,M)
-      Nuss = (-0.46d0 + 1.77d0*rphif + 0.69d0*rphif**2)*(rphif**(-3))
-     > +(1.37d0 - 2.4d0*rphif + 1.2d0*rphif**2)
-     >  *(rem**0.7d0)*(rpr**OneThird)
-
-      theta = 1.0d0 - 1.6d0*rphip*(1.0d0 - rphip) 
-     >        - (3.0d0*rphip*(1.0d0 - rphip)**4)
-     >          *exp(-(rem**0.4d0)*rphip)
-
-      ! Sun's formulation Eq. (29) of the paprt is per volume of grid cell
-      ! This is transformed to per particle by multiplying by 
-      ! (pi dp^3)/(6 phip) 
-      ! This is done below in the Nusslet number with simplifications
-      Nuss = rpi/4.0d0 * Nuss/theta
-
+      return
+      end
+!-----------------------------------------------------------------------
+!
+! Sun et al. (2015) eq. 27 (Nu per unit perimeter of plane sections,
+! bulk fluid T) and eq. 30 (mean scaled fluid temperature)
+!
+!-----------------------------------------------------------------------
+!
+      subroutine HTModel_Sun_NuTheta(es, Re_mean, Nu_bulk, theta)
+      use ppiclf_data
+!
+      implicit none
+!
+      include "PPICLF"
+!
+! Internal:
+!
+      real*8 es, Re_mean, Nu_bulk, theta, ef
+!
+! Code:
+!
+      ef = 1.0d0 - es
+      Nu_bulk = (-0.46d0 + 1.77d0*ef + 0.69d0*ef**2)*(ef**(-3))
+     >        + (1.37d0 - 2.4d0*ef + 1.2d0*ef**2)
+     >         *(Re_mean**0.7d0)*(rpr**OneThird)
+      theta = 1.0d0 - 1.6d0*es*ef
+     >      - 3.0d0*es*ef**4*exp(-(Re_mean**0.4d0)*es)
 
       return
       end

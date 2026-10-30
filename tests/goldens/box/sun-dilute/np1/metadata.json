@@ -1,0 +1,13 @@
+{
+ "created": "2026-10-30T12:53:22",
+ "host": "login7.ufhpc",
+ "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocflu_htsun/build/bin",
+ "git": {
+  "commit": "6428d6c2ee6bbfb314f63d36fcb827e44b404ea8",
+  "branch": "ht-sun-dilute",
+  "modified_sources": [
+   "libpicl/user_files/ppiclf_user_HeatTransfer.f"
+  ]
+ },
+ "modules": "gcc/14.2.0:openmpi/5.0.7"
+}
