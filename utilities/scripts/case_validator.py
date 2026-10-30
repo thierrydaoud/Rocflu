@@ -59,7 +59,7 @@ PICL_FLAGS = {
     "HEATTRANSFER": (0, 5),         # none, Stokes, Ranz-Marshall, Gunn, Fox, Sun
     "DU HEATTRANSFER": (0, 1),
     "FEEDBACK": (0, 1),
-    "PSEUDOTURB": (0, 1),
+    "PSEUDOTURB": (0, 2),           # none, Rsg, Rsg + Qsg
     "SUBBIN": (0, 1),
     "PERIODICX": (0, 1), "PERIODICY": (0, 1), "PERIODICZ": (0, 1),
     "PARTICLE_WRT": (0, 1), "GAS_WRT": (0, 1), "GRADGAS_WRT": (0, 1),
@@ -352,15 +352,16 @@ class Validator:
         self.prohibit(v["QSFLUCT"] >= 1 and v["QSFORCE"] == 0,
                       "QSFLUCT %d needs a quasi-steady force (QSFORCE >= 1): the "
                       "fluctuation is added to it" % v["QSFLUCT"], line.get("QSFLUCT"))
-        self.prohibit(v["PSEUDOTURB"] == 1 and v["QSFORCE"] != 3,
-                      "PSEUDOTURB 1 needs QSFORCE 3 (Osnes drag): the model is "
-                      "fitted to the Osnes drag and its fluctuation", line.get("PSEUDOTURB"))
-        self.prohibit(v["PSEUDOTURB"] == 1 and v["QSFLUCT"] != 1,
-                      "PSEUDOTURB 1 needs QSFLUCT 1 (Osnes fluctuations)",
+        self.prohibit(v["PSEUDOTURB"] >= 1 and v["QSFORCE"] != 3,
+                      "PSEUDOTURB %d needs QSFORCE 3 (Osnes drag): the model is "
+                      "fitted to the Osnes drag and its fluctuation" % v["PSEUDOTURB"],
                       line.get("PSEUDOTURB"))
-        self.prohibit(v["PSEUDOTURB"] == 1 and v["HEATTRANSFER"] == 0,
-                      "PSEUDOTURB 1 needs HEATTRANSFER >= 1 for now: its heat flux "
-                      "divides by the Nusselt number (until the PT refactor)",
+        self.prohibit(v["PSEUDOTURB"] >= 1 and v["QSFLUCT"] != 1,
+                      "PSEUDOTURB %d needs QSFLUCT 1 (Osnes fluctuations)" % v["PSEUDOTURB"],
+                      line.get("PSEUDOTURB"))
+        self.prohibit(v["PSEUDOTURB"] == 2 and v["HEATTRANSFER"] != 5,
+                      "PSEUDOTURB 2 needs HEATTRANSFER 5 (Sun): the heat flux uses "
+                      "Sun's Nu and <theta> (Zhou et al. 2024, eq. 31)",
                       line.get("PSEUDOTURB"))
         self.prohibit(v["DU HEATTRANSFER"] == 1 and v["VISCOUSUNSTEADY"] == 0,
                       "DU HEATTRANSFER 1 needs VISCOUSUNSTEADY >= 1 (they share "

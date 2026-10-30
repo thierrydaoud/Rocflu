@@ -98,8 +98,11 @@ class CaseValidatorTest(unittest.TestCase):
         self.assertEqual(self.errors(), [])
 
     def test_pseudo_turbulence_with_what_it_needs(self):
-        self.assertEqual(self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 1,
-                                      ("PICL", "HEATTRANSFER"): 2}), [])
+        for heattransfer in (0, 2):
+            self.assertEqual(self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 1,
+                                          ("PICL", "HEATTRANSFER"): heattransfer}), [])
+        self.assertEqual(self.errors({("PICL", "PSEUDOTURB"): 2, ("PICL", "QSFLUCT"): 1,
+                                      ("PICL", "HEATTRANSFER"): 5}), [])
 
     def test_unused_parameters_left_in_the_file(self):
         # Collisions off: KSP and EREST are not read, any value is fine
@@ -172,7 +175,10 @@ class CaseValidatorTest(unittest.TestCase):
     def test_pseudo_turbulence_needs(self):
         errors = self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 0})
         self.assertError(errors, "PSEUDOTURB 1 needs QSFLUCT 1")
-        self.assertError(errors, "PSEUDOTURB 1 needs HEATTRANSFER")
+        for heattransfer in (0, 2):
+            self.assertError(self.errors({("PICL", "PSEUDOTURB"): 2, ("PICL", "QSFLUCT"): 1,
+                                          ("PICL", "HEATTRANSFER"): heattransfer}),
+                             "PSEUDOTURB 2 needs HEATTRANSFER 5")
         for qsforce in (0, 1, 2):
             self.assertError(self.errors({("PICL", "PSEUDOTURB"): 1, ("PICL", "QSFLUCT"): 1,
                                           ("PICL", "HEATTRANSFER"): 2,

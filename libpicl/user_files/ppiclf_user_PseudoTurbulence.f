@@ -11,11 +11,11 @@
 !              These terms are then projected back to Rocflu's Momentum
 !              and Energu Equations.
 !
-! Flags: pseudoTurb_flag==0
-!        pseudoTurb_flag==1
-!        pseudoTurb_flag==2
+! Flags: pseudoTurb_flag==1: Rsg only (Tsg = alpha_PT = 0)
+!        pseudoTurb_flag==2: Rsg, Tsg and alpha_PT (needs Sun HT)
 !
-! Input: fqs_mean = mean quasi-steady drag beta*v
+! Input: Nu_bulk, theta_f = Sun et al. (2015) eqs. 27 and 30
+!        fqs_mean = mean quasi-steady drag beta*v
 ! Output: Rsg(3x3) [m^2/s^2], Tsg(3) [m^3/s^3], alpha_PT(3x3) [m^2/s],
 !         all per unit mass: PICL_Runge multiplies by the cell density
 !
@@ -43,7 +43,7 @@
 !      
 !******************************************************************************
 
-      subroutine ppiclf_user_PseudoTurb(i,iStage,Nu,
+      subroutine ppiclf_user_PseudoTurb(i,iStage,Nu_bulk,theta_f,
      >                         fqs_meanx,fqs_meany,fqs_meanz,
      >                         xi_par,xi_perp,xi_T,
      >                         Rsg, Tsg, alpha_PT)
@@ -55,14 +55,15 @@
 !
 ! Input:
       integer*4 i, iStage
-      real*8 Nu, fqs_meanx, fqs_meany, fqs_meanz
+      real*8 Nu_bulk, theta_f, fqs_meanx, fqs_meany, fqs_meanz
 !
 ! Output:
       real*8 xi_par, xi_perp, xi_T, Rsg(3,3), alpha_PT(3,3), Tsg(3) 
 !
 ! Internal:
       integer*4 m, j
-      real*8 aSDE,bq,chi,denum,dW1,dW2,dW3,tF_inv,theta,Z1,Z2,Z3
+      real*8 aSDE,bq,chi,denum,dW1,dW2,dW3,tF_inv,granular_temp
+      real*8 Z1,Z2,Z3
       real*8 TwoPi
       real*8 bSDE_CD, bSDE_CL, bSDE_CT, CD_prime, CD_average, CD_ratio
       real*8 avec(3), bvec(3), cvec(3)
@@ -144,18 +145,18 @@
 
       ! Granular temperature
       ! This is averaged over neighboring particles
-      theta  = ((u2pmean + v2pmean + w2pmean) - 
+      granular_temp = ((u2pmean + v2pmean + w2pmean) - 
      >          (upmean**2 + vpmean**2 + wpmean**2))/3.0d0
 
       ! 11/21/24 - Thierry - prevent NaN variables
-      if(theta.le.1.d-12) then
-        theta = 0.0d0
+      if(granular_temp.le.1.d-12) then
+        granular_temp = 0.0d0
       endif
 
       chi = (1.0 + 2.50*rphip + 4.51*(rphip**2) + 4.52*(rphip**3))
      >         /((1.0-(rphip/0.64)**3)**0.68)
 
-      tF_inv = (24.0*rphip*chi/dp) * sqrt(theta/rpi)
+      tF_inv = (24.0*rphip*chi/dp) * sqrt(granular_temp/rpi)
 
 ! avec : unit vector in main direction (undefined at zero slip, where
 ! the slip-driven pseudo-turbulence vanishes)
@@ -334,7 +335,7 @@ c---   We ditch Osnes expression for s_perp and assume it as big as s_par
      >         + H7*max(0.0d0, min(0.87d0, mp)) 
      >         + H8*max(30.0d0, min(266.0d0, re))/300.0d0
 
-      tF_inv  = (24.0*rphip*chi/dp) * sqrt(theta/rpi)
+      tF_inv  = (24.0*rphip*chi/dp) * sqrt(granular_temp/rpi)
       aSDE    = tF_inv
       bSDE_CD = s_par *sqrt(2.0*tF_inv)
       bSDE_CL = s_perp*sqrt(2.0*tF_inv)
@@ -388,6 +389,12 @@ c--- Now Rotate the matrix, Rsg = Q . R . Q^T
       ppiclf_rprop(PPICLF_R_RTerm2Perp,i) = A3*CD_ratio
 #endif
 
+      ! PSEUDOTURB 1: Reynolds stress only, no heat flux terms
+      if (pseudoTurb_flag == 1) then
+        Tsg = 0.0d0
+        return
+      endif
+
 c--- Osnes Formulation for Triple Velocity Correlation
 
       ! Flow-parallel T [m^3/s^3], along the slip direction avec
@@ -400,10 +407,9 @@ c--- Osnes Formulation for Triple Velocity Correlation
      > (rphif*(-5.11d0*rphip+10.1d0*rphip**2-10.85d0*rphip**3)
      > +1.0d0-exp(-10.96d0*rphip))
 
-      alpha_denum =  3.0d0*rpi*Nu*(1.17d0*rphip-0.2021d0
-     > *rphip**(1.0/2.0) +0.08568*rphip**(1.0/4.0))
-     > *(rphif**2)*(1.0d0-1.6d0*rphip*rphif-3.0d0*rphip*(rphif**4)
-     > *exp((-rem**0.4)*rphip))
+      alpha_denum =  3.0d0*rpi*Nu_bulk*(1.17d0*rphip-0.2021d0
+     > *rphip**(1.0/2.0) +0.08568d0*rphip**(1.0/4.0))
+     > *(rphif**2)*theta_f
 
       alpha_par = alpha_num/max(alpha_denum, 1.0d-12)
 

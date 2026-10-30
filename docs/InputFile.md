@@ -114,7 +114,7 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 | `HEATTRANSFER` | 0-5 | 0 | quasi-steady heat transfer (Nusselt number): 1 Stokes, 2 Ranz-Marshall, 3 Gunn, 4 Fox, 5 Sun |
 | `DU HEATTRANSFER` | 0, 1 | 0 | diffusive-unsteady heat transfer (computed with the viscous-unsteady history) |
 | `FEEDBACK` | 0, 1 | 0 | two-way coupling: the particles' forces and heat act on the gas |
-| `PSEUDOTURB` | 0, 1 | 0 | pseudo-turbulence model: Reynolds stress, kinetic energy and heat flux the particles induce in the gas |
+| `PSEUDOTURB` | 0, 1, 2 | 0 | pseudo-turbulence model, the subgrid terms the particles induce in the gas: 1 Reynolds stress and kinetic energy (momentum, EOS); 2 also the heat flux (energy equation) |
 | `TEMP` | > 0 | 0 | initial temperature of every particle [K]; **required** |
 | `DENSITY` | > 0 | 0 | density of every particle [kg/m³]; **required** |
 | `SPECIFICHEAT` | > 0 | 0 | specific heat of every particle [J/(kg K)]; **required** |
@@ -138,9 +138,9 @@ With `USED 1`, these combinations are rejected:
 | Setting | Needs | Why |
 |---|---|---|
 | `QSFLUCT ≥ 1` | `QSFORCE ≥ 1` | the fluctuation is added to the quasi-steady force |
-| `PSEUDOTURB 1` | `QSFORCE 3` | the model is fitted to the Osnes drag: it uses the fluctuation over the mean drag |
-| `PSEUDOTURB 1` | `QSFLUCT 1` | the Osnes fluctuation |
-| `PSEUDOTURB 1` | `HEATTRANSFER ≥ 1` | for now: its heat flux divides by the Nusselt number. To be lifted when the pseudo-turbulence model gets its own switch for the heat flux |
+| `PSEUDOTURB` 1, 2 | `QSFORCE 3` | the model is fitted to the Osnes drag: it uses the fluctuation over the mean drag |
+| `PSEUDOTURB` 1, 2 | `QSFLUCT 1` | the Osnes fluctuation |
+| `PSEUDOTURB 2` | `HEATTRANSFER 5` | the heat flux diffusivity uses Sun's Nusselt number and ⟨θ⟩ (Zhou et al. 2024, eq. 31) |
 | `DU HEATTRANSFER 1` | `VISCOUSUNSTEADY ≥ 1` | they share the history |
 | `COLLISIONS ≥ 1` | `VELOCITYMODEL 1` | particles that keep their position cannot collide |
 | `AMFORCE 2` | | not validated yet |

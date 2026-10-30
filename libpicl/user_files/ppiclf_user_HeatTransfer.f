@@ -15,7 +15,7 @@
 !
 !-----------------------------------------------------------------------
 !
-      subroutine ppiclf_user_HT_driver(i,Nuss,qq)
+      subroutine ppiclf_user_HT_driver(i,Nuss,qq,Nu_bulk,theta)
       use ppiclf_data
 !
       implicit none
@@ -33,7 +33,7 @@
       Q_conv = rpi*rkappa*dp*(ppiclf_rprop(PPICLF_R_JT,i) -
      >                          ppiclf_y(PPICLF_JT,i) )
 
-      Nuss = 0.0d0
+      Nuss = 0.0d0; Nu_bulk = 0.0d0; theta = 0.0d0
       if (heattransfer_flag == 1) then
          call HTModel_Stokes(i,Nuss)
       elseif (heattransfer_flag == 2) then

@@ -78,7 +78,7 @@
       integer*4 store_forces
 
 ! Needed for heat transfer
-      real*8 qq, rmass_therm, temp, qq_du, Nuss
+      real*8 qq, rmass_therm, temp, qq_du, Nuss, Nu_bulk, theta_f
 
       real*8    Pres
 
@@ -248,6 +248,7 @@
          liftx = 0.0d0; lifty = 0.0d0; liftz = 0.0d0;
          fvux = 0.0d0; fvuy = 0.0d0; fvuz = 0.0d0;
          qq=0.0d0; qq_du=0.0d0; Nuss = 0.0d0
+         Nu_bulk = 0.0d0; theta_f = 0.0d0
          upmean = 0.0; vpmean = 0.0; wpmean = 0.0;
          u2pmean = 0.0; v2pmean = 0.0; w2pmean = 0.0;
          fdpvdx = 0.0d0; fdpvdy = 0.0d0; fdpvdz = 0.0d0;
@@ -513,7 +514,7 @@
          qq = 0.0d0
 
          if (heattransfer_flag >= 1) then
-            call ppiclf_user_HT_driver(i,Nuss,qq)
+            call ppiclf_user_HT_driver(i,Nuss,qq,Nu_bulk,theta_f)
          endif ! heattransfer_flag >= 1
 
 !
@@ -564,7 +565,7 @@
 !         elseif(pseudoTurb_flag==2) then
            ! All included
            ! Mean drag beta*v: the model uses C_D'/<C_D>
-           call ppiclf_user_PseudoTurb(i,iStage,Nuss,
+           call ppiclf_user_PseudoTurb(i,iStage,Nu_bulk,theta_f,
      >                                 beta*vx,beta*vy,beta*vz,
      >                                 xi_par,xi_perp,xi_T,
      >                                 Rsg, Tsg, alpha_PT)
