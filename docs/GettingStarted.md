@@ -44,9 +44,12 @@ On HiPerGator or Dane (see [Machines](#machines) for others):
 ./rocflu.sh post /path/to/case/<case>.inp          # dumps -> ParaView files in post/
 ```
 
-The executables are in `build/bin`. There is nothing to set up first: the script loads
-the machine's modules itself (`gcc/14.2.0` and `openmpi/5.0.7` on HiPerGator), and METIS
-is built from the copy in `3rd_party/`.
+The executables are in `build/bin`. There is nothing to set up first: the script
+recognises the machine from its host name, loads that machine's modules itself
+(`gcc/14.2.0` and `openmpi/5.0.7` on HiPerGator, `gcc/13.3.1` and `openmpi/4.1.2` on
+Dane), and METIS is built from the copy in `3rd_party/`. To choose the machine yourself,
+add `--machine` to the command, e.g. `./rocflu.sh build --machine dane` (see
+[Machines](#machines)).
 
 ### What Gets Built
 
@@ -80,6 +83,7 @@ pre-processing tools are built from `utilities/map`, `utilities/part` and
 | `--metis-root DIR` | use an installed METIS 5 instead of the bundled copy |
 | `--fresh` | delete this configuration's build directory and start again |
 | `-v, --verbose` | print every compile command |
+| `--machine M` | use the machine profile `machines/M.sh` (`hpg`, `dane` or `local`): modules, `srun --mpi` plugin, Slurm account, partitions and QOS. Every command takes it. Default: the machine recognised from the host name. See [Machines](#machines) |
 
 Examples:
 
@@ -87,6 +91,7 @@ Examples:
 ./rocflu.sh build -t simulation -j 8     # only rflump
 ./rocflu.sh build --debug                # debug build of everything
 ./rocflu.sh build --debug --no-picl      # debug build without particles
+./rocflu.sh build --machine dane         # use Dane's profile whatever the host name
 ```
 
 **Species transport and Rocpart are disabled for now.** They have not been tested or
@@ -184,10 +189,26 @@ turn the colours off.
 
 ### Machines
 
-What differs between clusters is kept in a profile, `machines/<name>.sh`: the modules,
-the `srun --mpi` plugin and the Slurm defaults of `run`, `post` and `test`. The script
-picks the profile from the host name; `./rocflu.sh --machine <name> <command>` or
-`ROCFLU_MACHINE=<name>` picks another.
+What differs between clusters is kept in a profile, `machines/<name>.sh`: the modules
+(and so the compiler and MPI library), the `srun --mpi` plugin and the Slurm defaults of
+`run`, `post` and `test`. Nothing has to be given on a known machine: each command
+recognises the machine from the host name.
+
+**Choosing the machine.** Each command works it out again; the first of these that is
+set wins:
+
+| Setting | Example |
+|---|---|
+| `--machine M`, an option of every command | `./rocflu.sh run case.inp -n 4 --machine dane` |
+| `ROCFLU_MACHINE=M` in the environment, for every command of a shell | `export ROCFLU_MACHINE=dane` |
+| the host name | `*.ufhpc` is `hpg`, `dane<N>` is `dane`, any other is `local` |
+
+`./rocflu.sh --help` shows the machine in use ("in use: hpg"), `./rocflu.sh <command>
+--help` shows its defaults, and each command prints the machine when it loads the modules
+(`rocflu: machine dane: loaded modules ...`). An unknown name stops with the list of
+profiles.
+
+**The profiles:**
 
 | Profile | Host names | Modules | `srun --mpi` | Account | Partition (`run`, `test`) | QOS (`primary`, `burst`) |
 |---|---|---|---|---|---|---|
@@ -196,13 +217,31 @@ picks the profile from the host name; `./rocflu.sh --machine <name> <command>` o
 | `local` | any other | none | `pmix` | none | none | none |
 
 Dane's `openmpi/4.1.2` is not built with Slurm's PMIx support, hence `pmi2`. Dane has
-no burst QOS: its `standby` jobs are cancelled as soon as a `normal` job needs the nodes.
-For a new cluster, copy a profile and add its host names to `detect_machine` in
-`rocflu.sh`.
+no burst QOS (`-q burst` stops with a message): its `standby` jobs are cancelled as soon
+as a `normal` job needs the nodes. The `local` profile sets no account, partition or
+QOS: jobs then get Slurm's defaults, unless given with `-a`/`-p` (`--account`/`--partition`
+for `test`).
 
-`ROCFLU_MODULES` overrides the profile's modules, for example
-`ROCFLU_MODULES="gcc/12.2.0 openmpi/4.1.6" ./rocflu.sh build`. `ROCFLU_MODULES=""` loads
-nothing (for machines without `module`, or when your shell is already set up).
+**Overriding one setting.** The account, partition and QOS are options of each command
+(`-a`, `-p`, `-q` for `run` and `post`; `--account`, `--partition`, `--srun-mpi` for
+`test`). The modules are changed with `ROCFLU_MODULES`, for example
+`ROCFLU_MODULES="gcc/12.2.0 openmpi/4.1.6" ./rocflu.sh build`; `ROCFLU_MODULES=""` loads
+nothing (for machines without `module`, or when your shell is already set up). A build
+directory keeps the MPI library it was configured with: after changing the modules,
+build with `--fresh` (or `./rocflu.sh clean` first).
+
+**Adding a machine.** Copy a profile to `machines/<name>.sh`, set its variables, and add
+its host names to `detect_machine` near the top of `rocflu.sh` (or always pass
+`--machine <name>`):
+
+| Variable | Meaning |
+|---|---|
+| `MACHINE_MODULES` | modules loaded by `build`, `run`, `post`, `test`, `load` and the job scripts |
+| `MACHINE_SRUN_MPI` | `srun --mpi=` plugin of the job scripts and the test suite (`srun --mpi=list` shows the choices) |
+| `MACHINE_ACCOUNT` | default Slurm account (`-a`) |
+| `MACHINE_PARTITION` | default partition of `run` and `post` (`-p`) |
+| `MACHINE_TEST_PARTITION` | default partition of `test` |
+| `MACHINE_QOS_PRIMARY`, `MACHINE_QOS_BURST` | QOS of `-q primary` and `-q burst`; `%a` stands for the account; empty: no `--qos` line (primary) or no burst QOS |
 
 ### Using CMake Directly
 

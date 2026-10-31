@@ -9,15 +9,16 @@
 #   ./rocflu.sh clean               remove build/
 #   source ./rocflu.sh load         load the machine's modules into your shell
 #
-#   ./rocflu.sh --machine M <command> ...   use machines/M.sh (default: from
-#                                   ROCFLU_MACHINE, else from the host name)
+# Every command takes --machine M (machines/M.sh); by default the machine is
+# recognised from the host name.
 #
 # Run ./rocflu.sh <command> --help for the options of a command.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_ROOT="$ROOT/build"
 
-# Machine profile: modules, srun MPI plugin and Slurm defaults (machines/*.sh)
+# Machine profile: modules, srun MPI plugin and Slurm defaults (machines/*.sh).
+# --machine M anywhere in the arguments, else $ROCFLU_MACHINE, else the host name.
 detect_machine() {
   case "$(hostname -f 2> /dev/null || hostname)" in
     *.ufhpc)    echo hpg ;;
@@ -25,29 +26,41 @@ detect_machine() {
     *)          echo local ;;
   esac
 }
-if [ "$1" == "--machine" ]; then
-  ROCFLU_MACHINE="$2"
-  shift 2
-fi
-ROCFLU_MACHINE="${ROCFLU_MACHINE:-$(detect_machine)}"
-if [ ! -f "$ROOT/machines/$ROCFLU_MACHINE.sh" ]; then
-  echo "rocflu: ERROR: no machine profile machines/$ROCFLU_MACHINE.sh (have: $(cd "$ROOT/machines" && ls ./*.sh | sed 's|^\./||; s|\.sh$||' | paste -sd' ' -))" >&2
+machine_list() { (cd "$ROOT/machines" && ls ./*.sh | sed 's|^\./||; s|\.sh$||' | paste -sd' ' -); }
+MACHINE_NAME="${ROCFLU_MACHINE:-}"
+MACHINE_ARGS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --machine)
+      if [ $# -lt 2 ] || [ "${2:0:1}" == "-" ]; then
+        echo "rocflu: ERROR: --machine needs a name (have: $(machine_list))" >&2
+        return 1 2> /dev/null || exit 1
+      fi
+      MACHINE_NAME="$2"; shift 2 ;;
+    --machine=*) MACHINE_NAME="${1#--machine=}"; shift ;;
+    *)           MACHINE_ARGS+=("$1"); shift ;;
+  esac
+done
+set -- "${MACHINE_ARGS[@]}"
+MACHINE_NAME="${MACHINE_NAME:-$(detect_machine)}"
+if [ ! -f "$ROOT/machines/$MACHINE_NAME.sh" ]; then
+  echo "rocflu: ERROR: no machine profile machines/$MACHINE_NAME.sh (have: $(machine_list))" >&2
   return 1 2> /dev/null || exit 1
 fi
 # shellcheck source=/dev/null
-source "$ROOT/machines/$ROCFLU_MACHINE.sh"
-ROCFLU_MODULES="${ROCFLU_MODULES-$MACHINE_MODULES}"
+source "$ROOT/machines/$MACHINE_NAME.sh"
+MODULES_TO_LOAD="${ROCFLU_MODULES-$MACHINE_MODULES}"
 
 say()  { echo "${PROGRESS:-}rocflu:${PLAIN:-} $*"; }
 fail() { echo "${ERROR_MARK:-}rocflu: ERROR:${ERROR_PLAIN:-} $*" >&2; exit 1; }
 
 # Loads the modules if the module command exists.
 load_modules() {
-  if [ -n "$ROCFLU_MODULES" ] && command -v module > /dev/null 2>&1; then
+  if [ -n "$MODULES_TO_LOAD" ] && command -v module > /dev/null 2>&1; then
     module purge > /dev/null 2>&1
     # shellcheck disable=SC2086
-    module load $ROCFLU_MODULES || return 1
-    say "machine $ROCFLU_MACHINE: loaded modules $ROCFLU_MODULES"
+    module load $MODULES_TO_LOAD || return 1
+    say "machine $MACHINE_NAME: loaded modules $MODULES_TO_LOAD"
   fi
 }
 
@@ -89,13 +102,14 @@ ${HEADING}Commands:${PLAIN}
   ${OPTION}source ./rocflu.sh load${PLAIN}           load the machine's modules into your shell
 
 ${HEADING}Machine:${PLAIN}
-  ${OPTION}./rocflu.sh --machine${PLAIN} M <command>  use the profile machines/M.sh: modules, srun
-                    MPI plugin, Slurm account, partitions and QOS
-                    ${DEFAULT}(default: \$ROCFLU_MACHINE, else from the host name;
-                    this one: $ROCFLU_MACHINE)${PLAIN}
+  The machine is recognised from the host name (in use: ${MACHINE_NAME}). Its
+  profile, machines/<name>.sh, sets the modules, the srun MPI plugin and the
+  Slurm account, partitions and QOS. Every command takes
+  ${OPTION}--machine${PLAIN} M to use another profile ($(machine_list)).
 
 ${HEADING}Environment:${PLAIN}
-  ${OPTION}ROCFLU_MACHINE${PLAIN}    machine profile, as --machine
+  ${OPTION}ROCFLU_MACHINE${PLAIN}    machine profile when --machine is not given
+                    ${DEFAULT}(default: from the host name)${PLAIN}
   ${OPTION}ROCFLU_MODULES${PLAIN}    modules loaded by build, run, test and load
                     ${DEFAULT}(default: the machine's, ${MACHINE_MODULES:-none})${PLAIN}; "" loads none
   ${OPTION}NO_COLOR${PLAIN}          set to anything to print without colours
@@ -152,6 +166,8 @@ ${HEADING}Other:${PLAIN}
                         ${DEFAULT}(default: build the copy in 3rd_party/)${PLAIN}
   ${OPTION}--fresh${PLAIN}               reconfigure from scratch ${DEFAULT}(default: reuse the configuration)${PLAIN}
   ${OPTION}-v, --verbose${PLAIN}         print every compile command ${DEFAULT}(default: off)${PLAIN}
+  ${OPTION}--machine${PLAIN} M           machine profile machines/M.sh ($(machine_list))
+                        ${DEFAULT}(default: from the host name; in use: $MACHINE_NAME)${PLAIN}
 
 Each combination of build type and physics options has its own name (for
 example release, debug-nopicl): it is compiled in build/staging/<name> and its
@@ -207,7 +223,7 @@ cmd_build() {
   [ -n "$metis_root" ] && name+="-metis"
 
   on_off() { [ "$1" == 1 ] && echo ON || echo OFF; }
-  load_modules || fail "could not load modules: $ROCFLU_MODULES"
+  load_modules || fail "could not load modules: $MODULES_TO_LOAD"
   build_config "$name" "$jobs" "$fresh" "$verbose" "${cmake_targets[*]}" \
     -DCMAKE_BUILD_TYPE=$type -DROCFLU_CASE= \
     -DROCFLU_PICL=$(on_off $picl) -DROCFLU_SPEC=$(on_off $spec) \
@@ -521,6 +537,8 @@ ${HEADING}Build:${PLAIN}
   ${OPTION}--debug${PLAIN}               debug build (-g -O0 -fcheck=all)
                         ${DEFAULT}(default: optimised release build)${PLAIN}
   ${OPTION}-j, --jobs${PLAIN} N          compile with N processes ${DEFAULT}(default: 16)${PLAIN}
+  ${OPTION}--machine${PLAIN} M           machine profile machines/M.sh ($(machine_list))
+                        ${DEFAULT}(default: from the host name; in use: $MACHINE_NAME)${PLAIN}
 
 The build is named after the slot groups (e.g. release-case-qsfluct): cases
 with the same physics share it. build/bin is not changed (it stays the
@@ -534,7 +552,7 @@ qos_name() {   # <primary|burst> <account>
   case "$1" in
     primary) qos="$MACHINE_QOS_PRIMARY" ;;
     burst)   qos="$MACHINE_QOS_BURST"
-             [ -n "$qos" ] || fail "machine $ROCFLU_MACHINE has no burst QOS (use -q primary)" ;;
+             [ -n "$qos" ] || fail "machine $MACHINE_NAME has no burst QOS (use -q primary)" ;;
     *) fail "unknown QOS $1 (primary or burst)" ;;
   esac
   echo "${qos//%a/$2}"
@@ -542,7 +560,7 @@ qos_name() {   # <primary|burst> <account>
 
 # The -q lines of the help, for this machine
 qos_help() {
-  local primary burst="none on $ROCFLU_MACHINE"
+  local primary burst="none on $MACHINE_NAME"
   primary="$(qos_name primary "$MACHINE_ACCOUNT")"
   [ -n "$MACHINE_QOS_BURST" ] && burst="$(qos_name burst "$MACHINE_ACCOUNT")"
   echo "  ${OPTION}-q, --qos${PLAIN} Q           primary: the account's QOS (${primary:-none})"
@@ -649,7 +667,7 @@ cmd_run() {
     fail "the case has errors (above); nothing was built or submitted"
   fi
 
-  load_modules || fail "could not load modules: $ROCFLU_MODULES"
+  load_modules || fail "could not load modules: $MODULES_TO_LOAD"
 
   # 1. Build for the case
   local name bin
@@ -751,7 +769,7 @@ cmd_run() {
       echo "#SBATCH --mail-type=ALL"
     fi
     echo
-    [ -n "$ROCFLU_MODULES" ] && echo "module purge; module load $ROCFLU_MODULES"
+    [ -n "$MODULES_TO_LOAD" ] && echo "module purge; module load $MODULES_TO_LOAD"
     echo "cd $case_dir"
     # Header box of the run log (rflump prints the Setup box and the footer)
     cat << EOF
@@ -834,6 +852,8 @@ $(qos_help)
 ${HEADING}Build:${PLAIN}
   ${OPTION}--debug${PLAIN}               debug build ${DEFAULT}(default: release)${PLAIN}
   ${OPTION}-j, --jobs${PLAIN} N          compile with N processes ${DEFAULT}(default: 16)${PLAIN}
+  ${OPTION}--machine${PLAIN} M           machine profile machines/M.sh ($(machine_list))
+                        ${DEFAULT}(default: from the host name; in use: $MACHINE_NAME)${PLAIN}
 EOF
 }
 
@@ -872,7 +892,7 @@ cmd_post() {
   inp="$case_dir/$case_name.inp"
   [ -d "$case_dir/restart_data" ] || fail "no restart_data/ in $case_dir: run the case first"
 
-  load_modules || fail "could not load modules: $ROCFLU_MODULES"
+  load_modules || fail "could not load modules: $MODULES_TO_LOAD"
   local name bin
   build_for_case "$inp" "$debug" "$jobs"
 
@@ -897,7 +917,7 @@ cmd_post() {
     echo "#SBATCH --time=$walltime"
     echo "#SBATCH --output=$case_name.post.%j.out"
     echo
-    [ -n "$ROCFLU_MODULES" ] && echo "module purge; module load $ROCFLU_MODULES"
+    [ -n "$MODULES_TO_LOAD" ] && echo "module purge; module load $MODULES_TO_LOAD"
     echo "cd $case_dir"
     echo "srun --mpi=$MACHINE_SRUN_MPI -n 1 $bin/rflupost -c $case_name -s $steps -v 0"
   } > "$script"
@@ -925,6 +945,8 @@ Options are passed on to run_tests.py:
   ${OPTION}--keep${PLAIN}                keep the run directories of passing cases
                         ${DEFAULT}(default: delete them)${PLAIN}
   ${OPTION}--list${PLAIN}                list the cases
+  ${OPTION}--machine${PLAIN} M           machine profile machines/M.sh ($(machine_list))
+                        ${DEFAULT}(default: from the host name; in use: $MACHINE_NAME)${PLAIN}
 See tests/README.md.
 EOF
 }
@@ -935,7 +957,7 @@ cmd_test() {
   for exe in rflumap rflupart rfluinit rflump rflupost; do
     [ -x "$BUILD_ROOT/bin/$exe" ] || fail "no $exe in build/bin ($(readlink "$BUILD_ROOT/bin" 2>/dev/null)): the last build had -t; build again with the same options and no -t"
   done
-  load_modules || fail "could not load modules: $ROCFLU_MODULES"
+  load_modules || fail "could not load modules: $MODULES_TO_LOAD"
   export ROCPICL_TEST_ACCOUNT="${ROCPICL_TEST_ACCOUNT-$MACHINE_ACCOUNT}"
   export ROCPICL_TEST_PARTITION="${ROCPICL_TEST_PARTITION-$MACHINE_TEST_PARTITION}"
   export ROCPICL_TEST_SRUN_MPI="${ROCPICL_TEST_SRUN_MPI-$MACHINE_SRUN_MPI}"

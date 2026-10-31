@@ -45,7 +45,7 @@ from the directory given with `--exe`. `./rocflu.sh test [options]` runs
 From this directory:
 
 ```bash
-module purge; module load gcc/14.2.0 openmpi/5.0.7
+source ../rocflu.sh load                   # the machine's modules (see Machines)
 ./run_tests.py list                        # show cases
 ./run_tests.py run                         # all cases, compare to goldens (~40 s)
 ./run_tests.py run -o shocktube/two-way    # cases whose name contains a pattern
@@ -64,7 +64,10 @@ script. The solver runs through `srun`:
   with `--account`/`--partition` or `ROCPICL_TEST_ACCOUNT`/`ROCPICL_TEST_PARTITION`.
   `srun` uses `--mpi=pmix`; `--srun-mpi` or `ROCPICL_TEST_SRUN_MPI` changes it.
   `./rocflu.sh test` sets all three from the machine profile (on Dane: `-A ufl -p pdebug`,
-  `--mpi=pmi2`; see [Machines](../docs/GettingStarted.md#machines)).
+  `--mpi=pmi2`; `./rocflu.sh test --machine M` uses another profile; see
+  [Machines](../docs/GettingStarted.md#machines)). `./run_tests.py`
+  run directly keeps the HiPerGator defaults above: on Dane add
+  `--account ufl --partition pdebug --srun-mpi pmi2`, or use `./rocflu.sh test`.
   `-j 21` runs the whole suite in about 40 s when the partition is free.
 - Inside an allocation (`salloc`), cases run as job steps.
 - `--local-ranks N` runs cases with at most N ranks with `mpirun --bind-to none` where

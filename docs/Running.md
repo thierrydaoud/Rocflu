@@ -17,6 +17,11 @@ job; `./rocflu.sh post` converts the results for ParaView. How the code is built
 ./rocflu.sh run /path/to/case/<case>.inp -N 1 -n 4 -p hpg-default -w 02:00:00 -@ you@ufl.edu
 ```
 
+The modules, account, partition, QOS and `srun --mpi` plugin default to those of the
+machine the script runs on (HiPerGator or Dane, recognised from the host name);
+`--machine M` uses another machine's profile. See
+[Machines](GettingStarted.md#machines).
+
 The case directory must hold `<case>.inp`, `<case>.bc`, the grid (`<case>.hyb.asc`) and,
 with particles, `points.dat`. `run` then:
 
@@ -74,6 +79,7 @@ with particles, `points.dat`. `run` then:
 | `--no-post` | do not run `rflupost` after the simulation. By default, after a simulation that succeeded, the job runs `rflupost` (one task), so `post/` is ready when the job ends | post on |
 | `--debug` | debug build of the case | |
 | `-j, --jobs N` | compile with N processes | 16 |
+| `--machine M` | machine profile (`hpg`, `dane`, `local`): modules, `srun --mpi` plugin and the defaults of `-p`, `-a`, `-q` ([Machines](GettingStarted.md#machines)) | from the host name |
 
 `run` does not change `build/bin`, which stays the full build `rocflu.sh test` uses.
 Pre-processing runs on the login node, which is fine for test-size grids; very large
@@ -118,7 +124,7 @@ B=/path/to/repo/build/bin
 $B/rflumap  -c <case> -m 1 -p N -r N -v 1
 $B/rflupart -c <case> -v 1
 $B/rfluinit -c <case> -v 1
-srun -n N $B/rflump -c <case> -v 1      # or mpirun -n N
+srun -n N --mpi=pmix $B/rflump -c <case> -v 1      # --mpi=pmi2 on Dane; or mpirun -n N
 ```
 
 `rflump -v` sets how much the run log shows: `1` (default) only the run's progress,
@@ -165,3 +171,4 @@ after changing which fields to write (the `*_WRT` keys of `# POST` for the fluid
 | `-e, --engine E` | `here`: run on this node; `batch`: submit `<case>.post.sbatch` (one task) | `here` |
 | `-p`, `-a`, `-q`, `-w`, `--mem` | partition, account, QOS (`primary` or `burst`), wall time, memory of the batch job | the machine's partition and account (as for `run`), `primary`, `00:30:00`, `8gb` |
 | `--debug`, `-j N` | build options, as for `run` | |
+| `--machine M` | machine profile, as for `run` | from the host name |
