@@ -7,26 +7,47 @@
 #   ./rocflu.sh validate <case>.inp check a case's input and files only
 #   ./rocflu.sh test  [options]     run the regression suite (tests/run_tests.py)
 #   ./rocflu.sh clean               remove build/
-#   source ./rocflu.sh load         load the HiPerGator modules into your shell
+#   source ./rocflu.sh load         load the machine's modules into your shell
+#
+#   ./rocflu.sh --machine M <command> ...   use machines/M.sh (default: from
+#                                   ROCFLU_MACHINE, else from the host name)
 #
 # Run ./rocflu.sh <command> --help for the options of a command.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_ROOT="$ROOT/build"
-# Modules loaded on HiPerGator; override with ROCFLU_MODULES="..." (empty: none).
-DEFAULT_MODULES="gcc/14.2.0 openmpi/5.0.7"
-ROCFLU_MODULES="${ROCFLU_MODULES-$DEFAULT_MODULES}"
+
+# Machine profile: modules, srun MPI plugin and Slurm defaults (machines/*.sh)
+detect_machine() {
+  case "$(hostname -f 2> /dev/null || hostname)" in
+    *.ufhpc)    echo hpg ;;
+    dane[0-9]*) echo dane ;;
+    *)          echo local ;;
+  esac
+}
+if [ "$1" == "--machine" ]; then
+  ROCFLU_MACHINE="$2"
+  shift 2
+fi
+ROCFLU_MACHINE="${ROCFLU_MACHINE:-$(detect_machine)}"
+if [ ! -f "$ROOT/machines/$ROCFLU_MACHINE.sh" ]; then
+  echo "rocflu: ERROR: no machine profile machines/$ROCFLU_MACHINE.sh (have: $(cd "$ROOT/machines" && ls ./*.sh | sed 's|^\./||; s|\.sh$||' | paste -sd' ' -))" >&2
+  return 1 2> /dev/null || exit 1
+fi
+# shellcheck source=/dev/null
+source "$ROOT/machines/$ROCFLU_MACHINE.sh"
+ROCFLU_MODULES="${ROCFLU_MODULES-$MACHINE_MODULES}"
 
 say()  { echo "${PROGRESS:-}rocflu:${PLAIN:-} $*"; }
 fail() { echo "${ERROR_MARK:-}rocflu: ERROR:${ERROR_PLAIN:-} $*" >&2; exit 1; }
 
-# Loads the modules if the module command exists (it does on HiPerGator).
+# Loads the modules if the module command exists.
 load_modules() {
   if [ -n "$ROCFLU_MODULES" ] && command -v module > /dev/null 2>&1; then
     module purge > /dev/null 2>&1
     # shellcheck disable=SC2086
     module load $ROCFLU_MODULES || return 1
-    say "loaded modules: $ROCFLU_MODULES"
+    say "machine $ROCFLU_MACHINE: loaded modules $ROCFLU_MODULES"
   fi
 }
 
@@ -65,11 +86,18 @@ ${HEADING}Commands:${PLAIN}
   ${OPTION}./rocflu.sh validate${PLAIN} <case>.inp   check a case's input and files only
   ${OPTION}./rocflu.sh test${PLAIN} [options]        run the regression suite (tests/run_tests.py)
   ${OPTION}./rocflu.sh clean${PLAIN}                 remove build/
-  ${OPTION}source ./rocflu.sh load${PLAIN}           load the HiPerGator modules into your shell
+  ${OPTION}source ./rocflu.sh load${PLAIN}           load the machine's modules into your shell
+
+${HEADING}Machine:${PLAIN}
+  ${OPTION}./rocflu.sh --machine${PLAIN} M <command>  use the profile machines/M.sh: modules, srun
+                    MPI plugin, Slurm account, partitions and QOS
+                    ${DEFAULT}(default: \$ROCFLU_MACHINE, else from the host name;
+                    this one: $ROCFLU_MACHINE)${PLAIN}
 
 ${HEADING}Environment:${PLAIN}
+  ${OPTION}ROCFLU_MACHINE${PLAIN}    machine profile, as --machine
   ${OPTION}ROCFLU_MODULES${PLAIN}    modules loaded by build, run, test and load
-                    ${DEFAULT}(default: $DEFAULT_MODULES)${PLAIN}; "" loads none
+                    ${DEFAULT}(default: the machine's, ${MACHINE_MODULES:-none})${PLAIN}; "" loads none
   ${OPTION}NO_COLOR${PLAIN}          set to anything to print without colours
 
 Run ${OPTION}./rocflu.sh <command> --help${PLAIN} for the options of a command.
@@ -456,10 +484,9 @@ ${HEADING}Job:${PLAIN}
   ${OPTION}-n, --tasks-per-node${PLAIN} N
                         MPI ranks per node ${DEFAULT}(default: 1)${PLAIN}; the case is split
                         into N x n regions, one per rank
-  ${OPTION}-p, --partition${PLAIN} P     Slurm partition ${DEFAULT}(default: hpg-default)${PLAIN}
-  ${OPTION}-a, --account${PLAIN} A       Slurm account ${DEFAULT}(default: bala1s)${PLAIN}
-  ${OPTION}-q, --qos${PLAIN} Q           primary: the account's QOS (bala1s)
-                        burst: its burst QOS (bala1s-b)
+  ${OPTION}-p, --partition${PLAIN} P     Slurm partition ${DEFAULT}(default: ${MACHINE_PARTITION:-none})${PLAIN}
+  ${OPTION}-a, --account${PLAIN} A       Slurm account ${DEFAULT}(default: ${MACHINE_ACCOUNT:-none})${PLAIN}
+$(qos_help)
                         ${DEFAULT}(default: primary)${PLAIN}
   ${OPTION}-w, --walltime${PLAIN} T      wall time, HH:MM:SS ${DEFAULT}(default: 01:00:00)${PLAIN}
   ${OPTION}--mem${PLAIN} M               memory per node, e.g. 64gb
@@ -501,13 +528,25 @@ build used by ./rocflu.sh test).
 EOF
 }
 
-# Slurm QOS of -q: primary is the account's own QOS, burst its burst QOS
+# Slurm QOS of -q, from the machine profile (%a: the account); empty: none
 qos_name() {   # <primary|burst> <account>
+  local qos
   case "$1" in
-    primary) echo "$2" ;;
-    burst)   echo "$2-b" ;;
+    primary) qos="$MACHINE_QOS_PRIMARY" ;;
+    burst)   qos="$MACHINE_QOS_BURST"
+             [ -n "$qos" ] || fail "machine $ROCFLU_MACHINE has no burst QOS (use -q primary)" ;;
     *) fail "unknown QOS $1 (primary or burst)" ;;
   esac
+  echo "${qos//%a/$2}"
+}
+
+# The -q lines of the help, for this machine
+qos_help() {
+  local primary burst="none on $ROCFLU_MACHINE"
+  primary="$(qos_name primary "$MACHINE_ACCOUNT")"
+  [ -n "$MACHINE_QOS_BURST" ] && burst="$(qos_name burst "$MACHINE_ACCOUNT")"
+  echo "  ${OPTION}-q, --qos${PLAIN} Q           primary: the account's QOS (${primary:-none})"
+  echo "                        burst: its burst QOS ($burst)"
 }
 
 # Build for a case: a quick configure finds the particle slot groups its
@@ -534,7 +573,7 @@ build_for_case() {   # <case.inp> <debug 0|1> <jobs>
 }
 
 cmd_run() {
-  local inp="" nodes=1 tasks=1 partition=hpg-default account=bala1s qos=primary
+  local inp="" nodes=1 tasks=1 partition="$MACHINE_PARTITION" account="$MACHINE_ACCOUNT" qos=primary
   local walltime=01:00:00 mem="" email="" targets=() dry=0 debug=0 jobs=16
   local engine=batch post=1 repartition=0
   while [ $# -gt 0 ]; do
@@ -695,9 +734,9 @@ cmd_run() {
     echo "#!/bin/bash"
     echo "# Written by rocflu.sh run on $(date '+%Y-%m-%d %H:%M'): $case_name, $nodes node(s) x $tasks rank(s)"
     echo "#SBATCH --job-name=$case_name"
-    echo "#SBATCH --account=$account"
-    echo "#SBATCH --qos=$slurm_qos"
-    echo "#SBATCH --partition=$partition"
+    [ -n "$account" ]   && echo "#SBATCH --account=$account"
+    [ -n "$slurm_qos" ] && echo "#SBATCH --qos=$slurm_qos"
+    [ -n "$partition" ] && echo "#SBATCH --partition=$partition"
     echo "#SBATCH --nodes=$nodes"
     echo "#SBATCH --ntasks-per-node=$tasks"
     if [ -n "$mem" ]; then
@@ -740,12 +779,12 @@ EOF
     # job's memory (without both this srun waits forever or is refused)
     local overlap=""
     [ $engine == interactive ] && overlap="--overlap --mem=0 "
-    echo "srun --mpi=pmix ${overlap}-n $nranks $bin/rflump -c $case_name -v 1"
+    echo "srun --mpi=$MACHINE_SRUN_MPI ${overlap}-n $nranks $bin/rflump -c $case_name -v 1"
     if [ $post == 1 ]; then
       # Only after a simulation that succeeded
       echo "status=\$?"
       echo "[ \$status == 0 ] || exit \$status"
-      echo "srun --mpi=pmix ${overlap}-n 1 $bin/rflupost -c $case_name -v 0"
+      echo "srun --mpi=$MACHINE_SRUN_MPI ${overlap}-n 1 $bin/rflupost -c $case_name -v 0"
     fi
   } > "$script"
   say "job script: $script"
@@ -786,10 +825,10 @@ ${HEADING}Steps:${PLAIN}
 ${HEADING}Where:${PLAIN}
   ${OPTION}-e, --engine${PLAIN} E        here: run on this node, one process ${DEFAULT}(default)${PLAIN}
                         batch: submit a one-task Slurm job (<case>.post.sbatch)
-  ${OPTION}-p, --partition${PLAIN} P     Slurm partition for batch ${DEFAULT}(default: hpg-default)${PLAIN}
-  ${OPTION}-a, --account${PLAIN} A       Slurm account for batch ${DEFAULT}(default: bala1s)${PLAIN}
-  ${OPTION}-q, --qos${PLAIN} Q           for batch: primary (the account's QOS, bala1s) or
-                        burst (bala1s-b) ${DEFAULT}(default: primary)${PLAIN}
+  ${OPTION}-p, --partition${PLAIN} P     Slurm partition for batch ${DEFAULT}(default: ${MACHINE_PARTITION:-none})${PLAIN}
+  ${OPTION}-a, --account${PLAIN} A       Slurm account for batch ${DEFAULT}(default: ${MACHINE_ACCOUNT:-none})${PLAIN}
+$(qos_help)
+                        for batch ${DEFAULT}(default: primary)${PLAIN}
   ${OPTION}-w, --walltime${PLAIN} T      wall time for batch, HH:MM:SS ${DEFAULT}(default: 00:30:00)${PLAIN}
   ${OPTION}--mem${PLAIN} M               memory for batch, e.g. 16gb ${DEFAULT}(default: 8gb)${PLAIN}
 ${HEADING}Build:${PLAIN}
@@ -799,7 +838,7 @@ EOF
 }
 
 cmd_post() {
-  local inp="" steps=new engine=here partition=hpg-default account=bala1s qos=primary
+  local inp="" steps=new engine=here partition="$MACHINE_PARTITION" account="$MACHINE_ACCOUNT" qos=primary
   local walltime=00:30:00 mem=8gb debug=0 jobs=16
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -850,9 +889,9 @@ cmd_post() {
     echo "#!/bin/bash"
     echo "# Written by rocflu.sh post on $(date '+%Y-%m-%d %H:%M'): $case_name, steps $steps"
     echo "#SBATCH --job-name=$case_name-post"
-    echo "#SBATCH --account=$account"
-    echo "#SBATCH --qos=$slurm_qos"
-    echo "#SBATCH --partition=$partition"
+    [ -n "$account" ]   && echo "#SBATCH --account=$account"
+    [ -n "$slurm_qos" ] && echo "#SBATCH --qos=$slurm_qos"
+    [ -n "$partition" ] && echo "#SBATCH --partition=$partition"
     echo "#SBATCH --ntasks=1"
     echo "#SBATCH --mem=$mem"
     echo "#SBATCH --time=$walltime"
@@ -860,7 +899,7 @@ cmd_post() {
     echo
     [ -n "$ROCFLU_MODULES" ] && echo "module purge; module load $ROCFLU_MODULES"
     echo "cd $case_dir"
-    echo "srun --mpi=pmix -n 1 $bin/rflupost -c $case_name -s $steps -v 0"
+    echo "srun --mpi=$MACHINE_SRUN_MPI -n 1 $bin/rflupost -c $case_name -s $steps -v 0"
   } > "$script"
   command -v sbatch > /dev/null || fail "sbatch not found"
   local out
@@ -878,8 +917,8 @@ Options are passed on to run_tests.py:
                         ${DEFAULT}(default: all cases)${PLAIN}
   ${OPTION}-j, --jobs${PLAIN} N          run N cases at once ${DEFAULT}(default: 8)${PLAIN}
   ${OPTION}--account${PLAIN} A           Slurm account for the solver runs
-                        ${DEFAULT}(default: \$ROCPICL_TEST_ACCOUNT, else bala1s)${PLAIN}
-  ${OPTION}--partition${PLAIN} P         Slurm partition ${DEFAULT}(default: \$ROCPICL_TEST_PARTITION, else hpg-dev)${PLAIN}
+                        ${DEFAULT}(default: \$ROCPICL_TEST_ACCOUNT, else ${MACHINE_ACCOUNT:-none})${PLAIN}
+  ${OPTION}--partition${PLAIN} P         Slurm partition ${DEFAULT}(default: \$ROCPICL_TEST_PARTITION, else ${MACHINE_TEST_PARTITION:-none})${PLAIN}
   ${OPTION}--local-ranks${PLAIN} N       run cases with at most N ranks here with mpirun
                         ${DEFAULT}(default: 0, every case through srun)${PLAIN}
   ${OPTION}--generate${PLAIN}            rewrite the golden files ${DEFAULT}(default: compare to them)${PLAIN}
@@ -897,6 +936,9 @@ cmd_test() {
     [ -x "$BUILD_ROOT/bin/$exe" ] || fail "no $exe in build/bin ($(readlink "$BUILD_ROOT/bin" 2>/dev/null)): the last build had -t; build again with the same options and no -t"
   done
   load_modules || fail "could not load modules: $ROCFLU_MODULES"
+  export ROCPICL_TEST_ACCOUNT="${ROCPICL_TEST_ACCOUNT-$MACHINE_ACCOUNT}"
+  export ROCPICL_TEST_PARTITION="${ROCPICL_TEST_PARTITION-$MACHINE_TEST_PARTITION}"
+  export ROCPICL_TEST_SRUN_MPI="${ROCPICL_TEST_SRUN_MPI-$MACHINE_SRUN_MPI}"
   local sub=run
   if [ "$1" == "--list" ]; then sub=list; shift; fi
   cd "$ROOT/tests" || exit 1

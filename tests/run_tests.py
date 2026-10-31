@@ -81,7 +81,7 @@ def run_case(case, args):
     # physics: physics/cross-check failures (expected while known_issue is set)
     res = {"case": case, "errors": [], "physics": [], "final": None}
     slurm = {"account": args.account, "partition": args.partition,
-             "local_ranks": args.local_ranks}
+             "srun_mpi": args.srun_mpi, "local_ranks": args.local_ranks}
     try:
         # One retry from a clean set-up: a failed srun can leave partial
         # dumps that a rerun in the same directory would restart from
@@ -221,6 +221,8 @@ def main():
     p.add_argument("-j", "--jobs", type=int, default=8, help="cases run concurrently")
     p.add_argument("--account", default=os.environ.get("ROCPICL_TEST_ACCOUNT", "bala1s"))
     p.add_argument("--partition", default=os.environ.get("ROCPICL_TEST_PARTITION", "hpg-dev"))
+    p.add_argument("--srun-mpi", default=os.environ.get("ROCPICL_TEST_SRUN_MPI", "pmix"),
+                   help="srun --mpi plugin (default: $ROCPICL_TEST_SRUN_MPI, else pmix)")
     p.add_argument("--local-ranks", type=int, default=0,
                    help="run cases with at most this many ranks with mpirun on this node")
     p.add_argument("--keep", action="store_true", help="keep run directories of passing cases")

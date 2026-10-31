@@ -62,6 +62,9 @@ Pre-processing (`rflumap`, `rflupart`, `rfluinit`) runs serially where you launc
 script. The solver runs through `srun`:
 - From a login node, each case is its own short job (`-A bala1s -p hpg-dev`). Override
   with `--account`/`--partition` or `ROCPICL_TEST_ACCOUNT`/`ROCPICL_TEST_PARTITION`.
+  `srun` uses `--mpi=pmix`; `--srun-mpi` or `ROCPICL_TEST_SRUN_MPI` changes it.
+  `./rocflu.sh test` sets all three from the machine profile (on Dane: `-A ufl -p pdebug`,
+  `--mpi=pmi2`; see [Machines](../docs/GettingStarted.md#machines)).
   `-j 21` runs the whole suite in about 40 s when the partition is free.
 - Inside an allocation (`salloc`), cases run as job steps.
 - `--local-ranks N` runs cases with at most N ranks with `mpirun --bind-to none` where

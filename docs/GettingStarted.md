@@ -13,6 +13,7 @@ and tracked via capabilities brought over from ppiclF and locally developed.
   - [Build Directories](#build-directories)
   - [Build Output and Times](#build-output-and-times)
   - [Test, Clean and Load](#test-clean-and-load)
+  - [Machines](#machines)
   - [Using CMake Directly](#using-cmake-directly)
 - [Particle Slots](#particle-slots)
 - [Troubleshooting](#troubleshooting)
@@ -34,7 +35,7 @@ wraps CMake. You pick what to build (targets) and how to build it (flags) on one
 command line, and the script does the rest: it loads the modules, configures, compiles
 and keeps each configuration in its own directory.
 
-On HiPerGator:
+On HiPerGator or Dane (see [Machines](#machines) for others):
 
 ```bash
 ./rocflu.sh build        # optimised build of everything (about 30 s on 16 cores)
@@ -44,7 +45,8 @@ On HiPerGator:
 ```
 
 The executables are in `build/bin`. There is nothing to set up first: the script loads
-`gcc/14.2.0` and `openmpi/5.0.7` itself, and METIS is built from the copy in `3rd_party/`.
+the machine's modules itself (`gcc/14.2.0` and `openmpi/5.0.7` on HiPerGator), and METIS
+is built from the copy in `3rd_party/`.
 
 ### What Gets Built
 
@@ -175,15 +177,32 @@ source ./rocflu.sh load             # load the modules into your own shell
 executables yourself, outside the script, because they need the same compiler
 libraries they were built with.
 
-The modules the script loads can be changed with the environment variable
-`ROCFLU_MODULES`, for example `ROCFLU_MODULES="gcc/12.2.0 openmpi/4.1.6" ./rocflu.sh build`.
-`ROCFLU_MODULES=""` loads nothing (for machines without `module`, or when your shell
-is already set up).
-
 `./rocflu.sh --help` and `./rocflu.sh <command> --help` list every option with its
 default. On a terminal the help and the script's messages are coloured (options cyan,
 defaults yellow, errors red); in a log file or a pipe they are plain. Set `NO_COLOR=1` to
 turn the colours off.
+
+### Machines
+
+What differs between clusters is kept in a profile, `machines/<name>.sh`: the modules,
+the `srun --mpi` plugin and the Slurm defaults of `run`, `post` and `test`. The script
+picks the profile from the host name; `./rocflu.sh --machine <name> <command>` or
+`ROCFLU_MACHINE=<name>` picks another.
+
+| Profile | Host names | Modules | `srun --mpi` | Account | Partition (`run`, `test`) | QOS (`primary`, `burst`) |
+|---|---|---|---|---|---|---|
+| `hpg` | `*.ufhpc` | `gcc/14.2.0 openmpi/5.0.7` | `pmix` | `bala1s` | `hpg-default`, `hpg-dev` | `bala1s`, `bala1s-b` |
+| `dane` | `dane<N>` | `StdEnv cmake/3.30.5 gcc/13.3.1 openmpi/4.1.2` | `pmi2` | `ufl` | `pbatch`, `pdebug` | `normal`, none |
+| `local` | any other | none | `pmix` | none | none | none |
+
+Dane's `openmpi/4.1.2` is not built with Slurm's PMIx support, hence `pmi2`. Dane has
+no burst QOS: its `standby` jobs are cancelled as soon as a `normal` job needs the nodes.
+For a new cluster, copy a profile and add its host names to `detect_machine` in
+`rocflu.sh`.
+
+`ROCFLU_MODULES` overrides the profile's modules, for example
+`ROCFLU_MODULES="gcc/12.2.0 openmpi/4.1.6" ./rocflu.sh build`. `ROCFLU_MODULES=""` loads
+nothing (for machines without `module`, or when your shell is already set up).
 
 ### Using CMake Directly
 

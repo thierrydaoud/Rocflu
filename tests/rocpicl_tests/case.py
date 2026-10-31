@@ -206,10 +206,13 @@ def srun_prefix(nranks, timeout_min, slurm):
     Small cases (nranks <= slurm["local_ranks"]) run with mpirun on this node."""
     if nranks <= slurm.get("local_ranks", 0):
         return ["mpirun", "-np", str(nranks), "--bind-to", "none"]
-    cmd = ["srun", "-n", str(nranks), "--mpi=pmix"]
+    cmd = ["srun", "-n", str(nranks), "--mpi=" + slurm.get("srun_mpi", "pmix")]
     if not os.environ.get("SLURM_JOB_ID"):
-        cmd += ["-A", slurm["account"], "-p", slurm["partition"],
-                "-t", "00:%02d:00" % timeout_min, "--mem-per-cpu=2gb"]
+        if slurm["account"]:
+            cmd += ["-A", slurm["account"]]
+        if slurm["partition"]:
+            cmd += ["-p", slurm["partition"]]
+        cmd += ["-t", "00:%02d:00" % timeout_min, "--mem-per-cpu=2gb"]
     return cmd
 
 
