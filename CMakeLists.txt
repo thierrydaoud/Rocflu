@@ -40,14 +40,15 @@ foreach(lang C CXX Fortran)
   endforeach()
 endforeach()
 
+# -ffree-line-length-none: __FILE__ expands to the full path; gfortran < 14 truncates it
 set(DEBUG_FLAGS -g -O0 -fbacktrace -fcheck=all -ffpe-trap=invalid,zero,overflow)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(ROCFLU_Fortran_FLAGS ${DEBUG_FLAGS} -fallow-argument-mismatch)
+  set(ROCFLU_Fortran_FLAGS ${DEBUG_FLAGS} -fallow-argument-mismatch -ffree-line-length-none)
   set(PPICLF_Fortran_FLAGS -w -std=legacy -fmax-errors=10 -fallow-argument-mismatch ${DEBUG_FLAGS})
   set(ROCFLU_CXX_FLAGS -g)
   set(GSLIB_C_FLAGS -g -O0)
 else()
-  set(ROCFLU_Fortran_FLAGS -O -fallow-argument-mismatch)
+  set(ROCFLU_Fortran_FLAGS -O -fallow-argument-mismatch -ffree-line-length-none)
   # -fcheck=all costs about 2% and has caught real bugs, so it stays on.
   set(PPICLF_Fortran_FLAGS -w -O3 -std=legacy -g -fmax-errors=10
                            -fallow-argument-mismatch -fcheck=all -fbacktrace)
