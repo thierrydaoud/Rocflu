@@ -356,7 +356,7 @@ class Validator:
 
     # -- other sections and files -----------------------------------------------
 
-    def check_with_particles(self, sections):
+    def check_with_particles(self, sections, picl):
         body = sections.get("TIMESTEP", [])
         number, rk = simple_value(body, "RKSCHEME")
         rk = RK4 if rk is None else int(abs(rk) + 0.5)
@@ -372,6 +372,11 @@ class Validator:
         number, axi = simple_value(sections.get("NUMERICS", []), "AXIFLAG")
         self.prohibit(axi == 1, "axisymmetric runs (AXIFLAG 1) are not available "
                       "with particles", number)
+        number, dimens = simple_value(sections.get("NUMERICS", []), "DIMENS")
+        self.prohibit(dimens == 1, "particles need DIMENS 2 or 3", number)
+        self.prohibit(dimens == 2 and picl["PERIODICZ"] == 1,
+                      "PERIODICZ 1: z is inactive with DIMENS 2, its patches are "
+                      "# BC_VIRTUAL; set PERIODICZ 0", number)
 
         def present(name):
             return os.path.exists(os.path.join(self.case_dir, name))
@@ -439,7 +444,7 @@ class Validator:
     # -- points.dat -----------------------------------------------------------------
 
     def read_points(self):
-        """Particles of points.dat as [(line number, x, y, z, dp)], read as
+        """Particles of points.dat as [(line number, x, y, z, dp, vz)], read as
         PICL_InitSolver does: '!' comment lines at the top, the number of
         particles, then one line per particle: x y z vx vy vz dp."""
         name = "points.dat"
@@ -480,7 +485,7 @@ class Validator:
             elif values[6] <= 0:
                 bad.append((number, "diameter %g: must be > 0" % values[6]))
             else:
-                particles.append((number,) + tuple(values[:3]) + (values[6],))
+                particles.append((number,) + tuple(values[:3]) + (values[6], values[5]))
         for number, message in bad[:5]:
             self.prohibit(True, message, number, name)
         self.prohibit(len(bad) > 5, "... and %d more lines like these" % (len(bad) - 5),
@@ -517,16 +522,37 @@ class Validator:
     def check_points(self, sections):
         particles = self.read_points()
         box = self.grid_box(sections) if particles else None
+        _, dimens = simple_value(sections.get("NUMERICS", []), "DIMENS")
+        if dimens == 2:
+            self.check_points_2d(particles, box)
         if box is None:
             return
         outside = [p for p in particles
                    if any(not box[a][0] <= p[1 + a] <= box[a][1] for a in range(3))]
-        for number, x, y, z, dp in outside[:5]:
+        for number, x, y, z, dp, _ in outside[:5]:
             self.prohibit(True, "particle at (%g, %g, %g) is outside the fluid domain "
                           "x [%g, %g], y [%g, %g], z [%g, %g]" % (
                               (x, y, z) + box[0] + box[1] + box[2]), number, "points.dat")
         self.prohibit(len(outside) > 5, "... %d particles outside the fluid domain in all"
                       % len(outside), None, "points.dat")
+
+    def check_points_2d(self, particles, box):
+        """DIMENS 2: every particle on the mid-plane of the slab, at rest in z."""
+        moving = [p for p in particles if p[5] != 0.0]
+        for p in moving[:5]:
+            self.prohibit(True, "DIMENS 2: vz %g must be 0" % p[5], p[0], "points.dat")
+        self.prohibit(len(moving) > 5, "... %d particles with vz != 0 in all" % len(moving),
+                      None, "points.dat")
+        if box is None:
+            return
+        zmid = 0.5 * (box[2][0] + box[2][1])
+        tol = 1.0e-6 * (box[2][1] - box[2][0])
+        off = [p for p in particles if abs(p[3] - zmid) > tol]
+        for p in off[:5]:
+            self.prohibit(True, "DIMENS 2: particle z %.10g must be the mid-plane z = %.10g"
+                          % (p[3], zmid), p[0], "points.dat")
+        self.prohibit(len(off) > 5, "... %d particles off the mid-plane in all" % len(off),
+                      None, "points.dat")
 
     # -- the .bc file -----------------------------------------------------------------
 
@@ -727,6 +753,14 @@ class Validator:
         self.prohibit(missing, "no boundary condition for patch%s %s" % (
             "es" if len(missing) > 1 else "", ", ".join(str(p) for p in missing)), None, name)
 
+        # RFLU_123D_CheckTopology: virtual patches per dimension
+        number, dimens = simple_value(sections.get("NUMERICS", []), "DIMENS")
+        needed = {1: 4, 2: 2, 3: 0}.get(dimens)
+        nvirtual = sum(1 for _, section, _ in owner.values() if section == "BC_VIRTUAL")
+        self.prohibit(needed is not None and nvirtual != needed,
+                      "DIMENS %d needs %d # BC_VIRTUAL patches, %s has %d"
+                      % (dimens or 0, needed or 0, name, nvirtual), number)
+
         # Periodic patches come in pairs that point at each other
         for p, (line, section, given) in sorted(owner.items()):
             if section != "BC_PERIODIC" or "RELPATCH" not in given:
@@ -799,7 +833,7 @@ class Validator:
         self.check_bc(sections)
         picl = self.check_picl(sections)
         if picl is not None and picl["USED"] == 1:
-            self.check_with_particles(sections)
+            self.check_with_particles(sections, picl)
         return self.errors
 
 

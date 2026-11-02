@@ -61,7 +61,7 @@ accept more.
 | | `DISCR` | 0 central, 1 Roe, 2 MAPS, 3 HLLC, 4 AUSM+, 5 AUSM+up | flux scheme |
 | | `ORDER` | 1, 2 | order of accuracy in space |
 | | `ENTROPY` | | entropy correction (Roe) |
-| | `DIMENS` | 1, 2, 3 | dimension of the computation |
+| | `DIMENS` | 1, 2, 3 | dimension of the computation; particles need 2 or 3. `DIMENS 2`: one cell thick in z, the two z patches `BC_VIRTUAL`, `PERIODICZ 0`; every particle in `points.dat` on the mid-plane of the slab with `vz = 0` |
 | | `AXIFLAG` | 0, 1 | axisymmetric; **not available with particles** |
 | | `SIGMA`, `KP`, `KU`, `MINF` | | AUSM+up parameters (defaults 1.0, 0.25, 0.75, 0.1) |
 | | `RECONST` | 0 none, 1 WENO simple, 2 WENO XYZ, 10 Barth-Jespersen, 11 Venkatakrishnan | gradient reconstruction (limiter) |

@@ -173,7 +173,7 @@
 ! Input: 
 !
       INTEGER*4  imethod ! From rocpicl: 2 (Same RK3 as Rocflu)
-      INTEGER*4  ndim    ! From rocpicl: 3
+      INTEGER*4  ndim    ! From rocpicl: DIMENS (2 or 3)
       INTEGER*4  iendian ! From rocpicl: 0
       INTEGER*4  npart
       INTEGER*4  l
@@ -231,8 +231,8 @@
 !
       IF(imethod .EQ. 0 .OR. imethod .GE. 3 .OR. imethod .LE. -2)
      >   CALL ppiclf_exittr('Invalid integration method$',0.0d0,imethod)
-      IF(ndim .NE. 3) THEN
-        PRINT*, 'ERROR: Rocpicl is written for 3D grids.'
+      IF(ndim .NE. 2 .AND. ndim .NE. 3) THEN
+        PRINT*, 'ERROR: ppiclF runs in 2D (DIMENS 2) or 3D (DIMENS 3).'
         CALL ppiclf_exittr('Invalid problem dimension$',0.0d0,ndim)
       END IF
       IF(iendian .LT. 0 .OR. iendian .GT. 1)
@@ -487,9 +487,11 @@
                 ydistSQ = (ppiclf_cp_map(2,i)-ppiclf_cp_map(2,j))**2
                 IF (ydistSQ .GT. distSQ) CYCLE
                 dist_total = xdistSQ + ydistSQ
+                IF (ppiclf_ndim .EQ. 3) THEN
                 zdistSQ = (ppiclf_cp_map(3,i)-ppiclf_cp_map(3,j))**2
                 IF (zdistSQ .GT. distSQ) CYCLE
                 dist_total = dist_total+zdistSQ
+                END IF
                 IF (dist_total .GT. distSQ) CYCLE
                 CALL ppiclf_user_EvalNearestNeighbor(i,j
      >                                   ,ppiclf_cp_map(1,i)
@@ -1344,7 +1346,7 @@ c----------------------------------------------------------------------
                   IF (skip) CYCLE !i_count
                   dSQi    = 0.0
                   dNSQi   = 0.0D0
-                  DO l=1,3
+                  DO l=1,ppiclf_ndim
                     dSQl = dx(l)**2
                     dSQi = dSQi + dSQl
                     ! Offset in units of the cell length (projection)
@@ -1543,9 +1545,9 @@ c----------------------------------------------------------------------
 ! Cell c has weight prod_l (1 - (dx_l/rs_l)^2)^6, which vanishes at
 ! its support radius rs_l = 1.8 cell lengths, so cells enter and leave
 ! the stencil with zero weight and the interpolated value is
-! continuous in xp. The fit is exact for linear fields. Directions
-! where the stencil has no spread (one-cell-thick quasi-2D meshes) are
-! dropped from the fit. Each value is clamped to the stencil min/max.
+! continuous in xp. The fit is exact for linear fields. z in a 2D run
+! and directions where the stencil has no spread are dropped from the
+! fit. Each value is clamped to the stencil min/max.
 !
       IMPLICIT NONE
 !
@@ -1595,7 +1597,7 @@ c----------------------------------------------------------------------
           var(l) = var(l) + w(k)*(s(l,k) - sm(l))**2
         END DO
         var(l) = var(l)/wsum
-        IF (var(l) .GT. 1.0D-8) THEN
+        IF (l .LE. ppiclf_ndim .AND. var(l) .GT. 1.0D-8) THEN
           nc = nc + 1
           col(nc) = l
         END IF

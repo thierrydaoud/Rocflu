@@ -270,6 +270,28 @@ class CaseValidatorTest(unittest.TestCase):
                              "PATCH 3 3")
         self.assertError(self.bc_errors("PATCH      2 2", "PATCH      2 1"), "first <= last")
 
+    def test_dimens(self):
+        d2 = {("NUMERICS", "DIMENS"): 2, ("PICL", "PERIODICZ"): 0}
+        virtual = TEMPLATE_BC[:TEMPLATE_BC.index("# BC_PERIODIC\nPATCH    5 5")] + (
+            "# BC_VIRTUAL\nPATCH      5 6\nNAME       Z\n#\n\n# END\n")
+        # The patch grid is empty, so only the .bc side is checked here
+        self.assertEqual([e for e in self.errors(d2, bc=virtual, patches=[1] * 6)
+                          if "points.dat" not in e], [])
+        self.assertError(self.errors(d2, patches=[1] * 6), "DIMENS 2", "2 # BC_VIRTUAL")
+        self.assertError(self.errors({("NUMERICS", "DIMENS"): 3}, bc=virtual, patches=[1] * 6),
+                         "DIMENS 3", "0 # BC_VIRTUAL")
+        self.assertError(self.errors({("NUMERICS", "DIMENS"): 2, ("PICL", "PERIODICZ"): 1},
+                                     bc=virtual, patches=[1] * 6), "PERIODICZ 1", "DIMENS 2")
+        self.assertError(self.errors({("NUMERICS", "DIMENS"): 1}), "particles need DIMENS")
+        # Particles on the mid-plane, at rest in z
+        def points_errors(line):
+            errors = self.errors(d2, bc=virtual, points="! test\n1\n%s\n" % line, grid=(0.0, 1.0))
+            return [e for e in errors if "points.dat" in e]
+        self.assertEqual(points_errors("0.5 0.5 0.5 1.0 2.0 0 1e-4"), [])
+        self.assertEqual(points_errors("0.5 0.5 0.5000001 0 0 0 1e-4"), [])
+        self.assertError(points_errors("0.5 0.5 0.3 0 0 0 1e-4"), "DIMENS 2", "mid-plane z = 0.5")
+        self.assertError(points_errors("0.5 0.5 0.5 0 0 1.0 1e-4"), "DIMENS 2", "vz 1")
+
     def test_bc_keys(self):
         self.assertError(self.bc_errors("NSCBCK     0.0", "PRESSURE 1e5"),
                          "unknown key PRESSURE", "PRESS")

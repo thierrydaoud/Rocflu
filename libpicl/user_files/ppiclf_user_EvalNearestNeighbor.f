@@ -246,6 +246,7 @@
          ydist2 = abs(yi(PPICLF_JY)-yj(PPICLF_JY))
          if (ydist2 .gt. dist2) return
 
+         zdist2 = 0.0d0
          if (ppiclf_ndim .eq. 3) then
            zdist2 = abs(yi(PPICLF_JZ)-yj(PPICLF_JZ))
            if (zdist2 .gt. dist2) return
