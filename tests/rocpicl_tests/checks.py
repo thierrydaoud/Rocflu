@@ -592,6 +592,26 @@ def check_wall_collisions(init, final, case):
     return errors
 
 
+# A plane shock between slip walls stays uniform across y-z: the four particles'
+# feedback gives 2e-4, zeroed gradients near the walls gave 2e-2 (e7daa9b).
+PLANAR_RTOL = 2e-3
+
+
+def check_planar(init, final, case):
+    """Gas density and energy are uniform in each x-column of cells."""
+    dx = case.grid.lx / case.grid.nx
+    errors = []
+    for name, label in (("q1", "density"), ("q5", "energy")):
+        cols = {}
+        for region, gas in final["gas"].items():
+            for v, xc in zip(gas[name], final["_centroids"][region]):
+                cols.setdefault(int(round((xc[0] - case.grid.x0) / dx - 0.5)), []).append(v)
+        worst = max(((max(c) - min(c)) / max(abs(v) for v in c), i) for i, c in cols.items())
+        if worst[0] > PLANAR_RTOL:
+            errors.append("%s varies by %.2e across y-z in x-column %d" % ((label,) + worst))
+    return errors
+
+
 def check_fluctuations_active(init, final, case):
     """Every particle must feel a nonzero force fluctuation at the end; a zero
     noise amplitude (no neighbours, no velocity spread) would test nothing."""
@@ -617,4 +637,5 @@ PHYSICS = {
     "binary_collisions": check_binary_collisions,
     "wall_collisions": check_wall_collisions,
     "fluctuations_active": check_fluctuations_active,
+    "planar": check_planar,
 }

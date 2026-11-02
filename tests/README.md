@@ -25,7 +25,7 @@ on needs them (`ppiclf_user_Layout`), so cases without pressure-gradient, added-
 viscous-unsteady or rotational-collision models have no `dpdx_g` and similar fields. A
 field that is in a golden but no longer written fails the comparison.
 
-The 39 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
+The 42 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
 collisions, walls) and [gas only](#gas-only-cases) (the flow solver without particles).
 One [unit test](#unit-test) runs with them.
@@ -86,8 +86,8 @@ messages are shown next to the case.
 
 ### 3. Read the Result
 
-The script prints one line per case, a total (e.g. `40 PASS`) and a closing line
-(`✔ All 40 cases passed in 29 s`, or `✗ 2 of 40 cases failed`). On a terminal the statuses
+The script prints one line per case, a total (e.g. `43 PASS`) and a closing line
+(`✔ All 43 cases passed in 29 s`, or `✗ 2 of 43 cases failed`). On a terminal the statuses
 are coloured (PASS green, FAIL red, XFAIL yellow, XPASS cyan); `NO_COLOR=1` turns that off. See [Results](#results)
 for what each status means.
 
@@ -167,7 +167,8 @@ by particle.
 | `binary_collisions` | Colliding pairs (ids 2k−1, 2k) conserve momentum (1e-5) and angular momentum about their centre of mass (0.5%), and separate; head-on pairs rebound with the input `EREST` (within 1%) |
 | `fluctuations_active` | Every particle feels a nonzero quasi-steady force fluctuation at the end (`Ffluct_*`, written with `MODEL_WRT 1`), so the noise is really tested |
 | `wall_collisions` | Every particle that reaches a wall of the box rebounds from it and ends inside the box, clear of the wall; one that hits a single wall rebounds with the input `EREST` (within 0.035) |
-| `same_as` | Particles match the same case on a different number of ranks (all particle fields, or only those named by the case's `same_as_fields`) |
+| `planar` | Gas density and energy vary by less than 2e-3 across y-z in each x-column (a plane shock between slip walls) |
+| `same_as` | Particles match the referenced case, on a different number of ranks or with a different setting (all particle fields, or only those named by the case's `same_as_fields`) |
 
 The state a case is judged by (goldens, physics checks) comes from its dumps in
 `restart_data/` (`rocpicl_tests/state.py`), in the form of the old-style flow files: with
@@ -220,6 +221,9 @@ They run to 20 µs.
 | `shocktube/two-way/qs-parmar` | 2 | `QSFORCE 2` | `particles_moved` | Parmar drag |
 | `shocktube/two-way/qs-gidaspow` | 2 | `QSFORCE 1` | `particles_moved` | Gidaspow drag |
 
+| `shocktube/slip-walls/creconst0` | 2 | Slip walls on y and z, 40 × 8 × 8 cells, two-way, `PGFORCE 1`, `CRECONSTC 0` | `particles_moved`, `planar` | Unconstrained cell gradients next to slip walls |
+| `shocktube/slip-walls/creconst1` | 2 | Same with `CRECONSTC 1` | `particles_moved`, `planar`, `same_as` (`x`, `vp_x` of `creconst0`) | Constrained cell gradients keep the gradients of variables without a wall value (e7daa9b; they were zeroed: 5-21% in `vp_x`) |
+
 The force-model cases have no physics check beyond `particles_moved`. Their golden is
 what guards them: any change in the model's result shows up as a golden mismatch.
 
@@ -252,6 +256,7 @@ the flow solver's own conservation.
 | Case | Ranks | Setup | Checks | What it guards |
 |---|---|---|---|---|
 | `box/gas-jump/closed` | 2 | Slip walls, two regions | `mass`, `gas_energy` | Conservation across a region border |
+| `box/gas-jump/closed-creconst0` | 2 | Same with `CRECONSTC 0` | `mass`, `gas_energy` | The unconstrained cell-gradient path in a flow that pushes on the walls |
 | `box/gas-jump/periodic` | 1, 2 | Periodic on all faces | `mass`, `gas_energy` | Conservative fluxes across periodic faces (11dc640) |
 | `box/gas-jump/symmetry` | 1, 2 | Symmetry on all faces | `mass`, `gas_energy` | Conservative fluxes across symmetry faces (11dc640) |
 

@@ -122,6 +122,10 @@ def bc_text(kind):
     if kind == "shocktube":
         with open(os.path.join(TEMPLATES, CASENAME + ".bc")) as f:
             return f.read()
+    if kind == "shocktube-walls":
+        text = bc_text("shocktube")
+        return (text[:text.index("# BC_PERIODIC")]
+                + "# BC_SLIPW\nPATCH      3 6\nNAME       SideWalls\n#\n\n# END\n")
     if kind == "periodic":
         text = ""
         for axis, (lo, hi) in enumerate([(1, 2), (3, 4), (5, 6)], start=1):

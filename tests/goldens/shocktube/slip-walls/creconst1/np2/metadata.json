@@ -1,0 +1,11 @@
+{
+ "created": "2026-11-02T15:35:55",
+ "host": "login11.ufhpc",
+ "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocflu_creconst/build/install/release/bin",
+ "git": {
+  "commit": "e7daa9be3fc80e81ba28d1c1425142324d6baaa7",
+  "branch": "HEAD",
+  "modified_sources": []
+ },
+ "modules": "ufrc:tmux/3.5:gcc/14.2.0:openmpi/5.0.7"
+}
