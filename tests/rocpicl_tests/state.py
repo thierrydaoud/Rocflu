@@ -114,7 +114,7 @@ def snapshot(rundir, case, which=-1):
             gas[region]["phi"] = phi
         else:
             gas[region] = dict(zip(FLOW_NAMES, [list(a) for a in cv]))
-        if "projection_shape" in case.checks:
+        if any(c in case.checks for c in ("projection_shape", "planar")):
             centroids[region] = outputs.read_post_vtu(
                 os.path.join(rundir, "post", "p%d" % max(region - 1, 0), "%08d.vtu" % step),
                 centroids=True)

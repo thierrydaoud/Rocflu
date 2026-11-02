@@ -1799,6 +1799,15 @@ MODULE RFLU_ModPartitionRegion
 !   Determine number of cells for each type
 ! ******************************************************************************
     
+    pGrid%nTets = 0
+    pGrid%nHexs = 0
+    pGrid%nPris = 0
+    pGrid%nPyrs = 0
+    pGrid%nTetsTot = 0
+    pGrid%nHexsTot = 0
+    pGrid%nPrisTot = 0
+    pGrid%nPyrsTot = 0
+
     iReg = pRegion%iRegionGlobal        
     iBeg = pGridSerial%r2pcCSRInfo(iReg)
             

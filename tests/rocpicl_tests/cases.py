@@ -118,6 +118,24 @@ for force, opts in FORCES.items():
         # history of past steps and the NSCBC outflow must survive a restart
         restart_test=(force == "viscous-unsteady"))
 
+# -- Shock tube with slip side walls: constrained reconstruction --------------
+# 8 x 8 cells across, so nearly every cell is within the three layers next to a
+# wall where CRECONSTC 1 refits gradients. It used to zero the gradients of
+# variables without a Dirichlet face there (e7daa9b): 6-9% in the gas at the
+# shock and 5-21% in vp_x against CRECONSTC 0. vp_y, vp_z feel the wall-normal
+# velocity constraint, so only x and vp_x must match.
+SLIPWALL_TUBE = Grid(ly=0.008, lz=0.008, ny=8, nz=8)
+for cr in (0, 1):
+    add(name="shocktube/slip-walls/creconst%d/np2" % cr,
+        description="Shock over four particles between slip walls, PGFORCE 1, "
+                    "CRECONSTC %d; the shock must stay planar" % cr,
+        nranks=2, grid=SLIPWALL_TUBE, bc="shocktube-walls",
+        inp={**SHOCKTUBE, **TWO_WAY, ("PICL", "PGFORCE"): 1, ("PICL", "PERIODICY"): 0,
+             ("PICL", "PERIODICZ"): 0, ("NUMERICS", "CRECONSTC"): cr},
+        particles=FOUR_PARTICLES, checks=["particles_moved", "planar"],
+        same_as=None if cr == 0 else "shocktube/slip-walls/creconst0/np2",
+        same_as_fields=("x", "vp_x"))
+
 # -- Periodic box: gas moving through particles at rest -----------------------
 for n in (1, 2):
     add(name="box/momentum-exchange/np%d" % n,
@@ -392,6 +410,12 @@ add(name="box/gas-jump/closed/np2",
     description="Pressure/density jump in a slip-wall box across two regions; "
                 "mass and energy must be conserved to round-off",
     nranks=2, grid=BOX, bc="closed", inp={**uniform_gas(0.0), **JUMP},
+    checks=["mass", "gas_energy"])
+add(name="box/gas-jump/closed-creconst0/np2",
+    description="Same jump in the slip-wall box with CRECONSTC 0 (unconstrained "
+                "cell gradients)",
+    nranks=2, grid=BOX, bc="closed",
+    inp={**uniform_gas(0.0), **JUMP, ("NUMERICS", "CRECONSTC"): 0},
     checks=["mass", "gas_energy"])
 # Periodic virtual cells used to compute their own gradients, so the two sides
 # of a periodic face disagreed (mass/energy drift ~4e-5 in 100 us; 11dc640)

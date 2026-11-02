@@ -1242,15 +1242,9 @@ MODULE RFLU_ModDifferentiationCells
       icg = pGrid%icgConstr(icl)                   
 
 ! ==============================================================================
-!     Initialize gradients, set cofg, and allocate memory for constraint type
+!     Set cofg and allocate memory for constraint type
 ! ==============================================================================
 
-      DO iGrad = iBegGrad,iEndGrad
-        grad(XCOORD,iGrad,icg) = 0.0_RFREAL
-        grad(YCOORD,iGrad,icg) = 0.0_RFREAL
-        grad(ZCOORD,iGrad,icg) = 0.0_RFREAL
-      END DO ! iGrad
-          
       cofg(XCOORD) = pGrid%cofg(XCOORD,icg)
       cofg(YCOORD) = pGrid%cofg(YCOORD,icg)
       cofg(ZCOORD) = pGrid%cofg(ZCOORD,icg)            
@@ -1292,10 +1286,7 @@ MODULE RFLU_ModDifferentiationCells
           
 ! ------------------------------------------------------------------------------
 !       Gradients constrained by Dirichlet boundary conditions. Treated as 
-!       soft constraints. NOTE do not need to treat case of unconstrained
-!       gradients here because they should already have been computed. If 
-!       they have not been computed at this stage, they will be set to zero
-!       by initialization above.
+!       soft constraints. Unconstrained gradients keep their least-squares value.
 ! ------------------------------------------------------------------------------      
         
         IF ( nConstr > 0 ) THEN
