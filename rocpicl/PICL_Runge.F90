@@ -663,7 +663,7 @@ IF(global%piclFeedbackFlag == 1) THEN
                                 -JAlphaPTCell(9,:)*pRegion%mixt%piclgradTg(ZCOORD,1,:nCells)
 
            ! Qsg : Subgrid Energy Flux dimension (3, nCells)
-           ! Qsg = rhog*Cp*PTHF + rhog/2*Tsg + ug \cdot Rsg
+           ! Qsg = rhog*Cp*PTHF + rhog*Tsg + ug \cdot Rsg
            ! PTHF = -alpha(9,ncells) \cdot grad(T_g)
            ! Note: Coefficient at constant pressure (Cp) here is set to the usual constant value
            !       and this is only valid for GASMODEL 1 (TCPERF).
@@ -674,15 +674,15 @@ IF(global%piclFeedbackFlag == 1) THEN
           Cp = 1004.64_RFREAL
            
          Qsg(XCOORD,:) = rhog(:)*Cp*JPTHFCell(XCOORD,:) & 
-                       + rhog(:)/2.0_RFREAL * JTSGCell(XCOORD,:)   &
+                       + rhog(:)*JTSGCell(XCOORD,:)   &
             + (JRSGCell(1,:)*ugas(XCOORD,:) + JRSGCell(2,:)*ugas(YCOORD,:) + JRSGCell(3,:)*ugas(ZCOORD,:))
 
          Qsg(YCOORD,:) = rhog(:)*Cp*JPTHFCell(YCOORD,:) &
-                       + rhog(:)/2.0_RFREAL * JTSGCell(YCOORD,:)   & 
+                       + rhog(:)*JTSGCell(YCOORD,:)   & 
             + (JRSGCell(4,:)*ugas(XCOORD,:) + JRSGCell(5,:)*ugas(YCOORD,:) + JRSGCell(6,:)*ugas(ZCOORD,:))
 
          Qsg(ZCOORD,:) = rhog(:)*Cp*JPTHFCell(ZCOORD,:) & 
-                       + rhog(:)/2.0_RFREAL * JTSGCell(ZCOORD,:)   &
+                       + rhog(:)*JTSGCell(ZCOORD,:)   &
             + (JRSGCell(7,:)*ugas(XCOORD,:) + JRSGCell(8,:)*ugas(YCOORD,:) + JRSGCell(9,:)*ugas(ZCOORD,:))
 
 
