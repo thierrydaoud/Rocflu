@@ -59,7 +59,7 @@ PICL_FLAGS = {
     "HEATTRANSFER": (0, 5),         # none, Stokes, Ranz-Marshall, Gunn, Fox, Sun
     "DU HEATTRANSFER": (0, 1),
     "FEEDBACK": (0, 1),
-    "PSEUDOTURB": (0, 2),           # none, Rsg, Rsg + Qsg
+    "PSEUDOTURB": (0, 2),           # none, Rsg (and u.Rsg), Rsg + Qsg
     "SUBBIN": (0, 1),
     "PERIODICX": (0, 1), "PERIODICY": (0, 1), "PERIODICZ": (0, 1),
     "PARTICLE_WRT": (0, 1), "GAS_WRT": (0, 1), "GRADGAS_WRT": (0, 1),

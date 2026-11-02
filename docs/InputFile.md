@@ -114,7 +114,7 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 | `HEATTRANSFER` | 0-5 | 0 | quasi-steady heat transfer (Nusselt number): 1 Stokes, 2 Ranz-Marshall, 3 Gunn, 4 Fox, 5 Sun |
 | `DU HEATTRANSFER` | 0, 1 | 0 | diffusive-unsteady heat transfer (computed with the viscous-unsteady history) |
 | `FEEDBACK` | 0, 1 | 0 | two-way coupling: the particles' forces and heat act on the gas |
-| `PSEUDOTURB` | 0, 1, 2 | 0 | pseudo-turbulence model, the subgrid terms the particles induce in the gas: 1 Reynolds stress and kinetic energy (momentum, EOS); 2 also the heat flux (energy equation) |
+| `PSEUDOTURB` | 0, 1, 2 | 0 | pseudo-turbulence model, the subgrid terms the particles induce in the gas: 1 Reynolds stress and kinetic energy (momentum, EOS, and the work of the stress in the energy equation); 2 also the heat flux and the triple velocity correlation (energy equation) |
 | `TEMP` | > 0 | 0 | initial temperature of every particle [K]; **required** |
 | `DENSITY` | > 0 | 0 | density of every particle [kg/m³]; **required** |
 | `SPECIFICHEAT` | > 0 | 0 | specific heat of every particle [J/(kg K)]; **required** |

@@ -129,7 +129,7 @@ TYPE(t_grid), POINTER :: pGrid
   INTEGER :: errorFlag,icg      
   REAL(KIND=8) :: piclDtMin,piclCurrentTime, &
                   temp_dudtMixt, temp_dvdtMixt, temp_dwdtMixt, energydotg, &
-                  dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz, vFrac, Cp
+                  dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz, vFrac
 
   REAL(KIND=8), DIMENSION(3) :: ug      
   REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: rhoF, uxF, uyF, uzF, csF, tpF, vfP, &
@@ -143,7 +143,7 @@ TYPE(t_grid), POINTER :: pGrid
 !---------------------------------------------------------------  
 ! Below added for pseudo turbulence
   INTEGER(KIND=4) :: j
-  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: rhog, DivPhiQsg
+  REAL(KIND=8), DIMENSION(:), ALLOCATABLE :: rhog, cpg, DivPhiQsg
 
   REAL(KIND=8), DIMENSION(:,:), ALLOCATABLE :: JRSGCell, JTSGCell, JAlphaPTCell, JPTHFCell, &
                                                DivPhiRSG, ugas, Qsg
@@ -218,7 +218,7 @@ TYPE(t_grid), POINTER :: pGrid
 ! Maybe add if statement to only allocate if PseudoTurbulence is used
     ALLOCATE(JRSGCell(9,nCells), JTSGCell(3,nCells), JAlphaPTCell(9,nCells), &
              JPTHFCell(3,nCells), DivPhiRsg(3,nCells), rhog(nCells), ugas(3,nCells), &
-             Qsg(3,nCells), DivPhiQsg(nCells) &
+             Qsg(3,nCells), DivPhiQsg(nCells), cpg(nCells) &
             ,STAT=errorFlag)
     global%error = errorFlag
     IF ( global%error /= ERR_NONE ) THEN
@@ -665,23 +665,20 @@ IF(global%piclFeedbackFlag == 1) THEN
            ! Qsg : Subgrid Energy Flux dimension (3, nCells)
            ! Qsg = rhog*Cp*PTHF + rhog*Tsg + ug \cdot Rsg
            ! PTHF = -alpha(9,ncells) \cdot grad(T_g)
-           ! Note: Coefficient at constant pressure (Cp) here is set to the usual constant value
-           !       and this is only valid for GASMODEL 1 (TCPERF).
-           !       If GASMODEL 3 (MIXT_TCPERF) or GASMODEL 7 (SPECIES) are activated, then Cp needs to be
-           !       evaluated for each cell such as below
-           ! Cp = pRegion%mixt%gv(GV_MIXT_CP,pRegion%mixtInput%indCp*icell)
-           
-          Cp = 1004.64_RFREAL
-           
-         Qsg(XCOORD,:) = rhog(:)*Cp*JPTHFCell(XCOORD,:) & 
+         ! Cp from the gas model (constant or per cell)
+         DO i = 1,nCells
+           cpg(i) = pRegion%mixt%gv(GV_MIXT_CP,pRegion%mixtInput%indCp*i)
+         END DO
+
+         Qsg(XCOORD,:) = rhog(:)*cpg(:)*JPTHFCell(XCOORD,:) & 
                        + rhog(:)*JTSGCell(XCOORD,:)   &
             + (JRSGCell(1,:)*ugas(XCOORD,:) + JRSGCell(2,:)*ugas(YCOORD,:) + JRSGCell(3,:)*ugas(ZCOORD,:))
 
-         Qsg(YCOORD,:) = rhog(:)*Cp*JPTHFCell(YCOORD,:) &
+         Qsg(YCOORD,:) = rhog(:)*cpg(:)*JPTHFCell(YCOORD,:) &
                        + rhog(:)*JTSGCell(YCOORD,:)   & 
             + (JRSGCell(4,:)*ugas(XCOORD,:) + JRSGCell(5,:)*ugas(YCOORD,:) + JRSGCell(6,:)*ugas(ZCOORD,:))
 
-         Qsg(ZCOORD,:) = rhog(:)*Cp*JPTHFCell(ZCOORD,:) & 
+         Qsg(ZCOORD,:) = rhog(:)*cpg(:)*JPTHFCell(ZCOORD,:) & 
                        + rhog(:)*JTSGCell(ZCOORD,:)   &
             + (JRSGCell(7,:)*ugas(XCOORD,:) + JRSGCell(8,:)*ugas(YCOORD,:) + JRSGCell(9,:)*ugas(ZCOORD,:))
 
@@ -757,20 +754,6 @@ IF(global%piclFeedbackFlag == 1) THEN
         CALL ErrorStop(global,ERR_INVALID_VALUE ,__LINE__,'PPICLF:Broken QSG')
 endif
 
-!         SELECT CASE(global%piclPseudoTurbFlag)
-!         CASE(1)
-!            DivPhiQsg(i) = 0.0d0
-!         CASE(2)
-!
-!         CASE DEFAULT
-!           CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
-!          END SELECT ! piclPseudoTurbFlag
-                      
-
-         if(global%piclPseudoTurbFlag .eq. 1) then
-           DivPhiQsg(i) = 0.0d0
-         endif
-
          ! Feedback Div(phi Rsg) to the Fluid Momentum Equations
          pRegion%mixt%rhs(CV_MIXT_XMOM,i) &
                           = pRegion%mixt%rhs(CV_MIXT_XMOM,i) &
@@ -830,7 +813,7 @@ END DO
     END IF ! global%error
 !---------------------------------------------------------------  
     DEALLOCATE(JRSGCell, JTSGCell, JAlphaPTCell, JPTHFCell, &
-               DivPhiRSG, rhog, ugas, Qsg, DivPhiQsg &
+               DivPhiRSG, rhog, ugas, Qsg, DivPhiQsg, cpg &
                ,STAT=errorFlag)
 
     global%error = errorFlag
