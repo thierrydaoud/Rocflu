@@ -94,6 +94,7 @@ SUBROUTINE PICL_Runge(pRegion)
 #ifdef PICL
 USE RFLU_ModConvertCv, ONLY: RFLU_ConvertCvCons2Prim, &
                              RFLU_ConvertCvPrim2Cons
+USE PICL_ModGradients, ONLY: PICL_ComputeGradCells, PICL_CONSTR_NONE
 
  USE ModInterfaces, ONLY: RFLU_DecideWrite !BRAD added for picl
  
@@ -148,9 +149,6 @@ TYPE(t_grid), POINTER :: pGrid
                                                DivPhiRSG, ugas, Qsg
   !---------------------------------------------------------------  
   
-  ! TLJ - added for Feedback term - 04/01/2025
-  INTEGER, DIMENSION(:), ALLOCATABLE :: varInfoPicl
-  INTEGER, DIMENSION(:), POINTER :: piclcvInfo
     REAL(KIND=8) :: dodx, dody, dodz,     &
                   omgx, omgy, omgz,     &
                   divu,                 &
@@ -246,30 +244,9 @@ pGc => pRegion%mixt%gradCell
        pregion%mixt%piclFeedback(3,i) = JFZCell(i)
     END DO
     ! Now calculate the gradient of the feedback force
-    ALLOCATE(varInfoPicl(3), piclcvInfo(3), STAT=errorFlag)
-    global%error = errorFlag
-    IF(global%error /= ERR_NONE ) THEN
-      CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'PPICLF:xGrid')
-    END IF ! global%error
-
-    varInfoPicl(1) = 1
-    varInfoPicl(2) = 2
-    varInfoPicl(3) = 3
-    piclcvInfo = varInfoPicl
-    CALL RFLU_ComputeGradCellsWrapper(pRegion,1,3,1,3,varInfoPicl, &
-                                      pRegion%mixt%piclFeedback,&
-                                      pRegion%mixt%piclgradFeedback)
-    CALL RFLU_WENOGradCellsXYZWrapper(pRegion,1,3, &
-                                      pRegion%mixt%piclgradFeedback)
-    CALL RFLU_LimitGradCellsSimple(pRegion,1,3,1,3, &
-                                   pRegion%mixt%piclFeedback,&
-                                   piclcvInfo,&
-                                   pRegion%mixt%piclgradFeedback)
-    DEALLOCATE(varInfoPicl, piclcvInfo, STAT=errorFlag)
-    global%error = errorFlag
-    IF(global%error /= ERR_NONE ) THEN
-      CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'PPICLF:xGrid')
-    END IF ! global%error
+    CALL PICL_ComputeGradCells(pRegion,1,3,pRegion%mixt%piclFeedback, &
+                               pRegion%mixt%piclgradFeedback,PICL_CONSTR_NONE, &
+                               .TRUE.,.FALSE.)
 
   ! END - TLJ calculating gradient of feedback force
 
@@ -662,35 +639,14 @@ IF(global%piclFeedbackFlag == 1) THEN
 
        if(global%piclPseudoTurbFlag .gt. 0) then
 
-         ALLOCATE(varInfoPicl(9), piclcvInfo(9), STAT=errorFlag)
-         varInfoPicl = [(j, j=1, 9)]
-         piclcvInfo = varInfoPicl
-!
-         CALL RFLU_ComputeGradCellsWrapper(pRegion,1,9,1,9,varInfoPicl, &   
-                                           pRegion%mixt%piclPhiRsg,&                
-                                           pRegion%mixt%piclGradPhiRsg)       
-                                                                           
-         CALL RFLU_WENOGradCellsXYZWrapper(pRegion,1,9, &                   
-                                           pRegion%mixt%piclGradPhiRsg)       
-                                                                           
-         ! Limiters are usually designed for scalars, not tensors
-         ! and can break symmetry and distort anisotropy
-         ! I need to do a comparative run between turning on and off
-         CALL RFLU_LimitGradCellsSimple(pRegion,1,9,1,9, &                  
-                                        pRegion%mixt%piclPhiRsg,&                   
-                                        piclcvInfo,&                        
-                                        pRegion%mixt%piclGradPhiRsg) 
+         ! WENO would flatten the gradients at fronts
+         CALL PICL_ComputeGradCells(pRegion,1,9,pRegion%mixt%piclPhiRsg, &
+                                    pRegion%mixt%piclGradPhiRsg,PICL_CONSTR_NONE, &
+                                    .FALSE.,.FALSE.)
 
-         DEALLOCATE(varInfoPicl, piclcvInfo, STAT=errorFlag)
-
-         ALLOCATE(varInfoPicl(3), STAT=errorFlag)
-         varInfoPicl = [(j, j=1, 3)]
-
-         ! Gradient of T_g: least squares only, no WENO or limiter
-         CALL RFLU_ComputeGradCellsWrapper(pRegion,DV_MIXT_TEMP,DV_MIXT_TEMP, &
-                                           1,1,varInfoPicl, pRegion%mixt%dv,&                
-                                           pRegion%mixt%piclgradTg)       
-         DEALLOCATE(varInfoPicl, STAT=errorFlag)
+         CALL PICL_ComputeGradCells(pRegion,DV_MIXT_TEMP,DV_MIXT_TEMP,pRegion%mixt%dv, &
+                                    pRegion%mixt%piclgradTg,V_MIXT_TEMP, &
+                                    .FALSE.,.FALSE.)
 
 
 !         ! PTHF = -alpha_PT \cdot grad(T_g)
@@ -740,24 +696,9 @@ IF(global%piclFeedbackFlag == 1) THEN
              CALL ErrorStop(global,ERR_INVALID_VALUE,__LINE__,'PPICLF:Broken PhiQSG')
            END IF
 
-         ALLOCATE(varInfoPicl(3), piclcvInfo(3), STAT=errorFlag)
-         varInfoPicl = [(j, j=1, 3)]
-         piclcvInfo = varInfoPicl
-         ! Calculat Gradient of Q_sg (Subgrid Energy Flux)
-
-         CALL RFLU_ComputeGradCellsWrapper(pRegion,1,3,1,3,varInfoPicl, &   
-                                           pRegion%mixt%piclPhiQsg,&                
-                                           pRegion%mixt%piclGradPhiQsg)       
-                                                                           
-         CALL RFLU_WENOGradCellsXYZWrapper(pRegion,1,3, &                   
-                                           pRegion%mixt%piclGradPhiQsg)       
-                                                                           
-         CALL RFLU_LimitGradCellsSimple(pRegion,1,3,1,3, &                  
-                                        pRegion%mixt%piclPhiQsg,&                   
-                                        piclcvInfo,&                        
-                                        pRegion%mixt%piclGradPhiQsg)          
-
-         DEALLOCATE(varInfoPicl, piclcvInfo, STAT=errorFlag)
+         CALL PICL_ComputeGradCells(pRegion,1,3,pRegion%mixt%piclPhiQsg, &
+                                    pRegion%mixt%piclGradPhiQsg,PICL_CONSTR_NONE, &
+                                    .FALSE.,.FALSE.)
 !
 !
 !!       ! Now compute Div(\phi_g R_sg)
