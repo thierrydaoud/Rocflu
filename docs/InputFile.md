@@ -102,7 +102,7 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 | `VELOCITYMODEL` | 0, 1 | 1 | 1: particles move under the forces. 0: they keep their position, velocity, temperature and spin; the forces are still computed, so with `FEEDBACK 1` the gas still feels them (a fixed bed) |
 | `QSFORCE` | 0-3 | 0 | quasi-steady drag: 0 none, 1 Gidaspow, 2 Parmar, 3 Osnes |
 | `QSFLUCT` | 0-2 | 0 | fluctuation of the quasi-steady force: 0 none, 1 Lattanzi, 2 Osnes |
-| `QSFLUCTFILT` | 0, 1 | 0 | filter for the fluctuation: 0 box, 1 Gaussian |
+| `QSFLUCTFILT` | 0, 1 | 0 | filter for the fluctuation: 0 box, 1 Gaussian (**not validated, rejected**) |
 | `QSFLUCTFILTADAPT` | 0, 1 | 0 | adaptive filter width |
 | `AMFORCE` | 0-2 | 0 | added mass: 0 none, 1 Parmar, 2 Briney (binary; **not validated, rejected**) |
 | `PGFORCE` | 0, 1 | 0 | pressure-gradient (undisturbed-flow) force |
@@ -144,6 +144,7 @@ With `USED 1`, these combinations are rejected:
 | `DU HEATTRANSFER 1` | `VISCOUSUNSTEADY ≥ 1` | they share the history |
 | `COLLISIONS ≥ 1` | `VELOCITYMODEL 1` | particles that keep their position cannot collide |
 | `AMFORCE 2` | | not validated yet |
+| `QSFLUCTFILT 1` | `QSFLUCT ≥ 1` | not validated yet |
 
 Other sections, with `USED 1`: `RKSCHEME 2` in `# TIMESTEP`, `VISCOSITY` in
 `# VISCMODEL`, no `AXIFLAG 1` in `# NUMERICS`.

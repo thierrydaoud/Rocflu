@@ -352,6 +352,9 @@ class Validator:
         self.prohibit(v["AMFORCE"] == 2,
                       "AMFORCE 2 (Briney added mass) is not validated yet",
                       line.get("AMFORCE"))
+        self.prohibit(v["QSFLUCT"] >= 1 and v["QSFLUCTFILT"] == 1,
+                      "QSFLUCTFILT 1 (Gaussian filter for the fluctuation) is not "
+                      "validated yet: use QSFLUCTFILT 0", line.get("QSFLUCTFILT"))
         return v
 
     # -- other sections and files -----------------------------------------------
@@ -603,6 +606,101 @@ class Validator:
                     if ends[p] == (ends[p - 1] if p > 0 else (0, 0)))
         return npatches - empty, empty
 
+    def grid_z_and_patches(self):
+        """(z of every vertex, {patch number as Rocflu uses it: vertex ids}) of a
+        complete CENTAUR ASCII grid, or None. After the patch rows come one name
+        per patch, then the boundary triangles and quadrilaterals (count, then
+        one block per corner, ten per line)."""
+        grid = os.path.splitext(self.inp)[0] + ".hyb.asc"
+        if not os.path.exists(grid):
+            return None
+
+        def rows(n, per_line):
+            return (n + per_line - 1) // per_line
+
+        def ints(f, n):
+            values = []
+            for _ in range(rows(n, 10)):
+                line = f.readline().rstrip("\n")
+                values += [int(line[i:i + 16]) for i in range(0, len(line), 16)
+                           if line[i:i + 16].strip()]
+            return values
+
+        try:
+            with open(grid) as f:
+                f.readline()
+                nvert = int(f.readline())
+                z = []
+                for axis in range(3):
+                    z = []
+                    for _ in range(rows(nvert, 5)):
+                        line = f.readline().rstrip("\n")
+                        z += [float(line[i:i + 16]) for i in range(0, len(line), 16)
+                              if line[i:i + 16].strip()]
+                ints(f, nvert)
+                for nodes in (4, 8, 6, 5):
+                    ncells = int(f.readline())
+                    for _ in range((nodes + 1) if ncells > 0 else 0):
+                        ints(f, ncells)
+                npatches = int(f.readline())
+                ints(f, npatches)
+                last_tri, last_quad = ints(f, npatches), ints(f, npatches)
+                for _ in range(npatches):
+                    f.readline()
+                nodes_of = []
+                for corners, last in ((3, last_tri), (4, last_quad)):
+                    nfaces = int(f.readline())
+                    block = [ints(f, nfaces) for _ in range(corners)] if nfaces > 0 else []
+                    nodes_of.append((block, last))
+        except (OSError, ValueError, IndexError):
+            return None
+        if len(z) != nvert or len(last_quad) != npatches:
+            return None
+        vertices = {}
+        number = 0
+        for p in range(npatches):
+            faces = []
+            for block, last in nodes_of:
+                first = last[p - 1] if p > 0 else 0
+                faces += [v for corner in block for v in corner[first:last[p]]]
+            if faces:  # Rocflu removes the patches without faces and renumbers
+                number += 1
+                vertices[number] = set(faces)
+        return z, vertices
+
+    def check_dimens(self, sections, owner, name):
+        """DIMENS against the patches and the grid (RFLU_123D_CheckTopology and
+        CheckGeometry stop on these only after the pre-processing)."""
+        number, dimens = simple_value(sections.get("NUMERICS", []), "DIMENS")
+        dimens = 3 if dimens is None else dimens  # Rocflu's default
+        needed = {1: 4, 2: 2, 3: 0}.get(dimens)
+        virtual = [p for p, (_, section, _) in owner.items() if section == "BC_VIRTUAL"]
+        self.prohibit(needed is not None and len(virtual) != needed,
+                      "DIMENS %d needs %d # BC_VIRTUAL patches, %s has %d"
+                      % (dimens, needed or 0, name, len(virtual)), number)
+        grid = self.grid_z_and_patches()
+        if grid is None:
+            return
+        z, patch_vertices = grid
+        zmin, zmax = min(z), max(z)
+        tol = 1.0e-6 * (zmax - zmin)
+        one_layer = all(abs(v - zmin) <= tol or abs(v - zmax) <= tol for v in z)
+        self.prohibit(dimens == 2 and not one_layer,
+                      "DIMENS 2 needs a mesh one cell thick in z; this one has vertices "
+                      "between z = %g and %g" % (zmin, zmax), number)
+        self.prohibit(dimens == 3 and one_layer,
+                      "the mesh is one cell thick in z, which DIMENS 3 cannot solve: set "
+                      "DIMENS 2 with # BC_VIRTUAL z patches", number)
+        if dimens != 2:
+            return
+        for p in sorted(virtual):
+            spread = [z[v - 1] for v in patch_vertices.get(p, [])]
+            self.prohibit(spread and max(spread) - min(spread) > tol,
+                          "patch %d: DIMENS 2 needs its # BC_VIRTUAL patches to be the z "
+                          "faces, but this patch spans z = %g to %g" % (
+                              p, min(spread or [0]), max(spread or [0])),
+                          owner[p][0], name)
+
     def read_bc_section(self, section, header, body, name):
         """Keys of one section ({key: (line, value)}), with every line Rocflu
         would ignore, misread or stop on reported. Rocflu (ReadPatchSection)
@@ -753,13 +851,7 @@ class Validator:
         self.prohibit(missing, "no boundary condition for patch%s %s" % (
             "es" if len(missing) > 1 else "", ", ".join(str(p) for p in missing)), None, name)
 
-        # RFLU_123D_CheckTopology: virtual patches per dimension
-        number, dimens = simple_value(sections.get("NUMERICS", []), "DIMENS")
-        needed = {1: 4, 2: 2, 3: 0}.get(dimens)
-        nvirtual = sum(1 for _, section, _ in owner.values() if section == "BC_VIRTUAL")
-        self.prohibit(needed is not None and nvirtual != needed,
-                      "DIMENS %d needs %d # BC_VIRTUAL patches, %s has %d"
-                      % (dimens or 0, needed or 0, name, nvirtual), number)
+        self.check_dimens(sections, owner, name)
 
         # Periodic patches come in pairs that point at each other
         for p, (line, section, given) in sorted(owner.items()):
