@@ -683,39 +683,32 @@ IF(global%piclFeedbackFlag == 1) THEN
 
          DEALLOCATE(varInfoPicl, piclcvInfo, STAT=errorFlag)
 
-         ALLOCATE(varInfoPicl(3), piclcvInfo(3), STAT=errorFlag)
+         ALLOCATE(varInfoPicl(3), STAT=errorFlag)
          varInfoPicl = [(j, j=1, 3)]
-         piclcvInfo = varInfoPicl
 
-         ! Calculate Gradient of T_g (Gas Temperature)
+         ! Gradient of T_g: least squares only, no WENO or limiter
          CALL RFLU_ComputeGradCellsWrapper(pRegion,DV_MIXT_TEMP,DV_MIXT_TEMP, &
                                            1,1,varInfoPicl, pRegion%mixt%dv,&                
                                            pRegion%mixt%piclgradTg)       
-                                                                           
-         CALL RFLU_WENOGradCellsXYZWrapper(pRegion,1,1,pRegion%mixt%piclgradTg)       
-                                                                           
-         CALL RFLU_LimitGradCellsSimple(pRegion,DV_MIXT_TEMP,DV_MIXT_TEMP,1,1, &                  
-                                        pRegion%mixt%dv, piclcvInfo, &                        
-                                        pRegion%mixt%piclgradTg)          
-         DEALLOCATE(varInfoPicl, piclcvInfo, STAT=errorFlag)
+         DEALLOCATE(varInfoPicl, STAT=errorFlag)
 
 
-!         ! PTHF = alpha_PT \cdot grad(T_g)
-          JPTHFCell(XCOORD,:) =  JAlphaPTCell(1,:)*pRegion%mixt%piclgradTg(XCOORD,1,:nCells) & 
-                                +JAlphaPTCell(2,:)*pRegion%mixt%piclgradTg(YCOORD,1,:nCells) &
-                                +JAlphaPTCell(3,:)*pRegion%mixt%piclgradTg(ZCOORD,1,:nCells)
+!         ! PTHF = -alpha_PT \cdot grad(T_g)
+          JPTHFCell(XCOORD,:) = -JAlphaPTCell(1,:)*pRegion%mixt%piclgradTg(XCOORD,1,:nCells) & 
+                                -JAlphaPTCell(2,:)*pRegion%mixt%piclgradTg(YCOORD,1,:nCells) &
+                                -JAlphaPTCell(3,:)*pRegion%mixt%piclgradTg(ZCOORD,1,:nCells)
 
-          JPTHFCell(YCOORD,:) =  JAlphaPTCell(4,:)*pRegion%mixt%piclgradTg(XCOORD,1,:nCells) & 
-                                +JAlphaPTCell(5,:)*pRegion%mixt%piclgradTg(YCOORD,1,:nCells) &
-                                +JAlphaPTCell(6,:)*pRegion%mixt%piclgradTg(ZCOORD,1,:nCells)
+          JPTHFCell(YCOORD,:) = -JAlphaPTCell(4,:)*pRegion%mixt%piclgradTg(XCOORD,1,:nCells) & 
+                                -JAlphaPTCell(5,:)*pRegion%mixt%piclgradTg(YCOORD,1,:nCells) &
+                                -JAlphaPTCell(6,:)*pRegion%mixt%piclgradTg(ZCOORD,1,:nCells)
 
-          JPTHFCell(ZCOORD,:) =  JAlphaPTCell(7,:)*pRegion%mixt%piclgradTg(XCOORD,1,:nCells) & 
-                                +JAlphaPTCell(8,:)*pRegion%mixt%piclgradTg(YCOORD,1,:nCells) &
-                                +JAlphaPTCell(9,:)*pRegion%mixt%piclgradTg(ZCOORD,1,:nCells)
+          JPTHFCell(ZCOORD,:) = -JAlphaPTCell(7,:)*pRegion%mixt%piclgradTg(XCOORD,1,:nCells) & 
+                                -JAlphaPTCell(8,:)*pRegion%mixt%piclgradTg(YCOORD,1,:nCells) &
+                                -JAlphaPTCell(9,:)*pRegion%mixt%piclgradTg(ZCOORD,1,:nCells)
 
            ! Qsg : Subgrid Energy Flux dimension (3, nCells)
            ! Qsg = rhog*Cp*PTHF + rhog/2*Tsg + ug \cdot Rsg
-           ! PTHF = alpha(9,ncells) \cdot grad(T_g)
+           ! PTHF = -alpha(9,ncells) \cdot grad(T_g)
            ! Note: Coefficient at constant pressure (Cp) here is set to the usual constant value
            !       and this is only valid for GASMODEL 1 (TCPERF).
            !       If GASMODEL 3 (MIXT_TCPERF) or GASMODEL 7 (SPECIES) are activated, then Cp needs to be
