@@ -25,9 +25,10 @@ on needs them (`ppiclf_user_Layout`), so cases without pressure-gradient, added-
 viscous-unsteady or rotational-collision models have no `dpdx_g` and similar fields. A
 field that is in a golden but no longer written fails the comparison.
 
-The 42 cases fall into three groups: [shock tube](#shock-tube-cases) (force models,
+The 63 cases fall into four groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
-collisions, walls) and [gas only](#gas-only-cases) (the flow solver without particles).
+collisions, walls), [gas only](#gas-only-cases) (the flow solver without particles) and
+[2D](#2d-cases) (`DIMENS 2`).
 One [unit test](#unit-test) runs with them.
 
 ## Running
@@ -139,6 +140,8 @@ Cases are defined in `rocpicl_tests/cases.py`. Each one specifies:
   - `periodic`: periodic on all six faces;
   - `closed`: slip walls on all six faces;
   - `partwall`: slip walls on all six faces that are also particle walls (`PARTWALL 1`);
+  - `shocktube-2d`, `periodic-2d`, `closed-2d`, `partwall-2d`: the same in x and y, with
+    `BC_VIRTUAL` z patches;
 - a particle list `(x, y, z, dp)` or `(x, y, z, dp, u, v, w)` (without a velocity the
   particle starts at rest), written to `points.dat` as `x y z vx vy vz dp`; density and
   specific heat come from `DENSITY` and `SPECIFICHEAT` in `# PICL`;
@@ -163,6 +166,7 @@ by particle.
 | `quiescent` | Gas at rest stays at rest (fixed particles) |
 | `linear_interp` | Particles read a linear gas density exactly (`INITFLOW IVAL1 = 1`, density `RVAL2*(1 + RVAL7*x + RVAL8*y + RVAL9*z)` at rest) |
 | `projection_shape` | One particle's volume fraction is centred on it (within 0.06 cell) and spread 0.35-0.50 cell lengths in each direction |
+| `in_plane` | `DIMENS 2`: particles stay on the mid-plane with `vz` = 0 and spin only about z; the gas has no z velocity |
 | `collision_pairs` | Overlapping pairs pushed apart by collisions alone conserve each pair's momentum, separate, and all move like the first pair, whether the partner is real, a ghost from another rank, or a periodic image |
 | `binary_collisions` | Colliding pairs (ids 2k−1, 2k) conserve momentum (1e-5) and angular momentum about their centre of mass (0.5%), and separate; head-on pairs rebound with the input `EREST` (within 1%) |
 | `fluctuations_active` | Every particle feels a nonzero quasi-steady force fluctuation at the end (`Ffluct_*`, written with `MODEL_WRT 1`), so the noise is really tested |
@@ -324,6 +328,24 @@ dump files: `modflu/RFLU_ModRestartData.F90`; readers: `rocpicl_tests/outputs.py
 Goldens store the arrays in the old-style form above (made from the dumps). Conservation
 totals convert to bulk quantities with `phi` from the fluid dump (at step 0, the particle
 volume projected at the start of the run over the cell volume).
+
+### 2D Cases
+
+`DIMENS 2`: one cell thick in z, `BC_VIRTUAL` z patches, particles on the mid-plane. All
+particle cases also run `in_plane`: z, `vz` and the x and y spin stay fixed, and the gas
+has no z velocity.
+
+| Case | Ranks | Setup | Checks | What it guards |
+|---|---|---|---|---|
+| `2d/shocktube/two-way` | 1, 2, 4 | Shock over four particles, feedback on | `particles_moved`, `same_as` | The whole coupling in 2D |
+| `2d/momentum-exchange` | 1, 2 | Periodic in x and y; gas at 50 m/s through 40 particles at rest; restart test and old-style output on 2 ranks | `particles_moved`, `mass`, `momentum`, `energy`, `same_as` | Conservation in 2D; bins written as quads |
+| `2d/linear-interp` | 1, 2 | Slip walls; density linear in x and y | `linear_interp`, `mass` | The fit drops z and stays exact |
+| `2d/elongated-projection` | 1, 2 | One particle in 2:1 cells | `projection_shape`, `mass` | Volume fraction centred and spread in x and y |
+| `2d/ghost-collisions` | 1, 2, 4 | Periodic in x and y; overlapping pairs across bin, rank and periodic faces | `particles_moved`, `collision_pairs`, `same_as` | Neighbour search and ghosts in 2D (its subbin grid once had no z layer, so collisions were silently off) |
+| `2d/binary-collisions` | 1, 2, 4 | Approaching pairs, `COLLISIONS 2` | `particles_moved`, `binary_collisions`, `same_as` | Restitution, angular momentum, spin only about z |
+| `2d/walls` | 1, 2, 4 | Particle walls on x and y: faces, a quad diagonal, a corner | `particles_moved`, `wall_collisions` | Particle walls in 2D |
+| `2d/gas-jump/lz1mm` | 1, 2 | Gas only, slip walls | `mass`, `gas_energy` | Flow solver conservation in 2D |
+| `2d/gas-jump/lz100um` | 1 | Same, 0.1 mm thick | `mass`, `gas_energy`, gas fields equal to `lz1mm` | The gas does not depend on the thickness: virtual patches set no time-step limit |
 
 ## Adding a Case
 

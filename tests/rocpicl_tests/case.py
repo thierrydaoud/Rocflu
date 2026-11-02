@@ -50,6 +50,8 @@ class Case:
     # "closed":    slip walls on all six faces
     # "partwall":  slip walls on all six faces, particle walls too (PARTWALL 1)
     # "symmetry":  symmetry patches on all six faces
+    # "shocktube-2d", "periodic-2d", "closed-2d", "partwall-2d": the same in x and
+    #              y, with BC_VIRTUAL z patches (DIMENS 2)
     bc: str = "shocktube"
     # {("SECTION", "KEY"): value} applied to templates/rectshktb.inp
     inp: Dict[Tuple[str, str], object] = field(default_factory=dict)
@@ -63,6 +65,9 @@ class Case:
     # Particle fields compared with same_as (name prefixes, e.g. ("vp_",) for
     # the particle velocity only); None compares every field
     same_as_fields: Optional[Tuple[str, ...]] = None
+    # Name of another case whose final gas fields must match this one, cell by
+    # cell (same grid in x and y, other thickness in z)
+    same_gas_as: Optional[str] = None
     # Known code problem that makes the physics/cross checks fail. The case
     # reports XFAIL while they fail (golden still guards against changes) and
     # XPASS once they pass, so the marker can be removed.
@@ -117,8 +122,25 @@ def _periodic_block(patch, rel, axis, name):
             "ANGLE    0.0\nNAME     %s\n#\n\n" % (patch, patch, rel, rel, axis, name))
 
 
+VIRTUAL_Z = "# BC_VIRTUAL\nPATCH      5 6\nNAME       Z-Virtual\n#\n\n# END\n"
+
+
 def bc_text(kind):
     """Boundary-condition file. Patches 1-6 are x-, x+, y-, y+, z-, z+."""
+    if kind == "shocktube-2d":
+        text = bc_text("shocktube")
+        return text[:text.index("# BC_PERIODIC\nPATCH    5 5")] + VIRTUAL_Z
+    if kind == "periodic-2d":
+        text = ""
+        for axis, (lo, hi) in enumerate([(1, 2), (3, 4)], start=1):
+            name = "XY"[axis - 1] + "-Periodic"
+            text += _periodic_block(lo, hi, axis, name) + _periodic_block(hi, lo, axis, name)
+        return text + VIRTUAL_Z
+    if kind == "closed-2d":
+        return "# BC_SLIPW\nPATCH      1 4\nNAME       SlipWalls\n#\n\n" + VIRTUAL_Z
+    if kind == "partwall-2d":
+        return ("# BC_SLIPW\nPATCH      1 4\nNAME       SlipWalls\nPARTWALL   1\n#\n\n"
+                + VIRTUAL_Z)
     if kind == "shocktube":
         with open(os.path.join(TEMPLATES, CASENAME + ".bc")) as f:
             return f.read()

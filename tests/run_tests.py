@@ -183,6 +183,14 @@ def cross_checks(results):
         errs = checks.compare_particles_only(r["final"], ref["final"], ref_name,
                                              r["case"].same_as_fields)
         r["physics"] += ["differs from %s: %s" % (ref_name, e) for e in errs]
+    for r in results:
+        ref_name = r["case"].same_gas_as
+        if not ref_name or ref_name not in by_name or r["final"] is None:
+            continue
+        ref = by_name[ref_name]
+        if ref["final"] is not None:
+            r["physics"] += checks.compare_gas_fields(r["final"], ref["final"], ref_name,
+                                                      checks.GAS_THICKNESS_RTOL)
 
 
 UNIT_BIN_COUNTS = "unit/bin-counts"

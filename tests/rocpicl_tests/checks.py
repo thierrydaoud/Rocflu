@@ -279,6 +279,24 @@ def _check_post_series(rundir, entries):
     return errors
 
 
+# Gas results of a 2D run must not depend on the mesh thickness
+GAS_THICKNESS_RTOL = 1e-10
+
+
+def compare_gas_fields(new, ref, label, rtol):
+    """Final gas fields cell by cell, relative to each field's largest value."""
+    errors = []
+    for region, gas in new["gas"].items():
+        for name in state.FLOW_NAMES:
+            a, b = gas[name], ref["gas"][region][name]
+            scale = max(abs(v) for v in b) or 1.0
+            worst = max(abs(x - y) for x, y in zip(a, b)) / scale
+            if worst > rtol:
+                errors.append("%s region %s differs from %s by %.2e of its maximum"
+                              % (name, region, label, worst))
+    return errors
+
+
 def compare_particles_only(new, ref, label, fields=None):
     """Decomposition-independence: particles must agree, gas regions differ."""
     return compare_states(dict(new, gas={}), dict(ref, gas={}), label, fields)
@@ -433,6 +451,8 @@ def check_projection_shape(init, final, case):
     total = sum(w)
     errors = []
     for l, axis in enumerate("xyz"):
+        if (g.nx, g.ny, g.nz)[l] == 1:  # one cell thick: nothing to spread over
+            continue
         c = sum(wi * x[l] for wi, x in zip(w, xs)) / total
         s = math.sqrt(sum(wi * (x[l] - c) ** 2 for wi, x in zip(w, xs)) / total)
         err, spread = (c - xp[l]) / cell[l], s / cell[l]
@@ -650,6 +670,28 @@ def check_uniform_gas_cells(init, final, case):
     return errors
 
 
+# Gas z velocity in a 2D run: round-off only
+IN_PLANE_GAS_W = 1e-12
+
+
+def check_in_plane(init, final, case):
+    """DIMENS 2: particles stay on the mid-plane with vz = 0 and spin only about
+    z, and the gas has no z velocity."""
+    g = case.grid
+    zmid = g.z0 + 0.5 * g.lz
+    errors = []
+    for pid, p in sorted(final["particles"].items(), key=lambda kv: int(kv[0])):
+        if abs(p["z"] - zmid) > 1e-6 * g.lz:
+            errors.append("particle %s left the mid-plane: z = %.10g" % (pid, p["z"]))
+        for name in ("vp_z", "omp_x", "omp_y"):
+            if p.get(name, 0.0) != 0.0:
+                errors.append("particle %s has %s = %.3e" % (pid, name, p[name]))
+    wmax = max((abs(v) for gas in final["gas"].values() for v in gas["q4"]), default=0.0)
+    if wmax > IN_PLANE_GAS_W:
+        errors.append("gas z velocity %.3e m/s" % wmax)
+    return errors
+
+
 def check_fluctuations_active(init, final, case):
     """Every particle must feel a nonzero force fluctuation at the end; a zero
     noise amplitude (no neighbours, no velocity spread) would test nothing."""
@@ -662,6 +704,7 @@ def check_fluctuations_active(init, final, case):
 
 
 PHYSICS = {
+    "in_plane": check_in_plane,
     "quiescent": check_quiescent,
     "mass": check_mass,
     "momentum": check_momentum,

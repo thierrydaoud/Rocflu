@@ -364,11 +364,11 @@ WALL_SHOTS = [  # start point (mm, None = set from the speed), direction, speed
 ]
 
 
-def wall_shots(dp=1.0e-4):
+def wall_shots(dp=1.0e-4, shots=WALL_SHOTS):
     """Particles touching the wall(s) they move towards after WALL_T_HIT."""
     r = 0.5 * dp
     pts = []
-    for start, d, v in WALL_SHOTS:
+    for start, d, v in shots:
         n = sum(c * c for c in d) ** 0.5
         u = [c / n for c in d]
         # a free coordinate is given; a wall coordinate is set from the speed
@@ -454,6 +454,122 @@ for n in (1, 2, 4):
         checks=["uniform_gas_cells"])
 
 
+# -- 2D: DIMENS 2, one cell thick in z, BC_VIRTUAL z patches -------------------
+# Particles on the mid-plane. Each case mirrors a 3D one above in x and y; in_plane
+# requires that z stays inactive.
+TWO_D = {("NUMERICS", "DIMENS"): 2, ("PICL", "PERIODICZ"): 0}
+TWO_D_TUBE = Grid(lx=0.04, ly=0.004, lz=0.001, x0=-0.02, y0=0.0, z0=0.0, nx=40, ny=4, nz=1)
+TWO_D_BOX = Grid(lx=0.008, ly=0.008, lz=0.001, x0=0.0, y0=0.0, z0=0.0, nx=8, ny=8, nz=1)
+TWO_D_THIN = Grid(lx=0.008, ly=0.008, lz=0.0001, x0=0.0, y0=0.0, z0=0.0, nx=8, ny=8, nz=1)
+TWO_D_ELONGATED = Grid(lx=0.016, ly=0.008, lz=0.001, x0=0.0, y0=0.0, z0=0.0, nx=8, ny=8, nz=1)
+MID_PLANE = 0.0005
+_3D = {c.name: c for c in CASES}
+
+
+def on_plane(particles):
+    return [p[:2] + (MID_PLANE,) + p[3:] for p in particles]
+
+
+for n in (1, 2, 4):
+    add(name="2d/shocktube/two-way/np%d" % n,
+        description="Shock over four particles with feedback to the gas, in 2D",
+        nranks=n, grid=TWO_D_TUBE, bc="shocktube-2d",
+        inp={**SHOCKTUBE, **TWO_WAY, **TWO_D}, particles=on_plane(FOUR_PARTICLES),
+        checks=["particles_moved", "in_plane"],
+        same_as=None if n == 1 else "2d/shocktube/two-way/np1")
+for n in (1, 2):
+    add(name="2d/momentum-exchange/np%d" % n,
+        description="Gas at 50 m/s through 40 particles at rest in a box periodic in x "
+                    "and y; momentum and energy conserved in 2D",
+        nranks=n, grid=TWO_D_BOX, bc="periodic-2d",
+        inp={**uniform_gas(50.0), **TWO_WAY, **TWO_D}, particles=on_plane(cloud(40, 2.0e-5)),
+        checks=["particles_moved", "mass", "momentum", "energy", "in_plane"],
+        same_as=None if n == 1 else "2d/momentum-exchange/np1",
+        restart_test=(n == 2))
+    add(name="2d/linear-interp/np%d" % n,
+        description="Gas density linear in x and y; particles at rest must interpolate "
+                    "it exactly in 2D",
+        nranks=n, grid=TWO_D_BOX, bc="closed-2d",
+        inp={**uniform_gas(0.0), **ONE_WAY, **LINEAR_RHO, ("INITFLOW", "RVAL9"): "0.0",
+             **TWO_D},
+        particles=on_plane(cloud(40, 1.0e-6, lo=0.0006, hi=0.0074)),
+        checks=["linear_interp", "mass", "in_plane"])
+    add(name="2d/elongated-projection/np%d" % n,
+        description="One particle at rest in 2:1 cells; its volume fraction must be "
+                    "centred on it and spread ~0.44 cell lengths in x and y",
+        nranks=n, grid=TWO_D_ELONGATED, bc="closed-2d",
+        inp={**_3D["box/elongated-projection/np1"].inp, **TWO_D},
+        particles=[(0.0066, 0.0044, MID_PLANE, 1.0e-4)],
+        checks=["projection_shape", "mass", "in_plane"])
+
+# Same pairs idea as box/ghost-collisions, in the plane: across the bin faces at
+# x = 4 and y = 4 mm, the periodic faces and the periodic corner
+TWO_D_GHOST_OFFSET = (85.0e-6, 35.0e-6)
+TWO_D_GHOST_CENTRES = [(3.0, 5.0), (4.0, 1.5), (1.5, 4.0), (4.0, 4.0),
+                       (0.0, 6.5), (5.5, 0.0), (0.0, 0.0)]
+
+
+def collision_pairs_2d():
+    pts = []
+    for c in TWO_D_GHOST_CENTRES:
+        for sign in (-0.5, 0.5):
+            pts.append(tuple(round((c[l] * 1e-3 + sign * TWO_D_GHOST_OFFSET[l]) % BOX.lx, 9)
+                             for l in range(2)) + (MID_PLANE, GHOST_DP))
+    return pts
+
+
+TWO_D_BINARY = on_plane(
+    collision_pair((4.0, 1.5, 0.5), 0, 1.0e-4, 1.0e-4, 10.0)           # equal, x bin face
+    + collision_pair((6.5, 4.0, 0.5), 1, 1.0e-4, 5.0e-5, 10.0)         # 8:1, y bin face
+    + collision_pair((0.0, 6.5, 0.5), 0, 1.0e-4, 5.0e-5, 1.0)          # 8:1, periodic x
+    + collision_pair((2.5, 5.5, 0.5), 0, 1.0e-4, 1.0e-4, 1.0, 0.5))    # oblique, spins about z
+TWO_D_WALL_SHOTS = [
+    ((None, 2.3, 0.5), (-1, 0, 0), 1.0),     # x- face, Hertz regime
+    ((None, 6.3, 0.5), (-1, 0, 0), 10.0),    # x- face
+    ((2.4, None, 0.5), (0, -1, 0), 100.0),   # y- face, centre crosses the wall
+    ((None, 5.5, 0.5), (1, 0, 0), 300.0),    # x+ face on a quad diagonal
+    ((None, None, 0.5), (1, -1, 0), 10.0),   # x+/y- box corner
+    ((5.6, None, 0.5), (1, 1, 0), 10.0),     # y+ face at 45 degrees
+]
+for n in (1, 2, 4):
+    add(name="2d/ghost-collisions/np%d" % n,
+        description="Overlapping in-plane pairs pushed apart by collisions only, across "
+                    "bin faces, rank borders and periodic faces",
+        nranks=n, grid=TWO_D_BOX, bc="periodic-2d",
+        inp={**uniform_gas(0.0), **ONE_WAY, **COLLISIONS_ONLY, **TWO_D},
+        particles=collision_pairs_2d(),
+        checks=["particles_moved", "collision_pairs", "in_plane"],
+        same_as=None if n == 1 else "2d/ghost-collisions/np1")
+    add(name="2d/binary-collisions/np%d" % n,
+        description="Approaching in-plane pairs (equal and 8:1 mass, head-on and oblique); "
+                    "momentum and angular momentum conserved, spin only about z",
+        nranks=n, grid=TWO_D_BOX, bc="periodic-2d",
+        inp={**_3D["box/binary-collisions/np1"].inp, **TWO_D}, particles=TWO_D_BINARY,
+        checks=["particles_moved", "binary_collisions", "in_plane"],
+        same_as=None if n == 1 else "2d/binary-collisions/np1")
+    add(name="2d/walls/np%d" % n,
+        description="Particles hitting the x and y slip walls (PARTWALL 1) in 2D: faces, "
+                    "a quad diagonal and a corner; each rebounds and ends inside the box",
+        nranks=n, grid=TWO_D_BOX, bc="partwall-2d",
+        inp={**_3D["box/walls/np1"].inp, **TWO_D},
+        particles=wall_shots(shots=TWO_D_WALL_SHOTS),
+        checks=["particles_moved", "wall_collisions", "in_plane"])
+
+# Gas only: the same jump as box/gas-jump, at two mesh thicknesses
+add(name="2d/gas-jump/lz1mm/np1",
+    description="Pressure/density jump in a 2D slip-wall box, 1 mm thick",
+    nranks=1, grid=TWO_D_BOX, bc="closed-2d", inp={**uniform_gas(0.0), **JUMP, **TWO_D},
+    checks=["mass", "gas_energy"])
+add(name="2d/gas-jump/lz1mm/np2",
+    description="Same on two regions; conservation across a region border in 2D",
+    nranks=2, grid=TWO_D_BOX, bc="closed-2d", inp={**uniform_gas(0.0), **JUMP, **TWO_D},
+    checks=["mass", "gas_energy"])
+add(name="2d/gas-jump/lz100um/np1",
+    description="Same jump 0.1 mm thick; the gas must not depend on the thickness",
+    nranks=1, grid=TWO_D_THIN, bc="closed-2d", inp={**uniform_gas(0.0), **JUMP, **TWO_D},
+    checks=["mass", "gas_energy"], same_gas_as="2d/gas-jump/lz1mm/np1")
+
+
 # Cases that also write the old-style output (OLD_OUTPUT_WRT 1): the harness checks
 # that it agrees with the dumps and with the post program (2 regions and 1, NSCBC
 # outflow with history, random streams, gas only)
@@ -463,6 +579,7 @@ OLD_OUTPUT_CASES = (
     "shocktube/one-way/1-particle/np1",
     "box/qs-fluctuations/np2",
     "box/gas-jump/periodic/np2",
+    "2d/momentum-exchange/np2",
 )
 for _case in CASES:
     if _case.name in OLD_OUTPUT_CASES:
