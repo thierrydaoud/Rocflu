@@ -255,6 +255,7 @@ the flow solver's own conservation.
 
 | Case | Ranks | Setup | Checks | What it guards |
 |---|---|---|---|---|
+| `box/lattice-torque` | 1, 2, 4 | Periodic; gas at 50 m/s through a moving lattice of one particle per cell (726 µm), `COLLISIONS 2` | `uniform_gas_cells` | Runs the torque path, whose gradient of the feedback force reads the virtual cells; the gas must stay uniform to round-off |
 | `box/gas-jump/closed` | 2 | Slip walls, two regions | `mass`, `gas_energy` | Conservation across a region border |
 | `box/gas-jump/closed-creconst0` | 2 | Same with `CRECONSTC 0` | `mass`, `gas_energy` | The unconstrained cell-gradient path in a flow that pushes on the walls |
 | `box/gas-jump/periodic` | 1, 2 | Periodic on all faces | `mass`, `gas_energy` | Conservative fluxes across periodic faces (11dc640) |
