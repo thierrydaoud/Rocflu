@@ -1,0 +1,11 @@
+{
+ "created": "2026-11-02T20:29:08",
+ "host": "dane4",
+ "exe_dir": "/p/lustre3/daoud1/Rocflu_pt/build/bin",
+ "git": {
+  "commit": "314123a49708bdc32a0878c3c5a77ccf4ad275fc",
+  "branch": "pt-virt",
+  "modified_sources": []
+ },
+ "modules": "jobutils/1.0:texlive/20220321:StdEnv:cmake/3.30.5:gcc/13.3.1:openmpi/4.1.2"
+}

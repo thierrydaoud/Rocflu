@@ -255,6 +255,8 @@ the flow solver's own conservation.
 
 | Case | Ranks | Setup | Checks | What it guards |
 |---|---|---|---|---|
+| `box/pt-lattice/pt1`, `pt2` | 1, 2, 4 | Periodic; gas at 50 m/s through a fixed lattice of one particle per cell (726 µm), `PSEUDOTURB 1` or `2` | `uniform_gas_cells` | φ_p, R_sg and Q_sg are uniform, so their divergences are zero and the gas must stay uniform to round-off. Zeros in the virtual cells gave a 1.4–1.8% spread in u after 2 µs (314123a) |
+| `box/pt-lattice/collisions2` | 2 | Same lattice with moving particles and `COLLISIONS 2`, `PSEUDOTURB 1` | `uniform_gas_cells` | Runs the torque path, whose gradient of the feedback force reads the same virtual cells |
 | `box/gas-jump/closed` | 2 | Slip walls, two regions | `mass`, `gas_energy` | Conservation across a region border |
 | `box/gas-jump/closed-creconst0` | 2 | Same with `CRECONSTC 0` | `mass`, `gas_energy` | The unconstrained cell-gradient path in a flow that pushes on the walls |
 | `box/gas-jump/periodic` | 1, 2 | Periodic on all faces | `mass`, `gas_energy` | Conservative fluxes across periodic faces (11dc640) |

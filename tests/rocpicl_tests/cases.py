@@ -434,6 +434,40 @@ for n in (1, 2):
         checks=["mass", "gas_energy"])
 
 
+# -- Periodic box: fixed uniform lattice with pseudo-turbulence -----------------
+# One particle per cell at its centre: phi, the forces, R_sg and Q_sg are the
+# same in all cells, so their divergences vanish and the gas stays uniform.
+# Virtual cells that do not hold these fields give a false jump at every region
+# border and periodic face.
+PT_LATTICE = [(0.0005 + i * 1.0e-3, 0.0005 + j * 1.0e-3, 0.0005 + k * 1.0e-3, 7.26e-4)
+              for i in range(8) for j in range(8) for k in range(8)]
+PT_LATTICE_INP = {**uniform_gas(50.0), **TWO_WAY,
+                  ("TIMESTEP", "MAXTIME"): "2.0E-06", ("TIMESTEP", "RUNTIME"): "2.0E-06",
+                  ("TIMESTEP", "WRITIME"): "1.0E-06", ("TIMESTEP", "PRNTIME"): "1.0E-06",
+                  ("PICL", "VELOCITYMODEL"): 0, ("PICL", "QSFORCE"): 3, ("PICL", "QSFLUCT"): 1,
+                  ("PICL", "HEATTRANSFER"): 5, ("PICL", "NEIGHBORWIDTH"): "3.0e-3"}
+for pt in (1, 2):
+    for n in (1, 2, 4):
+        add(name="box/pt-lattice/pt%d/np%d" % (pt, n),
+            description="Pseudo-turbulence on a uniform fixed lattice; the gas must "
+                        "stay uniform from cell to cell",
+            nranks=n, grid=BOX, bc="periodic",
+            inp={**PT_LATTICE_INP, ("PICL", "PSEUDOTURB"): pt},
+            particles=PT_LATTICE,
+            checks=["uniform_gas_cells"])
+
+
+# The torque path: the gradient of the feedback force reads the same virtual cells
+add(name="box/pt-lattice/collisions2/np2",
+    description="Pseudo-turbulence on the uniform lattice with COLLISIONS 2, whose "
+                "torque reads the gradient of the feedback force; the gas must stay uniform",
+    nranks=2, grid=BOX, bc="periodic",
+    inp={**{k: v for k, v in PT_LATTICE_INP.items() if k != ("PICL", "VELOCITYMODEL")},
+         ("PICL", "PSEUDOTURB"): 1, ("PICL", "COLLISIONS"): 2},
+    particles=PT_LATTICE,
+    checks=["uniform_gas_cells"])
+
+
 # Cases that also write the old-style output (OLD_OUTPUT_WRT 1): the harness checks
 # that it agrees with the dumps and with the post program (2 regions and 1, NSCBC
 # outflow with history, random streams, gas only)

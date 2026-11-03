@@ -612,6 +612,21 @@ def check_planar(init, final, case):
     return errors
 
 
+def check_uniform_gas_cells(init, final, case):
+    """Density, velocity and energy each have one value across all cells."""
+    values = {name: [v for g in final["gas"].values() for v in g[name]]
+              for name in ("q1", "q2", "q3", "q4", "q5")}
+    speed = max(abs(v) for name in ("q2", "q3", "q4") for v in values[name]) or 1.0
+    scales = {"q1": max(values["q1"]), "q2": speed, "q3": speed, "q4": speed,
+              "q5": max(values["q5"])}
+    errors = []
+    for name, vals in values.items():
+        spread = (max(vals) - min(vals)) / scales[name]
+        if spread > 1.0e-9:
+            errors.append("%s varies across cells by %.2e of its scale" % (name, spread))
+    return errors
+
+
 def check_fluctuations_active(init, final, case):
     """Every particle must feel a nonzero force fluctuation at the end; a zero
     noise amplitude (no neighbours, no velocity spread) would test nothing."""
@@ -638,4 +653,5 @@ PHYSICS = {
     "wall_collisions": check_wall_collisions,
     "fluctuations_active": check_fluctuations_active,
     "planar": check_planar,
+    "uniform_gas_cells": check_uniform_gas_cells,
 }
