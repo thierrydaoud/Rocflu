@@ -233,7 +233,7 @@ for n in (1, 2, 4):
         nranks=n, grid=BOX, bc="closed",
         inp={**uniform_gas(0.0), **ONE_WAY, **LINEAR_RHO},
         particles=cloud(40, 1.0e-6, lo=0.0006, hi=0.0074),
-        checks=["linear_interp", "mass"])
+        checks=["linear_interp", "linear_grad_rhog", "mass"])
 
 # -- Closed box of 2:1:1 cells: shape of the projected volume fraction --------
 # One particle at rest, at least two cells from every wall. The old kernel

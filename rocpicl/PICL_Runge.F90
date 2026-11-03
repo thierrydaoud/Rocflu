@@ -94,6 +94,7 @@ SUBROUTINE PICL_Runge(pRegion)
 #ifdef PICL
 USE RFLU_ModConvertCv, ONLY: RFLU_ConvertCvCons2Prim, &
                              RFLU_ConvertCvPrim2Cons
+USE PICL_ModGradients, ONLY: PICL_ComputeGradCells, PICL_CONSTR_NONE
 
  USE ModInterfaces, ONLY: RFLU_DecideWrite !BRAD added for picl
  
@@ -141,8 +142,6 @@ TYPE(t_grid), POINTER :: pGrid
   REAL(KIND=8), DIMENSION(:,:,:), POINTER :: pGc 
   
   ! TLJ - added for Feedback term - 04/01/2025
-  INTEGER, DIMENSION(:), ALLOCATABLE :: varInfoPicl
-  INTEGER, DIMENSION(:), POINTER :: piclcvInfo
     REAL(KIND=8) :: dodx, dody, dodz,     &
                   omgx, omgy, omgz,     &
                   divu,                 &
@@ -226,30 +225,9 @@ pGc => pRegion%mixt%gradCell
        pregion%mixt%piclFeedback(3,i) = JFZCell(i)
     END DO
     ! Now calculate the gradient of the feedback force
-    ALLOCATE(varInfoPicl(3), piclcvInfo(3), STAT=errorFlag)
-    global%error = errorFlag
-    IF(global%error /= ERR_NONE ) THEN
-      CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'PPICLF:xGrid')
-    END IF ! global%error
-
-    varInfoPicl(1) = 1
-    varInfoPicl(2) = 2
-    varInfoPicl(3) = 3
-    piclcvInfo = varInfoPicl
-    CALL RFLU_ComputeGradCellsWrapper(pRegion,1,3,1,3,varInfoPicl, &
-                                      pRegion%mixt%piclFeedback,&
-                                      pRegion%mixt%piclgradFeedback)
-    CALL RFLU_WENOGradCellsXYZWrapper(pRegion,1,3, &
-                                      pRegion%mixt%piclgradFeedback)
-    CALL RFLU_LimitGradCellsSimple(pRegion,1,3,1,3, &
-                                   pRegion%mixt%piclFeedback,&
-                                   piclcvInfo,&
-                                   pRegion%mixt%piclgradFeedback)
-    DEALLOCATE(varInfoPicl, piclcvInfo, STAT=errorFlag)
-    global%error = errorFlag
-    IF(global%error /= ERR_NONE ) THEN
-      CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'PPICLF:xGrid')
-    END IF ! global%error
+    CALL PICL_ComputeGradCells(pRegion,1,3,pRegion%mixt%piclFeedback, &
+                               pRegion%mixt%piclgradFeedback,PICL_CONSTR_NONE, &
+                               .TRUE.,.FALSE.)
 
   ! END - TLJ calculating gradient of feedback force
 

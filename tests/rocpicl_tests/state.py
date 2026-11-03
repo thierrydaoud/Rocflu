@@ -94,6 +94,7 @@ def snapshot(rundir, case, which=-1):
 
     gas = {}
     centroids = {}  # only for checks that need geometry; not written to goldens
+    grad_rhog = {}  # only for the check that needs it; not written to goldens
     t_gas = None
     for region in sorted(r for s, r in fluid if s == step):
         d = outputs.read_fluid_dump(fluid[(step, region)])
@@ -112,6 +113,8 @@ def snapshot(rundir, case, which=-1):
             arrays = [rho_g] + [[cv[k][i] / cv[0][i] for i in range(n)] for k in range(1, 5)]
             gas[region] = dict(zip(FLOW_NAMES, arrays))
             gas[region]["phi"] = phi
+            if "grad_rhog" in d:
+                grad_rhog[region] = d["grad_rhog"]
         else:
             gas[region] = dict(zip(FLOW_NAMES, [list(a) for a in cv]))
         if any(c in case.checks for c in ("projection_shape", "planar")):
@@ -136,6 +139,8 @@ def snapshot(rundir, case, which=-1):
                              _particle_cp(rundir))}
     if centroids:
         snap["_centroids"] = centroids
+    if grad_rhog and "linear_grad_rhog" in case.checks:
+        snap["_grad_rhog"] = grad_rhog
     return snap
 
 

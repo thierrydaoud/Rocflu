@@ -96,6 +96,10 @@ SUBROUTINE CellGradientsMP(region)
                           RFLU_WENOGradCellsXYZWrapper                              
 #endif
 
+#ifdef PICL
+  USE PICL_ModGradients, ONLY: PICL_ComputeGradCells, PICL_CONSTR_NONE
+#endif
+
 #ifdef PLAG
   USE ModInterfacesLagrangian, ONLY: PLAG_RFLU_ComputeVolFracGradL
 #endif
@@ -126,13 +130,6 @@ SUBROUTINE CellGradientsMP(region)
   INTEGER :: iSpec
   INTEGER, DIMENSION(:), ALLOCATABLE :: varInfoSpec
 #endif
-! 03/19/2025 - Thierry - begins here
-#ifdef PICL
-  INTEGER :: iEv
-  INTEGER, DIMENSION(:), ALLOCATABLE :: varInfoPicl
-  INTEGER, DIMENSION(:), POINTER :: piclcvInfo
-#endif
-! 03/19/2025 - Thierry - ends here
 #ifdef PLAG
   INTEGER :: iEv
   INTEGER, DIMENSION(:), ALLOCATABLE :: varInfoPlag
@@ -354,18 +351,6 @@ SUBROUTINE CellGradientsMP(region)
 !                        reaping the benefits of Rahul's implementation for PLAG done below
 #ifdef PICL
   IF ( global%piclUsed .EQV. .TRUE. ) THEN
-    ALLOCATE(varInfoPicl(1),STAT=errorFlag)
-    ALLOCATE(piclcvInfo(1),STAT=errorFlag)
-    global%error = errorFlag
-    IF ( global%error /= ERR_NONE ) THEN 
-      CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'varInfoPicl')
-    END IF ! global%error
-
-    DO iEv = 1,1
-      varInfoPicl(iEv) = iEv
-    END DO ! iEv
-    piclcvInfo = varInfoPicl
-
     pRegion%mixt%piclVFg(1,:) = 1.0_RFREAL - pRegion%mixt%piclVF ! gas volume fraction
 
     ! phi^g rho^g -> rho^g
@@ -373,17 +358,9 @@ SUBROUTINE CellGradientsMP(region)
                                       pRegion%mixt%piclVFg(1,:)
                                     
 !------------------Gradient of Rho^g--------------------------------
-    CALL RFLU_ComputeGradCellsWrapper(pRegion,1,1,1,1,varInfoPicl, &
-                                      pRegion%mixt%cv,&
-                                      pRegion%mixt%piclgradRhog)
-
-    CALL RFLU_WENOGradCellsXYZWrapper(pRegion,1,1, &
-                                      pRegion%mixt%piclgradRhog)
-
-    CALL RFLU_LimitGradCellsSimple(pRegion,1,1,1,1, & 
-                                   pRegion%mixt%cv,&
-                                   piclcvInfo,&
-                                   pRegion%mixt%piclgradRhog)
+    CALL PICL_ComputeGradCells(pRegion,CV_MIXT_DENS,CV_MIXT_DENS,pRegion%mixt%cv, &
+                               pRegion%mixt%piclgradRhog,PICL_CONSTR_NONE, &
+                               .TRUE.,.TRUE.)
     ! rho^g ->  phi^g rho^g
     pRegion%mixt%cv(CV_MIXT_DENS,:) = pRegion%mixt%cv(CV_MIXT_DENS,:)*&
                                       pRegion%mixt%piclVFg(1,:)
@@ -419,14 +396,6 @@ SUBROUTINE CellGradientsMP(region)
 !                                   piclcvInfo,&
 !                                   pRegion%mixt%piclgradVFRhog)
 !--------------------------------------------------------------------
-
-
-    DEALLOCATE(varInfoPicl,STAT=errorFlag)
-    DEALLOCATE(piclcvInfo,STAT=errorFlag)
-    global%error = errorFlag
-    IF ( global%error /= ERR_NONE ) THEN 
-      CALL ErrorStop(global,ERR_DEALLOCATE,__LINE__,'varInfoPicl')
-    END IF ! global%error
   END IF ! global%piclUsed
 #endif
 ! 03/19/2025 - ends here
