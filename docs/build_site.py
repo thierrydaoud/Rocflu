@@ -17,6 +17,7 @@ import os
 import re
 import shutil
 import subprocess
+from datetime import datetime
 from pathlib import Path
 
 import markdown
@@ -98,6 +99,15 @@ def branch():
     return name if name and name != "HEAD" else "main"
 
 
+def updated():
+    """Date of the latest commit, for the page footer; empty outside a git checkout."""
+    stamp = subprocess.run(["git", "-C", str(REPO), "log", "-1", "--format=%cs"],
+                           capture_output=True, text=True).stdout.strip()
+    if not stamp:
+        return ""
+    return "Last updated: " + datetime.strptime(stamp, "%Y-%m-%d").strftime("%B %-d, %Y")
+
+
 def asset(file):
     """Copy a file of docs/ (a figure, the manual) into the site; its path there."""
     relative = Path(file).relative_to(DOCS)
@@ -177,7 +187,7 @@ def toc_list(tokens):
 
 def write_page(name, title, nav, body):
     (SITE / name).write_text(TEMPLATE.format(
-        title=html.escape(title), nav=nav, body=body))
+        title=html.escape(title), nav=nav, body=body, footer=updated()))
 
 
 def main():
@@ -242,6 +252,8 @@ nav a[aria-current] {{ color: var(--fg); }}
 nav .home {{ display: block; font-size: 1.1rem; font-weight: 700;
   color: var(--fg); margin-bottom: 1rem; }}
 main {{ max-width: 56rem; padding: 2rem 2.5rem 4rem; }}
+footer {{ margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line);
+  color: var(--muted); font-size: 0.85rem; }}
 a {{ color: var(--link); text-decoration: none; }}
 a:hover {{ text-decoration: underline; }}
 h1, h2, h3 {{ line-height: 1.25; scroll-margin-top: 1rem; }}
@@ -276,6 +288,7 @@ blockquote {{ margin: 1rem 0; padding: 0 1rem; color: var(--muted);
 <nav>{nav}</nav>
 <main>
 {body}
+<footer>{footer}</footer>
 </main>
 </body>
 </html>
