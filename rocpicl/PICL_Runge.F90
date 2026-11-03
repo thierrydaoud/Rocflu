@@ -231,22 +231,25 @@ pGc => pRegion%mixt%gradCell
     !       calculate the undisturbed torque component
     ! Internal definitions; some redundancy but just ignore
     ! We do not need energy, but might in the future
-    DO i = 1,pRegion%grid%nCells
-       JFXCell(i) = 0.0_RFREAL
-       JFYCell(i) = 0.0_RFREAL
-       JFZCell(i) = 0.0_RFREAL
-       JFECell(i) = 0.0_RFREAL
-       CALL ppiclf_solve_GetProFld(i,PPICLF_P_JFX,JFXCell(i))  
-       CALL ppiclf_solve_GetProFld(i,PPICLF_P_JFY,JFYCell(i))
-       CALL ppiclf_solve_GetProFld(i,PPICLF_P_JFZ,JFZCell(i))
-       pregion%mixt%piclFeedback(1,i) = JFXCell(i)
-       pregion%mixt%piclFeedback(2,i) = JFYCell(i)
-       pregion%mixt%piclFeedback(3,i) = JFZCell(i)
-    END DO
-    ! Now calculate the gradient of the feedback force
-    CALL PICL_ComputeGradCells(pRegion,1,3,pRegion%mixt%piclFeedback, &
-                               pRegion%mixt%piclgradFeedback,PICL_CONSTR_NONE, &
-                               .TRUE.,.FALSE.)
+    JFXCell = 0.0_RFREAL
+    JFYCell = 0.0_RFREAL
+    JFZCell = 0.0_RFREAL
+    JFECell = 0.0_RFREAL
+    ! Only the undisturbed torque reads these (COLLISIONS 2 and above)
+    IF ( global%piclCollisionFlag >= 2 ) THEN
+      DO i = 1,pRegion%grid%nCells
+         CALL ppiclf_solve_GetProFld(i,PPICLF_P_JFX,JFXCell(i))
+         CALL ppiclf_solve_GetProFld(i,PPICLF_P_JFY,JFYCell(i))
+         CALL ppiclf_solve_GetProFld(i,PPICLF_P_JFZ,JFZCell(i))
+         pregion%mixt%piclFeedback(1,i) = JFXCell(i)
+         pregion%mixt%piclFeedback(2,i) = JFYCell(i)
+         pregion%mixt%piclFeedback(3,i) = JFZCell(i)
+      END DO
+      ! Now calculate the gradient of the feedback force
+      CALL PICL_ComputeGradCells(pRegion,1,3,pRegion%mixt%piclFeedback, &
+                                 pRegion%mixt%piclgradFeedback,PICL_CONSTR_NONE, &
+                                 .TRUE.,.FALSE.)
+    END IF ! piclCollisionFlag
 
   ! END - TLJ calculating gradient of feedback force
 
