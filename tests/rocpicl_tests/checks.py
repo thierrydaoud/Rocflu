@@ -27,6 +27,15 @@ def _close(a, b, rtol, scale):
 # component that is only round-off (a head-on hit) is not judged on its own
 
 
+def _field_group(name):
+    """Fields compared on one scale: a vector's components, so one that is only
+    round-off (flow along one axis) is not judged on its own."""
+    for group in (SPIN, VEL, ("ug_x", "ug_y", "ug_z"), ("q2", "q3", "q4")):
+        if name in group:
+            return group
+    return (name,)
+
+
 def compare_states(new, ref, label="golden", fields=None):
     """Return a list of failure messages (empty if new matches ref).
     fields: only particle fields starting with one of these prefixes."""
@@ -45,7 +54,7 @@ def compare_states(new, ref, label="golden", fields=None):
             if any(f not in p for p in new["particles"].values()):
                 errors.append("particle field %s is in %s but not written" % (f, label))
                 continue
-            group = SPIN if f in SPIN else (f,)
+            group = _field_group(f)
             scale = max(abs(p.get(g, 0.0)) for p in refp.values() for g in group) or 1.0
             worst = None
             for pid, p in new["particles"].items():
@@ -67,7 +76,8 @@ def compare_states(new, ref, label="golden", fields=None):
                 if len(arr) != len(b_arr):
                     errors.append("region %s %s: %d cells vs %d" % (region, name, len(arr), len(b_arr)))
                     continue
-                scale = max(abs(v) for v in b_arr) or 1.0
+                scale = max(abs(v) for f in _field_group(name)
+                            for v in refg[str(region)].get(f, [])) or 1.0
                 bad = [(abs(a - b) / scale, i, a, b) for i, (a, b) in enumerate(zip(arr, b_arr))
                        if not _close(a, b, GAS_RTOL, scale)]
                 if bad:
