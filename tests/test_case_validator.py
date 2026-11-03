@@ -168,10 +168,14 @@ class CaseValidatorTest(unittest.TestCase):
         text = TEMPLATE.replace("# PICL\n", "# PICL\nQSFORCE 1\n")
         self.assertError(self.errors(text=text), "QSFORCE is given twice")
 
-    def test_key_read_as_another(self):
-        # QSFLUCTFILT before QSFLUCT is read as QSFLUCT by Rocflu
-        text = TEMPLATE.replace("# PICL\n", "# PICL\nQSFLUCTFILT 1\n")
-        self.assertError(self.errors(text=text), "QSFLUCTFILT comes before QSFLUCT")
+    def test_key_order_is_free(self):
+        # A key that starts with another key may come before it
+        lines = TEMPLATE.split("\n")
+        moved = next(line for line in lines if line.startswith("QSFLUCTFILT "))
+        lines.remove(moved)
+        text = "\n".join(lines).replace("# PICL\n", "# PICL\n%s\n" % moved)
+        self.assertLess(text.index("QSFLUCTFILT "), text.index("QSFLUCT "))
+        self.assertEqual(self.errors(text=text), [])
 
     # -- values --------------------------------------------------------------------
 

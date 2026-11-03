@@ -37,9 +37,8 @@ QSFORCE          3
   ignored. Lines starting with `!` are comments.
 - A key that is **not given** keeps its default (below). A key given twice: the first
   one counts.
-- Rocflu matches a line to the **first key not yet read that the line starts with**. In
-  `# PICL` this matters for `QSFLUCT`, `QSFLUCTFILT` and `QSFLUCTFILTADAPT`: write them in
-  that order, or a `QSFLUCTFILT` line is read as `QSFLUCT`.
+- Keys may come in **any order** within a section. The key must be followed by a space
+  or a tab.
 - Flags are whole numbers; Rocflu rounds other values silently (`2.6` becomes `3`).
 - Rocflu silently ignores a key it does not know, so a typo (`QSFLUC 1`) turns a model off.
 

@@ -266,17 +266,9 @@ class Validator:
                 self.prohibit(True, "%s starts with a space; Rocflu only reads keys "
                               "at the start of the line, so it ignores it" % meant, number)
                 continue
-            # The key Rocflu takes: the first key not yet read the line starts with
-            taken = next((k for k in PICL_KEYS if k not in given and text.startswith(k)),
-                         None)
-            if taken is None:
+            if meant in given:
                 self.prohibit(True, "%s is given twice; Rocflu uses the first one "
                               "(line %d)" % (meant, given[meant][0]), number)
-                continue
-            if taken != meant:
-                self.prohibit(True, "%s comes before %s; Rocflu reads this line as %s. "
-                              "Put %s first" % (meant, taken, taken, taken), number)
-                given[taken] = (number, None)
                 continue
             value = read_number(text[len(meant):])
             self.prohibit(value is None, "%s has no number after it" % meant, number)
