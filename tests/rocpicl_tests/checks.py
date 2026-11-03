@@ -396,6 +396,19 @@ def check_linear_interp(init, final, case):
     return errors
 
 
+def check_linear_grad_rhog(init, final, case):
+    """The cell gradient of a linear gas density is exact in every cell, walls
+    included: d(rho)/dx = RVAL2*RVAL7, and likewise in y and z."""
+    rho0 = float(case.inp[("INITFLOW", "RVAL2")])
+    errors = []
+    for iDir, key in enumerate(("RVAL7", "RVAL8", "RVAL9")):
+        exact = rho0 * float(case.inp[("INITFLOW", key)])
+        worst = max(abs(v - exact) for g in final["_grad_rhog"].values() for v in g[iDir])
+        if worst > 1.0e-9 * abs(exact):
+            errors.append("grad rho_g[%d]: worst error %.3e, exact %.3e" % (iDir, worst, exact))
+    return errors
+
+
 # Gaussian projection on hex cells (MFC kernel, exp(-2.305*sum (dx_l/L_l)^2)
 # over the 3x3x3 neighbours): the deposit's centroid is within ~0.04 cell of
 # the particle and its spread is ~0.41-0.46 cell in every direction. The old
@@ -664,4 +677,5 @@ PHYSICS = {
     "fluctuations_active": check_fluctuations_active,
     "planar": check_planar,
     "uniform_gas_cells": check_uniform_gas_cells,
+    "linear_grad_rhog": check_linear_grad_rhog,
 }

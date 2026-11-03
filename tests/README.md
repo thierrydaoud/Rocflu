@@ -239,7 +239,7 @@ walls. The gas is uniform (1.2 kg/m³, 101 325 Pa) unless stated otherwise.
 | `box/quiescent-cloud` | 2, 4 | Periodic; 30 fixed particles (300 µm, uneven) in gas at rest, `VELOCITYMODEL 0`, `PGFORCE 1` | `quiescent`, `mass` | Stale virtual cells at rank borders set the gas moving (e3ed370) |
 | `box/resting-heat-exchange` | 1 | Periodic; particles at rest at 296.4 K in gas at rest at 294.2 K, `HEATTRANSFER 2` | `particles_heat_exchange`, `mass`, `energy` | Heat transfer at zero slip used to be skipped (f0ae123) |
 | `box/sun-dilute` | 1 | Periodic; gas at 5 m/s through 40 particles (450 µm) at 394 K, two-way, `HEATTRANSFER 5`; cell ε_s up to 0.075 | `particles_heat_exchange`, `mass`, `momentum`, `energy` | Sun's model below ε_s = 0.1, blended into Ranz–Marshall (955ba8e) |
-| `box/linear-interp` | 1, 2, 4 | Closed; gas at rest with density linear in x, y, z; 40 tracers (1 µm) | `linear_interp`, `mass` | Interpolation is exact for a linear field (89f9661) |
+| `box/linear-interp` | 1, 2, 4 | Closed; gas at rest with density linear in x, y, z; 40 tracers (1 µm) | `linear_interp`, `linear_grad_rhog`, `mass` | Interpolation is exact for a linear field (89f9661); so is the cell gradient of ρ_g in every cell, walls included |
 | `box/elongated-projection` | 1, 2 | Closed, 2:1:1 cells; one fixed particle | `projection_shape`, `mass` | The projection kernel spreads ~0.44 cell lengths in every direction (414ce7f, affad85) |
 | `box/ghost-collisions` | 1, 2, 4 | Periodic; 9 overlapping pairs at rest, collisions as the only force | `collision_pairs`, `same_as` | Pairs across bin faces, rank borders, periodic faces, edges and corners all behave like a pair inside one bin (ghost particles) |
 | `box/binary-collisions` | 1, 2, 4 | Periodic; 4 approaching pairs (equal and 8:1 mass, head-on and oblique, 1–10 m/s), `COLLISIONS 2` | `binary_collisions`, `same_as` | Momentum and angular momentum conserved, rebound with `EREST` (3afd23a) |
@@ -257,6 +257,7 @@ the flow solver's own conservation.
 |---|---|---|---|---|
 | `box/pt-lattice/pt1`, `pt2` | 1, 2, 4 | Periodic; gas at 50 m/s through a fixed lattice of one particle per cell (726 µm), `PSEUDOTURB 1` or `2` | `uniform_gas_cells` | φ_p, R_sg and Q_sg are uniform, so their divergences are zero and the gas must stay uniform to round-off. Zeros in the virtual cells gave a 1.4–1.8% spread in u after 2 µs (314123a) |
 | `box/pt-lattice/collisions2` | 2 | Same lattice with moving particles and `COLLISIONS 2`, `PSEUDOTURB 1` | `uniform_gas_cells` | Runs the torque path, whose gradient of the feedback force reads the same virtual cells |
+| `box/lattice-torque` | 1, 2, 4 | Periodic; gas at 50 m/s through a moving lattice of one particle per cell (726 µm), `COLLISIONS 2` | `uniform_gas_cells` | Runs the torque path, whose gradient of the feedback force reads the virtual cells; the gas must stay uniform to round-off |
 | `box/gas-jump/closed` | 2 | Slip walls, two regions | `mass`, `gas_energy` | Conservation across a region border |
 | `box/gas-jump/closed-creconst0` | 2 | Same with `CRECONSTC 0` | `mass`, `gas_energy` | The unconstrained cell-gradient path in a flow that pushes on the walls |
 | `box/gas-jump/periodic` | 1, 2 | Periodic on all faces | `mass`, `gas_energy` | Conservative fluxes across periodic faces (11dc640) |

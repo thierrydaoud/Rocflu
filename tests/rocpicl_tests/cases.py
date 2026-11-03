@@ -233,7 +233,7 @@ for n in (1, 2, 4):
         nranks=n, grid=BOX, bc="closed",
         inp={**uniform_gas(0.0), **ONE_WAY, **LINEAR_RHO},
         particles=cloud(40, 1.0e-6, lo=0.0006, hi=0.0074),
-        checks=["linear_interp", "mass"])
+        checks=["linear_interp", "linear_grad_rhog", "mass"])
 
 # -- Closed box of 2:1:1 cells: shape of the projected volume fraction --------
 # One particle at rest, at least two cells from every wall. The old kernel
@@ -466,6 +466,26 @@ add(name="box/pt-lattice/collisions2/np2",
          ("PICL", "PSEUDOTURB"): 1, ("PICL", "COLLISIONS"): 2},
     particles=PT_LATTICE,
     checks=["uniform_gas_cells"])
+
+
+# -- Periodic box: uniform lattice with the torque on -------------------------
+# One particle per cell at its centre: phi and the forces are the same in all
+# cells and stay so while the particles move together. The torque reads the
+# gradient of the feedback force, which reads the virtual cells.
+TORQUE_LATTICE = [(0.0005 + i * 1.0e-3, 0.0005 + j * 1.0e-3, 0.0005 + k * 1.0e-3, 7.26e-4)
+                  for i in range(8) for j in range(8) for k in range(8)]
+for n in (1, 2, 4):
+    add(name="box/lattice-torque/np%d" % n,
+        description="Uniform lattice with COLLISIONS 2, whose torque reads the gradient "
+                    "of the feedback force; the gas must stay uniform from cell to cell",
+        nranks=n, grid=BOX, bc="periodic",
+        inp={**uniform_gas(50.0), **TWO_WAY,
+             ("TIMESTEP", "MAXTIME"): "2.0E-06", ("TIMESTEP", "RUNTIME"): "2.0E-06",
+             ("TIMESTEP", "WRITIME"): "1.0E-06", ("TIMESTEP", "PRNTIME"): "1.0E-06",
+             ("PICL", "QSFORCE"): 3, ("PICL", "COLLISIONS"): 2,
+             ("PICL", "NEIGHBORWIDTH"): "3.0e-3"},
+        particles=TORQUE_LATTICE,
+        checks=["uniform_gas_cells"])
 
 
 # Cases that also write the old-style output (OLD_OUTPUT_WRT 1): the harness checks

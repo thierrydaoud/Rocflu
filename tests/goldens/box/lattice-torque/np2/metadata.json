@@ -1,0 +1,11 @@
+{
+ "created": "2026-11-02T21:21:49",
+ "host": "dane4",
+ "exe_dir": "/p/lustre3/daoud1/Rocflu_mainfix/build/bin",
+ "git": {
+  "commit": "25d9e4ebc56390df338cdf04a7aede0da7b4af9e",
+  "branch": "main-gradfix",
+  "modified_sources": []
+ },
+ "modules": "jobutils/1.0:texlive/20220321:StdEnv:cmake/3.30.5:gcc/13.3.1:openmpi/4.1.2"
+}
