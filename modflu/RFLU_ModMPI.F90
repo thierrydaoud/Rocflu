@@ -80,6 +80,9 @@ MODULE RFLU_ModMPI
 
   IMPLICIT NONE
 
+! Particle fields for RFLU_MPI_ExchangePiclField
+  INTEGER, PARAMETER :: RFLU_MPI_PICL_FEEDBACK = 1
+
   PUBLIC :: RFLU_MPI_ClearRequestWrapper, &
             RFLU_MPI_CopyWrapper, & 
             RFLU_MPI_CreateBufferIPclSend, &        
@@ -87,6 +90,8 @@ MODULE RFLU_ModMPI
             RFLU_MPI_DestroyBufferIPclSend, &           
             RFLU_MPI_DestroyBuffersWrapper, &        
             RFLU_MPI_ExchangeGradCells, &
+            RFLU_MPI_ExchangePiclField, &
+            RFLU_MPI_PICL_FEEDBACK, &
             RFLU_MPI_HM_CopyWrapper, & 
             RFLU_MPI_HM_ISendWrapper, & 
             RFLU_MPI_HM_RecvWrapper, & 
@@ -1504,6 +1509,155 @@ MODULE RFLU_ModMPI
     CALL DeregisterFunction(global)
 
   END SUBROUTINE RFLU_MPI_ExchangeGradCells
+
+
+! ******************************************************************************
+!
+! Purpose: Copy a particle field of actual cells to the virtual cells mirroring
+!   them, on region borders and on periodic and symmetry patches.
+!
+! Input:
+!   regions     Data of all regions
+!   field       RFLU_MPI_PICL_* code of the field
+!
+! ******************************************************************************
+
+  SUBROUTINE RFLU_MPI_ExchangePiclField(regions,field)
+
+    IMPLICIT NONE
+
+    INTEGER, INTENT(IN) :: field
+    TYPE(t_region), DIMENSION(:), POINTER :: regions
+
+    TYPE t_buff
+      REAL(RFREAL), DIMENSION(:,:), ALLOCATABLE :: data
+    END TYPE t_buff
+
+    LOGICAL :: dummyLogical
+    INTEGER :: errorFlag,iBorder,icl,iReg,iReq,nReq,nVars,tag,tagMax
+    INTEGER, DIMENSION(:), ALLOCATABLE :: reqs
+    INTEGER, DIMENSION(:,:), ALLOCATABLE :: statuses
+    REAL(RFREAL), DIMENSION(:,:), POINTER :: var,var2
+    TYPE(t_buff), DIMENSION(:), ALLOCATABLE :: sendBuff,recvBuff
+    TYPE(t_border), POINTER :: pBorder,pBorder2
+    TYPE(t_global), POINTER :: global
+    TYPE(t_grid), POINTER :: pGrid
+    TYPE(t_region), POINTER :: pRegion,pRegion2
+
+    INTEGER, PARAMETER :: IMSG_PICL = 11 ! Message index for tags
+
+    global => regions(LBOUND(regions,1))%global
+
+    CALL RegisterFunction(global,'RFLU_MPI_ExchangePiclField',__FILE__)
+
+    CALL MPI_Attr_get(MPI_COMM_WORLD,MPI_TAG_UB,tagMax,dummyLogical,errorFlag)
+
+    nReq = 0
+    DO iReg = 1,global%nRegionsLocal
+      pGrid => regions(iReg)%grid
+      DO iBorder = 1,pGrid%nBorders
+        IF ( pGrid%borders(iBorder)%iProc /= global%myProcid ) nReq = nReq + 2
+      END DO ! iBorder
+    END DO ! iReg
+
+    ALLOCATE(reqs(MAX(nReq,1)),statuses(MPI_STATUS_SIZE,MAX(nReq,1)), &
+             sendBuff(MAX(nReq,1)),recvBuff(MAX(nReq,1)),STAT=errorFlag)
+    global%error = errorFlag
+    IF ( global%error /= ERR_NONE ) THEN
+      CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'particle field exchange buffers')
+    END IF ! global%error
+
+    iReq = 0
+    DO iReg = 1,global%nRegionsLocal
+      pRegion => regions(iReg)
+      pGrid   => pRegion%grid
+      CALL GetField(pRegion,var)
+      nVars = SIZE(var,1)
+
+      DO iBorder = 1,pGrid%nBorders
+        pBorder => pGrid%borders(iBorder)
+
+        IF ( pBorder%iProc == global%myProcid ) THEN
+          pRegion2 => regions(pBorder%iRegionLocal)
+          pBorder2 => pRegion2%grid%borders(pBorder%iBorder)
+
+          IF ( pBorder%nCellsSend /= pBorder2%nCellsRecv ) THEN
+            CALL ErrorStop(global,ERR_BUFFERDIM_MISMATCH,__LINE__)
+          END IF ! pBorder
+
+          CALL GetField(pRegion2,var2)
+          DO icl = 1,pBorder%nCellsSend
+            var2(:,pBorder2%icgRecv(icl)) = var(:,pBorder%icgSend(icl))
+          END DO ! icl
+        ELSE
+          tag = RFLU_MPI_SetTag(global,pRegion%iRegionGlobal, &
+                                pBorder%iRegionGlobal,IMSG_PICL,tagMax)
+
+          iReq = iReq + 1
+          ALLOCATE(recvBuff(iReq)%data(nVars,MAX(pBorder%nCellsRecv,1)))
+          CALL MPI_IRecv(recvBuff(iReq)%data,nVars*pBorder%nCellsRecv, &
+                         MPI_RFREAL,pBorder%iProc,tag,global%mpiComm, &
+                         reqs(iReq),errorFlag)
+
+          iReq = iReq + 1
+          ALLOCATE(sendBuff(iReq)%data(nVars,MAX(pBorder%nCellsSend,1)))
+          DO icl = 1,pBorder%nCellsSend
+            sendBuff(iReq)%data(:,icl) = var(:,pBorder%icgSend(icl))
+          END DO ! icl
+          CALL MPI_ISend(sendBuff(iReq)%data,nVars*pBorder%nCellsSend, &
+                         MPI_RFREAL,pBorder%iProc,tag,global%mpiComm, &
+                         reqs(iReq),errorFlag)
+        END IF ! pBorder%iProc
+      END DO ! iBorder
+    END DO ! iReg
+
+    IF ( nReq > 0 ) THEN
+      CALL MPI_Waitall(nReq,reqs,statuses,errorFlag)
+      global%error = errorFlag
+      IF ( global%error /= ERR_NONE ) THEN
+        CALL ErrorStop(global,ERR_MPI_OUTPUT,__LINE__)
+      END IF ! global%error
+    END IF ! nReq
+
+    iReq = 0
+    DO iReg = 1,global%nRegionsLocal
+      pRegion => regions(iReg)
+      pGrid   => pRegion%grid
+      CALL GetField(pRegion,var)
+
+      DO iBorder = 1,pGrid%nBorders
+        pBorder => pGrid%borders(iBorder)
+        IF ( pBorder%iProc == global%myProcid ) CYCLE
+
+        iReq = iReq + 1 ! receive
+        DO icl = 1,pBorder%nCellsRecv
+          var(:,pBorder%icgRecv(icl)) = recvBuff(iReq)%data(:,icl)
+        END DO ! icl
+        iReq = iReq + 1 ! send
+      END DO ! iBorder
+    END DO ! iReg
+
+    DEALLOCATE(reqs,statuses,sendBuff,recvBuff)
+
+    CALL DeregisterFunction(global)
+
+  CONTAINS
+
+    SUBROUTINE GetField(pFieldRegion,fieldVar)
+
+      TYPE(t_region), POINTER :: pFieldRegion
+      REAL(RFREAL), DIMENSION(:,:), POINTER :: fieldVar
+
+      SELECT CASE ( field )
+        CASE ( RFLU_MPI_PICL_FEEDBACK )
+          fieldVar => pFieldRegion%mixt%piclFeedback
+        CASE DEFAULT
+          CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
+      END SELECT ! field
+
+    END SUBROUTINE GetField
+
+  END SUBROUTINE RFLU_MPI_ExchangePiclField
 
 
 ! ******************************************************************************

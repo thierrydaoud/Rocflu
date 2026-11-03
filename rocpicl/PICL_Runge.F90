@@ -94,7 +94,6 @@ SUBROUTINE PICL_Runge(pRegion)
 #ifdef PICL
 USE RFLU_ModConvertCv, ONLY: RFLU_ConvertCvCons2Prim, &
                              RFLU_ConvertCvPrim2Cons
-USE PICL_ModGradients, ONLY: PICL_ComputeGradCells, PICL_CONSTR_NONE
 
  USE ModInterfaces, ONLY: RFLU_DecideWrite !BRAD added for picl
  
@@ -212,22 +211,11 @@ pGc => pRegion%mixt%gradCell
     !       calculate the undisturbed torque component
     ! Internal definitions; some redundancy but just ignore
     ! We do not need energy, but might in the future
-    DO i = 1,pRegion%grid%nCells
-       JFXCell(i) = 0.0_RFREAL
-       JFYCell(i) = 0.0_RFREAL
-       JFZCell(i) = 0.0_RFREAL
-       JFECell(i) = 0.0_RFREAL
-       CALL ppiclf_solve_GetProFld(i,PPICLF_P_JFX,JFXCell(i))  
-       CALL ppiclf_solve_GetProFld(i,PPICLF_P_JFY,JFYCell(i))
-       CALL ppiclf_solve_GetProFld(i,PPICLF_P_JFZ,JFZCell(i))
-       pregion%mixt%piclFeedback(1,i) = JFXCell(i)
-       pregion%mixt%piclFeedback(2,i) = JFYCell(i)
-       pregion%mixt%piclFeedback(3,i) = JFZCell(i)
-    END DO
-    ! Now calculate the gradient of the feedback force
-    CALL PICL_ComputeGradCells(pRegion,1,3,pRegion%mixt%piclFeedback, &
-                               pRegion%mixt%piclgradFeedback,PICL_CONSTR_NONE, &
-                               .TRUE.,.FALSE.)
+    ! Filled for COLLISIONS 2 and above in the gradient phase of the stage
+    JFXCell(1:nCells) = pRegion%mixt%piclFeedback(1,1:nCells)
+    JFYCell(1:nCells) = pRegion%mixt%piclFeedback(2,1:nCells)
+    JFZCell(1:nCells) = pRegion%mixt%piclFeedback(3,1:nCells)
+    JFECell = 0.0_RFREAL
 
   ! END - TLJ calculating gradient of feedback force
 
