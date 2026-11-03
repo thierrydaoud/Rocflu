@@ -23,8 +23,8 @@ MINF     15.9325 ! Used in AUSUPlusUp (default is 0.1 if not specified, or 15.93
 RECONST    2    ! Reconstruction method of gradients (0 - OFF,  1 - WENO Simple , 2 - WENO XYZ (default) , 10 - LIM BARTHJESP , 11 - LIM VENKAT)
 CRECONSTF  1    ! Constrained reconstruction to compute face gradients (0 - OFF (default), 1 - ON )
 CRECONSTC  1    ! Constrained reconstruction to compute cell gradients (0 - OFF (default), 1 - ON )
-CRECONSTCW 1    ! Weight for constrained cell-gradient reconstruction (0 - OFF, 1 - ON (default and recommended), can take arbitrary value if need be.)
-CRECONSTFW 1    ! Weight for constrained face-gradient reconstruction (0 - OFF, 1 - ON (default and recommended), can take arbitrary value if need be.)
+CRECONSTCW 1    ! Weight of the wall values in the constrained cell-gradient fit (default 1); not a switch, CRECONSTC 0 turns it off
+CRECONSTFW 1    ! Weight of the wall values in the constrained face-gradient fit (default 1); not a switch, CRECONSTF 0 turns it off
 # 
  
 # TIMESTEP 
