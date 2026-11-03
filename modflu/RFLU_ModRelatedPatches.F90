@@ -81,6 +81,7 @@ MODULE RFLU_ModRelatedPatches
 
   PRIVATE
   PUBLIC :: RFLU_RELP_TransformGradWrapper, &
+            RFLU_RELP_TransformPiclField, &
             RFLU_RELP_TransformVector, & 
             RFLU_RELP_TransformWrapper
             
@@ -383,7 +384,6 @@ MODULE RFLU_ModRelatedPatches
     TYPE(t_region), POINTER :: pRegion
 
     INTEGER :: icg,icl,iPatch
-    REAL(RFREAL) :: ct,ex,ey,ez,nx,ny,nz,st,theta
     REAL(RFREAL) :: g(3),gt(3)
     REAL(RFREAL) :: tm(3,3),vg(3,3)
     REAL(RFREAL), DIMENSION(:,:,:), POINTER :: pGc
@@ -403,14 +403,65 @@ MODULE RFLU_ModRelatedPatches
 
       IF ( pPatch%nBCellsVirt == 0 ) CYCLE
 
+      IF ( .NOT. RFLU_RELP_TransformMatrix(global,pPatch,tm) ) CYCLE
+
 ! ==============================================================================
-!     Transformation matrix (same as applied to momentum)
+!     Apply to gradients of virtual cells of this patch
 ! ==============================================================================
+
+      DO icl = 1,pPatch%nBCellsVirt
+        icg = pPatch%bvc(icl)
+
+        ! Scalar gradients (no density slot in the implicit-solver layout)
+        IF ( LBOUND(pGc,2) <= GRC_MIXT_DENS ) THEN
+          g  = pGc(XCOORD:ZCOORD,GRC_MIXT_DENS,icg)
+          gt = MATMUL(tm,g)
+          pGc(XCOORD:ZCOORD,GRC_MIXT_DENS,icg) = gt
+        END IF ! LBOUND
+
+        g  = pGc(XCOORD:ZCOORD,GRC_MIXT_PRES,icg)
+        gt = MATMUL(tm,g)
+        pGc(XCOORD:ZCOORD,GRC_MIXT_PRES,icg) = gt
+
+        ! Velocity-gradient tensor, vg(i,j) = du_i/dx_j
+        vg = TRANSPOSE(pGc(XCOORD:ZCOORD,GRC_MIXT_XVEL:GRC_MIXT_ZVEL,icg))
+        vg = MATMUL(tm,MATMUL(vg,TRANSPOSE(tm)))
+        pGc(XCOORD:ZCOORD,GRC_MIXT_XVEL:GRC_MIXT_ZVEL,icg) = TRANSPOSE(vg)
+      END DO ! icl
+    END DO ! iPatch
+
+    CALL DeregisterFunction(global)
+
+  END SUBROUTINE RFLU_RELP_TransformGradWrapper
+
+
+! ******************************************************************************
+!
+! Purpose: Rotation (periodic) or reflection (symmetry) applied to the momentum
+!   of a patch's virtual cells.
+!
+! Output:
+!   tm          Transformation matrix
+!   Result      .FALSE. when linear periodicity needs no transformation
+!
+! ******************************************************************************
+
+  LOGICAL FUNCTION RFLU_RELP_TransformMatrix(global,pPatch,tm)
+
+    IMPLICIT NONE
+
+    REAL(RFREAL), INTENT(OUT) :: tm(3,3)
+    TYPE(t_global), POINTER :: global
+    TYPE(t_patch), POINTER :: pPatch
+
+    REAL(RFREAL) :: ct,ex,ey,ez,nx,ny,nz,st,theta
+
+    RFLU_RELP_TransformMatrix = .FALSE.
 
       SELECT CASE ( pPatch%bcType )
         CASE ( BC_PERIODIC )
           theta = pPatch%angleRelated
-          IF ( theta == 0.0_RFREAL ) CYCLE
+          IF ( theta == 0.0_RFREAL ) RETURN
 
           ex = 0.0_RFREAL
           ey = 0.0_RFREAL
@@ -458,34 +509,60 @@ MODULE RFLU_ModRelatedPatches
           CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
       END SELECT ! pPatch%bcType
 
-! ==============================================================================
-!     Apply to gradients of virtual cells of this patch
-! ==============================================================================
+    RFLU_RELP_TransformMatrix = .TRUE.
+
+  END FUNCTION RFLU_RELP_TransformMatrix
+
+
+! ******************************************************************************
+!
+! Purpose: Transform a particle field copied into the virtual cells of periodic
+!   and symmetry patches.
+!
+! Input:
+!   pRegion     Pointer to region
+!   var         Vector (3 components) or tensor (9, row by row) in each cell
+!
+! ******************************************************************************
+
+  SUBROUTINE RFLU_RELP_TransformPiclField(pRegion,var)
+
+    IMPLICIT NONE
+
+    REAL(RFREAL), DIMENSION(:,:), POINTER :: var
+    TYPE(t_region), POINTER :: pRegion
+
+    INTEGER :: icg,icl,iPatch
+    REAL(RFREAL) :: rowTensor(3,3),tm(3,3)
+    TYPE(t_global), POINTER :: global
+    TYPE(t_patch), POINTER :: pPatch
+
+    global => pRegion%global
+
+    IF ( (SIZE(var,1) /= 3) .AND. (SIZE(var,1) /= 9) ) THEN
+      CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
+    END IF ! SIZE
+
+    DO iPatch = 1,pRegion%grid%nPatches
+      pPatch => pRegion%patches(iPatch)
+
+      IF ( pPatch%nBCellsVirt == 0 ) CYCLE
+      IF ( .NOT. RFLU_RELP_TransformMatrix(global,pPatch,tm) ) CYCLE
 
       DO icl = 1,pPatch%nBCellsVirt
         icg = pPatch%bvc(icl)
 
-        ! Scalar gradients (no density slot in the implicit-solver layout)
-        IF ( LBOUND(pGc,2) <= GRC_MIXT_DENS ) THEN
-          g  = pGc(XCOORD:ZCOORD,GRC_MIXT_DENS,icg)
-          gt = MATMUL(tm,g)
-          pGc(XCOORD:ZCOORD,GRC_MIXT_DENS,icg) = gt
-        END IF ! LBOUND
-
-        g  = pGc(XCOORD:ZCOORD,GRC_MIXT_PRES,icg)
-        gt = MATMUL(tm,g)
-        pGc(XCOORD:ZCOORD,GRC_MIXT_PRES,icg) = gt
-
-        ! Velocity-gradient tensor, vg(i,j) = du_i/dx_j
-        vg = TRANSPOSE(pGc(XCOORD:ZCOORD,GRC_MIXT_XVEL:GRC_MIXT_ZVEL,icg))
-        vg = MATMUL(tm,MATMUL(vg,TRANSPOSE(tm)))
-        pGc(XCOORD:ZCOORD,GRC_MIXT_XVEL:GRC_MIXT_ZVEL,icg) = TRANSPOSE(vg)
+        IF ( SIZE(var,1) == 3 ) THEN
+          var(1:3,icg) = MATMUL(tm,var(1:3,icg))
+        ELSE
+          rowTensor = TRANSPOSE(RESHAPE(var(1:9,icg),(/3,3/)))
+          rowTensor = MATMUL(tm,MATMUL(rowTensor,TRANSPOSE(tm)))
+          var(1:9,icg) = RESHAPE(TRANSPOSE(rowTensor),(/9/))
+        END IF ! SIZE
       END DO ! icl
     END DO ! iPatch
 
-    CALL DeregisterFunction(global)
-
-  END SUBROUTINE RFLU_RELP_TransformGradWrapper
+  END SUBROUTINE RFLU_RELP_TransformPiclField
 
 
 ! ******************************************************************************

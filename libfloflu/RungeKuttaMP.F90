@@ -92,6 +92,7 @@ SUBROUTINE RungeKuttaMP( regions )
   USE RFLU_ModNSCBC
   USE RFLU_ModGFM
   USE RFLU_ModRelatedPatches, ONLY: RFLU_RELP_TransformGradWrapper, &
+                                    RFLU_RELP_TransformPiclField, &
                                     RFLU_RELP_TransformWrapper
   USE RFLU_ModTime, ONLY: RFLU_SetTimeRK
 
@@ -108,7 +109,9 @@ SUBROUTINE RungeKuttaMP( regions )
                            RFLU_UpdateBoundaryValues
 
 #ifdef PICL
-  USE PICL_ModInterfaces, ONLY: PICL_Runge
+  USE PICL_ModInterfaces, ONLY: PICL_AddSubgridDivergence, PICL_FillFeedback, &
+                                PICL_Runge
+  USE PICL_ModGradients, ONLY: PICL_ComputeGradCells, PICL_CONSTR_NONE
 #endif
 
 #ifdef SPEC
@@ -233,6 +236,28 @@ SUBROUTINE RungeKuttaMP( regions )
       END DO ! iRegLocal
     END IF ! spaceOrder
 
+#ifdef PICL
+! ----- gradient of the feedback force, read by the undisturbed torque ---------
+
+    IF ( (global%piclUsed .EQV. .TRUE.) .AND. &
+         (global%piclCollisionFlag >= 2) ) THEN
+      DO iRegLocal=1,global%nRegionsLocal
+        pRegion => regions(iRegLocal)
+        CALL PICL_FillFeedback(pRegion)
+      END DO ! iRegLocal
+
+      CALL RFLU_MPI_ExchangePiclField(regions,RFLU_MPI_PICL_FEEDBACK)
+
+      DO iRegLocal=1,global%nRegionsLocal
+        pRegion => regions(iRegLocal)
+        CALL RFLU_RELP_TransformPiclField(pRegion,pRegion%mixt%piclFeedback)
+        CALL PICL_ComputeGradCells(pRegion,1,3,pRegion%mixt%piclFeedback, &
+                                   pRegion%mixt%piclgradFeedback,PICL_CONSTR_NONE, &
+                                   .TRUE.,.FALSE.)
+      END DO ! iRegLocal
+    END IF ! piclCollisionFlag
+#endif
+
     DO iRegLocal=1,global%nRegionsLocal
       iReg = iRegLocal
 
@@ -280,6 +305,25 @@ SUBROUTINE RungeKuttaMP( regions )
         CALL RFLU_DescaleGridSpeeds(pRegion)
 
     ENDDO    ! iReg
+
+#ifdef PICL
+! ----- subgrid fluxes: needs every region's fields in the virtual cells -------
+
+    IF ( (global%piclUsed .EQV. .TRUE.) .AND. &
+         (global%piclFeedbackFlag == 1) .AND. &
+         (global%piclPseudoTurbFlag > 0) ) THEN
+      CALL RFLU_MPI_ExchangePiclField(regions,RFLU_MPI_PICL_PHIRSG)
+      CALL RFLU_MPI_ExchangePiclField(regions,RFLU_MPI_PICL_PHIQSG)
+
+      DO iRegLocal=1,global%nRegionsLocal
+        pRegion => regions(iRegLocal)
+        CALL RFLU_RELP_TransformPiclField(pRegion,pRegion%mixt%piclPhiRsg)
+        CALL RFLU_RELP_TransformPiclField(pRegion,pRegion%mixt%piclPhiQsg)
+        CALL PICL_AddSubgridDivergence(pRegion)
+        CALL ZeroResidualsMP(regions(iRegLocal))
+      END DO ! iRegLocal
+    END IF ! piclPseudoTurbFlag
+#endif
 
 #ifdef PICL
 IF ( global%piclUsed .EQV. .true. ) THEN

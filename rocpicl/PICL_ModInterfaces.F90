@@ -81,6 +81,16 @@ MODULE PICL_ModInterfaces
     TYPE(t_region), POINTER :: pRegion    
   END SUBROUTINE PICL_Runge
 
+  SUBROUTINE PICL_FillFeedback(pRegion)
+    USE ModDataStruct, ONLY : t_region
+    TYPE(t_region), POINTER :: pRegion
+  END SUBROUTINE PICL_FillFeedback
+
+  SUBROUTINE PICL_AddSubgridDivergence(pRegion)
+    USE ModDataStruct, ONLY : t_region
+    TYPE(t_region), POINTER :: pRegion
+  END SUBROUTINE PICL_AddSubgridDivergence
+
   SUBROUTINE PICL_WriteVTU( pRegion)
     USE ModDataStruct, ONLY : t_region
     TYPE(t_region), POINTER :: pRegion    
