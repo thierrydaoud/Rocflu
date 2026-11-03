@@ -65,8 +65,9 @@ accept more.
 | | `AXIFLAG` | 0, 1 | axisymmetric; **not available with particles** |
 | | `SIGMA`, `KP`, `KU`, `MINF` | | AUSM+up parameters (defaults 1.0, 0.25, 0.75, 0.1) |
 | | `RECONST` | 0 none, 1 WENO simple, 2 WENO XYZ, 10 Barth-Jespersen, 11 Venkatakrishnan | gradient reconstruction (limiter) |
-| | `CRECONSTC`, `CRECONSTF` | 0, 1 | constrained cell / face gradients |
-| | `CRECONSTCW`, `CRECONSTFW` | 0, 1, or a weight | their weights |
+| | `CRECONSTC` | 0 (default), 1 | wall constraints on fluid **cell** gradients. In cells with a wall-type boundary face in their stencil (`BC_SLIPW`, `BC_NOSLIP_HFLUX`, `BC_NOSLIP_TEMP`, `BC_INJECT`; about three cell layers at each wall), known wall values are added to the least-squares fit: normal velocity at axis-aligned slip walls and injection faces; all velocity components at no-slip walls; temperature at `BC_NOSLIP_TEMP`; temperature and density at inflowing injection. Other variables keep the plain least-squares gradient. Particles feel this through the fluid gradients they read (e.g. ∇p); ∇ρ_g and ∇F are never constrained. No effect without wall-type patches |
+| | `CRECONSTF` | 0 (default), 1 | the same for **interior-face** gradients of velocity and temperature near walls. Used only by the viscous fluxes, so no effect with `MODEL 0`. With `MODEL 1`, gradients of variables with no known wall value are currently set to zero on these faces |
+| | `CRECONSTCW`, `CRECONSTFW` | ≥ 0 (default 1) | weight of the wall values in the cell / face fit (the sign is ignored). A weight, not a switch: to turn the constraint off, set `CRECONSTC` / `CRECONSTF` to 0 |
 | `# TIMESTEP` | `FLOWTYPE` | 0 steady, 1 unsteady | |
 | | `SOLVERTYPE` | 1 dissipative, 3 non-dissipative | |
 | | `MAXTIME`, `RUNTIME` | s | end time; run time of this job |
