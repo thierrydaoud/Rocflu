@@ -106,6 +106,8 @@ SUBROUTINE ReadSection( global,fileID,nvals,keys,vals,defined )
   USE ModError
   IMPLICIT NONE
 
+  LOGICAL, EXTERNAL :: LineHasKey
+
 ! ... parameters
   INTEGER      :: fileID, nvals
   CHARACTER(*) :: keys(nvals)
@@ -138,7 +140,7 @@ SUBROUTINE ReadSection( global,fileID,nvals,keys,vals,defined )
     DO ival=1,nvals
       IF (.NOT. defined(ival)) THEN
         nc = LEN_TRIM(keys(ival))
-        IF (line(1:nc) == TRIM(keys(ival))) THEN    ! found matching keyword
+        IF (LineHasKey(line,keys(ival))) THEN    ! found matching keyword
           READ(line(nc+1:256),*) vals(ival)
           defined(ival) = .true.
           EXIT
@@ -162,6 +164,8 @@ SUBROUTINE ReadStringSection( global,fileID,nvals,keys,vals,defined )
   USE ModGlobal, ONLY : t_global
   USE ModError
   IMPLICIT NONE
+
+  LOGICAL, EXTERNAL :: LineHasKey
 
 ! ... parameters
   INTEGER        :: fileID, nvals
@@ -195,7 +199,7 @@ SUBROUTINE ReadStringSection( global,fileID,nvals,keys,vals,defined )
     DO ival=1,nvals
       IF (.NOT. defined(ival)) THEN
         nc = LEN_TRIM(keys(ival))
-        IF (line(1:nc) == TRIM(keys(ival))) THEN    ! found matching keyword
+        IF (LineHasKey(line,keys(ival))) THEN    ! found matching keyword
           iEnd = INDEX(line,'!')-1    ! last character before comment begins
           IF (iEnd < 0) iEnd = 256    ! if no comment, retain entire line
           vals(ival)=ADJUSTL(line(nc+1:iEnd))
@@ -222,6 +226,8 @@ SUBROUTINE ReadBothSection( global,fileID,nvals,nStrVals,keys,strKeys, &
   USE ModGlobal, ONLY : t_global
   USE ModError
   IMPLICIT NONE
+
+  LOGICAL, EXTERNAL :: LineHasKey
 
 ! ... parameters
   INTEGER      :: fileID, nvals, nStrVals
@@ -257,7 +263,7 @@ o:DO
     DO ival=1,nvals
       IF (.NOT. defined(ival)) THEN
         nc = LEN_TRIM(keys(ival))
-        IF (line(1:nc) == TRIM(keys(ival))) THEN    ! found matching keyword
+        IF (LineHasKey(line,keys(ival))) THEN    ! found matching keyword
           READ(line(nc+1:256),*) vals(ival)
           defined(ival) = .true.
           CYCLE o
@@ -268,7 +274,7 @@ o:DO
     DO ival=1,nStrVals
       IF (.NOT. strDefined(ival)) THEN
         nc = LEN_TRIM(strKeys(ival))
-        IF (line(1:nc) == TRIM(strKeys(ival))) THEN ! found matching keyword
+        IF (LineHasKey(line,strKeys(ival))) THEN ! found matching keyword
           iEnd = INDEX(line,'!')-1    ! last character before comment begins
           IF (iEnd < 0) iEnd = 256    ! if no comment, retain entire line
           strVals(ival)=ADJUSTL(line(nc+1:iEnd))
@@ -296,6 +302,8 @@ SUBROUTINE ReadRegionSection( global,fileID,nvals,keys,vals, &
   USE ModGlobal, ONLY : t_global
   USE ModError
   IMPLICIT NONE
+
+  LOGICAL, EXTERNAL :: LineHasKey
 
 ! ... parameters
   INTEGER        :: fileID, nvals, brbeg, brend
@@ -338,7 +346,7 @@ SUBROUTINE ReadRegionSection( global,fileID,nvals,keys,vals, &
     ELSE
       DO ival=1,nvals
         nc = LEN_TRIM(keys(ival))
-        IF (line(1:nc) == TRIM(keys(ival))) THEN    ! found matching keyword
+        IF (LineHasKey(line,keys(ival))) THEN    ! found matching keyword
           READ(line(nc+1:256),*) vals(ival)
           defined(ival) = .true.
         ENDIF
@@ -362,6 +370,8 @@ SUBROUTINE ReadBothRegionSection( global,fileID,nvals,nStrVals,keys,strKeys, &
   USE ModGlobal, ONLY : t_global
   USE ModError
   IMPLICIT NONE
+
+  LOGICAL, EXTERNAL :: LineHasKey
 
 ! ... parameters
   INTEGER      :: fileID, nvals, nStrVals, brbeg, brend
@@ -409,7 +419,7 @@ o:DO
     DO ival=1,nvals
       IF (.NOT. defined(ival)) THEN
         nc = LEN_TRIM(keys(ival))
-        IF (line(1:nc) == TRIM(keys(ival))) THEN    ! found matching keyword
+        IF (LineHasKey(line,keys(ival))) THEN    ! found matching keyword
           READ(line(nc+1:256),*) vals(ival)
           defined(ival) = .true.
           CYCLE o
@@ -420,7 +430,7 @@ o:DO
     DO ival=1,nStrVals
       IF (.NOT. strDefined(ival)) THEN
         nc = LEN_TRIM(strKeys(ival))
-        IF (line(1:nc) == TRIM(strKeys(ival))) THEN ! found matching keyword
+        IF (LineHasKey(line,strKeys(ival))) THEN ! found matching keyword
           iEnd = INDEX(line,'!')-1    ! last character before comment begins
           IF (iEnd < 0) iEnd = 256    ! if no comment, retain entire line
           strVals(ival)=ADJUSTL(line(nc+1:iEnd))
@@ -449,6 +459,8 @@ SUBROUTINE ReadPatchSection( global,fileID,nvals,keys,vals, &
   USE ModGlobal, ONLY : t_global
   USE ModError
   IMPLICIT NONE
+
+  LOGICAL, EXTERNAL :: LineHasKey
 
 ! ... parameters
   INTEGER      :: fileID, nvals, prbeg, prend, distrib
@@ -507,7 +519,7 @@ SUBROUTINE ReadPatchSection( global,fileID,nvals,keys,vals, &
     ELSE
       DO ival=1,nvals
         nc = LEN_TRIM(keys(ival))
-        IF (line(1:nc) == TRIM(keys(ival))) THEN    ! found matching keyword
+        IF (LineHasKey(line,keys(ival))) THEN    ! found matching keyword
           READ(line(nc+1:256),*) vals(ival)
           defined(ival) = .true.
         ENDIF
@@ -531,6 +543,8 @@ SUBROUTINE ReadListSection( global,fileID,key,nCols,nRows,vals,defined )
   USE ModError
   USE ModMPI
   IMPLICIT NONE
+
+  LOGICAL, EXTERNAL :: LineHasKey
 
 ! ... parameters
   INTEGER      :: fileID, nCols, nRows
@@ -562,7 +576,7 @@ SUBROUTINE ReadListSection( global,fileID,key,nCols,nRows,vals,defined )
     READ(fileID,'(A256)',err=10,end=10) line
     IF (line(1:1) == '#') EXIT
 
-    IF (line(1:nc) == TRIM(key)) THEN
+    IF (LineHasKey(line,key)) THEN
       READ(line(nc+1:256),*,err=10,end=10) nRows
       IF (nRows > 0) THEN
         ALLOCATE( vals(nRows,nCols),stat=errorFlag )
@@ -600,6 +614,8 @@ SUBROUTINE ReadPrefixedListSection( global,fileID,key,nCols,nRows, &
   USE ModError
   IMPLICIT NONE
 
+  LOGICAL, EXTERNAL :: LineHasKey
+
 ! ... parameters
   INTEGER      :: fileID, nCols, nRows
   CHARACTER(*) :: key
@@ -631,7 +647,7 @@ SUBROUTINE ReadPrefixedListSection( global,fileID,key,nCols,nRows, &
     READ(fileID,'(A256)',err=10,end=10) line
     IF (line(1:1) == '#') EXIT
 
-    IF (line(1:nc) == TRIM(key)) THEN
+    IF (LineHasKey(line,key)) THEN
       READ(line(nc+1:256),*,err=10,end=10) nRows
       IF (nRows > 0) THEN
         ALLOCATE( vals(nRows,nCols),stat=errorFlag )
@@ -662,6 +678,26 @@ SUBROUTINE ReadPrefixedListSection( global,fileID,key,nCols,nRows, &
 999  CONTINUE
 
 END SUBROUTINE ReadPrefixedListSection
+
+!******************************************************************************
+! True if the line starts with the key, followed by a blank or a tab
+!******************************************************************************
+
+LOGICAL FUNCTION LineHasKey( line,key )
+
+  IMPLICIT NONE
+
+  CHARACTER(*), INTENT(IN) :: line, key
+
+  INTEGER :: nc
+
+  nc = LEN_TRIM(key)
+  LineHasKey = line(1:nc) == key(1:nc)
+  IF (LineHasKey .AND. nc < LEN(line)) THEN
+    LineHasKey = line(nc+1:nc+1) == ' ' .OR. line(nc+1:nc+1) == ACHAR(9)
+  ENDIF
+
+END FUNCTION LineHasKey
 
 !******************************************************************************
 !

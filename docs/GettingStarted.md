@@ -39,7 +39,7 @@ On HiPerGator or Dane (see [Machines](#machines) for others):
 
 ```bash
 ./rocflu.sh build        # optimised build of everything (about 30 s on 16 cores)
-./rocflu.sh test         # regression suite (39 cases and a unit test, about a minute)
+./rocflu.sh test         # regression suite (66 cases and a unit test, about a minute)
 ./rocflu.sh run /path/to/case/<case>.inp -n 4      # build for the case, pre-process, submit
 ./rocflu.sh post /path/to/case/<case>.inp          # dumps -> ParaView files in post/
 ```

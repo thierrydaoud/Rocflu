@@ -474,6 +474,7 @@ SUBROUTINE RFLU_DeallocateMemorySolCv(pRegion)
     DEALLOCATE(pRegion%mixt%piclgradTg,STAT=errorFlag)
     DEALLOCATE(pRegion%mixt%DivPhiRsg,STAT=errorFlag)
     DEALLOCATE(pRegion%mixt%FCell,STAT=errorFlag)
+    DEALLOCATE(pRegion%mixt%piclGradCell,STAT=errorFlag)
     ! 03/19/2025 - Thierry - ends here 
     
      global%error = errorFlag

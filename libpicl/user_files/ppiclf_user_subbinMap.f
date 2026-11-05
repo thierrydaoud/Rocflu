@@ -50,38 +50,23 @@
         END DO 
         ! Determine the number of subbins in each dimension
         DO l = 1,3
-          IF (l .LT. 3 .OR. ppiclf_ndim .GT. 2) THEN
-            n_SBin(l) = FLOOR((ppiclf_bins_dx(l)+2*ppiclf_nndist)
-     >                       /ppiclf_nndist) + 1
-          ELSE
-            n_SBin(l) = 0
-          END IF
+          n_SBin(l) = FLOOR((ppiclf_bins_dx(l)+2*ppiclf_nndist)
+     >                     /ppiclf_nndist) + 1
         END DO
 
         ! Determine total number of subbins
-        tot_SBin = n_SBin(1)*n_SBin(2)
-        IF (ppiclf_ndim .EQ. 3) THEN
-          tot_SBin = tot_SBin*n_SBin(3)
-        END IF
+        tot_SBin = n_SBin(1)*n_SBin(2)*n_SBin(3)
         nent = 0
 
         ! Map each real particle to a subbin
         DO i = 1 , ppiclf_npart
            DO l = 1,3
-              IF (l .LT. 3 .OR. ppiclf_ndim .GT. 2) THEN
-                 xp(l) = ppiclf_y(l,i)
-              ELSE
-                 xp(l) = 0.0
-              END IF
+              xp(l) = ppiclf_y(l,i)
            END DO 
            ! Determine subbin
            DO l = 1,3
-              IF (l .LT. 3 .OR. ppiclf_ndim .GT. 2) THEN
-                  i_SBin(l) = FLOOR((xp(l) - (bin_xMin(l) 
-     >            - ppiclf_nndist))/ppiclf_nndist) 
-              ELSE
-                 i_SBin(l) = 0
-              END IF
+              i_SBin(l) = FLOOR((xp(l) - (bin_xMin(l) 
+     >        - ppiclf_nndist))/ppiclf_nndist) 
            END DO
            temp_SBin = i_SBin(1) + n_SBin(1)*i_SBin(2) +
      >                n_SBin(1)*n_SBin(2)*i_SBin(3)
@@ -94,11 +79,7 @@
         ! Map each ghost particle to a subbin
         DO i = 1 , ppiclf_npart_gp
           DO l = 1,3
-            IF (l .LT. 3 .OR. ppiclf_ndim .GT. 2) THEN
-              xp(l) = ppiclf_rprop_gp(l,i)
-            ELSE
-              xp(l) = 0.0
-            END IF
+            xp(l) = ppiclf_rprop_gp(l,i)
           END DO
           ! Only map ghost particles within one neighborwidth
           ! from bin edge to subbins. All others are outside
@@ -112,12 +93,8 @@
      >        ) THEN
             ! Determine subbin
             DO l = 1,3
-              IF (l .LT. 3 .OR. ppiclf_ndim .GT. 2) THEN
-                i_SBin(l) = FLOOR((xp(l) - (bin_xMin(l) 
-     >          - ppiclf_nndist))/ppiclf_nndist) 
-              ELSE
-                i_SBin(l) = 0
-              END IF
+              i_SBin(l) = FLOOR((xp(l) - (bin_xMin(l) 
+     >        - ppiclf_nndist))/ppiclf_nndist) 
             END DO
             temp_SBin = i_SBin(1) + n_SBin(1)*i_SBin(2) +
      >                 n_SBin(1)*n_SBin(2)*i_SBin(3)

@@ -279,6 +279,24 @@ def _check_post_series(rundir, entries):
     return errors
 
 
+# Gas results of a 2D run must not depend on the mesh thickness
+GAS_THICKNESS_RTOL = 1e-10
+
+
+def compare_gas_fields(new, ref, label, rtol):
+    """Final gas fields cell by cell, relative to each field's largest value."""
+    errors = []
+    for region, gas in new["gas"].items():
+        for name in state.FLOW_NAMES:
+            a, b = gas[name], ref["gas"][region][name]
+            scale = max(abs(v) for v in b) or 1.0
+            worst = max(abs(x - y) for x, y in zip(a, b)) / scale
+            if worst > rtol:
+                errors.append("%s region %s differs from %s by %.2e of its maximum"
+                              % (name, region, label, worst))
+    return errors
+
+
 def compare_particles_only(new, ref, label, fields=None):
     """Decomposition-independence: particles must agree, gas regions differ."""
     return compare_states(dict(new, gas={}), dict(ref, gas={}), label, fields)
@@ -409,6 +427,27 @@ def check_linear_grad_rhog(init, final, case):
     return errors
 
 
+# The particle gradients keep the whole jump across a shock (an LS+WENO gradient
+# gave 58% of it at 0.25 mm cells)
+PG_IMPULSE_RTOL = 0.02
+
+
+def check_pg_impulse(init, final, case):
+    """With the pressure-gradient force alone, a particle the shock has passed
+    has gained V_p (p2 - p1), so vp_x = (p2 - p1)/(rho_p V_s) with the shock
+    speed V_s = rho2 u2/(rho2 - rho1) from the initial states."""
+    val = lambda sec, key: float(case.inp[(sec, key)])
+    rho2, u2, p2, rho1, p1 = (val("INITFLOW", k) for k in ("RVAL2", "RVAL3", "RVAL4", "RVAL5", "RVAL6"))
+    vs = rho2 * u2 / (rho2 - rho1)
+    exact = (p2 - p1) / (val("PICL", "DENSITY") * vs)
+    errors = []
+    for pid, p in sorted(final["particles"].items()):
+        if abs(p["vp_x"] - exact) > PG_IMPULSE_RTOL * exact:
+            errors.append("particle %s: vp_x %.6g, exact %.6g (rel. error %.2e)"
+                          % (pid, p["vp_x"], exact, abs(p["vp_x"] - exact) / exact))
+    return errors
+
+
 # Gaussian projection on hex cells (MFC kernel, exp(-2.305*sum (dx_l/L_l)^2)
 # over the 3x3x3 neighbours): the deposit's centroid is within ~0.04 cell of
 # the particle and its spread is ~0.41-0.46 cell in every direction. The old
@@ -433,6 +472,8 @@ def check_projection_shape(init, final, case):
     total = sum(w)
     errors = []
     for l, axis in enumerate("xyz"):
+        if (g.nx, g.ny, g.nz)[l] == 1:  # one cell thick: nothing to spread over
+            continue
         c = sum(wi * x[l] for wi, x in zip(w, xs)) / total
         s = math.sqrt(sum(wi * (x[l] - c) ** 2 for wi, x in zip(w, xs)) / total)
         err, spread = (c - xp[l]) / cell[l], s / cell[l]
@@ -650,6 +691,28 @@ def check_uniform_gas_cells(init, final, case):
     return errors
 
 
+# Gas z velocity in a 2D run: round-off only
+IN_PLANE_GAS_W = 1e-12
+
+
+def check_in_plane(init, final, case):
+    """DIMENS 2: particles stay on the mid-plane with vz = 0 and spin only about
+    z, and the gas has no z velocity."""
+    g = case.grid
+    zmid = g.z0 + 0.5 * g.lz
+    errors = []
+    for pid, p in sorted(final["particles"].items(), key=lambda kv: int(kv[0])):
+        if abs(p["z"] - zmid) > 1e-6 * g.lz:
+            errors.append("particle %s left the mid-plane: z = %.10g" % (pid, p["z"]))
+        for name in ("vp_z", "omp_x", "omp_y"):
+            if p.get(name, 0.0) != 0.0:
+                errors.append("particle %s has %s = %.3e" % (pid, name, p[name]))
+    wmax = max((abs(v) for gas in final["gas"].values() for v in gas["q4"]), default=0.0)
+    if wmax > IN_PLANE_GAS_W:
+        errors.append("gas z velocity %.3e m/s" % wmax)
+    return errors
+
+
 def check_fluctuations_active(init, final, case):
     """Every particle must feel a nonzero force fluctuation at the end; a zero
     noise amplitude (no neighbours, no velocity spread) would test nothing."""
@@ -662,6 +725,7 @@ def check_fluctuations_active(init, final, case):
 
 
 PHYSICS = {
+    "in_plane": check_in_plane,
     "quiescent": check_quiescent,
     "mass": check_mass,
     "momentum": check_momentum,
@@ -678,4 +742,5 @@ PHYSICS = {
     "planar": check_planar,
     "uniform_gas_cells": check_uniform_gas_cells,
     "linear_grad_rhog": check_linear_grad_rhog,
+    "pg_impulse": check_pg_impulse,
 }

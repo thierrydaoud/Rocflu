@@ -178,6 +178,8 @@ MODULE ModMixture
 
     REAL(RFREAL), DIMENSION(:,:), POINTER :: piclPhiQsg
     REAL(RFREAL), DIMENSION(:,:,:), POINTER :: piclGradPhiQsg
+    ! least-squares gradients of the gradCell variables, for the particle models
+    REAL(RFREAL), DIMENSION(:,:,:), POINTER :: piclGradCell
     ! 03/19/2025 - Thierry - ends here
     ! 04/01/2025 - TLJ - adding feedback and its gradient
     REAL(RFREAL), DIMENSION(:,:), POINTER :: piclFeedback

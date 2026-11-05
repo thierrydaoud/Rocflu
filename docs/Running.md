@@ -8,6 +8,7 @@ job; `./rocflu.sh post` converts the results for ParaView. How the code is built
 
 - [Run a Case](#run-a-case)
 - [Validate a Case](#validate-a-case)
+- [Running in 2D](#running-in-2d)
 - [Running the Steps by Hand](#running-the-steps-by-hand)
 - [Post-Process](#post-process)
 
@@ -113,6 +114,30 @@ reports every problem at once, with the line it is on:
 Settings of a model that is off (e.g. `KSP` without collisions) are ignored. `rocflu.sh
 run` and the regression suite run the same checks. The validator's own tests:
 `python3 tests/test_case_validator.py`.
+
+## Running in 2D
+
+`DIMENS` in the input sets the dimension of both the gas and the particles. A 2D case needs:
+
+- **Mesh:** one cell thick in z. Its thickness is the depth Δz of the particle slab.
+- **Input:** `DIMENS 2` in `# NUMERICS` and `PERIODICZ 0` in `# PICL`.
+- **Boundary conditions:** the two z patches as `BC_VIRTUAL`.
+- **Particles:** every particle in `points.dat` on the mid-plane of the slab, with `vz = 0`.
+  For a mesh with 0 ≤ z ≤ 0.1 mm, that is z = 0.05 mm.
+
+In `<case>.bc`, with the patch numbers of your grid:
+
+```
+# BC_VIRTUAL
+PATCH 5 6
+NAME  ZVirtual
+#
+```
+
+`./rocflu.sh run` and `./rocflu.sh validate` report an error if any of these is wrong. How
+to choose Δz, and how 2D compares with 3D, is in
+[2D Runs](Improvements.md#2d-runs). At a given volume fraction, a thinner slab needs fewer
+particles, so check the particles per cell and the area fraction given there.
 
 ## Running the Steps by Hand
 

@@ -37,9 +37,8 @@ QSFORCE          3
   ignored. Lines starting with `!` are comments.
 - A key that is **not given** keeps its default (below). A key given twice: the first
   one counts.
-- Rocflu matches a line to the **first key not yet read that the line starts with**. In
-  `# PICL` this matters for `QSFLUCT`, `QSFLUCTFILT` and `QSFLUCTFILTADAPT`: write them in
-  that order, or a `QSFLUCTFILT` line is read as `QSFLUCT`.
+- Keys may come in **any order** within a section. The key must be followed by a space
+  or a tab.
 - Flags are whole numbers; Rocflu rounds other values silently (`2.6` becomes `3`).
 - Rocflu silently ignores a key it does not know, so a typo (`QSFLUC 1`) turns a model off.
 
@@ -58,15 +57,16 @@ accept more.
 | `# FLOWMODEL` | `MODEL` | 0 Euler, 1 Navier-Stokes | |
 | | `MOVEGRID` | 0 static, 1 moving | |
 | `# NUMERICS` | `CFL` | > 0 | CFL number |
-| | `DISCR` | 0 central, 1 Roe, 2 MAPS, 3 HLLC, 4 AUSM+, 5 AUSM+up | flux scheme |
+| | `DISCR` | 1 Roe, 3 HLLC, 4 AUSM+, 5 AUSM+up | flux scheme; for very strong shocks see [Strong-Shock Numerics](Improvements.md#strong-shock-numerics-open-findings) |
 | | `ORDER` | 1, 2 | order of accuracy in space |
 | | `ENTROPY` | | entropy correction (Roe) |
-| | `DIMENS` | 1, 2, 3 | dimension of the computation |
+| | `DIMENS` | 1, 2, 3 | dimension of the computation; particles need 2 or 3. `DIMENS 2`: see [Running in 2D](Running.md#running-in-2d) |
 | | `AXIFLAG` | 0, 1 | axisymmetric; **not available with particles** |
 | | `SIGMA`, `KP`, `KU`, `MINF` | | AUSM+up parameters (defaults 1.0, 0.25, 0.75, 0.1) |
 | | `RECONST` | 0 none, 1 WENO simple, 2 WENO XYZ, 10 Barth-Jespersen, 11 Venkatakrishnan | gradient reconstruction (limiter) |
-| | `CRECONSTC`, `CRECONSTF` | 0, 1 | constrained cell / face gradients |
-| | `CRECONSTCW`, `CRECONSTFW` | 0, 1, or a weight | their weights |
+| | `CRECONSTC` | 0 (default), 1 | wall constraints on fluid **cell** gradients. In cells with a wall-type boundary face in their stencil (`BC_SLIPW`, `BC_NOSLIP_HFLUX`, `BC_NOSLIP_TEMP`, `BC_INJECT`; about three cell layers at each wall), known wall values are added to the least-squares fit: normal velocity at axis-aligned slip walls and injection faces; all velocity components at no-slip walls; temperature at `BC_NOSLIP_TEMP`; temperature and density at inflowing injection. Other variables keep the plain least-squares gradient. Particles feel this through the fluid gradients they read (e.g. ∇p); ∇ρ_g and ∇F are never constrained. No effect without wall-type patches |
+| | `CRECONSTF` | 0 (default), 1 | the same for **interior-face** gradients of velocity and temperature near walls. Used only by the viscous fluxes, so no effect with `MODEL 0`. With `MODEL 1`, gradients of variables with no known wall value are currently set to zero on these faces |
+| | `CRECONSTCW`, `CRECONSTFW` | ≥ 0 (default 1) | weight of the wall values in the cell / face fit (the sign is ignored). A weight, not a switch: to turn the constraint off, set `CRECONSTC` / `CRECONSTF` to 0 |
 | `# TIMESTEP` | `FLOWTYPE` | 0 steady, 1 unsteady | |
 | | `SOLVERTYPE` | 1 dissipative, 3 non-dissipative | |
 | | `MAXTIME`, `RUNTIME` | s | end time; run time of this job |
@@ -102,7 +102,7 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 | `VELOCITYMODEL` | 0, 1 | 1 | 1: particles move under the forces. 0: they keep their position, velocity, temperature and spin; the forces are still computed, so with `FEEDBACK 1` the gas still feels them (a fixed bed) |
 | `QSFORCE` | 0-3 | 0 | quasi-steady drag: 0 none, 1 Gidaspow, 2 Parmar, 3 Osnes |
 | `QSFLUCT` | 0, 1 | 0 | fluctuation of the quasi-steady force: 0 none, 1 Osnes. Before 2026-10, 1 was Lattanzi and 2 Osnes; `QSFLUCT 2` now stops with a message, and Lattanzi can no longer be selected |
-| `QSFLUCTFILT` | 0, 1 | 0 | filter for the fluctuation: 0 box, 1 Gaussian |
+| `QSFLUCTFILT` | 0, 1 | 0 | filter for the fluctuation: 0 box, 1 Gaussian (**not validated, rejected**) |
 | `QSFLUCTFILTADAPT` | 0, 1 | 0 | adaptive filter width |
 | `AMFORCE` | 0-2 | 0 | added mass: 0 none, 1 Parmar, 2 Briney (binary; **not validated, rejected**) |
 | `PGFORCE` | 0, 1 | 0 | pressure-gradient (undisturbed-flow) force |
@@ -144,6 +144,7 @@ With `USED 1`, these combinations are rejected:
 | `DU HEATTRANSFER 1` | `VISCOUSUNSTEADY ≥ 1` | they share the history |
 | `COLLISIONS ≥ 1` | `VELOCITYMODEL 1` | particles that keep their position cannot collide |
 | `AMFORCE 2` | | not validated yet |
+| `QSFLUCTFILT 1` | `QSFLUCT ≥ 1` | not validated yet |
 
 Other sections, with `USED 1`: `RKSCHEME 2` in `# TIMESTEP`, `VISCOSITY` in
 `# VISCMODEL`, no `AXIFLAG 1` in `# NUMERICS`.

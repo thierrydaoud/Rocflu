@@ -1,0 +1,11 @@
+{
+ "created": "2026-11-02T16:37:39",
+ "host": "login11.ufhpc",
+ "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocflu_2d/build/bin",
+ "git": {
+  "commit": "f5246886b1364a4c2939979d5e8980e21422be6d",
+  "branch": "ppiclf-2d",
+  "modified_sources": []
+ },
+ "modules": "gcc/14.2.0:openmpi/5.0.7"
+}

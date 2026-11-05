@@ -7,7 +7,7 @@ across MPI ranks and periodic boundaries. For each: what was wrong, how it was f
 how the fix was checked.
 
 All changes are covered by the regression suite in [Regression Tests](../tests/README.md):
-39 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks,
+66 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks,
 and one unit test.
 
 ## Contents
@@ -55,6 +55,17 @@ and one unit test.
   - [The New Count](#the-new-count)
   - [How the New Count Was Checked](#how-the-new-count-was-checked)
 - [MPI and Periodic Boundaries](#mpi-and-periodic-boundaries)
+- [2D Runs](#2d-runs)
+  - [How It Works](#how-it-works)
+  - [Choosing the Thickness](#choosing-the-thickness)
+  - [Two Bugs Found on the Way](#two-bugs-found-on-the-way-1)
+  - [How It Was Checked](#how-it-was-checked-1)
+  - [The Wedge against 3D](#the-wedge-against-3d)
+- [Strong-Shock Numerics: Open Findings](#strong-shock-numerics-open-findings)
+  - [The Test](#the-test)
+  - [Results](#results-1)
+  - [What Is Established](#what-is-established)
+  - [What Is Not Established](#what-is-not-established)
 - [Still Open](#still-open)
 - [Reproducing the Figures](#reproducing-the-figures)
 
@@ -86,6 +97,8 @@ and one unit test.
 | Field sizes | The number of fields per particle and per cell (state, properties, interpolated, projected) was fixed at compile time; Rocflu's number of interpolated fields had to match it by hand; every run interpolated 29 gas fields and projected 31 | Set at start-up by `ppiclf_user_Layout` from the physics that is on: 7 interpolated fields for drag only; ppiclF stops if a needed field is not given; byte-identical flow files | [074d58d](https://github.com/thierrydaoud/Rocflu/commit/074d58d), (section "Field sizes set at run time") |
 | Input | Mistakes in the input were found at run time, after the job started, or never: a typo or misplaced key was silently ignored, `QSFLUCT` ran without a drag, unused keys (`FILTERWIDTH`, angular periodicity, `REACTIVE`) had to be given; the particle material came from `# MATERIAL` by name; the build without particles did not compile | Case validator (`./rocflu.sh validate`, run first by `rocflu.sh run` and the suite) checks keys, values, model combinations, `points.dat` and the particles' position before anything is built ([Input File](InputFile.md)); `VELOCITYMODEL` replaces `STATIONARY`; `DENSITY`, `SPECIFICHEAT` in `# PICL`; `points.dat` is `x y z vx vy vz dp`; `--no-picl` builds and runs | [2b0c7a7](https://github.com/thierrydaoud/Rocflu/commit/2b0c7a7), [59da501](https://github.com/thierrydaoud/Rocflu/commit/59da501), [488e5df](https://github.com/thierrydaoud/Rocflu/commit/488e5df), [b12cb48](https://github.com/thierrydaoud/Rocflu/commit/b12cb48), [88542ac](https://github.com/thierrydaoud/Rocflu/commit/88542ac), [9d8be80](https://github.com/thierrydaoud/Rocflu/commit/9d8be80), [4add494](https://github.com/thierrydaoud/Rocflu/commit/4add494) |
 | Particle bins | A particle bed stretched along one direction stopped the run with "Error in Createbins": the bin count split the bins with a wrong formula and went on with too many bins when its search failed (12% of bin boxes in a scan) | Bins added one at a time to the direction with the longest bins; valid for every box. Unit test in the suite | [0688f68](https://github.com/thierrydaoud/Rocflu/commit/0688f68), [0887252](https://github.com/thierrydaoud/Rocflu/commit/0887252) |
+| 2D | ppiclF stopped unless it was in 3D, so a 2D case had to run as a thin 3D one | `DIMENS 2` sets `ppiclf_ndim` 2: bins, ghosts, interpolation, projection, neighbour search and walls work in the plane; about 11 times faster on the wedge | [e687f98](https://github.com/thierrydaoud/Rocflu/commit/e687f98) |
+| Time step | Virtual faces counted in the CFL sum, so a thin 2D mesh took more steps (2227 at Δz = 0.1 mm against 403 at 10 mm) | Left out: 385 steps at every thickness, and stricter case checks | [6016d2a](https://github.com/thierrydaoud/Rocflu/commit/6016d2a) |
 
 ## Regression Tests
 
@@ -95,15 +108,17 @@ each one in two ways: against a stored golden, which catches any change, and aga
 physics checks (conservation, exact interpolation of a linear field, restitution,
 decomposition independence), which say whether the result is right. The cases are:
 
-- **Shock tube** (12 cases): a Mach 1.27 shock over 1 or 4 particles, one- and two-way,
+- **Shock tube** (14 cases): a Mach 1.27 shock over 1 or 4 particles, one- and two-way,
   with each force model switched on in turn (added mass, pressure gradient, viscous
   unsteady, heat transfer, quasi-steady fluctuations, Parmar and Gidaspow drag).
-- **Box** (21 cases): an 8 mm cube, periodic or closed. Momentum and energy exchange,
+- **Box** (25 cases): an 8 mm cube, periodic or closed. Momentum and energy exchange,
   a quiescent cloud, heat exchange at rest, interpolation of a linear field, the
   projection on elongated cells, collisions through ghosts and periodic faces, binary
   collisions, and particle–wall collisions.
-- **Gas only** (5 cases): a pressure jump in a closed, a periodic and a symmetry box,
+- **Gas only** (6 cases): a pressure jump in a closed, a periodic and a symmetry box,
   testing the flow solver's own conservation.
+- **2D** (21 cases): the coupling, interpolation, projection, collisions, walls and gas
+  conservation with `DIMENS 2` (see [2D Runs](#2d-runs)).
 - **Unit** (1 test): ppiclF's bin count, without MPI (see
   [Particle Bins](#particle-bins-number-of-bins-per-direction)).
 
@@ -112,7 +127,7 @@ them, from `tests/`:
 
 ```bash
 module purge; module load gcc/14.2.0 openmpi/5.0.7
-./run_tests.py run                     # all 39 cases and the unit test
+./run_tests.py run                     # all 66 cases and the unit test
 ./run_tests.py run -o box/walls        # a subset
 ```
 
@@ -1318,7 +1333,172 @@ on 1, 2 and 4 ranks.
 - **Uninitialized reads ([b10c5f1](https://github.com/thierrydaoud/Rocflu/commit/b10c5f1)).** The NSCBC patch `dv` is set at initialization, and an
   out-of-bounds read of `dv(4)` is fixed.
 
+## 2D Runs
+
+`DIMENS 2` now runs the gas and the particles in 2D. ppiclF used to stop unless it was in
+3D, and a 2D case had to be run as a thin 3D one. How to set a case up is in
+[Running a Simulation](Running.md#running-in-2d).
+
+### How It Works
+
+`DIMENS` in the `.inp` sets `ppiclf_ndim`; there is no separate switch. The z direction
+is inactive, not removed: `PPICLF_JZ`, `PPICLF_JVZ` and the rest keep their slots, so array
+layouts and the restart format do not change. With `ppiclf_ndim` 2:
+
+- **Bins and ghosts:** one bin in z and no ghosts in z.
+- **Interpolation, projection and neighbour search:** the least-squares fit, the projection
+  distance and the neighbour distance leave z out.
+- **Particle motion:** z, v_z, ω_x and ω_y do not change.
+- **Particle walls:** work as in 3D on the x and y patches.
+
+Rocflu always has real 3D cells, so the mesh is one cell thick with two `BC_VIRTUAL` z
+patches. The particles remain spheres in a slab of depth Δz, because the drag and heat
+closures are for spheres. Δz is therefore the depth that sets the volume fraction, and
+no separate characteristic width is needed.
+
+### Choosing the Thickness
+
+For a target volume fraction φ, in-plane area A, particle diameter d and particle volume V_p:
+
+| Quantity | Formula | Guidance |
+|---|---|---|
+| Number of particles | N = φ A Δz / V_p | |
+| Area fraction in the plane | 1.5 φ Δz / d | Tested up to 0.30, so Δz ≤ 0.2 d/φ |
+| Particles per cell | φ A_cell Δz / V_p | About 20 suggested: peak φ was 20% over target at 10 per cell, 7% at 38 (three runs only) |
+
+At fixed φ, the thickness only sets N. On a Mach 1.27 shock over a bed (φ = 0.05,
+d = 100 µm, 1 mm cells, three beds at each Δz), mean particle velocity stayed within 0.4%
+and gas differences equalled the scatter between beds. Holding N fixed instead halved φ and
+moved the velocity by 4%.
+
+### Two Bugs Found on the Way
+
+- **Collisions and walls were silently off in 2D.** Old branches in
+  `ppiclf_user_subbinMap.f` set no subbins in z, while the neighbour search and wall lookup
+  still computed a z index. The 3D suite passed; only a 2D collision test caught it.
+- **The thickness set the time step.** `RFLU_TimeStepInviscid` counted virtual faces in the
+  CFL sum: 403, 569 and 2227 steps at Δz = 10, 1 and 0.1 mm. They are now left out: 385 steps
+  at all three, with gas fields equal to 4e-15.
+
+### How It Was Checked
+
+- **Regression suite:** 21 cases under `2d/` ([Regression Tests](../tests/README.md))
+  repeat the 3D coupling, interpolation, projection, collision, wall and gas-conservation
+  tests in the plane, and check that nothing leaves the plane.
+- **3D results:** dumps stayed byte-identical to the commit before the 2D work (502 files).
+- **Case validator:** rejects a mesh more than one cell thick, virtual patches that are not
+  the z faces, particles off the mid-plane, nonzero v_z, and `PERIODICZ 1`.
+
+### The Wedge against 3D
+
+The first use is a 1° wedge: a Mach 41 shock into a thin bed of 40 µm particles, 20 µs,
+with AUSM+UP at second order and slip sides. The 2D case uses the first layer of the 3D
+grid's cells and the same volume fraction.
+
+| Run | Ranks | Solver time | Steps | Bed width (mm) | Mean r (m) | Mean v_r (m/s) |
+|---|---|---|---|---|---|---|
+| 3D, 1 mm, 40,781 particles | 32 | 1659 s | 10011 | 42.3 | 0.34580 | 6188 |
+| 2D, 100 µm, 4,078 particles, bed 1 | 32 | 139 s | 7406 | 38.7 | 0.34652 | 6259 |
+| 2D, 100 µm, bed 2 | 32 | 147 s | 7406 | 40.3 | 0.34609 | 6210 |
+| 2D, 125 µm, 5,098 particles | 16 | 148 s | 7406 | 38.7 | 0.34657 | 6261 |
+
+Bed width is the 5th to 95th percentile of r at 20 µs. 2D is about 11 times faster, and the
+bulk of the gas overlays 3D.
+
+![2D and 3D wedge: gas profiles](figures/fig_2d_wedge_profiles.png)
+
+Three differences remain. The leading shock in 2D trails 3D by 1.3–1.8 mm at 5 µs, 3.0–3.9 mm
+at 10 µs and 2.1–4.3 mm at 20 µs. Behind the shock, 2D density and pressure oscillate and
+differ between beds; 3D is smoother, though it also averages five times more cells per
+radial bin. The 2D bed is 5–9% narrower with sharper pile-ups, against 1.7 mm of scatter
+between beds.
+
+![2D and 3D wedge: leading shock](figures/fig_2d_wedge_shock.png)
+
+![2D and 3D wedge: particles](figures/fig_2d_wedge_particles.png)
+
+Matching 3D's time step (CFL 0.37, 9992 steps) leaves the shock difference unchanged, and it
+is still there with no particles. It comes from the gas numerics, described next.
+
+## Strong-Shock Numerics: Open Findings
+
+**These results are under validation.** They describe the current behaviour of the gas
+solver at one very strong shock. The mechanism has not been measured, and no solver code
+was changed because of them. All runs are gas only.
+
+### The Test
+
+The wedge's initial states (ρ 7.2076, u 11,833 m/s, p 2.0265e8 Pa into ρ 1.2048,
+p 101,325 Pa, γ 1.4) form a single shock at 14,207.9 m/s, with an exact solution. The wedge
+grid was remapped to a planar tube of 1499 × 24 cells (0.434 × 0.271 mm), 1 layer in 2D and
+5 in 3D:
+
+- **Aligned:** the shock is parallel to the cell faces.
+- **Sheared by 30°:** side walls and flow stay along x, and the shock crosses the cells at
+  an angle.
+
+The flow should stay exactly 1D, so any transverse velocity is a numerical error.
+
+### Results
+
+![Planar tube at 20 µs by scheme, order and mesh](figures/fig_shock_planar.png)
+
+| Mesh | Scheme | `ORDER` | Front error, twice ambient, 2D / 3D (mm) | Pressure error behind the shock, 2D / 3D (%) | v rms, 2D / 3D (m/s) |
+|---|---|---|---|---|---|
+| Aligned | Roe | 1 | +52.85 / +60.22 | -37.7 / -38.5 | 97 / 82 |
+| Aligned | HLLC | 1 | +10.35 / +16.43 | -8.6 / -13.4 | 141 / 157 |
+| Aligned | AUSM+UP | 1 | +8.19 / +13.39 | -5.7 / -7.8 | 127 / 155 |
+| Aligned | AUSM+ | 1 | +2.55 / +2.55 | -0.17 / -0.16 | 10.6 / 10.6 |
+| Aligned | AUSM+UP | 2 | +3.42 / +12.52 | -2.7 / -13.8 | 53 / 158 |
+| Aligned | AUSM+ | 2 | +0.81 / +1.68 | 0.00 / +0.03 | 0 / 4.8 |
+| Sheared | AUSM+UP | 1 | +18.59 / +20.33 | -8.0 / -7.3 | 276 / 298 |
+| Sheared | AUSM+UP | 2 | +6.89 / +7.75 | -5.9 / -8.3 | 212 / 116 |
+| Sheared | AUSM+ | 2 | +28.57 / +13.39 | -19.2 / -15.6 | 804 / 268 |
+
+The front is the largest bin with mean pressure above twice ambient, at 20 µs; the exact
+shock is at x = 0.53216 m. Other scheme, order and mesh combinations have not been run.
+
+On the wedge itself, the 2D grid was refined in plane:
+
+![2D wedge against refinement, with 3D at the base grid](figures/fig_shock_wedge.png)
+
+| Scheme | Grid | Front at half the peak pressure (m) | Peak pressure (MPa) | Tangential velocity rms (m/s) |
+|---|---|---|---|---|
+| AUSM+ | 2D 1×, 2×, 4× | 0.5020, 0.5020, 0.5018 | 128.9, 129.5, 130.0 | 13, 17, 25 |
+| AUSM+ | 3D 1× | 0.5042 | 115.9 | 60 |
+| AUSM+UP | 2D 1×, 2×, 4× | 0.5075, 0.5048, 0.5046 | 110.4, 119.8, 124.1 | 110, 282, 593 |
+| AUSM+UP | 3D 1× | 0.5136 | 92.5 | 110 |
+
+The wedge's tangential velocity is not zero even in a clean run, because the initial flow
+points along x rather than along r.
+
+### What Is Established
+
+- Transverse velocity grows from zero behind this shock and the front runs ahead of exact, in
+  2D and 3D, at both orders. Reconstruction is not the root cause.
+- It depends strongly on the flux scheme and the cell angle. AUSM+ is nearly exact on aligned
+  cells and worse than AUSM+UP on sheared cells. Roe is the worst on aligned cells.
+- 2D and 3D agree until z velocity grows, then split. This is timing only; cause is not shown.
+- Which of 2D and 3D is closer to exact varies by case.
+- On the wedge, refinement does not remove AUSM+UP's growth in tangential velocity.
+
+### What Is Not Established
+
+- The mechanism. A carbuncle-type shock instability fits the symptoms but has not been tested
+  directly.
+- Whether AUSM+UP's behaviour comes from the published scheme or from this implementation.
+- The wedge's true answer. AUSM+ gives about 0.502 m and is grid-converged, but this is one
+  scheme, and the two still differ by 2.8 mm at 4×. No 3D run was refined.
+- How far this reaches: only this Mach 41 state was tested, and only without particles.
+
+Until this is settled, treat shock position at this strength as dependent on the scheme,
+and check it on the mesh in use. AUSM+ is not a general fix.
+
 ## Still Open
+
+Gas numerics:
+- **Instability behind very strong shocks.** See
+  [Strong-Shock Numerics](#strong-shock-numerics-open-findings).
 
 Collision model:
 - **The normal force turns attractive at the end of a contact.** The normal force is
@@ -1391,6 +1571,14 @@ trees of [47b0940](https://github.com/thierrydaoud/Rocflu/commit/47b0940) (befor
 [e3ed370](https://github.com/thierrydaoud/Rocflu/commit/e3ed370)) and the current code,
 each with its own test harness; `plot_mpi_periodic.py` draws both figures from the saved
 totals.
+
+The 2D and strong-shock figures are the exception: their scripts and compact results are
+in the repository under `docs/figures/src/strong_shock/`. `plot_results.py` redraws both
+strong-shock figures from `results.json`. `remap.py` and `refine.py` make the grids from the
+wedge grid, `exact.py` gives the exact solution, `compare.py`, `front_rows.py` and
+`ref_compare.py` read the runs, and `make_wedge_2d.py`, `profiles.py` and `plot_wedge.py`
+build the 2D wedge case and draw its figures. Their paths point at the original run
+directories, so edit those to rerun.
 
 The interpolation comparison: `tests/_work/interp_model/interp_compare.py` (Python, no
 build needed) computes all four methods and draws the figure.

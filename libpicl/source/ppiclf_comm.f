@@ -309,6 +309,9 @@
       ! Find ppiclf bin domain lengths
       DO i = 1,3
         binb_length(i) = ppiclf_binb(2*i) - ppiclf_binb(2*i-1)
+        ! 2D: z is inactive, so it is never split and sets no minimum
+        IF(i .EQ. 3 .AND. ppiclf_ndim .EQ. 2)
+     >    BinMinLen(3) = binb_length(3)
         IF(binb_length(i) .LT. BinMinLen(i)) THEN
           CALL ppiclf_exittr('BinMinLen() criteria violated.',0.0D0,0)
         END IF
@@ -888,6 +891,8 @@
             END IF
 
             DO iz = 1,3
+              ! 2D: no ghosts in z
+              IF(ppiclf_ndim .EQ. 2 .AND. iz .LT. 3) CYCLE
               GhostPos(3) = ppiclf_cp_map(3,ip)
               IF(iz .LT. 3) THEN
                 CALL ppiclf_comm_GhostDistCheck(iz,GhostPos(3),

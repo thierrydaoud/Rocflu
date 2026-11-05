@@ -44,9 +44,6 @@
       REAL*8 e1(3), e2(3), rn(3), rmag
       INTEGER*4 l
 !
-      IF (ppiclf_ndim .NE. 3)
-     >CALL ppiclf_exittr('Walls need a 3D ppiclF run$',0.d0,0)
-
       DO l = 1,3
          e1(l) = xp2(l) - xp1(l)
          e2(l) = xp3(l) - xp1(l)
@@ -106,7 +103,7 @@
       INTEGER*4 ilo(3), ihi(3), l, w, ipass, n, i1, i2, i3, sb, s
       LOGICAL same
 !
-      IF (ppiclf_nwall .LE. 0 .OR. ppiclf_ndim .NE. 3) RETURN
+      IF (ppiclf_nwall .LE. 0) RETURN
 
       h = ppiclf_nndist
       DO l = 1,3

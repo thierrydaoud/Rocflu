@@ -272,17 +272,9 @@ class Validator:
                 self.prohibit(True, "%s starts with a space; Rocflu only reads keys "
                               "at the start of the line, so it ignores it" % meant, number)
                 continue
-            # The key Rocflu takes: the first key not yet read the line starts with
-            taken = next((k for k in PICL_KEYS if k not in given and text.startswith(k)),
-                         None)
-            if taken is None:
+            if meant in given:
                 self.prohibit(True, "%s is given twice; Rocflu uses the first one "
                               "(line %d)" % (meant, given[meant][0]), number)
-                continue
-            if taken != meant:
-                self.prohibit(True, "%s comes before %s; Rocflu reads this line as %s. "
-                              "Put %s first" % (meant, taken, taken, taken), number)
-                given[taken] = (number, None)
                 continue
             value = read_number(text[len(meant):])
             self.prohibit(value is None, "%s has no number after it" % meant, number)
@@ -372,11 +364,14 @@ class Validator:
         self.prohibit(v["AMFORCE"] == 2,
                       "AMFORCE 2 (Briney added mass) is not validated yet",
                       line.get("AMFORCE"))
+        self.prohibit(v["QSFLUCT"] >= 1 and v["QSFLUCTFILT"] == 1,
+                      "QSFLUCTFILT 1 (Gaussian filter for the fluctuation) is not "
+                      "validated yet: use QSFLUCTFILT 0", line.get("QSFLUCTFILT"))
         return v
 
     # -- other sections and files -----------------------------------------------
 
-    def check_with_particles(self, sections):
+    def check_with_particles(self, sections, picl):
         body = sections.get("TIMESTEP", [])
         number, rk = simple_value(body, "RKSCHEME")
         rk = RK4 if rk is None else int(abs(rk) + 0.5)
@@ -392,6 +387,11 @@ class Validator:
         number, axi = simple_value(sections.get("NUMERICS", []), "AXIFLAG")
         self.prohibit(axi == 1, "axisymmetric runs (AXIFLAG 1) are not available "
                       "with particles", number)
+        number, dimens = simple_value(sections.get("NUMERICS", []), "DIMENS")
+        self.prohibit(dimens == 1, "particles need DIMENS 2 or 3", number)
+        self.prohibit(dimens == 2 and picl["PERIODICZ"] == 1,
+                      "PERIODICZ 1: z is inactive with DIMENS 2, its patches are "
+                      "# BC_VIRTUAL; set PERIODICZ 0", number)
 
         def present(name):
             return os.path.exists(os.path.join(self.case_dir, name))
@@ -456,7 +456,7 @@ class Validator:
     # -- points.dat -----------------------------------------------------------------
 
     def read_points(self):
-        """Particles of points.dat as [(line number, x, y, z, dp)], read as
+        """Particles of points.dat as [(line number, x, y, z, dp, vz)], read as
         PICL_InitSolver does: '!' comment lines at the top, the number of
         particles, then one line per particle: x y z vx vy vz dp."""
         name = "points.dat"
@@ -497,7 +497,7 @@ class Validator:
             elif values[6] <= 0:
                 bad.append((number, "diameter %g: must be > 0" % values[6]))
             else:
-                particles.append((number,) + tuple(values[:3]) + (values[6],))
+                particles.append((number,) + tuple(values[:3]) + (values[6], values[5]))
         for number, message in bad[:5]:
             self.prohibit(True, message, number, name)
         self.prohibit(len(bad) > 5, "... and %d more lines like these" % (len(bad) - 5),
@@ -534,16 +534,37 @@ class Validator:
     def check_points(self, sections):
         particles = self.read_points()
         box = self.grid_box(sections) if particles else None
+        _, dimens = simple_value(sections.get("NUMERICS", []), "DIMENS")
+        if dimens == 2:
+            self.check_points_2d(particles, box)
         if box is None:
             return
         outside = [p for p in particles
                    if any(not box[a][0] <= p[1 + a] <= box[a][1] for a in range(3))]
-        for number, x, y, z, dp in outside[:5]:
+        for number, x, y, z, dp, _ in outside[:5]:
             self.prohibit(True, "particle at (%g, %g, %g) is outside the fluid domain "
                           "x [%g, %g], y [%g, %g], z [%g, %g]" % (
                               (x, y, z) + box[0] + box[1] + box[2]), number, "points.dat")
         self.prohibit(len(outside) > 5, "... %d particles outside the fluid domain in all"
                       % len(outside), None, "points.dat")
+
+    def check_points_2d(self, particles, box):
+        """DIMENS 2: every particle on the mid-plane of the slab, at rest in z."""
+        moving = [p for p in particles if p[5] != 0.0]
+        for p in moving[:5]:
+            self.prohibit(True, "DIMENS 2: vz %g must be 0" % p[5], p[0], "points.dat")
+        self.prohibit(len(moving) > 5, "... %d particles with vz != 0 in all" % len(moving),
+                      None, "points.dat")
+        if box is None:
+            return
+        zmid = 0.5 * (box[2][0] + box[2][1])
+        tol = 1.0e-6 * (box[2][1] - box[2][0])
+        off = [p for p in particles if abs(p[3] - zmid) > tol]
+        for p in off[:5]:
+            self.prohibit(True, "DIMENS 2: particle z %.10g must be the mid-plane z = %.10g"
+                          % (p[3], zmid), p[0], "points.dat")
+        self.prohibit(len(off) > 5, "... %d particles off the mid-plane in all" % len(off),
+                      None, "points.dat")
 
     # -- the .bc file -----------------------------------------------------------------
 
@@ -593,6 +614,101 @@ class Validator:
         empty = sum(1 for p in range(npatches)
                     if ends[p] == (ends[p - 1] if p > 0 else (0, 0)))
         return npatches - empty, empty
+
+    def grid_z_and_patches(self):
+        """(z of every vertex, {patch number as Rocflu uses it: vertex ids}) of a
+        complete CENTAUR ASCII grid, or None. After the patch rows come one name
+        per patch, then the boundary triangles and quadrilaterals (count, then
+        one block per corner, ten per line)."""
+        grid = os.path.splitext(self.inp)[0] + ".hyb.asc"
+        if not os.path.exists(grid):
+            return None
+
+        def rows(n, per_line):
+            return (n + per_line - 1) // per_line
+
+        def ints(f, n):
+            values = []
+            for _ in range(rows(n, 10)):
+                line = f.readline().rstrip("\n")
+                values += [int(line[i:i + 16]) for i in range(0, len(line), 16)
+                           if line[i:i + 16].strip()]
+            return values
+
+        try:
+            with open(grid) as f:
+                f.readline()
+                nvert = int(f.readline())
+                z = []
+                for axis in range(3):
+                    z = []
+                    for _ in range(rows(nvert, 5)):
+                        line = f.readline().rstrip("\n")
+                        z += [float(line[i:i + 16]) for i in range(0, len(line), 16)
+                              if line[i:i + 16].strip()]
+                ints(f, nvert)
+                for nodes in (4, 8, 6, 5):
+                    ncells = int(f.readline())
+                    for _ in range((nodes + 1) if ncells > 0 else 0):
+                        ints(f, ncells)
+                npatches = int(f.readline())
+                ints(f, npatches)
+                last_tri, last_quad = ints(f, npatches), ints(f, npatches)
+                for _ in range(npatches):
+                    f.readline()
+                nodes_of = []
+                for corners, last in ((3, last_tri), (4, last_quad)):
+                    nfaces = int(f.readline())
+                    block = [ints(f, nfaces) for _ in range(corners)] if nfaces > 0 else []
+                    nodes_of.append((block, last))
+        except (OSError, ValueError, IndexError):
+            return None
+        if len(z) != nvert or len(last_quad) != npatches:
+            return None
+        vertices = {}
+        number = 0
+        for p in range(npatches):
+            faces = []
+            for block, last in nodes_of:
+                first = last[p - 1] if p > 0 else 0
+                faces += [v for corner in block for v in corner[first:last[p]]]
+            if faces:  # Rocflu removes the patches without faces and renumbers
+                number += 1
+                vertices[number] = set(faces)
+        return z, vertices
+
+    def check_dimens(self, sections, owner, name):
+        """DIMENS against the patches and the grid (RFLU_123D_CheckTopology and
+        CheckGeometry stop on these only after the pre-processing)."""
+        number, dimens = simple_value(sections.get("NUMERICS", []), "DIMENS")
+        dimens = 3 if dimens is None else dimens  # Rocflu's default
+        needed = {1: 4, 2: 2, 3: 0}.get(dimens)
+        virtual = [p for p, (_, section, _) in owner.items() if section == "BC_VIRTUAL"]
+        self.prohibit(needed is not None and len(virtual) != needed,
+                      "DIMENS %d needs %d # BC_VIRTUAL patches, %s has %d"
+                      % (dimens, needed or 0, name, len(virtual)), number)
+        grid = self.grid_z_and_patches()
+        if grid is None:
+            return
+        z, patch_vertices = grid
+        zmin, zmax = min(z), max(z)
+        tol = 1.0e-6 * (zmax - zmin)
+        one_layer = all(abs(v - zmin) <= tol or abs(v - zmax) <= tol for v in z)
+        self.prohibit(dimens == 2 and not one_layer,
+                      "DIMENS 2 needs a mesh one cell thick in z; this one has vertices "
+                      "between z = %g and %g" % (zmin, zmax), number)
+        self.prohibit(dimens == 3 and one_layer,
+                      "the mesh is one cell thick in z, which DIMENS 3 cannot solve: set "
+                      "DIMENS 2 with # BC_VIRTUAL z patches", number)
+        if dimens != 2:
+            return
+        for p in sorted(virtual):
+            spread = [z[v - 1] for v in patch_vertices.get(p, [])]
+            self.prohibit(spread and max(spread) - min(spread) > tol,
+                          "patch %d: DIMENS 2 needs its # BC_VIRTUAL patches to be the z "
+                          "faces, but this patch spans z = %g to %g" % (
+                              p, min(spread or [0]), max(spread or [0])),
+                          owner[p][0], name)
 
     def read_bc_section(self, section, header, body, name):
         """Keys of one section ({key: (line, value)}), with every line Rocflu
@@ -744,6 +860,8 @@ class Validator:
         self.prohibit(missing, "no boundary condition for patch%s %s" % (
             "es" if len(missing) > 1 else "", ", ".join(str(p) for p in missing)), None, name)
 
+        self.check_dimens(sections, owner, name)
+
         # Periodic patches come in pairs that point at each other
         for p, (line, section, given) in sorted(owner.items()):
             if section != "BC_PERIODIC" or "RELPATCH" not in given:
@@ -816,7 +934,7 @@ class Validator:
         self.check_bc(sections)
         picl = self.check_picl(sections)
         if picl is not None and picl["USED"] == 1:
-            self.check_with_particles(sections)
+            self.check_with_particles(sections, picl)
         return self.errors
 
 

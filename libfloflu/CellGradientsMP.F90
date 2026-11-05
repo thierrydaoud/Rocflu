@@ -97,7 +97,7 @@ SUBROUTINE CellGradientsMP(region)
 #endif
 
 #ifdef PICL
-  USE PICL_ModGradients, ONLY: PICL_ComputeGradCells, PICL_CONSTR_NONE
+  USE PICL_ModGradients, ONLY: PICL_ComputeGradCellsQuad, PICL_GradientNeeds
 #endif
 
 #ifdef PLAG
@@ -125,6 +125,9 @@ SUBROUTINE CellGradientsMP(region)
 #ifdef RFLU
   INTEGER :: errorFlag
   INTEGER :: varInfoMixt(CV_MIXT_DENS:CV_MIXT_PRES)
+#ifdef PICL
+  LOGICAL :: needDens,needPres,needRhog,needVel
+#endif
   TYPE(t_region), POINTER :: pRegion
 #ifdef SPEC
   INTEGER :: iSpec
@@ -243,6 +246,34 @@ SUBROUTINE CellGradientsMP(region)
         CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
     END SELECT ! pRegion%mixtInput%reconst
 
+#ifdef PICL
+! ------------------------------------------------------------------------------
+!   Gradients for the particle models (PICL_ComputeGradCellsQuad)
+! ------------------------------------------------------------------------------
+
+    IF ( global%piclUsed .EQV. .TRUE. ) THEN
+      CALL PICL_GradientNeeds(global,needPres,needDens,needVel,needRhog)
+
+      IF ( needDens .EQV. .TRUE. ) THEN
+        CALL PICL_ComputeGradCellsQuad(pRegion,CV_MIXT_DENS,CV_MIXT_DENS, &
+                                       GRC_MIXT_DENS,pRegion%mixt%cv, &
+                                       pRegion%mixt%piclGradCell)
+      END IF ! needDens
+
+      IF ( needVel .EQV. .TRUE. ) THEN
+        CALL PICL_ComputeGradCellsQuad(pRegion,CV_MIXT_XVEL,CV_MIXT_ZVEL, &
+                                       GRC_MIXT_XVEL,pRegion%mixt%cv, &
+                                       pRegion%mixt%piclGradCell)
+      END IF ! needVel
+
+      IF ( needPres .EQV. .TRUE. ) THEN
+        CALL PICL_ComputeGradCellsQuad(pRegion,CV_MIXT_PRES,CV_MIXT_PRES, &
+                                       GRC_MIXT_PRES,pRegion%mixt%cv, &
+                                       pRegion%mixt%piclGradCell)
+      END IF ! needPres
+    END IF ! global%piclUsed
+#endif
+
 ! ------------------------------------------------------------------------------ 
 !   Convert back to primitive state vector
 ! ------------------------------------------------------------------------------
@@ -358,9 +389,11 @@ SUBROUTINE CellGradientsMP(region)
                                       pRegion%mixt%piclVFg(1,:)
                                     
 !------------------Gradient of Rho^g--------------------------------
-    CALL PICL_ComputeGradCells(pRegion,CV_MIXT_DENS,CV_MIXT_DENS,pRegion%mixt%cv, &
-                               pRegion%mixt%piclgradRhog,PICL_CONSTR_NONE, &
-                               .TRUE.,.TRUE.)
+    CALL PICL_GradientNeeds(global,needPres,needDens,needVel,needRhog)
+    IF ( needRhog .EQV. .TRUE. ) THEN
+      CALL PICL_ComputeGradCellsQuad(pRegion,CV_MIXT_DENS,CV_MIXT_DENS,1, &
+                                     pRegion%mixt%cv,pRegion%mixt%piclgradRhog)
+    END IF ! needRhog
     ! rho^g ->  phi^g rho^g
     pRegion%mixt%cv(CV_MIXT_DENS,:) = pRegion%mixt%cv(CV_MIXT_DENS,:)*&
                                       pRegion%mixt%piclVFg(1,:)

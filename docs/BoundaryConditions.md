@@ -62,7 +62,8 @@ Every section takes `PATCH` and `NAME` (both required) and `DISTRIB` (0: the val
 | `BC_NOSLIP_TEMP` | `TEMP`, `CRECONST`, `KIND`, `ORDER`, `THRUSTFLAG`, `PARTWALL` | `TEMP` |
 | `BC_SLIPW` | `CRECONST`, `KIND`, `ORDER`, `THRUSTFLAG`, `PARTWALL` | |
 | `BC_PERIODIC` | `RELPATCH`, `AXIS` (1, 2, 3), `ANGLE` | all three |
-| `BC_SYMMETRY`, `BC_VIRTUAL` | | |
+| `BC_SYMMETRY` | `PATCH`, `NAME` | `PATCH`, `NAME` |
+| `BC_VIRTUAL` | `PATCH`, `NAME`. The two z patches of a `DIMENS 2` mesh: see [Running in 2D](Running.md#running-in-2d) | `PATCH`, `NAME` |
 
 `KIND 1` is NSCBC (non-reflecting characteristic BC; 0 is the simple one). `ORDER` is the
 order of the boundary reconstruction; without it the patch uses `ORDERBF` from

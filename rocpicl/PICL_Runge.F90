@@ -226,7 +226,7 @@ TYPE(t_grid), POINTER :: pGrid
     END IF ! global%error
 !---------------------------------------------------------------  
 
-pGc => pRegion%mixt%gradCell
+pGc => pRegion%mixt%piclGradCell
     ! 04/01/2025 - TLJ - we need feedback terms and their gradients to
     !       calculate the undisturbed torque component
     ! Internal definitions; some redundancy but just ignore
@@ -310,21 +310,21 @@ pGc => pRegion%mixt%gradCell
        tpF(i) = pRegion%mixt%dv(DV_MIXT_TEMP,i) 
        ! Davin - added pressure to interpolation values 02/22/2025
 
-       dpxF(i) = pRegion%mixt%gradCell(XCOORD,GRC_MIXT_PRES,i) ! dp/dx
-       dpyF(i) = pRegion%mixt%gradCell(YCOORD,GRC_MIXT_PRES,i) ! dp/dy
-       dpzF(i) = pRegion%mixt%gradCell(ZCOORD,GRC_MIXT_PRES,i) ! dp/dz
+       dpxF(i) = pRegion%mixt%piclGradCell(XCOORD,GRC_MIXT_PRES,i) ! dp/dx
+       dpyF(i) = pRegion%mixt%piclGradCell(YCOORD,GRC_MIXT_PRES,i) ! dp/dy
+       dpzF(i) = pRegion%mixt%piclGradCell(ZCOORD,GRC_MIXT_PRES,i) ! dp/dz
 
-       dudx = pRegion%mixt%gradCell(XCOORD,GRC_MIXT_XVEL,i)
-       dudy = pRegion%mixt%gradCell(YCOORD,GRC_MIXT_XVEL,i)
-       dudz = pRegion%mixt%gradCell(ZCOORD,GRC_MIXT_XVEL,i)
+       dudx = pRegion%mixt%piclGradCell(XCOORD,GRC_MIXT_XVEL,i)
+       dudy = pRegion%mixt%piclGradCell(YCOORD,GRC_MIXT_XVEL,i)
+       dudz = pRegion%mixt%piclGradCell(ZCOORD,GRC_MIXT_XVEL,i)
 
-       dvdx = pRegion%mixt%gradCell(XCOORD,GRC_MIXT_YVEL,i)
-       dvdy = pRegion%mixt%gradCell(YCOORD,GRC_MIXT_YVEL,i)
-       dvdz = pRegion%mixt%gradCell(ZCOORD,GRC_MIXT_YVEL,i)
+       dvdx = pRegion%mixt%piclGradCell(XCOORD,GRC_MIXT_YVEL,i)
+       dvdy = pRegion%mixt%piclGradCell(YCOORD,GRC_MIXT_YVEL,i)
+       dvdz = pRegion%mixt%piclGradCell(ZCOORD,GRC_MIXT_YVEL,i)
 
-       dwdx = pRegion%mixt%gradCell(XCOORD,GRC_MIXT_ZVEL,i)
-       dwdy = pRegion%mixt%gradCell(YCOORD,GRC_MIXT_ZVEL,i)
-       dwdz = pRegion%mixt%gradCell(ZCOORD,GRC_MIXT_ZVEL,i)
+       dwdx = pRegion%mixt%piclGradCell(XCOORD,GRC_MIXT_ZVEL,i)
+       dwdy = pRegion%mixt%piclGradCell(YCOORD,GRC_MIXT_ZVEL,i)
+       dwdz = pRegion%mixt%piclGradCell(ZCOORD,GRC_MIXT_ZVEL,i)
 
        domgdx(i) = dwdy - dvdz
        domgdy(i) = dudz - dwdx
@@ -342,9 +342,9 @@ pGc => pRegion%mixt%gradCell
        dprdx  = pGc(XCOORD,1,i) ! d(rho phi)/dx
        dprdy  = pGc(YCOORD,1,i) ! d(rho phi)/dy
        dprdz  = pGc(ZCOORD,1,i) ! d(rho phi)/dz
-       dpdx   = pRegion%mixt%gradCell(XCOORD,GRC_MIXT_PRES,i) ! dp/dx
-       dpdy   = pRegion%mixt%gradCell(YCOORD,GRC_MIXT_PRES,i) ! dp/dy
-       dpdz   = pRegion%mixt%gradCell(ZCOORD,GRC_MIXT_PRES,i) ! dp/dz
+       dpdx   = pRegion%mixt%piclGradCell(XCOORD,GRC_MIXT_PRES,i) ! dp/dx
+       dpdy   = pRegion%mixt%piclGradCell(YCOORD,GRC_MIXT_PRES,i) ! dp/dy
+       dpdz   = pRegion%mixt%piclGradCell(ZCOORD,GRC_MIXT_PRES,i) ! dp/dz
        dfxdx  = pRegion%mixt%piclgradFeedback(XCOORD,1,i) ! dFx/dx
        dfxdy  = pRegion%mixt%piclgradFeedback(YCOORD,1,i) ! dFx/dy
        dfxdz  = pRegion%mixt%piclgradFeedback(ZCOORD,1,i) ! dFx/dz

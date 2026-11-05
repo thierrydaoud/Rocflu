@@ -507,6 +507,8 @@ SUBROUTINE RFLU_AllocateMemorySolCv(pRegion)
      ALLOCATE(pRegion%mixt%DivPhiRsg(3,pGrid%nCellsTot),STAT=errorFlag)
      ALLOCATE(pRegion%mixt%FCell(3,pGrid%nCellsTot),STAT=errorFlag)
 
+     ALLOCATE(pRegion%mixt%piclGradCell(XCOORD:ZCOORD,GRC_MIXT_DENS:GRC_MIXT_PRES, &
+                                        pGrid%nCellsTot),STAT=errorFlag)
 
      global%error = errorFlag
      IF (global%error /= ERR_NONE) THEN
@@ -532,6 +534,7 @@ SUBROUTINE RFLU_AllocateMemorySolCv(pRegion)
      pRegion%mixt%piclgradTg        = 0.0_RFREAL
      pRegion%mixt%DivPhiRsg         = 0.0_RFREAL
      pRegion%mixt%FCell             = 0.0_RFREAL
+     pRegion%mixt%piclGradCell      = 0.0_RFREAL
      pRegion%mixt%piclFeedback      = 0.0_RFREAL
      pRegion%mixt%piclgradFeedback  = 0.0_RFREAL
 !   END IF

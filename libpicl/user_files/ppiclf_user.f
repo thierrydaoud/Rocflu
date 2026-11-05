@@ -595,6 +595,15 @@
          ppiclf_ydot(PPICLF_JOY,i) = tauy/rmass_omega
          ppiclf_ydot(PPICLF_JOZ,i) = tauz/rmass_omega
 #endif
+         ! 2D: particles stay in the plane and spin only about z
+         if (ppiclf_ndim .eq. 2) then
+            ppiclf_ydot(PPICLF_JZ, i) = 0.0d0
+            ppiclf_ydot(PPICLF_JVZ,i) = 0.0d0
+#if PPICLF_JOX > 0
+            ppiclf_ydot(PPICLF_JOX,i) = 0.0d0
+            ppiclf_ydot(PPICLF_JOY,i) = 0.0d0
+#endif
+         endif
 
 !
 ! Update data for viscous unsteady case at every RK3 stage

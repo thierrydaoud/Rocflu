@@ -631,7 +631,8 @@ IF (.NOT. ALLOCATED(y)) THEN
   y = 0.0_RFREAL
   rprop = 0.0_RFREAL
 END IF
-CALL ppiclf_solve_InitParticle(2,3,0,npart_local,y,rprop,filter,neighborWidth) 
+CALL ppiclf_solve_InitParticle(2,pRegion%mixtInput%dimens,0,npart_local,y,rprop, &
+                               filter,neighborWidth)
 IF( showDetail ) THEN
   PRINT*, 'x fluid min/max', domainRange(:,1)
   PRINT*, 'y fluid min/max', domainRange(:,2)

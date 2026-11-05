@@ -805,9 +805,7 @@ c1511 continue
 
       jx    = 1
       jy    = 2
-      jz    = 1
-      if (ppiclf_ndim .eq. 3)
-     >jz    = 3
+      jz    = 3
 
       if_sz = len(filein1)
       if (if_sz .lt. 3) then
@@ -833,11 +831,7 @@ c1511 continue
          ic_pos = ic_pos + 1
          rout_pos(ic_pos) = sngl(ppiclf_y(jy,i))
          ic_pos = ic_pos + 1
-         if (ppiclf_ndim .eq. 3) then
-            rout_pos(ic_pos) = sngl(ppiclf_y(jz,i))
-         else
-            rout_pos(ic_pos) = 0.0
-         endif
+         rout_pos(ic_pos) = sngl(ppiclf_y(jz,i))
       enddo
       ! one block of nxx values per output field
       ic_fld = 0

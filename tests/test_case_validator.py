@@ -56,6 +56,44 @@ def write_patch_grid(path, faces):
         f.write(block([1] * len(faces)) + block(ends) + block([0] * len(faces)))
 
 
+def write_hex_grid(path, nz, lz=1.0):
+    """A complete CENTAUR ASCII grid: one column of nz hexahedra, patches 1-6 are
+    x-, x+, y-, y+, z-, z+."""
+    def block(values):
+        return "".join("".join("%16d" % v for v in values[i:i + 10]) + "\n"
+                       for i in range(0, len(values), 10))
+
+    def reals(values):
+        return "".join("".join("%16.9E" % v for v in values[i:i + 5]) + "\n"
+                       for i in range(0, len(values), 5))
+    corners = [(0, 0), (1, 0), (1, 1), (0, 1)]
+    vid = lambda c, k: 4 * k + c + 1
+    x = [float(corners[c][0]) for k in range(nz + 1) for c in range(4)]
+    y = [float(corners[c][1]) for k in range(nz + 1) for c in range(4)]
+    z = [lz * k / nz for k in range(nz + 1) for c in range(4)]
+    hexes = [[vid(c, k) for c in range(4)] + [vid(c, k + 1) for c in range(4)]
+             for k in range(nz)]
+    side = lambda a, b: [[vid(a, k), vid(b, k), vid(b, k + 1), vid(a, k + 1)] for k in range(nz)]
+    quads = (side(3, 0) + side(1, 2) + side(0, 1) + side(2, 3)
+             + [[vid(c, 0) for c in range(4)]] + [[vid(c, nz) for c in range(4)]])
+    ends = [nz, 2 * nz, 3 * nz, 4 * nz, 4 * nz + 1, 4 * nz + 2]
+    with open(path, "w") as f:
+        f.write("grid\n%16d\n" % len(x) + reals(x) + reals(y) + reals(z) + block([0] * len(x)))
+        f.write("%16d\n" % 0)
+        f.write("%16d\n" % nz)
+        for corner in range(8):
+            f.write(block([h[corner] for h in hexes]))
+        f.write(block([0] * nz))
+        f.write("%16d\n%16d\n" % (0, 0))
+        f.write("%16d\n" % 6 + block([1] * 6) + block([0] * 6) + block(ends))
+        f.write("".join("patch%d\n" % p for p in range(1, 7)))
+        f.write("%16d\n" % 0)
+        f.write("%16d\n" % len(quads))
+        for corner in range(4):
+            f.write(block([q[corner] for q in quads]))
+        f.write(block([1] * len(quads)))
+
+
 class CaseValidatorTest(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
@@ -136,10 +174,14 @@ class CaseValidatorTest(unittest.TestCase):
         text = TEMPLATE.replace("# PICL\n", "# PICL\nQSFORCE 1\n")
         self.assertError(self.errors(text=text), "QSFORCE is given twice")
 
-    def test_key_read_as_another(self):
-        # QSFLUCTFILT before QSFLUCT is read as QSFLUCT by Rocflu
-        text = TEMPLATE.replace("# PICL\n", "# PICL\nQSFLUCTFILT 1\n")
-        self.assertError(self.errors(text=text), "QSFLUCTFILT comes before QSFLUCT")
+    def test_key_order_is_free(self):
+        # A key that starts with another key may come before it
+        lines = TEMPLATE.split("\n")
+        moved = next(line for line in lines if line.startswith("QSFLUCTFILT "))
+        lines.remove(moved)
+        text = "\n".join(lines).replace("# PICL\n", "# PICL\n%s\n" % moved)
+        self.assertLess(text.index("QSFLUCTFILT "), text.index("QSFLUCT "))
+        self.assertEqual(self.errors(text=text), [])
 
     # -- values --------------------------------------------------------------------
 
@@ -203,6 +245,9 @@ class CaseValidatorTest(unittest.TestCase):
 
     def test_binary_added_mass_not_validated(self):
         self.assertError(self.errors({("PICL", "AMFORCE"): 2}), "AMFORCE 2")
+        self.assertError(self.errors({("PICL", "QSFLUCT"): 2, ("PICL", "QSFLUCTFILT"): 1}),
+                         "QSFLUCTFILT 1", "not validated")
+        self.assertEqual(self.errors({("PICL", "QSFLUCT"): 2, ("PICL", "QSFLUCTFILT"): 0}), [])
 
     # -- other sections and files -------------------------------------------------------
 
@@ -288,6 +333,64 @@ class CaseValidatorTest(unittest.TestCase):
             self.assertError(self.bc_errors("PATCH      2 2", line), "PATCH needs two",
                              "PATCH 3 3")
         self.assertError(self.bc_errors("PATCH      2 2", "PATCH      2 1"), "first <= last")
+
+    def test_dimens(self):
+        d2 = {("NUMERICS", "DIMENS"): 2, ("PICL", "PERIODICZ"): 0}
+        virtual = TEMPLATE_BC[:TEMPLATE_BC.index("# BC_PERIODIC\nPATCH    5 5")] + (
+            "# BC_VIRTUAL\nPATCH      5 6\nNAME       Z\n#\n\n# END\n")
+        # The patch grid is empty, so only the .bc side is checked here
+        self.assertEqual([e for e in self.errors(d2, bc=virtual, patches=[1] * 6)
+                          if "points.dat" not in e], [])
+        self.assertError(self.errors(d2, patches=[1] * 6), "DIMENS 2", "2 # BC_VIRTUAL")
+        self.assertError(self.errors({("NUMERICS", "DIMENS"): 3}, bc=virtual, patches=[1] * 6),
+                         "DIMENS 3", "0 # BC_VIRTUAL")
+        self.assertError(self.errors({("NUMERICS", "DIMENS"): 2, ("PICL", "PERIODICZ"): 1},
+                                     bc=virtual, patches=[1] * 6), "PERIODICZ 1", "DIMENS 2")
+        self.assertError(self.errors({("NUMERICS", "DIMENS"): 1}), "particles need DIMENS")
+        # Particles on the mid-plane, at rest in z
+        def points_errors(line):
+            errors = self.errors(d2, bc=virtual, points="! test\n1\n%s\n" % line, grid=(0.0, 1.0))
+            return [e for e in errors if "points.dat" in e]
+        self.assertEqual(points_errors("0.5 0.5 0.5 1.0 2.0 0 1e-4"), [])
+        self.assertEqual(points_errors("0.5 0.5 0.5000001 0 0 0 1e-4"), [])
+        self.assertError(points_errors("0.5 0.5 0.3 0 0 0 1e-4"), "DIMENS 2", "mid-plane z = 0.5")
+        self.assertError(points_errors("0.5 0.5 0.5 0 0 1.0 1e-4"), "DIMENS 2", "vz 1")
+
+    def dimens_errors(self, dimens, nz, bc):
+        """Errors about the dimension of a real one-column grid."""
+        write = lambda: write_hex_grid(os.path.join(self.dir, "case.hyb.asc"), nz)
+        overrides = {("PICL", "PERIODICZ"): 0}
+        if dimens is not None:
+            overrides[("NUMERICS", "DIMENS")] = dimens
+        text = edit_inp(TEMPLATE, overrides)
+        if dimens is None:
+            text = "\n".join(l for l in text.split("\n") if not l.startswith("DIMENS"))
+        inp = os.path.join(self.dir, "case.inp")
+        with open(inp, "w") as f:
+            f.write(text)
+        with open(os.path.join(self.dir, "case.bc"), "w") as f:
+            f.write(bc)
+        with open(os.path.join(self.dir, "points.dat"), "w") as f:
+            f.write("! test\n1\n0.5 0.5 0.5 0 0 0 1e-4\n")
+        write()
+        return case_validator.validate(inp)
+
+    def test_dimens_against_the_grid(self):
+        virtual_z = ("# BC_SLIPW\nPATCH      1 4\nNAME       S\n#\n\n"
+                     "# BC_VIRTUAL\nPATCH      5 6\nNAME       V\n#\n\n# END\n")
+        virtual_y = ("# BC_SLIPW\nPATCH      1 2\nNAME       S\n#\n\n"
+                     "# BC_VIRTUAL\nPATCH      3 4\nNAME       V\n#\n\n"
+                     "# BC_SLIPW\nPATCH      5 6\nNAME       T\n#\n\n# END\n")
+        slip = "# BC_SLIPW\nPATCH      1 6\nNAME       S\n#\n\n# END\n"
+        about = lambda e: [m for m in e if "DIMENS" in m or "one cell thick" in m]
+        self.assertEqual(about(self.dimens_errors(2, 1, virtual_z)), [])
+        self.assertEqual(about(self.dimens_errors(3, 4, slip)), [])
+        self.assertEqual(about(self.dimens_errors(None, 4, slip)), [])
+        self.assertError(self.dimens_errors(2, 1, virtual_y), "patch 3", "the z faces")
+        self.assertError(self.dimens_errors(2, 3, virtual_z), "DIMENS 2", "one cell thick")
+        self.assertError(self.dimens_errors(3, 1, slip), "one cell thick", "set DIMENS 2")
+        self.assertError(self.dimens_errors(None, 1, slip), "one cell thick", "set DIMENS 2")
+        self.assertError(self.dimens_errors(None, 1, virtual_z), "DIMENS 3", "0 # BC_VIRTUAL")
 
     def test_bc_keys(self):
         self.assertError(self.bc_errors("NSCBCK     0.0", "PRESSURE 1e5"),

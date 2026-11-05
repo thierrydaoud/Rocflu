@@ -70,6 +70,15 @@
         END IF
       END DO
 
+      ! 2D run: CreateBin passes minLen(3) = length(3), z is never split
+      length = (/40.0D-3, 40.0D-3, 1.02D-3/)
+      CALL ppiclf_comm_BinCounts(length,
+     >  (/minLen(1),minLen(2),length(3)/),64,nBins)
+      IF (nBins(3) .NE. 1) THEN
+        nFail = nFail + 1
+        PRINT '(A,3I4)', '2D run split z: got', nBins
+      END IF
+
       ! Lengths from 2 mm to about 0.8 m in x, 0.8 mm to 5.6 mm in y
       thick = (/1.4D-3, 4.0D-3, 20.0D-3/)
       nCases = 0
