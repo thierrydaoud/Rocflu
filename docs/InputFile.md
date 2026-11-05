@@ -105,7 +105,7 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 | `QSFLUCTFILT` | 0, 1 | 0 | filter for the fluctuation: 0 box, 1 Gaussian (**not validated, rejected**) |
 | `QSFLUCTFILTADAPT` | 0, 1 | 0 | adaptive filter width |
 | `AMFORCE` | 0-2 | 0 | added mass: 0 none, 1 Parmar, 2 Briney (binary; **not validated, rejected**) |
-| `PGFORCE` | 0, 1 | 0 | pressure-gradient (undisturbed-flow) force |
+| `PGFORCE` | 0, 1 | 0 | pressure-gradient (undisturbed-flow) force. This force and the added mass read gas gradients from their own least-squares fit, not the smoothed gradients of the flux reconstruction ([Gradients for Particle Forces](Improvements.md#gradients-for-particle-forces)) |
 | `VISCOUSUNSTEADY` | 0-4 | 0 | viscous-unsteady (history) force: 1 trapezoidal for uniform dt, 2 trapezoidal for variable dt, 3 modified trapezoidal, 4 Hinsberg |
 | `VUSTEPS` | ≥ 1 | 50 | time steps of history kept for `VISCOUSUNSTEADY` |
 | `COLLISIONS` | 0-4 | 0 | 1 normal contact force; 2 + tangential force and collision torque (particles spin); 3 + rolling torque and hydrodynamic torques; 4 + Saffman and Magnus lift |

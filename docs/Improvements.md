@@ -7,7 +7,7 @@ across MPI ranks and periodic boundaries. For each: what was wrong, how it was f
 how the fix was checked.
 
 All changes are covered by the regression suite in [Regression Tests](../tests/README.md):
-66 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks,
+67 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks,
 and one unit test.
 
 ## Contents
@@ -66,6 +66,14 @@ and one unit test.
   - [Results](#results-1)
   - [What Is Established](#what-is-established)
   - [What Is Not Established](#what-is-not-established)
+- [Gradients for Particle Forces](#gradients-for-particle-forces)
+  - [What the Particles Receive](#what-the-particles-receive)
+  - [Why Not the Gas Gradient](#why-not-the-gas-gradient)
+  - [Effect on the Forces](#effect-on-the-forces)
+  - [Why a Quadratic Fit](#why-a-quadratic-fit)
+  - [The Same Shock in MFC](#the-same-shock-in-mfc)
+  - [How It Is Checked](#how-it-is-checked)
+  - [Limits](#limits)
 - [Still Open](#still-open)
 - [Reproducing the Figures](#reproducing-the-figures)
 
@@ -99,6 +107,7 @@ and one unit test.
 | Particle bins | A particle bed stretched along one direction stopped the run with "Error in Createbins": the bin count split the bins with a wrong formula and went on with too many bins when its search failed (12% of bin boxes in a scan) | Bins added one at a time to the direction with the longest bins; valid for every box. Unit test in the suite | [0688f68](https://github.com/thierrydaoud/Rocflu/commit/0688f68), [0887252](https://github.com/thierrydaoud/Rocflu/commit/0887252) |
 | 2D | ppiclF stopped unless it was in 3D, so a 2D case had to run as a thin 3D one | `DIMENS 2` sets `ppiclf_ndim` 2: bins, ghosts, interpolation, projection, neighbour search and walls work in the plane; about 11 times faster on the wedge | [e687f98](https://github.com/thierrydaoud/Rocflu/commit/e687f98) |
 | Time step | Virtual faces counted in the CFL sum, so a thin 2D mesh took more steps (2227 at Δz = 0.1 mm against 403 at 10 mm) | Left out: 385 steps at every thickness, and stricter case checks | [6016d2a](https://github.com/thierrydaoud/Rocflu/commit/6016d2a) |
+| Particle gradients | The particle forces used the gas solver's WENO-smoothed gradients: at a shock a particle got 58% of the pressure-gradient impulse | A separate least-squares fit with the resolvable second derivatives, without WENO or limiter: the impulse is exact to 0.1%, and no false wall-normal gradient (30% with a linear fit) | [2c93e55](https://github.com/thierrydaoud/Rocflu/commit/2c93e55) |
 
 ## Regression Tests
 
@@ -108,7 +117,7 @@ each one in two ways: against a stored golden, which catches any change, and aga
 physics checks (conservation, exact interpolation of a linear field, restitution,
 decomposition independence), which say whether the result is right. The cases are:
 
-- **Shock tube** (14 cases): a Mach 1.27 shock over 1 or 4 particles, one- and two-way,
+- **Shock tube** (15 cases): a Mach 1.27 shock over 1, 2 or 4 particles, one- and two-way,
   with each force model switched on in turn (added mass, pressure gradient, viscous
   unsteady, heat transfer, quasi-steady fluctuations, Parmar and Gidaspow drag).
 - **Box** (25 cases): an 8 mm cube, periodic or closed. Momentum and energy exchange,
@@ -127,7 +136,7 @@ them, from `tests/`:
 
 ```bash
 module purge; module load gcc/14.2.0 openmpi/5.0.7
-./run_tests.py run                     # all 66 cases and the unit test
+./run_tests.py run                     # all 67 cases and the unit test
 ./run_tests.py run -o box/walls        # a subset
 ```
 
@@ -1494,11 +1503,169 @@ points along x rather than along r.
 Until this is settled, treat shock position at this strength as dependent on the scheme,
 and check it on the mesh in use. AUSM+ is not a general fix.
 
+## Gradients for Particle Forces
+
+The particle models read gas gradients at each particle. Before, these were the gas
+solver's own cell gradients (`gradCell`), which are smoothed by WENO and limited so that the
+flux reconstruction stays stable. At a shock, that smoothing gave a particle 58% of the
+pressure-gradient impulse. The particles now get their own least-squares gradients, without
+smoothing, and receive the full impulse. The gas solver is unchanged.
+
+### What the Particles Receive
+
+| Gradient | Used by | Computed when |
+|---|---|---|
+| ∇p | Pressure-gradient force, Parmar added mass, baroclinic term of the vorticity derivative | `PGFORCE 1`, `AMFORCE 1` or `COLLISIONS` ≥ 2 |
+| ∇(φρ) | Added mass, viscous unsteady, vorticity derivative | `AMFORCE` ≥ 1, `VISCOUSUNSTEADY` ≥ 1 or `COLLISIONS` ≥ 2 |
+| ∇u, ∇v, ∇w | Vorticity and its derivative (torque, lift) | `COLLISIONS` ≥ 2 |
+| ∇ρ_g | Added mass, viscous unsteady | `AMFORCE` ≥ 1, `VISCOUSUNSTEADY` ≥ 1 or `GRADRHO_WRT 1` |
+
+The first three go into `piclGradCell`, and ∇ρ_g into `piclgradRhog`. `gradCell` keeps
+feeding the gas reconstruction as set by `RECONST`; changing it would change the gas
+flow. A case with drag only computes none of these gradients. Before, ∇ρ_g was computed in
+every stage. The conditions are in `PICL_GradientNeeds` (`rocpicl/PICL_ModGradients.F90`) and
+match the fields `ppiclf_user_Layout` interpolates, so the two must be changed together.
+
+### Why Not the Gas Gradient
+
+The test is a Riemann problem: 4.0 kg/m³ at 6.0e5 Pa against the pre-shock state of the
+planar curtain (0.972 kg/m³, 82.7 kPa). It runs on 0.25 mm cells with HLLC and `RECONST 2`,
+and is compared at t = 60 µs. The gradient is computed four ways on the same flow state:
+least squares, and least squares with WENO, with the limiter, and with both (the old
+gradient). The exact values are cell averages of the exact solution.
+
+![Least squares against least squares + WENO in a Riemann problem](figures/fig_grad_tube.png)
+
+| At the shock | Least squares | Least squares + WENO (before) | Exact |
+|---|---|---|---|
+| ∫ ∂p/∂x dx across the shock, against Δp | 100% | **58%** | 100% |
+| ∫ ∂ρ_g/∂x dx across the shock, against Δρ | 100% | **58%** | 100% |
+| Peak ∂p/∂x (MPa/m) | −179 | −134 | (−308 as a cell average; the true front has no width) |
+
+In the rarefaction the two differ by 0.1%. The limiter changed no cell, here or in the curtain
+below: it acts only where a face value would be ≤ 0, that is, near vacuum.
+
+WENO-XYZ replaces each cell's gradient by a weighted mix of its neighbours' gradients,
+weighted towards the smallest. A shock is smeared over two or three cells, so the smallest
+gradient nearby is the one just outside it, and part of the jump is lost. That keeps the
+reconstruction stable. For a force it means the particle sees a smaller pressure jump than
+the gas has.
+
+The same comparison on a copy of the planar curtain (1.8M cells, bed 0–2 mm, 8 cells
+across, φ_p up to 0.29, two-way coupling). Weighted by particle volume, |∇p| with WENO was
+0.67 of least squares as the shock entered the bed (10 µs) and 0.77–0.83 afterwards. For
+|∇ρ_g| it was 0.68 and then 0.73–0.77. The differences are at the bed edges, where φ_p
+jumps:
+
+![Plane averages through the curtain](figures/fig_grad_curtain.png)
+
+### Effect on the Forces
+
+Six particles are held fixed in the same tube, one-way, with `PGFORCE 1` and `AMFORCE 1`.
+The gas is the same in both runs, so only the gradients differ. For a fixed particle the
+exact pressure-gradient impulse is V_p Δp / V_shock at the shock and V_p ∫ ∂p/∂x dt in the
+rarefaction.
+
+![Forces on a particle at the shock and in the rarefaction](figures/fig_grad_forces.png)
+
+| Particles | Passed by | Pressure-gradient impulse: exact | Before | Now | Added-mass impulse: before | Now |
+|---|---|---|---|---|---|---|
+| x = −10.1, −4.9, 2.6, 7.4 mm | shock | 2.206e-10 N s | 1.282e-10 (58%) | 2.207e-10 (100%) | 3.43e-10 N s | 3.13e-10 (−9%) |
+| x = −35 mm | rarefaction | 5.81e-10 | 5.70e-10 (98%) | 5.74e-10 (99%) | 2.60e-10 | 2.59e-10 |
+
+The added-mass force uses ∇ρ_g through u·∇ρ_g. That term opposes the rest of the force, so
+it lowers the impulse by about 10% at the shock. There is no exact reference for the
+added mass yet.
+
+### Why a Quadratic Fit
+
+A linear least-squares fit is exact for a linear field. It needs a stencil with neighbours on
+all sides. Some cells don't have one:
+
+- **Next to a wall, an inflow or an outflow:** the neighbours are all on one side.
+- **Where two periodic directions meet:** three neighbours are missing (see
+  [Still Open](#still-open)).
+
+In those cells the fit turns curvature along the flow into a transverse gradient of order
+Δx ∂²p/∂x². At a shock that is large.
+
+The fit used now adds the second derivatives that the stencil can resolve. It drops the ones
+it cannot separate from the gradient, such as the curvature across a wall when there is one
+cell layer. In a symmetric stencil it gives the same gradient as the linear fit. Its weights
+are 1/|d|², as in Rocflu's linear fit, and are computed once per region. No wall constraints
+(`CRECONSTC`) are applied to these gradients.
+
+| Shock cells, transverse / streamwise gradient | Linear fit | Quadratic fit |
+|---|---|---|
+| Slip walls (8 × 8 cells of 1 mm), next to one wall | 0.30 | 2.2e-4 |
+| Slip walls, wall corners | 0.21 | 1.4e-4 |
+| Slip walls, away from the walls | 2.2e-4 | 2.2e-4 |
+| Periodic (4 × 4 cells of 0.25 mm), corners | 0.061 | 7e-12 |
+| Periodic, other cells | 3e-12 | 7e-12 |
+
+What is left next to the walls is in the flow itself. Between the slip walls the pressure
+varies by 2.8 Pa across the 8 mm section without feedback and by 4.9 Pa with it, which is
+1.6–2.7e-4 of ∂p/∂x times Δx. The streamwise gradient is the same in both fits to four
+digits everywhere. The tube, curtain and force results above were measured with the linear
+fit for that reason.
+
+### The Same Shock in MFC
+
+MFC (`master` 7b16d32f) was run on the same problem and grid, with the numerics of its
+`2D_particle_curtain` example (WENO5 mapped, HLLC, RK3). Its particles get
+(q_R − q_L)/Δx from each cell's WENO face states. Its gas momentum source, the other half
+of the two-way exchange, uses a central difference.
+
+![The shock in Rocflu and MFC](figures/fig_grad_codes.png)
+
+| Gradient | ∫ ∂p/∂x dx across the shock, against Δp |
+|---|---|
+| Rocflu, least squares (now) | 100% |
+| Rocflu, least squares + WENO (before) | 58% |
+| MFC particles, WENO face states, `mp_weno` | 77% |
+| MFC particles, WENO face states, no `mp_weno` | 83% |
+| MFC gas source, central difference | 100% |
+
+MFC's shock is two to three cells wide, against four to five in Rocflu, so its peaks are
+higher. Its particle gradient also loses part of the jump. Because its gas source keeps the
+whole jump, the two halves of the two-way exchange do not match at a shock. This was read
+from the code and not measured.
+
+### How It Is Checked
+
+- `shocktube/one-way/pg-impulse` (new): the pressure-gradient force alone on two particles,
+  which must gain the exact impulse within 2%. They are 0.9% and 1.4% low on its 1 mm cells.
+  The old gradients gave 38% and 40% low.
+- `linear_grad_rhog` (in `box/linear-interp`): ∇ρ_g of a linear density is exact in every
+  cell, walls included.
+- The Fortran fit agrees with an independent Python fit on the same stencils to 1.5e-12.
+- Goldens changed with the gradients: `shocktube/two-way/pressure-gradient` (particle speed
+  +3.5%), the two `shocktube/slip-walls` cases, `shocktube/two-way/viscous-unsteady` (+0.8%),
+  and `box/quiescent-cloud` on 2 and 4 ranks (round-off in gas at rest).
+
+### Limits
+
+- **No wall constraints.** These gradients apply no wall constraints: next to a slip wall the
+  wall-normal velocity has no wall value in the fit. Pressure and density never had one.
+- **No exact added-mass reference.** The −10% in the added mass is measured but not
+  checked against an exact value.
+- **Not measured on non-Cartesian grids.** Interior cells of stretched or unstructured grids
+  (the wedge) were not measured. There the quadratic fit differs from the linear one.
+- **∇F is unchanged.** The gradient of the projected feedback force, used in the torque, still
+  uses least squares with WENO. It is a particle field, not a gas field.
+
 ## Still Open
 
 Gas numerics:
 - **Instability behind very strong shocks.** See
   [Strong-Shock Numerics](#strong-shock-numerics-open-findings).
+- **Missing virtual cells where two periodic directions meet.** Cells there have 23 stencil
+  members instead of 26. The three cells across both periodic patches at once are never
+  built, because `RFLU_SYPE_AddVirtualCells` handles one patch at a time, and a later patch
+  does not see the earlier one's virtual cells. A linear field is still fitted exactly. A
+  curved one gets a false transverse gradient, 6% of ∂p/∂x at a shock, in the gas
+  reconstruction (partly hidden by WENO). The particle gradients are not affected (see
+  [Why a Quadratic Fit](#why-a-quadratic-fit)).
 
 Collision model:
 - **The normal force turns attractive at the end of a contact.** The normal force is
@@ -1546,6 +1713,13 @@ Known limitations:
 - PICL supports only one region per MPI rank, and there is no check for this.
 
 ## Reproducing the Figures
+
+The particle-gradient figures are drawn by `figures/src/particle_gradients/plot.py` from
+`data.json` next to it. `extract.py` wrote that file from the runs behind
+[Gradients for Particle Forces](#gradients-for-particle-forces). Those runs used a
+diagnostic build of [e7f0952](https://github.com/thierrydaoud/Rocflu/commit/e7f0952)
+(each gradient variant written on the same flow state, a particle force log) and MFC
+`master` 7b16d32f with its face states written out. They are not part of the repository.
 
 Each figure compares the commit before a fix with the commit after it. The run and plot
 scripts (`sweeps.py`, `make_plots.py`, `qs_driver.F`) are kept locally under the
