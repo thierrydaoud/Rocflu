@@ -90,6 +90,21 @@ for n in (1, 2):
         checks=["particles_moved"],
         same_as=None if n == 1 else "shocktube/one-way/4-particles/np1")
 
+# -- Shock tube, pressure-gradient force alone --------------------------------
+# The template's shock state, given here so the check can read it. At 40 us the
+# shock is 8-10 cells past the particles (non-corner cell columns) and the
+# start-up contact from x = -10 mm has not reached them.
+SHOCK_STATE = {("INITFLOW", "RVAL2"): "1.4190765531700", ("INITFLOW", "RVAL3"): "138.9205016483263",
+               ("INITFLOW", "RVAL4"): "141869.8040079374623", ("INITFLOW", "RVAL5"): "0.9700779339532",
+               ("INITFLOW", "RVAL6"): "82700.0", ("PICL", "DENSITY"): "1880.0"}
+add(name="shocktube/one-way/pg-impulse/np2",
+    description="Pressure-gradient force alone on two particles the shock passes",
+    nranks=2, inp={**SHOCKTUBE, **ONE_WAY, **SHOCK_STATE, ("PICL", "QSFORCE"): 0,
+                   ("PICL", "PGFORCE"): 1, ("TIMESTEP", "MAXTIME"): "4.05E-05",
+                   ("TIMESTEP", "RUNTIME"): "4.05E-05"},
+    particles=[(-0.0030, 0.00163, 0.00137, 1.0e-4), (-0.0010, 0.00241, 0.00263, 1.0e-4)],
+    checks=["pg_impulse"])
+
 # -- Shock tube, two-way coupling --------------------------------------------
 for n in (1, 2):
     add(name="shocktube/two-way/4-particles/np%d" % n,

@@ -171,6 +171,7 @@ by particle.
 | `binary_collisions` | Colliding pairs (ids 2k−1, 2k) conserve momentum (1e-5) and angular momentum about their centre of mass (0.5%), and separate; head-on pairs rebound with the input `EREST` (within 1%) |
 | `fluctuations_active` | Every particle feels a nonzero quasi-steady force fluctuation at the end (`Ffluct_*`, written with `MODEL_WRT 1`), so the noise is really tested |
 | `wall_collisions` | Every particle that reaches a wall of the box rebounds from it and ends inside the box, clear of the wall; one that hits a single wall rebounds with the input `EREST` (within 0.035) |
+| `pg_impulse` | With the pressure-gradient force alone, each particle the shock has passed has `vp_x` = (p2 − p1)/(ρ_p V_s), V_s = ρ2 u2/(ρ2 − ρ1), within 2% |
 | `planar` | Gas density and energy vary by less than 2e-3 across y-z in each x-column (a plane shock between slip walls) |
 | `same_as` | Particles match the referenced case, on a different number of ranks or with a different setting (all particle fields, or only those named by the case's `same_as_fields`) |
 
@@ -217,6 +218,7 @@ They run to 20 µs.
 |---|---|---|---|---|
 | `shocktube/one-way/1-particle` | 1, 2 | One particle, `FEEDBACK 0` | `particles_moved`, `same_as` | ppiclF bins around a single particle (this once gave a filter width of 0) |
 | `shocktube/one-way/4-particles` | 1, 2 | Four particles, `FEEDBACK 0` | `particles_moved`, `same_as` | Interpolation and drag with several particles |
+| `shocktube/one-way/pg-impulse` | 2 | Two particles, `FEEDBACK 0`, `QSFORCE 0`, `PGFORCE 1`, run to 40 µs | `pg_impulse` | The pressure-gradient force gets the whole pressure jump of the shock (the particle gradients are not smoothed) |
 | `shocktube/two-way/4-particles` | 1, 2 | Four particles, `FEEDBACK 1` | `particles_moved`, `same_as` | Feedback to the gas, across a rank border |
 | `shocktube/two-way/pressure-gradient` | 2 | + `PGFORCE 1` | `particles_moved` | Pressure-gradient force |
 | `shocktube/two-way/viscous-unsteady` | 2 | + `VISCOUSUNSTEADY 1` | `particles_moved` | History force |

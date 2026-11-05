@@ -427,6 +427,27 @@ def check_linear_grad_rhog(init, final, case):
     return errors
 
 
+# The particle gradients keep the whole jump across a shock (an LS+WENO gradient
+# gave 58% of it at 0.25 mm cells)
+PG_IMPULSE_RTOL = 0.02
+
+
+def check_pg_impulse(init, final, case):
+    """With the pressure-gradient force alone, a particle the shock has passed
+    has gained V_p (p2 - p1), so vp_x = (p2 - p1)/(rho_p V_s) with the shock
+    speed V_s = rho2 u2/(rho2 - rho1) from the initial states."""
+    val = lambda sec, key: float(case.inp[(sec, key)])
+    rho2, u2, p2, rho1, p1 = (val("INITFLOW", k) for k in ("RVAL2", "RVAL3", "RVAL4", "RVAL5", "RVAL6"))
+    vs = rho2 * u2 / (rho2 - rho1)
+    exact = (p2 - p1) / (val("PICL", "DENSITY") * vs)
+    errors = []
+    for pid, p in sorted(final["particles"].items()):
+        if abs(p["vp_x"] - exact) > PG_IMPULSE_RTOL * exact:
+            errors.append("particle %s: vp_x %.6g, exact %.6g (rel. error %.2e)"
+                          % (pid, p["vp_x"], exact, abs(p["vp_x"] - exact) / exact))
+    return errors
+
+
 # Gaussian projection on hex cells (MFC kernel, exp(-2.305*sum (dx_l/L_l)^2)
 # over the 3x3x3 neighbours): the deposit's centroid is within ~0.04 cell of
 # the particle and its spread is ~0.41-0.46 cell in every direction. The old
@@ -721,4 +742,5 @@ PHYSICS = {
     "planar": check_planar,
     "uniform_gas_cells": check_uniform_gas_cells,
     "linear_grad_rhog": check_linear_grad_rhog,
+    "pg_impulse": check_pg_impulse,
 }
