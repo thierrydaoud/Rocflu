@@ -266,6 +266,14 @@ class CaseValidatorTest(unittest.TestCase):
         self.assertError(self.errors({("PICL", "USED"): 0, ("MIXTURE", "GASMODEL"): 3},
                                      files=()), "GASMODEL 3")
 
+    def test_material_section_rejected(self):
+        material = "# MATERIAL\nNAME AL\nPHASE S\nDENS 2520.0\nMOLW 1\nSPHT 840.0\n#\n\n"
+        text = TEMPLATE.replace("# PICL\n", material + "# PICL\n", 1)
+        line = text[:text.index("# MATERIAL")].count("\n") + 1
+        errors = self.errors(text=text)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertError(errors, "case.inp:%d" % line, "# MATERIAL", "DENSITY", "SPECIFICHEAT")
+
     def test_files_in_case_directory(self):
         self.assertError(self.errors(files=()), "no points.dat")
         self.assertError(self.errors(files=("points.dat", "filein.vtk")), "filein.vtk")

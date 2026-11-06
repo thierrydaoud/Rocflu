@@ -436,6 +436,15 @@ class Validator:
                       "GASMODEL %d (mixture or JWL) needs species transport, which is "
                       "disabled for now" % round(model or 0), number)
 
+    def check_material(self, lines):
+        """# MATERIAL is read only for species transport, which is disabled:
+        Rocflu stops on an incomplete one and ignores a complete one."""
+        for number, text in enumerate(lines, 1):
+            self.prohibit(text.rstrip() == "# MATERIAL",
+                          "# MATERIAL is not used: species transport is disabled for now; "
+                          "the particle density and specific heat are DENSITY and "
+                          "SPECIFICHEAT in # PICL", number)
+
     # -- points.dat -----------------------------------------------------------------
 
     def read_points(self):
@@ -912,6 +921,7 @@ class Validator:
             return self.errors
         sections = read_sections(lines)
         self.check_disabled(sections)
+        self.check_material(lines)
         self.check_timestep(sections)
         self.check_post(sections)
         self.check_bc(sections)
