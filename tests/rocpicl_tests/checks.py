@@ -415,14 +415,28 @@ def check_linear_interp(init, final, case):
 
 
 def check_linear_grad_rhog(init, final, case):
-    """The cell gradient of a linear gas density is exact in every cell, walls
-    included: d(rho)/dx = RVAL2*RVAL7, and likewise in y and z."""
+    """The cell gradient of a linear gas density is exact: d(rho)/dx = RVAL2*RVAL7,
+    and likewise in y and z. In cells with a slip-wall face the particle gradients
+    mirror the stencil across the wall (dq/dn = 0 there, exact for a symmetry
+    plane), so only the components along the wall are checked in those cells."""
     rho0 = float(case.inp[("INITFLOW", "RVAL2")])
+    g = case.grid
+    lo = (g.x0, g.y0, g.z0)
+    size = (g.lx, g.ly, g.lz)
+    h = (g.lx / g.nx, g.ly / g.ny, g.lz / g.nz)
     errors = []
     for iDir, key in enumerate(("RVAL7", "RVAL8", "RVAL9")):
         exact = rho0 * float(case.inp[("INITFLOW", key)])
-        worst = max(abs(v - exact) for g in final["_grad_rhog"].values() for v in g[iDir])
-        if worst > 1.0e-9 * abs(exact):
+        worst, nCells = 0.0, 0
+        for region, grad in final["_grad_rhog"].items():
+            for v, xc in zip(grad[iDir], final["_centroids"][region]):
+                if min(xc[iDir] - lo[iDir], lo[iDir] + size[iDir] - xc[iDir]) < h[iDir]:
+                    continue
+                worst = max(worst, abs(v - exact))
+                nCells += 1
+        if nCells == 0:
+            errors.append("grad rho_g[%d]: no cell away from the walls normal to it" % iDir)
+        elif worst > 1.0e-9 * abs(exact):
             errors.append("grad rho_g[%d]: worst error %.3e, exact %.3e" % (iDir, worst, exact))
     return errors
 
