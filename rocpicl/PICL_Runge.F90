@@ -127,6 +127,7 @@ TYPE(t_grid), POINTER :: pGrid
   LOGICAL :: doWrite      
   INTEGER(KIND=4) :: i,piclIO,nCells
   INTEGER :: errorFlag,icg      
+  REAL(KIND=8) :: phiPProj
   REAL(KIND=8) :: piclDtMin,piclCurrentTime, &
                   temp_dudtMixt, temp_dvdtMixt, temp_dwdtMixt, energydotg, &
                   dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz, vFrac
@@ -477,6 +478,7 @@ IF(global%piclFeedbackFlag == 1) THEN
        CALL ppiclf_solve_GetProFld(i,PPICLF_P_JE,JFECell(i)) 
        CALL ppiclf_solve_GetProFld(i,PPICLF_P_JPHIP,vfP(i))
        PhiP(i) = vfP(i)/pRegion%grid%vol(i)
+       phiPProj = PhiP(i) ! projected phi_p before the cap, for the PT averages
 
        !VOL Frac cap
        IF(PhiP(i) .GT. 0.62) PhiP(i) = 0.62
@@ -511,13 +513,13 @@ IF(global%piclFeedbackFlag == 1) THEN
 
          ! divide by total particle volume in cell
          do j=1,9
-           JRSGCell(j,i) = JRSGCell(j,i)/(vfP(i)*pRegion%grid%vol(i) + epsilon(1.0_RFREAL))
-           JAlphaPTCell(j,i) = JAlphaPTCell(j,i)/(vfP(i)*pRegion%grid%vol(i) + epsilon(1.0_RFREAL))
+           JRSGCell(j,i) = JRSGCell(j,i)/(phiPProj*pRegion%grid%vol(i) + epsilon(1.0_RFREAL))
+           JAlphaPTCell(j,i) = JAlphaPTCell(j,i)/(phiPProj*pRegion%grid%vol(i) + epsilon(1.0_RFREAL))
          enddo
 
          ! divide by total particle volume in cell
          do j=1,3
-          JTSGCell(j,i) = JTSGCell(j,i)/(vfP(i)*pRegion%grid%vol(i) + epsilon(1.0_RFREAL))
+          JTSGCell(j,i) = JTSGCell(j,i)/(phiPProj*pRegion%grid%vol(i) + epsilon(1.0_RFREAL))
          enddo
 
 
