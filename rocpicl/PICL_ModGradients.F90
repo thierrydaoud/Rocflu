@@ -114,7 +114,7 @@ MODULE PICL_ModGradients
 ! Output:
 !   needPres  grad p: pressure gradient, Parmar added mass, baroclinic term
 !   needDens  grad(phi rho): added mass, viscous unsteady, vorticity terms
-!   needVel   grad u, v, w: vorticity and its derivative
+!   needVel   grad u, v, w: Du/Dt (added mass, viscous unsteady), vorticity
 !   needRhog  grad rho_g: added mass, viscous unsteady, POST output
 !
 ! ******************************************************************************
@@ -131,7 +131,9 @@ MODULE PICL_ModGradients
     needDens = (global%piclAmFlag >= 1) .OR. &
                (global%piclViscousUnsteady >= 1) .OR. &
                (global%piclCollisionFlag >= 2)
-    needVel  = (global%piclCollisionFlag >= 2)
+    needVel  = (global%piclAmFlag >= 1) .OR. &
+               (global%piclViscousUnsteady >= 1) .OR. &
+               (global%piclCollisionFlag >= 2)
     needRhog = (global%piclAmFlag >= 1) .OR. &
                (global%piclViscousUnsteady >= 1) .OR. &
                (global%postWriteGradRho .EQV. .TRUE.)
