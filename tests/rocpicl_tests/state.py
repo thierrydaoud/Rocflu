@@ -117,7 +117,7 @@ def snapshot(rundir, case, which=-1):
                 grad_rhog[region] = d["grad_rhog"]
         else:
             gas[region] = dict(zip(FLOW_NAMES, [list(a) for a in cv]))
-        if any(c in case.checks for c in ("projection_shape", "planar")):
+        if any(c in case.checks for c in ("projection_shape", "planar", "linear_grad_rhog")):
             centroids[region] = outputs.read_post_vtu(
                 os.path.join(rundir, "post", "p%d" % max(region - 1, 0), "%08d.vtu" % step),
                 centroids=True)

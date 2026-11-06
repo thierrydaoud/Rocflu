@@ -97,7 +97,8 @@ SUBROUTINE CellGradientsMP(region)
 #endif
 
 #ifdef PICL
-  USE PICL_ModGradients, ONLY: PICL_ComputeGradCellsQuad, PICL_GradientNeeds
+  USE PICL_ModGradients, ONLY: PICL_ComputeGradCellsQuad, PICL_GradientNeeds, &
+                               PICL_FIELD_SCALAR, PICL_FIELD_VECTOR
 #endif
 
 #ifdef PLAG
@@ -257,19 +258,19 @@ SUBROUTINE CellGradientsMP(region)
       IF ( needDens .EQV. .TRUE. ) THEN
         CALL PICL_ComputeGradCellsQuad(pRegion,CV_MIXT_DENS,CV_MIXT_DENS, &
                                        GRC_MIXT_DENS,pRegion%mixt%cv, &
-                                       pRegion%mixt%piclGradCell)
+                                       pRegion%mixt%piclGradCell,PICL_FIELD_SCALAR)
       END IF ! needDens
 
       IF ( needVel .EQV. .TRUE. ) THEN
         CALL PICL_ComputeGradCellsQuad(pRegion,CV_MIXT_XVEL,CV_MIXT_ZVEL, &
                                        GRC_MIXT_XVEL,pRegion%mixt%cv, &
-                                       pRegion%mixt%piclGradCell)
+                                       pRegion%mixt%piclGradCell,PICL_FIELD_VECTOR)
       END IF ! needVel
 
       IF ( needPres .EQV. .TRUE. ) THEN
         CALL PICL_ComputeGradCellsQuad(pRegion,CV_MIXT_PRES,CV_MIXT_PRES, &
                                        GRC_MIXT_PRES,pRegion%mixt%cv, &
-                                       pRegion%mixt%piclGradCell)
+                                       pRegion%mixt%piclGradCell,PICL_FIELD_SCALAR)
       END IF ! needPres
     END IF ! global%piclUsed
 #endif
@@ -392,7 +393,8 @@ SUBROUTINE CellGradientsMP(region)
     CALL PICL_GradientNeeds(global,needPres,needDens,needVel,needRhog)
     IF ( needRhog .EQV. .TRUE. ) THEN
       CALL PICL_ComputeGradCellsQuad(pRegion,CV_MIXT_DENS,CV_MIXT_DENS,1, &
-                                     pRegion%mixt%cv,pRegion%mixt%piclgradRhog)
+                                     pRegion%mixt%cv,pRegion%mixt%piclgradRhog, &
+                                     PICL_FIELD_SCALAR)
     END IF ! needRhog
     ! rho^g ->  phi^g rho^g
     pRegion%mixt%cv(CV_MIXT_DENS,:) = pRegion%mixt%cv(CV_MIXT_DENS,:)*&
