@@ -207,10 +207,10 @@ MODULE PICL_ModGradients
 ! Purpose: Index of this region's weight set, built on first use.
 !
 ! Description: Per cell, the rows of the fit that give the gradient. Columns in
-!   order dx, dy, dz, dx^2/2, dy^2/2, dz^2/2, dx dy, dx dz, dy dz; modified
-!   Gram-Schmidt drops a column that depends on the earlier ones (a direction
-!   with no extent, as in 2D, or a curvature the stencil cannot separate from
-!   the gradient, as next to a wall).
+!   order dx, dy, dz, dx^2/2, dy^2/2, dz^2/2, dx dy, dx dz, dy dz. A direction
+!   in which the stencil extends less than FLAT_TOL of its size (round-off, as
+!   in 2D) is left out; modified Gram-Schmidt drops a column that depends on
+!   the earlier ones (a curvature the stencil cannot separate from the gradient).
 !
 ! ******************************************************************************
 
@@ -222,10 +222,12 @@ MODULE PICL_ModGradients
 
     INTEGER, PARAMETER :: NCOLS = 9
     REAL(RFREAL), PARAMETER :: DROP_TOL = 1.0E-6_RFREAL
+    REAL(RFREAL), PARAMETER :: FLAT_TOL = 1.0E-8_RFREAL
 
     INTEGER :: errorFlag,i,icg,icg2,iSet,isl,j,nm,nMembsTot
     LOGICAL :: keep(NCOLS)
-    REAL(RFREAL) :: colNorm,d(3),dot,sw
+    LOGICAL :: flat(3)
+    REAL(RFREAL) :: colNorm,d(3),dmax,dot,ext(3),sw
     REAL(RFREAL), ALLOCATABLE :: a(:,:),q(:,:),r(:,:),rinv(:,:)
     TYPE(t_global), POINTER :: global
     TYPE(t_quadSet), ALLOCATABLE :: setsTemp(:)
@@ -272,11 +274,23 @@ MODULE PICL_ModGradients
 
       ALLOCATE(a(nm,NCOLS),q(nm,NCOLS),r(NCOLS,NCOLS),rinv(NCOLS,NCOLS))
 
+! Directions in which the stencil has no extent
+      ext  = 0.0_RFREAL
+      dmax = 0.0_RFREAL
+      DO isl = 1,nm
+        icg2 = pRegion%grid%c2cs(icg)%cellMembs(isl)
+        d(1:3) = pRegion%grid%cofg(1:3,icg2) - pRegion%grid%cofg(1:3,icg)
+        ext(1:3) = MAX(ext(1:3),ABS(d(1:3)))
+        dmax = MAX(dmax,SQRT(d(1)*d(1) + d(2)*d(2) + d(3)*d(3)))
+      END DO ! isl
+      flat(1:3) = ext(1:3) < FLAT_TOL*dmax
+
 ! Weighted design matrix, sqrt(w) = 1/|d|
       DO isl = 1,nm
         icg2 = pRegion%grid%c2cs(icg)%cellMembs(isl)
         d(1:3) = pRegion%grid%cofg(1:3,icg2) - pRegion%grid%cofg(1:3,icg)
         sw = 1.0_RFREAL/SQRT(d(1)*d(1) + d(2)*d(2) + d(3)*d(3))
+        WHERE ( flat(1:3) ) d(1:3) = 0.0_RFREAL
         a(isl,1) = sw*d(1)
         a(isl,2) = sw*d(2)
         a(isl,3) = sw*d(3)
