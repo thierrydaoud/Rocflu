@@ -81,7 +81,7 @@ accept more.
 | | `RVAL1`…, `IVAL1`… | | parameters of the initial state; with `FLAG 3` their meaning depends on the case name (`utilities/init/RFLU_InitFlowHardCode.F90`; for `rectshktb`: shock position, post- and pre-shock state) |
 | `# REFERENCE` | `GAMMA`, `CP` | | ratio of specific heats; specific heat at constant pressure [J/(kg K)] |
 | `# MIXTURE` | `GASMODEL` | 1 calorically perfect gas; 3-7 mixtures (7 JWL) | 3-7 need species transport, **disabled for now** (rejected) |
-| `# SPECIES` | `USED` | 0 | species transport, **disabled for now**: `USED 1` is rejected. Species materials are given in `# MATERIAL` sections (not used by the particles) |
+| `# SPECIES` | `USED` | 0 | species transport, **disabled for now**: `USED 1` is rejected, and so are `# MATERIAL` sections, which only species use |
 | `# VISCMODEL` | `MODEL` | 0 Sutherland, 1 fixed | |
 | | `VISCOSITY` | Pa s | reference viscosity; **required with particles** |
 | | `REFTEMP`, `SUTHCOEF` | K | Sutherland's law |
@@ -222,7 +222,8 @@ before building, and the regression suite runs it on every case. It checks:
   and 0 < `EREST` ≤ 1; with viscous-unsteady `VUSTEPS` ≥ 1;
 - the [combinations](#models-that-need-other-models) above, and the gas-side settings
   particles need;
-- `# SPECIES USED 1` and `GASMODEL` 3-7: species transport is disabled for now;
+- `# SPECIES USED 1`, `GASMODEL` 3-7 and `# MATERIAL` sections: species transport is
+  disabled for now;
 - the case directory: `points.dat` is present and in the [format](#pointsdat-the-particles-initial-state)
   above (the count matches the lines, `dp` > 0); no `filein.vtk` (particle walls come from
   `PARTWALL 1` in the `.bc` file); no `par00002.vtu` from an earlier run (it would start a
@@ -254,4 +255,4 @@ The validator mirrors `rocpicl/PICL_ReadPiclSection.F90` (keys and their order),
 | `ANGULARPERIODIC`, `ANGLE`, `XANGLE`, `RIN`, `ROUT` | nothing: angular periodicity is not available |
 | `OUTPARTICLE`, `OUTGAS`, `OUTGRADGAS`, `OUTMODEL` | renamed `PARTICLE_WRT`, `GAS_WRT`, `GRADGAS_WRT`, `MODEL_WRT` |
 | `PRNTENDTIME` (`# TIMESTEP`) | nothing: the end of every run is written |
-| `# MATERIAL` for particles | `DENSITY` and `SPECIFICHEAT` in `# PICL` (`# MATERIAL` is still read for species) |
+| `# MATERIAL` for particles | `DENSITY` and `SPECIFICHEAT` in `# PICL` (`# MATERIAL` is rejected while species transport is disabled) |
