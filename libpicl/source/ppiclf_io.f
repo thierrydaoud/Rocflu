@@ -1399,9 +1399,10 @@ c1511 continue
 !
 ! Input:  fname, istartoutin (par*.vtu files already present: new ones
 !         continue the numbering)
-! Output: ntotal (particles, all ranks), dp_min, dp_max (all ranks)
+! Output: ntotal (particles, all ranks), dp_min, dp_max and pbox
+!         (particle box x/y/z min,max with dp/2 margin, all ranks)
       subroutine ppiclf_io_ReadRestart(fname,istartoutin,ntotal,
-     >                                 dp_min,dp_max)
+     >                                 dp_min,dp_max,pbox)
       use ppiclf_data
       use ppiclf_unsteady
 !
@@ -1413,7 +1414,7 @@ c1511 continue
       character (len = *) fname
       integer*4 istartoutin
       integer*8 ntotal
-      real*8 dp_min, dp_max
+      real*8 dp_min, dp_max, pbox(6)
 !
       character*8 magic
       character*24 fieldname
@@ -1426,6 +1427,7 @@ c1511 continue
      >          ncells, ncell_rank(ppiclf_np)
       integer(kind=MPI_OFFSET_KIND) offset
       real*8 time, rdum(9), dpl
+      integer*4 j
       real*8, allocatable :: ytmp(:,:), rtmp(:,:), htmp(:,:),
      >                       ftmp(:,:), props(:,:), timebh(:)
       integer*4, allocatable :: itmp(:,:)
@@ -1590,6 +1592,22 @@ c1511 continue
       dpl = dp_max
       call mpi_allreduce(dpl,dp_max,1,MPI_DOUBLE_PRECISION,MPI_MAX,
      >                   ppiclf_comm,ierr)
+
+      ! particle box over all ranks, each particle with its radius
+      do j=1,3
+         pbox(2*j-1) =  huge(1.0d0)
+         pbox(2*j)   = -huge(1.0d0)
+         do k=1,int(nlocal,4)
+            pbox(2*j-1) = min(pbox(2*j-1),
+     >             ppiclf_y(j,k)-0.5d0*ppiclf_rprop(PPICLF_R_JDP,k))
+            pbox(2*j)   = max(pbox(2*j),
+     >             ppiclf_y(j,k)+0.5d0*ppiclf_rprop(PPICLF_R_JDP,k))
+         enddo
+         call mpi_allreduce(MPI_IN_PLACE,pbox(2*j-1),1,
+     >        MPI_DOUBLE_PRECISION,MPI_MIN,ppiclf_comm,ierr)
+         call mpi_allreduce(MPI_IN_PLACE,pbox(2*j),1,
+     >        MPI_DOUBLE_PRECISION,MPI_MAX,ppiclf_comm,ierr)
+      enddo
 
       deallocate(ytmp,rtmp,itmp,htmp,ftmp,props,timebh)
 

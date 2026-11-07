@@ -123,6 +123,8 @@ INTEGER :: errorFlag,icg
                    yMaxCell,zMinCell,zMaxCell,x,vFrac,volpclsum,xLoc,yLoc,zLoc,yL, &
                    zpf_factor,xpf_factor,dp,neighborWidth,xp_min,xp_max, &
                    yp_min, yp_max, zp_min, zp_max, MinFluidCells, maxVF
+   ! particle box from the restart dump (x,y,z min,max)
+   REAL(RFREAL) :: pbox(6)
    ! this rank's share of points.dat, handed to ppiclF
    REAL(RFREAL), ALLOCATABLE :: y(:,:), rprop(:,:)
    INTEGER(8) :: npartRead
@@ -393,22 +395,22 @@ IF(global%restartFromScratch) THEN
    END DO
    npart_local = i - 1
 
-   CALL MPI_ALLREDUCE(xp_min,xp_min,1,MPI_RFREAL,MPI_MIN, &
+   CALL MPI_ALLREDUCE(MPI_IN_PLACE,xp_min,1,MPI_RFREAL,MPI_MIN, &
         global%mpiComm,global%mpierr)
 
-   CALL MPI_ALLREDUCE(xp_max,xp_max,1,MPI_RFREAL,MPI_MAX, &
+   CALL MPI_ALLREDUCE(MPI_IN_PLACE,xp_max,1,MPI_RFREAL,MPI_MAX, &
         global%mpiComm,global%mpierr)
 
-   CALL MPI_ALLREDUCE(yp_min,yp_min,1,MPI_RFREAL,MPI_MIN, &
+   CALL MPI_ALLREDUCE(MPI_IN_PLACE,yp_min,1,MPI_RFREAL,MPI_MIN, &
         global%mpiComm,global%mpierr)
 
-   CALL MPI_ALLREDUCE(yp_max,yp_max,1,MPI_RFREAL,MPI_MAX, &
+   CALL MPI_ALLREDUCE(MPI_IN_PLACE,yp_max,1,MPI_RFREAL,MPI_MAX, &
         global%mpiComm,global%mpierr)
 
-   CALL MPI_ALLREDUCE(zp_min,zp_min,1,MPI_RFREAL,MPI_MIN, &
+   CALL MPI_ALLREDUCE(MPI_IN_PLACE,zp_min,1,MPI_RFREAL,MPI_MIN, &
         global%mpiComm,global%mpierr)
 
-   CALL MPI_ALLREDUCE(zp_max,zp_max,1,MPI_RFREAL,MPI_MAX, &
+   CALL MPI_ALLREDUCE(MPI_IN_PLACE,zp_max,1,MPI_RFREAL,MPI_MAX, &
         global%mpiComm,global%mpierr)
 
    IF( showDetail ) THEN
@@ -467,7 +469,14 @@ ELSE
    rprop = 0.0_RFREAL
 
    iFileName = RFLU_ParticleDumpName(global,global%currentStep)
-   CALL ppiclf_io_ReadRestart(TRIM(iFileName),ii,npartRead,dp_min,dp_max)
+   CALL ppiclf_io_ReadRestart(TRIM(iFileName),ii,npartRead,dp_min,dp_max, &
+                              pbox)
+   xp_min = pbox(1)
+   xp_max = pbox(2)
+   yp_min = pbox(3)
+   yp_max = pbox(4)
+   zp_min = pbox(5)
+   zp_max = pbox(6)
    npart = INT(npartRead)
 END IF ! global%restartFromScratch
 
