@@ -555,6 +555,7 @@
       EXTERNAL  ppiclf_vlmin, ppiclf_vlmax
       INTEGER*4 nSent, sentTo(27), m, nin
       LOGICAL   dupl
+      REAL*8    dfwork(3)
 !
 ! Code Start:
 !
@@ -727,6 +728,8 @@
           END IF
         END DO
       END DO
+      ! Max over ranks: CreateBin decides locally from the filter
+      CALL ppiclf_gop(ppiclf_filter,dfwork,'M  ',3)
 
       ! Copy mapping since it is need to send fluid properties in interp
       ppiclf_nCells_FV2PICL_Orig = ppiclf_nCells_FV2PICL

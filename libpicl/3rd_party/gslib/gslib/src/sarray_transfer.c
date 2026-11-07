@@ -125,7 +125,7 @@ static uint cap_rows(buffer *const data, const unsigned row_size,const uint max)
     uint len=buf[2]; n+=len;
     if(n<maxn) buf+=len+3;
     else {
-      buf[2]-=(maxn-n); data->n = (buf-(uint*)data->ptr)+3+buf[2];
+      buf[2]-=(n-maxn); data->n = (buf-(uint*)data->ptr)+3+buf[2];
       buf+=len+3;
       while(buf!=buf_end) { uint len=buf[2]; n+=len, buf+=len+3; }
       break;
