@@ -88,7 +88,7 @@ def run_case(case, args):
         for attempt in (1, 2):
             rcase.setup(case, rundir, args.exe)
             # The case's input must pass the checks a user's case gets
-            invalid = case_validator.validate(os.path.join(rundir, rcase.CASENAME + ".inp"))
+            invalid = case_validator.validate(os.path.join(rundir, case.casename + ".inp"))
             if invalid:
                 res["errors"] += ["case validator: " + e for e in invalid]
                 return res
@@ -191,6 +191,13 @@ def cross_checks(results):
         if ref["final"] is not None:
             r["physics"] += checks.compare_gas_fields(r["final"], ref["final"], ref_name,
                                                       checks.GAS_THICKNESS_RTOL)
+    for r in results:
+        ref_name = r["case"].quarter_of
+        if not ref_name or ref_name not in by_name or r["final"] is None:
+            continue
+        ref = by_name[ref_name]
+        if ref["final"] is not None:
+            r["physics"] += checks.compare_quarter_full(r["final"], ref["final"], ref_name)
 
 
 UNIT_BIN_COUNTS = "unit/bin-counts"
@@ -239,10 +246,10 @@ def main():
     args.exe = os.path.abspath(args.exe)
 
     selected = [c for c in CASES if not args.only or any(o in c.name for o in args.only)]
-    # A same_as reference must run too
+    # A same_as or quarter_of reference must run too
     names = {c.name for c in selected}
     selected += [c for c in CASES if c.name not in names
-                 and any(s.same_as == c.name for s in selected)]
+                 and any(c.name in (s.same_as, s.quarter_of) for s in selected)]
     unit = not args.only or any(o in UNIT_BIN_COUNTS for o in args.only)
 
     if args.command == "list":

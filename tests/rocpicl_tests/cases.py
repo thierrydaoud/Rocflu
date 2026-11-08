@@ -4,6 +4,8 @@ Particles never start on a cell face (faces sit on whole millimetres here),
 so round-off cannot decide which cell or rank a particle starts in.
 """
 
+import math
+
 from .case import Case, Grid
 
 # ---------------------------------------------------------------------------
@@ -597,3 +599,157 @@ for _case in CASES:
 
 def by_name():
     return {c.name: c for c in CASES}
+
+
+# -- Periodicity: Newton's cradles and sectors of a cylinder -------------------
+# Sector meshes come from utilities/mesh/sector_mesh.py (bc "sector": its .bc,
+# the two planes a rotational periodic pair). Gas at rest, no gas forces:
+# particles move by collisions only, or not at all, so the reference is exact.
+from .case import SectorGrid  # noqa: E402
+
+COLLISIONS_ELASTIC = {("PICL", "QSFORCE"): 0, ("PICL", "COLLISIONS"): 1,
+                      ("PICL", "KSP"): 10, ("PICL", "EREST"): "1.0",
+                      ("TIMESTEP", "MAXTIME"): "3.0E-05", ("TIMESTEP", "RUNTIME"): "3.0E-05",
+                      ("TIMESTEP", "WRITIME"): "1.5E-05", ("TIMESTEP", "PRNTIME"): "1.5E-05"}
+NO_FORCES = {("PICL", "QSFORCE"): 0, ("PICL", "AMFORCE"): 0, ("PICL", "PGFORCE"): 0,
+             ("PICL", "COLLISIONS"): 0,
+             ("TIMESTEP", "MAXTIME"): "2.0E-05", ("TIMESTEP", "RUNTIME"): "2.0E-05",
+             ("TIMESTEP", "WRITIME"): "1.0E-05", ("TIMESTEP", "PRNTIME"): "1.0E-05"}
+
+
+def cradle(axis_pos, normal, along, dp, n=5, gap=1.0e-3, speed=10.0, z=None):
+    """A resting chain of n touching particles centred on axis_pos along
+    `along` (unit vector), and one particle hitting it from the + side at
+    `speed`. Returns (x, y, z, dp, u, v, w) tuples."""
+    pitch = dp * (1.0 + gap)
+    out = []
+    for k in range(n + 1):
+        s = (k - (n - 1) / 2.0) * pitch + 0.37 * gap * dp
+        if k == n:
+            s += 0.5 * dp
+        p = [axis_pos[i] + s * along[i] for i in range(3)]
+        if z is not None:
+            p[2] = z
+        v = [-speed * along[i] if k == n else 0.0 for i in range(3)]
+        out.append(tuple(p) + (dp,) + tuple(v))
+    return out
+
+
+def _rot_z_point(p, deg):
+    a = math.radians(deg)
+    c, s = math.cos(a), math.sin(a)
+    return (c * p[0] - s * p[1], s * p[0] + c * p[1]) + tuple(p[2:3])
+
+
+def rotated(particles, deg):
+    out = []
+    for p in particles:
+        x = _rot_z_point(p[:3], deg)
+        v = _rot_z_point(p[4:7], deg)
+        out.append(x + (p[3],) + v)
+    return out
+
+
+def wrap_quarter(particles):
+    """Particles below y = 0 moved to their periodic image near x = 0."""
+    return [rotated([p], 90.0)[0] if p[1] < 0.0 else p for p in particles]
+
+
+QUARTER = SectorGrid(angle=90.0, r_out=0.02, ntheta=48, core=(0.002, 0.004))
+_chain = cradle((0.015, 0.0, 0.0), None, (0.0, 1.0, 0.0), 1.0e-4, z=5.0e-5)
+add(name="sector/cradle/np4",
+    description="Newton's cradle across a rotational periodic plane (y = 0) of a quarter "
+                "cylinder, and its twin rotated 45 degrees into the sector: the momentum "
+                "must cross the plane (rotated ghosts) exactly as in the twin",
+    nranks=4, grid=QUARTER, bc="sector",
+    inp={**uniform_gas(0.0), **ONE_WAY, **TWO_D, **COLLISIONS_ELASTIC},
+    particles=wrap_quarter(_chain) + rotated(_chain, 45.0),
+    checks=["particles_moved", "cradle_twin", "in_plane"],
+    twin=("rotate", 45.0, 90.0))
+
+_lchain = cradle((0.0, 0.00237, 0.00263), None, (1.0, 0.0, 0.0), 1.0e-4)
+_lchain_in = [((p[0] + 0.008) if p[0] < 0.0 else p[0],) + p[1:] for p in _lchain]
+_lshift = (0.004, 0.003, 0.0)
+add(name="box/cradle-linear/np2",
+    description="Newton's cradle across the periodic face x = 0 of a box, and its twin "
+                "shifted into the box: the momentum must cross the face exactly as in "
+                "the twin",
+    nranks=2, grid=BOX, bc="periodic",
+    inp={**uniform_gas(0.0), **ONE_WAY, **COLLISIONS_ELASTIC},
+    particles=_lchain_in + [(p[0] + _lshift[0], p[1] + _lshift[1], p[2] + _lshift[2]) + p[3:]
+                            for p in _lchain],
+    checks=["particles_moved", "cradle_twin"],
+    twin=("shift", _lshift, (0.008, 0.008, 0.008)))
+
+
+def _polar_particle(r, deg, v_r, v_t, dp, z):
+    t = math.radians(deg)
+    c, s = math.cos(t), math.sin(t)
+    return (r * c, r * s, z, dp, v_r * c - v_t * s, v_r * s + v_t * c, 0.0)
+
+
+WEDGE5 = SectorGrid(angle=5.0, theta0=-2.5, r_in=0.02, r_out=0.03, ntheta=12)
+add(name="2d/sector-wedge-crossing/np2",
+    description="Particles without forces crossing the planes of a 5 degree wedge "
+                "several times (500 m/s across it): straight paths brought back by the "
+                "rotation, to round-off",
+    nranks=2, grid=WEDGE5, bc="sector",
+    inp={**uniform_gas(0.0), **ONE_WAY, **TWO_D, **NO_FORCES},
+    particles=[_polar_particle(0.025, 0.3, 40.0, 500.0, 2.0e-5, 5.0e-5),
+               _polar_particle(0.0252, -1.1, -30.0, -500.0, 2.0e-5, 5.0e-5),
+               _polar_particle(0.0248, 1.9, 0.0, 120.0, 2.0e-5, 5.0e-5)],
+    checks=["particles_moved", "ballistic_periodic", "in_plane"])
+
+QUARTER3D = SectorGrid(angle=90.0, r_out=0.01, ntheta=16, core=(0.002, 0.004),
+                       z=(0.0, 0.001), nz=4)
+add(name="sector/z-periodic-crossing/np4",
+    description="3D quarter cylinder, z periodic: particles without forces crossing the "
+                "rotational planes, the z faces, and both planes near the axis",
+    nranks=4, grid=QUARTER3D, bc="sector",
+    inp={**uniform_gas(0.0), **ONE_WAY, **NO_FORCES},
+    particles=[(0.006, 0.0007, 0.00041, 2.0e-5, 20.0, -120.0, 37.0),
+               (0.0005, 0.0006, 0.00013, 2.0e-5, -55.0, -61.0, -29.0),
+               (0.0031, 0.0042, 0.00087, 2.0e-5, 13.0, 9.0, 61.0)],
+    checks=["particles_moved", "ballistic_periodic"])
+
+# Quarter cylinder against the full cylinder of four exact copies: radial
+# blast (case cylds: r < RVAL1 at the post-shock state), particles frozen,
+# one-way coupling; the gas at the particles and their volume fraction must
+# match the unrotated copy in the full cylinder
+QUARTER_SMALL = SectorGrid(angle=90.0, r_out=0.012, ntheta=32, core=(0.002, 0.004))
+FULL_SMALL = SectorGrid(angle=90.0, r_out=0.012, ntheta=32, core=(0.002, 0.004), full=True)
+BLAST = {("INITFLOW", "RVAL1"): "0.006", ("INITFLOW", "RVAL3"): "0.0",
+         ("PICL", "VELOCITYMODEL"): 0, ("PICL", "PGFORCE"): 1,
+         ("TIMESTEP", "MAXTIME"): "4.0E-06", ("TIMESTEP", "RUNTIME"): "4.0E-06",
+         ("TIMESTEP", "WRITIME"): "2.0E-06", ("TIMESTEP", "PRNTIME"): "2.0E-06"}
+
+
+def _quarter_cloud(n, dp, seed=31):
+    state = seed
+    out = []
+    while len(out) < n:
+        vals = []
+        for _ in range(2):
+            state = (1103515245 * state + 12345) % 2 ** 31
+            vals.append(state / 2 ** 31)
+        r, t = 0.0045 + 0.0045 * vals[0], 90.0 * vals[1]
+        out.append(_polar_particle(r, t, 0.0, 0.0, dp, 5.0e-5)[:4])
+    return out
+
+
+_qcloud = _quarter_cloud(24, 5.0e-5)
+_fcloud = [q for p in _qcloud for q in
+           [p] + [rotated([p + (0.0, 0.0, 0.0)], 90.0 * k)[0][:4] for k in (1, 2, 3)]]
+add(name="sector/quarter-vs-full/full/np8",
+    description="Full cylinder of four copies of the quarter mesh, radial blast, frozen "
+                "particles in four rotated copies (reference of the quarter case)",
+    nranks=8, grid=FULL_SMALL, bc="sector", casename="cylds",
+    inp={**ONE_WAY, **TWO_D, **BLAST}, particles=_fcloud,
+    checks=["in_plane"])
+add(name="sector/quarter-vs-full/quarter/np2",
+    description="Quarter cylinder with rotational periodic planes against the full "
+                "cylinder: gas interpolated at the particles and their volume fraction "
+                "(cell images across the planes and around the axis)",
+    nranks=2, grid=QUARTER_SMALL, bc="sector", casename="cylds",
+    inp={**ONE_WAY, **TWO_D, **BLAST}, particles=_qcloud,
+    checks=["in_plane"], quarter_of="sector/quarter-vs-full/full/np8")

@@ -13,12 +13,22 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 TESTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES = os.path.join(TESTS_DIR, "templates")
-CASENAME = "rectshktb"  # Rocflu requires files named after the case
+CASENAME = "rectshktb"  # default case name (Rocflu names every file after it)
+MESH_TOOLS = os.path.join(TESTS_DIR, "..", "utilities", "mesh")
+
+
+def case_name(rundir):
+    """Case name of a run directory: the name of its one <case>.inp."""
+    names = [f[:-4] for f in os.listdir(rundir) if f.endswith(".inp")]
+    if len(names) != 1:
+        raise RuntimeError("%s: expected one .inp, found %s" % (rundir, names))
+    return names[0]
 
 
 @dataclass
@@ -37,6 +47,54 @@ class Grid:
     @property
     def cell_volume(self):
         return self.lx * self.ly * self.lz / (self.nx * self.ny * self.nz)
+
+
+@dataclass
+class SectorGrid:
+    """Sector of a cylinder about z (utilities/mesh/sector_mesh.py): theta0 to
+    theta0 + angle degrees, an annulus from r_in or a core (A, R_POLAR) at
+    the axis; full: the whole cylinder (four copies of a 90 degree sector).
+    The .bc comes from the tool (bc="sector")."""
+    angle: float = 90.0
+    theta0: float = 0.0
+    r_out: float = 0.02
+    ntheta: int = 48
+    r_in: Optional[float] = None
+    core: Optional[Tuple[float, float]] = None
+    max_cell: float = 0.0
+    z: Tuple[float, float] = (0.0, 1.0e-4)
+    nz: int = 1
+    full: bool = False
+
+    # cells have different volumes: no single cell volume (state.totals
+    # leaves out the gas totals)
+    cell_volume = None
+
+    @property
+    def z0(self):
+        return self.z[0]
+
+    @property
+    def lz(self):
+        return self.z[1] - self.z[0]
+
+    def write(self, rundir, casename):
+        args = [casename, "--angle", repr(self.angle),
+                "--theta0", repr(self.theta0), "--r-out", repr(self.r_out),
+                "--ntheta", str(self.ntheta), "--z", repr(self.z[0]), repr(self.z[1]),
+                "--nz", str(self.nz)]
+        if self.r_in is not None:
+            args += ["--r-in", repr(self.r_in)]
+        else:
+            args += ["--core", repr(self.core[0]), repr(self.core[1])]
+        if self.max_cell:
+            args += ["--max-cell", repr(self.max_cell)]
+        if self.full:
+            args += ["--full"]
+        # the command-line tool, as a user runs it
+        if _run([sys.executable, os.path.join(MESH_TOOLS, "sector_mesh.py")] + args,
+                rundir, "mesh.log"):
+            raise RunError("sector_mesh.py failed (see mesh.log)")
 
 
 @dataclass
@@ -76,6 +134,16 @@ class Case:
     # the final dumps to be byte-identical (restart_test below)
     restart_test: bool = False
     timeout_min: int = 15
+    # Rocflu case name: picks the built-in initial condition (rectshktb: planar,
+    # x < RVAL1; cylds: radial, r < RVAL1)
+    casename: str = CASENAME
+    # cradle_twin check: ("rotate", degrees, sector angle) or
+    # ("shift", (dx, dy, dz), (Lx, Ly, Lz)): the second half of the particles
+    # is the first half moved by that, away from the periodic boundary
+    twin: Optional[tuple] = None
+    # Full-cylinder case this quarter must match (particle k against the
+    # full case's particle 4k-3, its unrotated copy)
+    quarter_of: Optional[str] = None
 
     @property
     def uuid(self):
@@ -84,13 +152,16 @@ class Case:
         return hashlib.sha1(spec.encode()).hexdigest()[:8].upper()
 
     def spec(self):
-        return {
+        spec = {
             "nranks": self.nranks,
             "grid": self.grid.__dict__,
             "bc": self.bc,
             "inp": {"%s/%s" % k: v for k, v in self.inp.items()},
             "particles": self.particles,
         }
+        if self.casename != CASENAME:
+            spec["casename"] = self.casename
+        return spec
 
 
 # ---------------------------------------------------------------------------
@@ -197,26 +268,32 @@ def setup(case, rundir, exe_dir):
     os.makedirs(rundir)
 
     g = case.grid
-    answers = "\n".join(str(v) for v in (
-        g.lx, g.ly, g.lz, g.x0, g.y0, g.z0, g.nx + 1, g.ny + 1, g.nz + 1, 2)) + "\n"
-    if _run([os.path.join(TESTS_DIR, "mesh_generator")], rundir, "mesh.log", stdin=answers):
-        raise RunError("mesh_generator failed (see mesh.log)")
-    os.rename(os.path.join(rundir, "hass.hyb.asc"), os.path.join(rundir, CASENAME + ".hyb.asc"))
+    name = case.casename
+    if isinstance(g, SectorGrid):
+        g.write(rundir, name)
+        if case.bc != "sector":
+            raise RunError("a sector grid takes bc=\"sector\" (the .bc of the mesh tool)")
+    else:
+        answers = "\n".join(str(v) for v in (
+            g.lx, g.ly, g.lz, g.x0, g.y0, g.z0, g.nx + 1, g.ny + 1, g.nz + 1, 2)) + "\n"
+        if _run([os.path.join(TESTS_DIR, "mesh_generator")], rundir, "mesh.log", stdin=answers):
+            raise RunError("mesh_generator failed (see mesh.log)")
+        os.rename(os.path.join(rundir, "hass.hyb.asc"), os.path.join(rundir, name + ".hyb.asc"))
+        with open(os.path.join(rundir, name + ".bc"), "w") as f:
+            f.write(bc_text(case.bc))
 
     with open(os.path.join(TEMPLATES, CASENAME + ".inp")) as f:
         inp = edit_inp(f.read(), case.inp)
-    with open(os.path.join(rundir, CASENAME + ".inp"), "w") as f:
+    with open(os.path.join(rundir, name + ".inp"), "w") as f:
         f.write(inp)
-    with open(os.path.join(rundir, CASENAME + ".bc"), "w") as f:
-        f.write(bc_text(case.bc))
     with open(os.path.join(rundir, "points.dat"), "w") as f:
         f.write(points_text(case.particles))
 
     n = str(case.nranks)
     steps = [
-        ("rflumap", ["-c", CASENAME, "-m", "1", "-p", n, "-r", n, "-v", "1"]),
-        ("rflupart", ["-c", CASENAME, "-v", "1"]),
-        ("rfluinit", ["-c", CASENAME, "-v", "1"]),
+        ("rflumap", ["-c", name, "-m", "1", "-p", n, "-r", n, "-v", "1"]),
+        ("rflupart", ["-c", name, "-v", "1"]),
+        ("rfluinit", ["-c", name, "-v", "1"]),
     ]
     for exe, args in steps:
         rc = _run([os.path.join(exe_dir, exe)] + args, rundir, exe + ".log")
@@ -244,7 +321,7 @@ def srun_prefix(nranks, timeout_min, slurm):
 
 def run_solver(case, rundir, exe_dir, slurm):
     cmd = srun_prefix(case.nranks, case.timeout_min, slurm)
-    cmd += [os.path.join(exe_dir, "rflump"), "-c", CASENAME, "-v", "1"]
+    cmd += [os.path.join(exe_dir, "rflump"), "-c", case.casename, "-v", "1"]
     rc = _run(cmd, rundir, "rflump.log", timeout=60 * (case.timeout_min + 5))
     with open(os.path.join(rundir, "rflump.log"), errors="replace") as f:
         log = f.read()
@@ -273,7 +350,7 @@ def restart_test(case, rundir, exe_dir, slurm):
     again = rundir + "_restart"
     shutil.rmtree(again, ignore_errors=True)
     shutil.copytree(rundir, again)
-    inp = os.path.join(again, CASENAME + ".inp")
+    inp = os.path.join(again, case.casename + ".inp")
     with open(inp) as f:
         text = f.read()
     text, n = re.subn(r"(?m)^START_STEP\b.*$", "START_STEP  %d" % start, text)
@@ -283,7 +360,7 @@ def restart_test(case, rundir, exe_dir, slurm):
         f.write(text)
 
     cmd = srun_prefix(case.nranks, case.timeout_min, slurm)
-    cmd += [os.path.join(exe_dir, "rflump"), "-c", CASENAME, "-v", "1"]
+    cmd += [os.path.join(exe_dir, "rflump"), "-c", case.casename, "-v", "1"]
     rc = _run(cmd, again, "rflump.log", timeout=60 * (case.timeout_min + 5))
     with open(os.path.join(again, "rflump.log"), errors="replace") as f:
         log = f.read()
@@ -307,7 +384,7 @@ def restart_test(case, rundir, exe_dir, slurm):
 def run_post(rundir, exe_dir):
     """Convert every dump step of the run into post/ with rflupost (one process).
     Returns a list of failure messages."""
-    rc = _run([os.path.join(exe_dir, "rflupost"), "-c", CASENAME, "-s", "all", "-v", "0"],
+    rc = _run([os.path.join(exe_dir, "rflupost"), "-c", case_name(rundir), "-s", "all", "-v", "0"],
               rundir, "rflupost.log")
     with open(os.path.join(rundir, "rflupost.log"), errors="replace") as f:
         log = f.read()

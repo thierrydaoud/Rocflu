@@ -11,7 +11,7 @@ import os
 import re
 
 from . import outputs, state
-from .case import CASENAME
+from .case import case_name
 from .state import SPIN, VEL
 
 # Gas fields are double precision; particle files are single precision
@@ -107,7 +107,7 @@ def check_restart_data(rundir):
         dumps[region] = [outputs.read_fluid_dump(path) for _, path in sorted(items)]
 
     for _, soldir in state._dumps(rundir):
-        for path in glob.glob(os.path.join(soldir, "%s.mixt.cva_*" % CASENAME)):
+        for path in glob.glob(os.path.join(soldir, "%s.mixt.cva_*" % case_name(rundir))):
             region = int(os.path.basename(path).split("_")[1])
             # The directory name has 6 digits; the file holds the full time
             time, sol = outputs.read_flow_ascii(path)
@@ -738,7 +738,116 @@ def check_fluctuations_active(init, final, case):
     return []
 
 
+
+def _rot_z(v, deg):
+    a = math.radians(deg)
+    c, s = math.cos(a), math.sin(a)
+    return (c * v[0] - s * v[1], s * v[0] + c * v[1], v[2])
+
+
+def _pos_vel(p):
+    return (p["x"], p["y"], p["z"]), (p["vp_x"], p["vp_y"], p["vp_z"])
+
+
+def _dist(a, b):
+    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+
+
+# points.dat holds 10 digits, so a twin starts ~1e-12 m from the exact copy;
+# the contacts carry that to ~1e-7 m/s
+TWIN_XTOL, TWIN_VTOL = 1.0e-10, 1.0e-5
+
+
+def check_cradle_twin(init, final, case):
+    """The second half of the particles is the first half moved away from the
+    periodic boundary (case.twin); every particle must end where its twin ends,
+    moved back (the first half through the boundary: any of its periodic
+    images). Collisions only, so exact to round-off."""
+    kind, move, period = case.twin
+    parts = final["particles"]
+    ids = sorted(parts)
+    half = len(ids) // 2
+    errors = []
+    for a_id, b_id in zip(ids[:half], ids[half:]):
+        xa, va = _pos_vel(parts[a_id])
+        xb, vb = _pos_vel(parts[b_id])
+        if kind == "rotate":
+            xb, vb = _rot_z(xb, -move), _rot_z(vb, -move)
+            images = [(_rot_z(xa, m * period), _rot_z(va, m * period)) for m in (-1, 0, 1)]
+        else:
+            xb = tuple(x - d for x, d in zip(xb, move))
+            images = []
+            for mx in (-1, 0, 1):
+                for my in (-1, 0, 1):
+                    for mz in (-1, 0, 1):
+                        shift = (mx * period[0], my * period[1], mz * period[2])
+                        images.append((tuple(x + s for x, s in zip(xa, shift)), va))
+        x_img, v_img = min(images, key=lambda im: _dist(im[0], xb))
+        dx, dv = _dist(x_img, xb), _dist(v_img, vb)
+        if dx > TWIN_XTOL or dv > TWIN_VTOL:
+            errors.append("particle %d vs its twin %d: |dx| %.2e m, |dv| %.2e m/s"
+                          % (a_id, b_id, dx, dv))
+    return errors
+
+
+def check_ballistic_periodic(init, final, case):
+    """No forces: every particle moves on a straight line, brought back into
+    the sector by the rotational periodicity (a sector grid) and into
+    z0 <= z < z1 by the linear one (sector grid with nz > 1, z periodic)."""
+    g = case.grid
+    t = final["time"] - init["time"]
+    errors = []
+    for pid, p0 in init["particles"].items():
+        x0, v0 = _pos_vel(p0)
+        x = [a + b * t for a, b in zip(x0, v0)]
+        v = list(v0)
+        if not g.full:
+            theta = math.degrees(math.atan2(x[1], x[0])) - g.theta0
+            k = math.floor(theta / g.angle)
+            x, v = list(_rot_z(x, -k * g.angle)), list(_rot_z(v, -k * g.angle))
+        if g.nz > 1:
+            lz = g.z[1] - g.z[0]
+            x[2] = g.z[0] + (x[2] - g.z[0]) % lz
+        xf, vf = _pos_vel(final["particles"][pid])
+        dx, dv = _dist(x, xf), _dist(v, vf)
+        if dx > 1.0e-11 or dv > 1.0e-8:
+            errors.append("particle %d: |x - straight path| %.2e m, |v - v0| %.2e m/s"
+                          % (pid, dx, dv))
+    return errors
+
+
+# Quarter against the full cylinder: equal to round-off on this mesh (measured
+# 3e-15); larger meshes can differ by the rank-count dependence of the
+# projection box (up to 3e-3 in phi), which this case does not have
+QUARTER_GAS_RTOL, QUARTER_PHI_RTOL = 1.0e-8, 1.0e-8
+QUARTER_FIELDS = {"x": 1e-12, "y": 1e-12, "rho_g": QUARTER_GAS_RTOL,
+                  "c_g": QUARTER_GAS_RTOL, "ug_x": QUARTER_GAS_RTOL,
+                  "ug_y": QUARTER_GAS_RTOL, "dpdx_g": QUARTER_GAS_RTOL,
+                  "dpdy_g": QUARTER_GAS_RTOL, "phi_p": QUARTER_PHI_RTOL}
+
+
+def compare_quarter_full(quarter, full, label):
+    """Particle k of the quarter against particle 4k-3 of the full cylinder
+    (its unrotated copy), relative to each field's largest value."""
+    errors = []
+    qp, fp = quarter["particles"], full["particles"]
+    for name, rtol in QUARTER_FIELDS.items():
+        values = [p[name] for p in fp.values() if name in p]
+        if not values:
+            continue
+        scale = max(abs(v) for v in values) or 1.0
+        if name in ("x", "y"):
+            scale = 1.0
+        worst = max(abs(p[name] - fp[4 * k - 3][name]) / scale
+                    for k, p in qp.items() if name in p)
+        if worst > rtol:
+            errors.append("%s differs from %s by %.2e (relative to its largest value; "
+                          "allowed %.0e)" % (name, label, worst, rtol))
+    return errors
+
 PHYSICS = {
+    "cradle_twin": check_cradle_twin,
+    "ballistic_periodic": check_ballistic_periodic,
     "in_plane": check_in_plane,
     "quiescent": check_quiescent,
     "mass": check_mass,

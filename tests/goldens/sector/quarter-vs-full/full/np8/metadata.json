@@ -1,0 +1,11 @@
+{
+ "created": "2026-11-07T23:48:22",
+ "host": "login12.ufhpc",
+ "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocflu_step7/build/bin",
+ "git": {
+  "commit": "84d94fd31887cc1a336b294579dc909c47a95c79",
+  "branch": "rot-periodic-step7",
+  "modified_sources": []
+ },
+ "modules": "gcc/14.2.0:openmpi/5.0.7"
+}

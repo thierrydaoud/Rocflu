@@ -6,7 +6,7 @@ import os
 import re
 
 from . import outputs
-from .case import CASENAME
+from .case import case_name
 from .outputs import particle_ids
 
 # Particle fields kept in goldens: the particle state plus the gas quantities
@@ -31,7 +31,7 @@ FLOW_NAMES = ["q1", "q2", "q3", "q4", "q5"]
 
 
 def _real_cells(rundir, region):
-    path = os.path.join(rundir, "GRIDDATA", "%s.dim_%05d" % (CASENAME, region))
+    path = os.path.join(rundir, "GRIDDATA", "%s.dim_%05d" % (case_name(rundir), region))
     with open(path) as f:
         text = f.read()
     return int(re.search(r"# Cells\s*\n\s*(\d+)", text).group(1))
@@ -41,12 +41,12 @@ def _dumps(rundir):
     """Sorted list of (time, SOL dir), skipping directories without flow files
     (the solver can create the directory of a final dump it never writes)."""
     sols = [p for p in glob.glob(os.path.join(rundir, "SOL_*"))
-            if glob.glob(os.path.join(p, "%s.mixt.cva_*" % CASENAME))]
+            if glob.glob(os.path.join(p, "%s.mixt.cva_*" % case_name(rundir)))]
     return sorted((float(os.path.basename(p)[4:]), p) for p in sols)
 
 
 def _picl_used(rundir):
-    with open(os.path.join(rundir, CASENAME + ".inp")) as f:
+    with open(os.path.join(rundir, case_name(rundir) + ".inp")) as f:
         in_picl = False
         for line in f:
             s = line.strip()
@@ -59,7 +59,7 @@ def _picl_used(rundir):
 
 def _particle_cp(rundir):
     """Particle specific heat (SPECIFICHEAT in the # PICL section)."""
-    with open(os.path.join(rundir, CASENAME + ".inp")) as f:
+    with open(os.path.join(rundir, case_name(rundir) + ".inp")) as f:
         in_picl = False
         for line in f:
             s = line.strip()
@@ -108,7 +108,7 @@ def snapshot(rundir, case, which=-1):
             else:
                 rank = max(region, 1) - 1
                 phi = [v / case.grid.cell_volume for v in pdump["projected"][rank][0]] \
-                    if pdump else [0.0] * n
+                    if pdump and case.grid.cell_volume else [0.0] * n
                 rho_g = list(cv[0])
             arrays = [rho_g] + [[cv[k][i] / cv[0][i] for i in range(n)] for k in range(1, 5)]
             gas[region] = dict(zip(FLOW_NAMES, arrays))
@@ -159,14 +159,16 @@ def velocity(g, i, picl):
 
 
 def totals(gas, particles, cell_volume, picl, cp_particle=0.0):
-    """Domain integrals of gas mass, momentum, energy and particle momentum."""
+    """Domain integrals of gas mass, momentum, energy and particle momentum.
+    Without one cell volume (sector meshes) only the particle totals."""
     sums = [0.0] * 5
     for g in gas.values():
         for i in range(len(g["q1"])):
             for k, val in enumerate(bulk_state(g, i, picl)):
                 sums[k] += val
     out = {name: val * cell_volume for name, val in
-           zip(("gas_rho", "gas_rhou", "gas_rhov", "gas_rhow", "gas_rhoE"), sums)}
+           zip(("gas_rho", "gas_rhou", "gas_rhov", "gas_rhow", "gas_rhoE"), sums)} \
+        if cell_volume else {}
     # Particle mass rhop*volp: the superparticle loading is always 1 (not written)
     for c, v in zip("xyz", VEL):
         out["par_mom" + c] = sum(
@@ -178,8 +180,9 @@ def totals(gas, particles, cell_volume, picl, cp_particle=0.0):
     out["par_eth"] = sum(
         p["rhop"] * p["volp"] * cp_particle * p["Tp"]
         for p in particles.values())
-    for c, cv in zip("xyz", ("rhou", "rhov", "rhow")):
-        out["mom" + c] = out["gas_" + cv] + out["par_mom" + c]
+    if cell_volume:
+        for c, cv in zip("xyz", ("rhou", "rhov", "rhow")):
+            out["mom" + c] = out["gas_" + cv] + out["par_mom" + c]
     return out
 
 
