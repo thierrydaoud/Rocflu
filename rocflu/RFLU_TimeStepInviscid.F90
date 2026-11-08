@@ -257,10 +257,11 @@ SUBROUTINE RFLU_TimeStepInviscid(pRegion)
         END DO ! ifl
 
 ! ------------------------------------------------------------------------------
-!     Virtual boundaries: no flow crosses them, so no limit
+!     Periodic and symmetry faces are interior faces to their virtual cells,
+!     already counted above; virtual boundaries: no flow crosses them
 ! ------------------------------------------------------------------------------
 
-      CASE ( BC_VIRTUAL )
+      CASE ( BC_PERIODIC,BC_SYMMETRY,BC_VIRTUAL )
 
 ! ------------------------------------------------------------------------------
 !     All other boundaries

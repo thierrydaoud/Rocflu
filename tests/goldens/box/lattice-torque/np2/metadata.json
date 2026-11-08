@@ -1,11 +1,15 @@
 {
- "created": "2026-11-02T21:21:49",
- "host": "dane4",
- "exe_dir": "/p/lustre3/daoud1/Rocflu_mainfix/build/bin",
+ "created": "2026-11-07T22:06:09",
+ "host": "login12.ufhpc",
+ "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocflu_main/build/bin",
  "git": {
-  "commit": "25d9e4ebc56390df338cdf04a7aede0da7b4af9e",
-  "branch": "main-gradfix",
-  "modified_sources": []
+  "commit": "7ffe4901ffdcb61802be9db8dfd2ba2479bcb53d",
+  "branch": "main",
+  "modified_sources": [
+   "modflu/RFLU_ModBoundLists.F90",
+   "rocflu/RFLU_TimeStepInviscid.F90",
+   "rocflu/RFLU_TimeStepViscous.F90"
+  ]
  },
- "modules": "jobutils/1.0:texlive/20220321:StdEnv:cmake/3.30.5:gcc/13.3.1:openmpi/4.1.2"
+ "modules": "gcc/14.2.0:openmpi/5.0.7"
 }
