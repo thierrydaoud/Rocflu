@@ -284,6 +284,13 @@ SUBROUTINE RFLU_TimeStepViscous(pRegion)
         END DO ! ifl
 
 ! ------------------------------------------------------------------------------
+!     Periodic and symmetry faces are interior faces to their virtual cells,
+!     already counted above; virtual boundaries: no flow crosses them
+! ------------------------------------------------------------------------------
+
+      CASE ( BC_PERIODIC,BC_SYMMETRY,BC_VIRTUAL )
+
+! ------------------------------------------------------------------------------
 !     All other boundaries
 ! ------------------------------------------------------------------------------   
  

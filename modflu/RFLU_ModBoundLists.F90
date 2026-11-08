@@ -1369,7 +1369,9 @@ MODULE RFLU_ModBoundLists
           pPatch%nBVertEst = 2*pPatch%nBQuadsTot + 2
         CASE ( 2 ) 
           IF ( pPatch%bcType /= BC_VIRTUAL ) THEN 
-            pPatch%nBVertEst = 2*pPatch%nBQuadsTot + 2
+! --------- A strip of n quads has 2n+2 vertices; a patch can hold up to n
+!           strips (e.g. periodic patches next to the axis)
+            pPatch%nBVertEst = 4*pPatch%nBQuadsTot + 2
           ELSE 
             pPatch%nBVertEst = 4*(pPatch%nBTrisTot/2 + pPatch%nBQuadsTot)
           END IF ! pPatch%bcType

@@ -1,12 +1,14 @@
 {
- "created": "2026-11-05T21:47:42",
- "host": "login8.ufhpc",
+ "created": "2026-11-07T22:05:23",
+ "host": "login12.ufhpc",
  "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocflu_main/build/bin",
  "git": {
-  "commit": "955072f1a96f8898d32df94a11be1e02f2b56683",
+  "commit": "7ffe4901ffdcb61802be9db8dfd2ba2479bcb53d",
   "branch": "main",
   "modified_sources": [
-   "rocpicl/PICL_ModGradients.F90"
+   "modflu/RFLU_ModBoundLists.F90",
+   "rocflu/RFLU_TimeStepInviscid.F90",
+   "rocflu/RFLU_TimeStepViscous.F90"
   ]
  },
  "modules": "gcc/14.2.0:openmpi/5.0.7"
