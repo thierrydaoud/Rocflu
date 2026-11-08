@@ -265,16 +265,34 @@
       SUBROUTINE ppiclf_comm_RotImages(ie,reach,nimg,mimg,maximg)
       use ppiclf_data
 !
-! Images of fluid cell ie to map: m = 0 (the cell), then every rotation
-! (m > 0 by plane 1, m < 0 by plane 2, up to 180 degrees) whose centroid
-! is within reach of the sector
+! Images of fluid cell ie to map (ppiclf_comm_RotImagesOf its centroid)
 !
       IMPLICIT NONE
 !
       INCLUDE "PPICLF"
 !
-      INTEGER*4 ie, nimg, maximg, mimg(maximg), k, isgn, iplane
-      REAL*8 reach, q(3)
+      INTEGER*4 ie, nimg, maximg, mimg(maximg)
+      REAL*8 reach
+!
+      CALL ppiclf_comm_RotImagesOf(ppiclf_fluid_grid(1:3,ie),reach,
+     >                             nimg,mimg,maximg)
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_comm_RotImagesOf(x,reach,nimg,mimg,maximg)
+      use ppiclf_data
+!
+! Images of point x: m = 0 (x itself), then every rotation (m > 0 by
+! plane 1, m < 0 by plane 2, up to 180 degrees) that puts x within reach
+! of the sector
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+      INTEGER*4 nimg, maximg, mimg(maximg), k, isgn, iplane
+      REAL*8 x(3), reach, q(3)
       REAL*8 ppiclf_comm_SectorDist
       EXTERNAL ppiclf_comm_SectorDist
 !
@@ -284,7 +302,7 @@
       DO isgn = 1,-1,-2
         iplane = 1
         IF(isgn .LT. 0) iplane = 2
-        q = ppiclf_fluid_grid(1:3,ie)
+        q = x
         DO k = 1,maximg
           IF(k*ppiclf_rotangle .GT. ACOS(-1.0D0) + 1.0D-9) EXIT
           ! 180 degrees: one image, from plane 1
@@ -294,7 +312,7 @@
           IF(ppiclf_comm_SectorDist(q) .GT. reach) EXIT
           nimg = nimg + 1
           IF(nimg .GT. maximg) CALL ppiclf_exittr(
-     >      'Too many rotational images of a cell$',0.0d0,nimg)
+     >      'Too many rotational images of a point$',0.0d0,nimg)
           mimg(nimg) = isgn*k
         END DO
       END DO
@@ -1144,10 +1162,135 @@
           END DO !iy = 1:3
         END DO !ix = 1:3
       END DO !ip = 1:ppiclf_npart
+      ! Rotational periodicity: rotated images of the particles
+      IF(ppiclf_rotperiodic) CALL ppiclf_comm_CreateRotGhosts
 
       RETURN
       END
 
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_comm_CreateRotGhosts
+      use ppiclf_data
+!
+! Ghosts for rotational periodicity: every image of a particle within the
+! neighbour distance of the sector (ppiclf_comm_RotImagesOf), sent to the
+! bins within that distance of the image, the particle's own bin
+! included. Position and vectors are rotated.
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+#include "PPICLF_VECTORS.inc"
+!
+! Internal:
+!
+      INTEGER*4 MAXIMG
+      PARAMETER (MAXIMG = 64)
+      INTEGER*4 ip, img, nimg, mimg(MAXIMG), l, ib(3), jb(3), off(3),
+     >          k, j, c, nrank, ngp, kslot(3), nfound, nd3, i1, i2, i3
+      REAL*8    reach, q(3), qg(3), rot(3,3), lo, dist2, v(3)
+!
+      ! Same reach as the bin ghosts (ppiclf_comm_CreateGhost)
+      reach = ppiclf_nndist*1.02D0
+      nd3 = 0
+      IF(ppiclf_ndim .GT. 2) nd3 = 1
+      DO ip = 1,ppiclf_npart
+        CALL ppiclf_comm_RotImagesOf(ppiclf_y(PPICLF_JX:PPICLF_JX+2,ip),
+     >                               reach,nimg,mimg,MAXIMG)
+        DO img = 2,nimg
+          CALL ppiclf_comm_RotMatrix(mimg(img),rot)
+          q = MATMUL(rot,ppiclf_y(PPICLF_JX:PPICLF_JX+2,ip))
+          DO l = 1,3
+            ib(l) = FLOOR((q(l)-ppiclf_binb(2*l-1))/ppiclf_bins_dx(l))
+          END DO
+          DO i1 = -1,1
+          DO i2 = -1,1
+          DO i3 = -nd3,nd3
+            off(1) = i1
+            off(2) = i2
+            off(3) = i3
+            qg = q
+            DO l = 1,3
+              jb(l) = ib(l) + off(l)
+            END DO
+            ! Past the bins: wrap in a linear periodic direction
+            DO l = 1,3
+              IF(jb(l) .LT. 0 .OR. jb(l) .GT. ppiclf_n_bins(l)-1) THEN
+                IF(.NOT. (ppiclf_linperiodic(l) .AND.
+     >                    ppiclf_EqualDomain(l))) GOTO 100
+                CALL ppiclf_comm_LinearPeriodicityGhost(jb(l),l,qg(l),
+     >               ppiclf_xdrange(2,l)-ppiclf_xdrange(1,l))
+              END IF
+            END DO
+            ! Bin box within reach of the image
+            dist2 = 0.0D0
+            DO l = 1,ppiclf_ndim
+              lo = ppiclf_binb(2*l-1) + jb(l)*ppiclf_bins_dx(l)
+              IF(qg(l) .LT. lo) THEN
+                dist2 = dist2 + (lo-qg(l))**2
+              ELSE IF(qg(l) .GT. lo+ppiclf_bins_dx(l)) THEN
+                dist2 = dist2 + (qg(l)-lo-ppiclf_bins_dx(l))**2
+              END IF
+            END DO
+            IF(dist2 .GT. reach**2) GOTO 100
+            nrank = jb(1) + ppiclf_n_bins(1)*jb(2)
+     >            + ppiclf_n_bins(1)*ppiclf_n_bins(2)*jb(3)
+            CALL ppiclf_data_GrowGhost(ppiclf_npart_gp + 1)
+            ppiclf_npart_gp = ppiclf_npart_gp + 1
+            ngp = ppiclf_npart_gp
+            ppiclf_iprop_gp(1,ngp) = ppiclf_iprop(1,ip)
+            ppiclf_iprop_gp(2,ngp) = ppiclf_iprop(2,ip)
+            ppiclf_iprop_gp(3,ngp) = ppiclf_iprop(3,ip)
+            ppiclf_iprop_gp(4,ngp) = nrank
+            ppiclf_iprop_gp(5,ngp) = jb(1)
+            ppiclf_iprop_gp(6,ngp) = jb(2)
+            ppiclf_iprop_gp(7,ngp) = jb(3)
+            ppiclf_iprop_gp(8,ngp) = nrank
+            DO k = 1,ppiclf_lrs
+              ppiclf_rprop_gp(k,ngp) = ppiclf_y(k,ip)
+            END DO
+            DO k = 1,ppiclf_nvec_y
+              j = ppiclf_vec_y(k)
+              ppiclf_rprop_gp(j:j+2,ngp) =
+     >          MATMUL(rot,ppiclf_y(j:j+2,ip))
+            END DO
+            ppiclf_rprop_gp(PPICLF_JX:PPICLF_JX+2,ngp) = qg
+            DO k = 1,ppiclf_lrp_ghost
+              ppiclf_rprop_gp(ppiclf_lrs+k,ngp) =
+     >          ppiclf_rprop(ppiclf_ghost_slots(k),ip)
+            END DO
+            ! Vector ghost slots (e.g. R_WDOT): all three, rotated
+            DO k = 1,ppiclf_nvec_rprop
+              j = ppiclf_vec_rprop(k)
+              nfound = 0
+              DO c = 1,3
+                kslot(c) = 0
+                DO l = 1,ppiclf_lrp_ghost
+                  IF(ppiclf_ghost_slots(l) .EQ. j+c-1) kslot(c) = l
+                END DO
+                IF(kslot(c) .GT. 0) nfound = nfound + 1
+              END DO
+              IF(nfound .EQ. 0) CYCLE
+              IF(nfound .NE. 3) CALL ppiclf_exittr(
+     >          'Vector only partly in the ghost slots, rprop slot$',
+     >          0.0d0,j)
+              DO c = 1,3
+                v(c) = ppiclf_rprop(j+c-1,ip)
+              END DO
+              v = MATMUL(rot,v)
+              DO c = 1,3
+                ppiclf_rprop_gp(ppiclf_lrs+kslot(c),ngp) = v(c)
+              END DO
+            END DO
+  100       CONTINUE
+          END DO
+          END DO
+          END DO
+        END DO !img
+      END DO !ip
+
+      RETURN
+      END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_GhostDistCheck(ix,Pos,distchk,
      >                                      GhostInc,l,dSQ)
