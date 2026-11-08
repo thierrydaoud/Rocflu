@@ -122,7 +122,8 @@ endif()
 set(PPICLF_LAYOUT_DIR ${CMAKE_BINARY_DIR}/generated)
 ppiclf_layout(${PROJECT_SOURCE_DIR}/libpicl/user_files/ppiclf_slots.txt
               "${ROCFLU_CASE}" ${PPICLF_LAYOUT_DIR}/PPICLF_LAYOUT.h
-              ${PPICLF_LAYOUT_DIR}/PPICLF_LAYOUT_CHECK.inc PPICLF_LAYOUT_GROUPS)
+              ${PPICLF_LAYOUT_DIR}/PPICLF_LAYOUT_CHECK.inc
+              ${PPICLF_LAYOUT_DIR}/PPICLF_VECTORS.inc PPICLF_LAYOUT_GROUPS)
 message(STATUS "Particle slot groups: ${PPICLF_LAYOUT_GROUPS}")
 
 # --- ppiclF ------------------------------------------------------------------

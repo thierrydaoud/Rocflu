@@ -22,6 +22,12 @@
 #   array  y     : ppiclf_y, y1, ydot, ydotc (size ppiclf_lrs)
 #          rprop : ppiclf_rprop (size ppiclf_lrp)
 #          pro   : ppiclf_feedbk and the projected fields (ppiclf_lrp_pro)
+# vec lines: array, then the x slot of each vector of that array (a
+#   position, velocity, force, gradient, ...). Its y and z slots must be
+#   the next two names of the same slot line. CMake writes
+#   PPICLF_VECTORS.inc, the x slots of the vectors in the build: they are
+#   rotated with the particle across rotational periodic patches. Every
+#   vector slot must be listed, or it would not be rotated.
 #
 # A '#' starts a comment; comments directly above a slot line are copied
 # into PPICLF_LAYOUT.h.
@@ -74,3 +80,9 @@ rprop  spin     R_JSDOX R_JSDOY R_JSDOZ
 # probes read (PHIPD to PHIPT)
 pro    core     P_JPHIP P_JFX P_JFY P_JFZ P_JE
 pro    core     P_JPHIPD P_JPHIPU P_JPHIPV P_JPHIPW P_JPHIPT
+
+# Vectors (x slot; y and z follow)
+vec    y        JX JVX JOX
+vec    rprop    R_FLUCTFX R_WDOTX R_JUX R_JDPDX R_JSDRX R_JPGCX R_JXVOR
+vec    rprop    R_JRHOGX R_JDPVDX R_JSDOX
+vec    pro      P_JFX P_JPHIPU
