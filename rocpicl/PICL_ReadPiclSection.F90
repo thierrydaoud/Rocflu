@@ -85,7 +85,7 @@ SUBROUTINE PICL_ReadPiclSection( global )
   INTEGER :: nVals
 
   INTEGER :: iReg
-  INTEGER, PARAMETER :: NVALS_MAX = 28
+  INTEGER, PARAMETER :: NVALS_MAX = 25
 
   CHARACTER(20) :: keys(NVALS_MAX)
 
@@ -120,20 +120,17 @@ SUBROUTINE PICL_ReadPiclSection( global )
   keys(15)  = 'QSFLUCTFILT'
   keys(16)  = 'QSFLUCTFILTADAPT'
   keys(17)  = 'VISCOUSUNSTEADY'
-  keys(18)  = 'PERIODICX'
-  keys(19)  = 'PERIODICY'
-  keys(20)  = 'PERIODICZ'
-  keys(21)  = 'SUBBIN'
-  keys(22)  = 'VUSTEPS'
+  keys(18)  = 'SUBBIN'
+  keys(19)  = 'VUSTEPS'
 ! Optional groups of fields in the particle files (ppiclf_user_OutputFields).
 ! No key may be the start of another: ReadSection matches the start of a line.
-  keys(23)  = 'PARTICLE_WRT'
-  keys(24)  = 'GAS_WRT'
-  keys(25)  = 'GRADGAS_WRT'
-  keys(26)  = 'MODEL_WRT'
+  keys(20)  = 'PARTICLE_WRT'
+  keys(21)  = 'GAS_WRT'
+  keys(22)  = 'GRADGAS_WRT'
+  keys(23)  = 'MODEL_WRT'
 ! Particle material, the same for every particle
-  keys(27)  = 'DENSITY'
-  keys(28)  = 'SPECIFICHEAT'
+  keys(24)  = 'DENSITY'
+  keys(25)  = 'SPECIFICHEAT'
  
   CALL ReadSection( global,IF_INPUT,nVals,keys(1:nVals),vals(1:nVals), & 
                     defined(1:nVals) ) 
@@ -210,31 +207,19 @@ SUBROUTINE PICL_ReadPiclSection( global )
   END IF
 
   IF (defined(18) .EQV. .TRUE. ) THEN
-    global%piclPeriodicXFlag = NINT(vals(18))
+    global%piclSBNearFlag = vals(18)
   END IF
-  
+
   IF (defined(19) .EQV. .TRUE. ) THEN
-    global%piclPeriodicYFlag = NINT(vals(19))
-  END IF
-  
-  IF (defined(20) .EQV. .TRUE. ) THEN
-    global%piclPeriodicZFlag = NINT(vals(20))
+    global%piclVUSteps = NINT(vals(19))
   END IF
 
-  IF (defined(21) .EQV. .TRUE. ) THEN
-    global%piclSBNearFlag = vals(21)
-  END IF
-
-  IF (defined(22) .EQV. .TRUE. ) THEN
-    global%piclVUSteps = NINT(vals(22))
-  END IF
-
-  IF (defined(23) .EQV. .TRUE. ) global%piclOutParticle = NINT(vals(23))
-  IF (defined(24) .EQV. .TRUE. ) global%piclOutGas      = NINT(vals(24))
-  IF (defined(25) .EQV. .TRUE. ) global%piclOutGradGas  = NINT(vals(25))
-  IF (defined(26) .EQV. .TRUE. ) global%piclOutModel    = NINT(vals(26))
-  IF (defined(27) .EQV. .TRUE. ) global%piclDensity      = vals(27)
-  IF (defined(28) .EQV. .TRUE. ) global%piclSpecificHeat = vals(28)
+  IF (defined(20) .EQV. .TRUE. ) global%piclOutParticle = NINT(vals(20))
+  IF (defined(21) .EQV. .TRUE. ) global%piclOutGas      = NINT(vals(21))
+  IF (defined(22) .EQV. .TRUE. ) global%piclOutGradGas  = NINT(vals(22))
+  IF (defined(23) .EQV. .TRUE. ) global%piclOutModel    = NINT(vals(23))
+  IF (defined(24) .EQV. .TRUE. ) global%piclDensity      = vals(24)
+  IF (defined(25) .EQV. .TRUE. ) global%piclSpecificHeat = vals(25)
 
 ! Values and combinations are checked before the run by
 ! utilities/scripts/case_validator.py (./rocflu.sh validate)

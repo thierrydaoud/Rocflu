@@ -119,12 +119,14 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 | `DENSITY` | > 0 | 0 | density of every particle [kg/m³]; **required** |
 | `SPECIFICHEAT` | > 0 | 0 | specific heat of every particle [J/(kg K)]; **required** |
 | `NEIGHBORWIDTH` | ≥ 0 | 0 | neighbour search distance; the code uses max(4 × largest diameter, `NEIGHBORWIDTH`) |
-| `PERIODICX`, `PERIODICY`, `PERIODICZ` | 0, 1 | 0 | particles periodic in x, y, z; should match the periodic patches of the fluid in `<case>.bc` (not checked yet) |
 | `SUBBIN` | 0, 1 | 0 | neighbour-search method: 0 Zwick, 1 Avery sub-bins |
 | `PARTICLE_WRT` | 0, 1 | 0 | particle files also hold temperature, spin, density, volume |
 | `GAS_WRT` | 0, 1 | 0 | … and the gas density, velocity, sound speed and temperature at each particle |
 | `GRADGAS_WRT` | 0, 1 | 0 | … and the gas gradients at each particle |
 | `MODEL_WRT` | 0, 1 | 0 | … and the states and diagnostics of the models that are on |
+
+Particle periodicity is not an input: it follows the `BC_PERIODIC` patches of
+`<case>.bc` (see [Boundary Conditions](BoundaryConditions.md#periodic-patches)).
 
 The filter width of the particle projection is not an input: it is twice the largest cell
 length around the particles. `./rocflu.sh run` builds only the particle data the models
@@ -252,7 +254,8 @@ The validator mirrors `rocpicl/PICL_ReadPiclSection.F90` (keys and their order),
 | `FILTERWIDTH` | nothing: the filter width is set from the grid |
 | `REACTIVE` | nothing: the particle burn-rate model was removed |
 | `PICLDEBUG` | nothing |
-| `ANGULARPERIODIC`, `ANGLE`, `XANGLE`, `RIN`, `ROUT` | nothing: angular periodicity is not available |
+| `ANGULARPERIODIC`, `ANGLE`, `XANGLE`, `RIN`, `ROUT` | nothing: rotational periodicity follows the periodic patches in `<case>.bc` |
+| `PERIODICX`, `PERIODICY`, `PERIODICZ` | nothing: particle periodicity follows the periodic patches in `<case>.bc` |
 | `OUTPARTICLE`, `OUTGAS`, `OUTGRADGAS`, `OUTMODEL` | renamed `PARTICLE_WRT`, `GAS_WRT`, `GRADGAS_WRT`, `MODEL_WRT` |
 | `PRNTENDTIME` (`# TIMESTEP`) | nothing: the end of every run is written |
 | `# MATERIAL` for particles | `DENSITY` and `SPECIFICHEAT` in `# PICL` (`# MATERIAL` is rejected while species transport is disabled) |

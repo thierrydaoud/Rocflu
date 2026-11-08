@@ -110,9 +110,6 @@ SPECIFICHEAT     840.0  ! particle specific heat [J/(kg K)]
 NEIGHBORWIDTH    0.0 ! Actual neighbor width = max(4*dp_max, neighborwidth)
 KSP              10    ! a contact lasts KSP time steps (collisions only)
 EREST            0.7    ! Coefficient of restitution
-PERIODICX        0      ! 0 = turn off ; 1 = turn on
-PERIODICY        1      ! 0 = turn off ; 1 = turn on
-PERIODICZ        1      ! 0 = turn off ; 1 = turn on
 SUBBIN           0 ! 0 = Zwick subbin; 1 = Avery subbin
 PARTICLE_WRT      1 ! particle files: also Tp, spin, rhop, volp
 GAS_WRT           1 ! particle files: also gas density, velocity, sound speed, T at the particle

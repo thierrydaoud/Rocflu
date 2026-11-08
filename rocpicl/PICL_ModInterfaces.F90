@@ -104,6 +104,13 @@ MODULE PICL_ModInterfaces
      !TYPE(t_region), DIMENSION(:), POINTER :: regions
   END SUBROUTINE PICL_InitSolver
 
+  SUBROUTINE PICL_SetPeriodicity(pRegion,domainRange)
+    USE ModDataTypes
+    USE ModDataStruct, ONLY : t_region
+    TYPE(t_region), POINTER :: pRegion
+    REAL(RFREAL), INTENT(IN) :: domainRange(2,3)
+  END SUBROUTINE PICL_SetPeriodicity
+
   SUBROUTINE PICL_ReadPiclSection(global)
     USE ModGlobal, ONLY     : t_global
     TYPE(t_global), POINTER :: global

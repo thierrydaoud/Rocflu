@@ -120,7 +120,7 @@ run` and the regression suite run the same checks. The validator's own tests:
 `DIMENS` in the input sets the dimension of both the gas and the particles. A 2D case needs:
 
 - **Mesh:** one cell thick in z. Its thickness is the depth Δz of the particle slab.
-- **Input:** `DIMENS 2` in `# NUMERICS` and `PERIODICZ 0` in `# PICL`.
+- **Input:** `DIMENS 2` in `# NUMERICS`.
 - **Boundary conditions:** the two z patches as `BC_VIRTUAL`.
 - **Particles:** every particle in `points.dat` on the mid-plane of the slab, with `vz = 0`.
   For a mesh with 0 ≤ z ≤ 0.1 mm, that is z = 0.05 mm.

@@ -102,9 +102,6 @@ SPECIFICHEAT     840.0  ! particle specific heat [J/(kg K)]
 NEIGHBORWIDTH    0.0    ! Actual neighbor width = max(4*dp_max, neighborwidth)
 KSP              10     ! Number of collisional time steps 
 EREST            0.7    ! Coefficient of restitution
-PERIODICX        0      ! 0 = turn off ; 1 = turn on
-PERIODICY        1      ! 0 = turn off ; 1 = turn on
-PERIODICZ        1      ! 0 = turn off ; 1 = turn on
 SUBBIN           1      ! 0 = Zwick subbin; 1 = Avery subbin
 #
 

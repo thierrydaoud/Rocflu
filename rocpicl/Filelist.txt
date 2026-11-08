@@ -17,6 +17,7 @@ SRCF90+=	PICL_ReadPiclSection.F90\
 		PICL_WriteVTU.F90\
 		PICL_WriteRestartData.F90\
 		PICL_InitSolver.F90\
+		PICL_SetPeriodicity.F90\
 		PICL_ModInterfaces.F90\
 		PICL_ModGradients.F90\
 		PICL_FillFeedback.F90

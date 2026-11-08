@@ -522,6 +522,10 @@ MODULE ModGlobal
 
     ! Set by PICL_InitSolver for the Setup box of the run log
     INTEGER :: piclNParticles, piclNBins(3)
+    ! Set by PICL_SetPeriodicity from the periodic patches: axis of the
+    ! rotational periodicity (0 none, 1-3 x-z) and sector angle (rad)
+    INTEGER :: piclRotPeriodicAxis
+    REAL(RFREAL) :: piclRotPeriodicAngle
     REAL(RFREAL) :: piclDpMin, piclDpMax, piclFilterWidth(3), &
                     piclNeighborWidthUsed
 

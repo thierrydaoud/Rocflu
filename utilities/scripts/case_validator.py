@@ -28,7 +28,7 @@ PICL_KEYS = [
     "QSFORCE", "AMFORCE", "PGFORCE", "COLLISIONS", "HEATTRANSFER", "FEEDBACK",
     "VELOCITYMODEL", "USED", "QSFLUCT", "TEMP", "DU HEATTRANSFER",
     "NEIGHBORWIDTH", "KSP", "EREST", "QSFLUCTFILT", "QSFLUCTFILTADAPT",
-    "VISCOUSUNSTEADY", "PERIODICX", "PERIODICY", "PERIODICZ", "SUBBIN",
+    "VISCOUSUNSTEADY", "SUBBIN",
     "VUSTEPS", "PARTICLE_WRT", "GAS_WRT", "GRADGAS_WRT", "MODEL_WRT",
     "DENSITY", "SPECIFICHEAT",
 ]
@@ -40,7 +40,7 @@ PICL_DEFAULTS = {
     "HEATTRANSFER": 0, "FEEDBACK": 0, "VELOCITYMODEL": 1, "USED": 0,
     "QSFLUCT": 0, "TEMP": 0.0, "DU HEATTRANSFER": 0, "NEIGHBORWIDTH": 0.0,
     "QSFLUCTFILT": 0, "QSFLUCTFILTADAPT": 0, "VISCOUSUNSTEADY": 0,
-    "PERIODICX": 0, "PERIODICY": 0, "PERIODICZ": 0, "SUBBIN": 0,
+    "SUBBIN": 0,
     "VUSTEPS": 50, "PARTICLE_WRT": 0, "GAS_WRT": 0,
     "GRADGAS_WRT": 0, "MODEL_WRT": 0, "DENSITY": 0.0, "SPECIFICHEAT": 0.0,
 }
@@ -60,7 +60,6 @@ PICL_FLAGS = {
     "DU HEATTRANSFER": (0, 1),
     "FEEDBACK": (0, 1),
     "SUBBIN": (0, 1),
-    "PERIODICX": (0, 1), "PERIODICY": (0, 1), "PERIODICZ": (0, 1),
     "PARTICLE_WRT": (0, 1), "GAS_WRT": (0, 1), "GRADGAS_WRT": (0, 1),
     "MODEL_WRT": (0, 1),
 }
@@ -71,6 +70,8 @@ DEPENDENT_FLAGS = {
     "QSFLUCTFILT": (0, 1), "QSFLUCTFILTADAPT": (0, 1),
 }
 
+FROM_BC = "periodicity follows the periodic patches in <case>.bc; remove the line"
+
 # Keys that were removed, with what to do instead
 REMOVED_KEYS = {
     "STATIONARY": "replaced by VELOCITYMODEL (STATIONARY 1 is VELOCITYMODEL 0, "
@@ -80,11 +81,14 @@ REMOVED_KEYS = {
     "REACTIVE": "the particle burn-rate model was removed; remove the line",
     "PICLDEBUG": "removed; remove the line",
     "PSEUDOTURB": "the pseudo-turbulence model is not supported yet; remove the line",
-    "ANGULARPERIODIC": "angular periodicity is not available; remove the line",
-    "ANGLE": "angular periodicity is not available; remove the line",
-    "XANGLE": "angular periodicity is not available; remove the line",
-    "RIN": "angular periodicity is not available; remove the line",
-    "ROUT": "angular periodicity is not available; remove the line",
+    "ANGULARPERIODIC": FROM_BC,
+    "ANGLE": FROM_BC,
+    "XANGLE": FROM_BC,
+    "RIN": FROM_BC,
+    "ROUT": FROM_BC,
+    "PERIODICX": FROM_BC,
+    "PERIODICY": FROM_BC,
+    "PERIODICZ": FROM_BC,
     "OUTPARTICLE": "renamed to PARTICLE_WRT",
     "OUTGAS": "renamed to GAS_WRT",
     "OUTGRADGAS": "renamed to GRADGAS_WRT",
@@ -369,9 +373,6 @@ class Validator:
                       "with particles", number)
         number, dimens = simple_value(sections.get("NUMERICS", []), "DIMENS")
         self.prohibit(dimens == 1, "particles need DIMENS 2 or 3", number)
-        self.prohibit(dimens == 2 and picl["PERIODICZ"] == 1,
-                      "PERIODICZ 1: z is inactive with DIMENS 2, its patches are "
-                      "# BC_VIRTUAL; set PERIODICZ 0", number)
 
         def present(name):
             return os.path.exists(os.path.join(self.case_dir, name))

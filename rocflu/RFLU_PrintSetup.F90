@@ -275,11 +275,14 @@ CONTAINS
   END FUNCTION CellTypesText
 
   FUNCTION PeriodicText() RESULT(text)
-    CHARACTER(16) :: text
+    CHARACTER(48) :: text
     text = ''
     IF ( global%piclPeriodicXFlag == 1 ) text = TRIM(text)//', x'
     IF ( global%piclPeriodicYFlag == 1 ) text = TRIM(text)//', y'
     IF ( global%piclPeriodicZFlag == 1 ) text = TRIM(text)//', z'
+    IF ( global%piclRotPeriodicAxis > 0 ) text = TRIM(text)//', '// &
+      TRIM(RealText(global%piclRotPeriodicAngle*global%rad2deg))// &
+      ' deg about '//'xyz'(global%piclRotPeriodicAxis:global%piclRotPeriodicAxis)
     IF ( LEN_TRIM(text) == 0 ) THEN
       text = 'none'
     ELSE

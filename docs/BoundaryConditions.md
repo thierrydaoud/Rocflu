@@ -81,6 +81,34 @@ Rules across sections:
   those patches must have order 1 (`ORDER 1`, or `ORDERBF 1` when `ORDER` is not given).
   Otherwise `rflump` stops in `RFLU_CreateWtsBF2C` with "reached default statement".
 
+## Periodic Patches
+
+A `BC_PERIODIC` pair is a translation when `ANGLE` is 0, else a rotation by `ANGLE`
+degrees about the coordinate axis `AXIS` (1 x, 2 y, 3 z), through the origin. Angles
+follow the right-hand rule, and `ANGLE` is the rotation that takes the related patch
+(`RELPATCH`) onto the patch of the section. For a quarter cylinder about z with patch 3
+at y = 0 and patch 4 at x = 0:
+
+```
+# BC_PERIODIC            # BC_PERIODIC
+PATCH     3 3            PATCH     4 4
+RELPATCH  4 4            RELPATCH  3 3
+ANGLE     -90.0          ANGLE     90.0
+AXIS      3              AXIS      3
+```
+
+With the signs the other way round, `rflupart` stops in `OCT_SEARCH` ("lies outside
+convex hull") while matching the vertices of the two patches.
+
+With particles on, the particles take their periodicity from these patches:
+
+- a translation along x, y or z makes the particles periodic in that direction. The
+  translation must be the length of the domain in that direction;
+- a rotation is printed in the Setup box (e.g. `90 deg about z`); the particles do not
+  use it yet;
+- all rotational pairs must have the same axis and angle, and no translation may lie in
+  the plane of the rotation. The run stops at start-up otherwise.
+
 ## Removed Sections and Keys
 
 | In `<case>.bc` | Instead |

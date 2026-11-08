@@ -151,7 +151,8 @@ class CaseValidatorTest(unittest.TestCase):
                            ("STATIONARY 1", ("VELOCITYMODEL 0",)),
                            ("REACTIVE 0", ("burn-rate",)),
                            ("PSEUDOTURB 0", ("pseudo-turbulence", "not supported yet")),
-                           ("ANGULARPERIODIC 0", ("angular",)),
+                           ("ANGULARPERIODIC 0", ("periodic patches", ".bc")),
+                           ("PERIODICX 1", ("PERIODICX", "periodic patches")),
                            ("OUTGAS 1", ("GAS_WRT",))):
             text = TEMPLATE.replace("# PICL\n", "# PICL\n%s\n" % key)
             self.assertError(self.errors(text=text), *words)
@@ -324,7 +325,7 @@ class CaseValidatorTest(unittest.TestCase):
         self.assertError(self.bc_errors("PATCH      2 2", "PATCH      2 1"), "first <= last")
 
     def test_dimens(self):
-        d2 = {("NUMERICS", "DIMENS"): 2, ("PICL", "PERIODICZ"): 0}
+        d2 = {("NUMERICS", "DIMENS"): 2}
         virtual = TEMPLATE_BC[:TEMPLATE_BC.index("# BC_PERIODIC\nPATCH    5 5")] + (
             "# BC_VIRTUAL\nPATCH      5 6\nNAME       Z\n#\n\n# END\n")
         # The patch grid is empty, so only the .bc side is checked here
@@ -333,8 +334,6 @@ class CaseValidatorTest(unittest.TestCase):
         self.assertError(self.errors(d2, patches=[1] * 6), "DIMENS 2", "2 # BC_VIRTUAL")
         self.assertError(self.errors({("NUMERICS", "DIMENS"): 3}, bc=virtual, patches=[1] * 6),
                          "DIMENS 3", "0 # BC_VIRTUAL")
-        self.assertError(self.errors({("NUMERICS", "DIMENS"): 2, ("PICL", "PERIODICZ"): 1},
-                                     bc=virtual, patches=[1] * 6), "PERIODICZ 1", "DIMENS 2")
         self.assertError(self.errors({("NUMERICS", "DIMENS"): 1}), "particles need DIMENS")
         # Particles on the mid-plane, at rest in z
         def points_errors(line):
@@ -348,7 +347,7 @@ class CaseValidatorTest(unittest.TestCase):
     def dimens_errors(self, dimens, nz, bc):
         """Errors about the dimension of a real one-column grid."""
         write = lambda: write_hex_grid(os.path.join(self.dir, "case.hyb.asc"), nz)
-        overrides = {("PICL", "PERIODICZ"): 0}
+        overrides = {}
         if dimens is not None:
             overrides[("NUMERICS", "DIMENS")] = dimens
         text = edit_inp(TEMPLATE, overrides)

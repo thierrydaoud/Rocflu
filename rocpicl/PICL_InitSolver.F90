@@ -89,6 +89,7 @@ SUBROUTINE PICL_InitSolver( pRegion)
   USE ModRandom, ONLY: Rand1Uniform,Rand1Normal
   USE RFLU_ModInCellTest
   USE RFLU_ModRestartData, ONLY: RFLU_ParticleDumpName
+  USE PICL_ModInterfaces, ONLY: PICL_SetPeriodicity
 
   IMPLICIT NONE
 #ifdef PICL
@@ -246,9 +247,6 @@ erest = global%piclERest
 qs_fluct_filter_flag = global%piclQsFluctFilterFlag
 qs_fluct_filter_adapt_flag = global%piclQsFluctFilterAdaptFlag
 
-periodic(1) = global%piclPeriodicXFlag == 1
-periodic(2) = global%piclPeriodicYFlag == 1
-periodic(3) = global%piclPeriodicZFlag == 1
 ! Min/max grid coordinates across MPI ranks (l = XCOORD, YCOORD, ZCOORD)
 DO l = 1,3
   gridmin = MINVAL(pGrid%xyz(l,1:pGrid%nVert))
@@ -258,6 +256,12 @@ DO l = 1,3
   CALL MPI_AllReduce(gridmax,domainRange(2,l),1,MPI_RFREAL,MPI_MAX, &
           global%mpiComm,errorFlag)
 END DO
+
+! Particle periodicity follows the periodic patches of the fluid
+CALL PICL_SetPeriodicity(pRegion,domainRange)
+periodic(1) = global%piclPeriodicXFlag == 1
+periodic(2) = global%piclPeriodicYFlag == 1
+periodic(3) = global%piclPeriodicZFlag == 1
 
 
  ! Initialization for viscous unsteady term: ppiclF allocates this many

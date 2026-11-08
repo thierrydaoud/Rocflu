@@ -42,9 +42,6 @@ def uniform_gas(u):
         ("INITFLOW", "RVAL4"): "101325.0",
         ("INITFLOW", "RVAL5"): "1.2",
         ("INITFLOW", "RVAL6"): "101325.0",
-        ("PICL", "PERIODICX"): 1,
-        ("PICL", "PERIODICY"): 1,
-        ("PICL", "PERIODICZ"): 1,
         ("TIMESTEP", "MAXTIME"): "1.05E-04",
         ("TIMESTEP", "RUNTIME"): "1.05E-04",
         ("TIMESTEP", "WRITIME"): "5.0E-05",
@@ -145,8 +142,8 @@ for cr in (0, 1):
         description="Shock over four particles between slip walls, PGFORCE 1, "
                     "CRECONSTC %d; the shock must stay planar" % cr,
         nranks=2, grid=SLIPWALL_TUBE, bc="shocktube-walls",
-        inp={**SHOCKTUBE, **TWO_WAY, ("PICL", "PGFORCE"): 1, ("PICL", "PERIODICY"): 0,
-             ("PICL", "PERIODICZ"): 0, ("NUMERICS", "CRECONSTC"): cr},
+        inp={**SHOCKTUBE, **TWO_WAY, ("PICL", "PGFORCE"): 1,
+             ("NUMERICS", "CRECONSTC"): cr},
         particles=FOUR_PARTICLES, checks=["particles_moved", "planar"],
         same_as=None if cr == 0 else "shocktube/slip-walls/creconst0/np2",
         same_as_fields=("x", "vp_x"))
@@ -239,8 +236,7 @@ add(name="box/resting-heat-exchange/np1",
 # density change across a cell, depending on where the particle sat in it.
 LINEAR_RHO = {("INITFLOW", "IVAL1"): 1, ("INITFLOW", "RVAL7"): "25.0",
               ("INITFLOW", "RVAL8"): "-15.0", ("INITFLOW", "RVAL9"): "10.0",
-              ("PICL", "PERIODICX"): 0, ("PICL", "PERIODICY"): 0,
-              ("PICL", "PERIODICZ"): 0, ("PICL", "VELOCITYMODEL"): 0}
+              ("PICL", "VELOCITYMODEL"): 0}
 for n in (1, 2, 4):
     add(name="box/linear-interp/np%d" % n,
         description="Gas density linear in x, y, z at rest in a slip-wall box; "
@@ -262,8 +258,7 @@ for n in (1, 2):
         description="One particle at rest in 2:1:1 cells; its volume fraction must be "
                     "centred on it and spread ~0.44 cell lengths in every direction",
         nranks=n, grid=ELONGATED, bc="closed",
-        inp={**uniform_gas(0.0), **ONE_WAY, ("PICL", "PERIODICX"): 0,
-             ("PICL", "PERIODICY"): 0, ("PICL", "PERIODICZ"): 0,
+        inp={**uniform_gas(0.0), **ONE_WAY,
              ("PICL", "VELOCITYMODEL"): 0},
         particles=[(0.0066, 0.0044, 0.0037, 1.0e-4)],
         checks=["projection_shape", "mass"])
@@ -406,7 +401,6 @@ for n in (1, 2, 4):
                     "the input restitution and ends inside the box",
         nranks=n, grid=BOX, bc="partwall",
         inp={**uniform_gas(0.0), **ONE_WAY, **COLLISIONS_ONLY, ("PICL", "COLLISIONS"): 2,
-             ("PICL", "PERIODICX"): 0, ("PICL", "PERIODICY"): 0, ("PICL", "PERIODICZ"): 0,
              ("TIMESTEP", "MAXTIME"): "8.05E-06", ("TIMESTEP", "RUNTIME"): "8.05E-06",
              ("TIMESTEP", "WRITIME"): "4.0E-06", ("TIMESTEP", "PRNTIME"): "4.0E-06"},
         particles=wall_shots(),
@@ -472,7 +466,7 @@ for n in (1, 2, 4):
 # -- 2D: DIMENS 2, one cell thick in z, BC_VIRTUAL z patches -------------------
 # Particles on the mid-plane. Each case mirrors a 3D one above in x and y; in_plane
 # requires that z stays inactive.
-TWO_D = {("NUMERICS", "DIMENS"): 2, ("PICL", "PERIODICZ"): 0}
+TWO_D = {("NUMERICS", "DIMENS"): 2}
 TWO_D_TUBE = Grid(lx=0.04, ly=0.004, lz=0.001, x0=-0.02, y0=0.0, z0=0.0, nx=40, ny=4, nz=1)
 TWO_D_BOX = Grid(lx=0.008, ly=0.008, lz=0.001, x0=0.0, y0=0.0, z0=0.0, nx=8, ny=8, nz=1)
 TWO_D_THIN = Grid(lx=0.008, ly=0.008, lz=0.0001, x0=0.0, y0=0.0, z0=0.0, nx=8, ny=8, nz=1)

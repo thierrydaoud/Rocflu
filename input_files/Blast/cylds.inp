@@ -104,9 +104,6 @@ SPECIFICHEAT     1.0    ! particle specific heat [J/(kg K)]
 NEIGHBORWIDTH    0.000  ! Actual neighbor width = max(4*dp_max, neighborwidth)
 KSP              100.0  ! collisional spring constant; [kg/s^2]
 EREST            0.7    ! Coefficient of restitution
-PERIODICX        0      ! 0 = turn off ; 1 = turn on
-PERIODICY        0      ! 0 = turn off ; 1 = turn on
-PERIODICZ        1      ! 0 = turn off ; 1 = turn on
 SUBBIN           1      ! 0 = Zwick subbin; 1 = Avery subbin
 #
 
