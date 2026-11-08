@@ -127,7 +127,7 @@ its value against the golden.
 | `XPASS` | The physics checks of a `known_issue` case now pass. Remove the marker |
 
 Tolerances:
-- Gas fields are double precision: relative 1e-10 of each field's maximum.
+- Gas fields are double precision: relative 1e-10 of each field's largest value over all regions (a vector's components share one scale).
 - Particle files (`par*.vtu`) are single precision: relative 2e-6.
 
 ## What a Case Is

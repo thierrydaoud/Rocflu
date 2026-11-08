@@ -70,14 +70,18 @@ def compare_states(new, ref, label="golden", fields=None):
         errors.append("gas regions differ from %s" % label)
     else:
         refg = {str(k): v for k, v in ref["gas"].items()}
+        # one scale per field group over all regions: a region the flow barely
+        # reaches holds only round-off
+        names = {n for r in refg.values() for n in r}
+        scales = {n: max((abs(v) for r in refg.values() for f in _field_group(n)
+                          for v in r.get(f, [])), default=0.0) or 1.0 for n in names}
         for region, g in sorted(new["gas"].items()):
             for name, arr in g.items():
                 b_arr = refg[str(region)][name]
                 if len(arr) != len(b_arr):
                     errors.append("region %s %s: %d cells vs %d" % (region, name, len(arr), len(b_arr)))
                     continue
-                scale = max(abs(v) for f in _field_group(name)
-                            for v in refg[str(region)].get(f, [])) or 1.0
+                scale = scales[name]
                 bad = [(abs(a - b) / scale, i, a, b) for i, (a, b) in enumerate(zip(arr, b_arr))
                        if not _close(a, b, GAS_RTOL, scale)]
                 if bad:
