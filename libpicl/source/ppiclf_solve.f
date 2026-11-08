@@ -245,6 +245,7 @@
       ppiclf_linperiodic(1) = .FALSE.    
       ppiclf_linperiodic(2) = .FALSE.   
       ppiclf_linperiodic(3) = .FALSE. 
+      ppiclf_rotperiodic    = .FALSE.
 
       ppiclf_cycle  = 0
       ppiclf_iostep = 1
@@ -659,7 +660,7 @@ c----------------------------------------------------------------------
       END DO
       
       IF(ppiclf_linperiodic(1) .OR. ppiclf_linperiodic(2) .OR.
-     >                             ppiclf_linperiodic(3)) THEN
+     >   ppiclf_linperiodic(3) .OR. ppiclf_rotperiodic) THEN
         CALL ppiclf_solve_PeriodicParticleShift
       END IF
 
@@ -684,41 +685,89 @@ c----------------------------------------------------------------------
 !
 ! Internal:
 !
-      INTEGER*4 i  
-      REAL*8 per_alpha
+      INTEGER*4 i, ipass, iplane
+      LOGICAL outside
 !
       DO i=1,ppiclf_npart
-!!!!!!!!!!!!!!!!        Rotational Periodicity Starts Here     !!!!!!!!!!!!!!!!!!!!
-!            ! currently only supports angular rotation around z-axis
-!            ! and only check theta component and not radial
-!            ! applying the radial periodicity is very straightforward, but not needed for now
-!
-!         IF(ang_per_flag .EQ. 1) THEN  ! Angular periodicity
-!           
-!           ! particle angle w/ x-axis
-!           ! per_alpha here is obtained in radians
-!           ! ang_per_angle & ang_per_xangle are transformed 
-!           !   to radians in PICL_InitFlowSolver.F90
-!           per_alpha = 
-!     >         atan2(ppiclf_y(PPICLF_JY,i), ppiclf_y(PPICLF_JX,i))
-!
-!           ! check if particle leaving through lower face or upper face of wedge
-!           IF((per_alpha .LT. ang_per_xangle) .OR. 
-!     >         (per_alpha .GT. (ang_per_xangle + ang_per_angle))) THEN
-!             CALL ppiclf_solve_InvokeAngularPeriodic(i, ang_per_flag,
-!     >                                                per_alpha, 
-!     >                                                ang_per_angle,
-!     >                                                ang_per_xangle,
-!     >                                                1)
-!           END IF ! per_alpha
-!         END IF ! ang_per_flag
-!
-         ! Linear Periodicity Invoked
-         IF(ppiclf_linperiodic(1) .OR. ppiclf_linperiodic(2) 
+         ! Linear periodicity
+         IF(ppiclf_linperiodic(1) .OR. ppiclf_linperiodic(2)
      >                            .OR. ppiclf_linperiodic(3)) THEN
            CALL ppiclf_solve_InvokeLinearPeriodic(i)
-         END IF 
-      END DO ! i=1,ppiclf_part
+         END IF
+
+         ! Rotational periodicity: a particle past a plane re-enters
+         ! through the other one; near the axis it can be past both
+         IF(ppiclf_rotperiodic) THEN
+           DO ipass = 1,3
+             outside = .FALSE.
+             DO iplane = 1,2
+               IF(DOT_PRODUCT(ppiclf_rotnormal(:,iplane),
+     >            ppiclf_y(PPICLF_JX:PPICLF_JX+2,i)) .GT. 0.0D0) THEN
+                 outside = .TRUE.
+                 IF(ipass .EQ. 3) CALL ppiclf_exittr(
+     >             'Particle outside both rotational periodic planes$',
+     >             ppiclf_y(PPICLF_JX,i),i)
+                 CALL ppiclf_solve_RotateParticle(i,
+     >                ppiclf_rotmatrix(1,1,iplane))
+               END IF
+             END DO ! iplane
+             IF(.NOT. outside) EXIT
+           END DO ! ipass
+         END IF
+      END DO ! i=1,ppiclf_npart
+
+      RETURN
+      END
+
+!-----------------------------------------------------------------------
+
+      SUBROUTINE ppiclf_solve_RotateParticle(i,rot)
+      use ppiclf_data
+      use ppiclf_unsteady
+!
+! Rotates particle i (position and every vector it carries) by rot
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+#include "PPICLF_VECTORS.inc"
+!
+! Input:
+!
+      INTEGER*4 i
+      REAL*8 rot(3,3)
+!
+! Internal:
+!
+      INTEGER*4 k, j, iT, n
+!
+      DO k = 1,ppiclf_nvec_y
+        j = ppiclf_vec_y(k)
+        ppiclf_y    (j:j+2,i) = MATMUL(rot,ppiclf_y    (j:j+2,i))
+        ppiclf_y1   (j:j+2,i) = MATMUL(rot,ppiclf_y1   (j:j+2,i))
+        ppiclf_ydot (j:j+2,i) = MATMUL(rot,ppiclf_ydot (j:j+2,i))
+        ppiclf_ydotc(j:j+2,i) = MATMUL(rot,ppiclf_ydotc(j:j+2,i))
+      END DO
+      DO k = 1,ppiclf_nvec_rprop
+        j = ppiclf_vec_rprop(k)
+        ppiclf_rprop(j:j+2,i) = MATMUL(rot,ppiclf_rprop(j:j+2,i))
+      END DO
+      DO k = 1,ppiclf_nvec_pro
+        j = ppiclf_vec_pro(k)
+        ppiclf_feedbk(j:j+2,i) = MATMUL(rot,ppiclf_feedbk(j:j+2,i))
+      END DO
+      ! Viscous-unsteady history (ppiclf_user_plag2prop): drudtMixt,
+      ! then drudtPlag, each component n entries after the previous
+      n = ppiclf_nUnsteadyData
+      IF(ppiclf_lrp3 .GT. 0) THEN
+        DO iT = 1,n
+          DO k = 0,3*n,3*n
+            j = k + iT
+            ppiclf_rprop3(j:j+2*n:n,i) =
+     >        MATMUL(rot,ppiclf_rprop3(j:j+2*n:n,i))
+          END DO
+        END DO
+      END IF
 
       RETURN
       END

@@ -6,7 +6,7 @@ c Particle options
      >       ,PPICLF_LSUBSUBBIN,PPICLF_EQUALDOMAIN(3)
      >       ,PPICLF_LINPERIODIC(3), PPICLF_REMOVE_PARTICLE
      >       ,PPICLF_BINCHANGED, PPICLF_PRINTBINVTU
-     >       ,PPICLF_READYTOSOLVE
+     >       ,PPICLF_READYTOSOLVE, PPICLF_ROTPERIODIC
       COMMON /PPICLF_OPT_PARAM_L/ PPICLF_RESTART, PPICLF_OVERLAP
      >                           ,PPICLF_LCOMM, PPICLF_LINIT
      >                           ,PPICLF_LINTP
@@ -18,6 +18,7 @@ c Particle options
      >                           ,PPICLF_BINCHANGED
      >                           ,PPICLF_PRINTBINVTU
      >                           ,PPICLF_READYTOSOLVE
+     >                           ,PPICLF_ROTPERIODIC
       DATA PPICLF_LCOMM /.false./
       DATA PPICLF_RESTART /.false./
 
@@ -32,9 +33,13 @@ c Particle options
      >       PPICLF_DT, PPICLF_TIME, PPICLF_NNDIST,
      >       PPICLF_INTERP_DCHK(3)
       REAL*8 PPICLF_RK3ARK(3), PPICLF_RK3DTRK(3)
+c Rotational periodic planes: outward unit normal, and the rotation
+c that takes a particle past the plane back in through the other one
+      REAL*8 PPICLF_ROTNORMAL(3,2), PPICLF_ROTMATRIX(3,3,2)
       COMMON /PPICLF_OPT_PARAM_R/ PPICLF_FILTER
      >                           ,PPICLF_RK3COEF, PPICLF_DT
      >                           ,PPICLF_TIME, PPICLF_NNDIST
      >                           ,PPICLF_RK3ARK
      >                           ,PPICLF_INTERP_DCHK
      >                           ,PPICLF_RK3DTRK
+     >                           ,PPICLF_ROTNORMAL, PPICLF_ROTMATRIX

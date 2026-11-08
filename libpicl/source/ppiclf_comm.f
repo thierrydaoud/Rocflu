@@ -135,6 +135,29 @@
       RETURN
       END
 !-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_comm_InitRotPeriodic(normal,rotation)
+      use ppiclf_data
+!
+! This subroutine is called from rocpicl/PICL_InitSolver.F90
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+! Input:
+!
+      REAL*8 normal(3,2)
+      ! outward unit normal of each rotational periodic plane
+      REAL*8 rotation(3,3,2)
+      ! rotation taking each plane onto the other one
+!
+      ppiclf_rotnormal   = normal
+      ppiclf_rotmatrix   = rotation
+      ppiclf_rotperiodic = .TRUE.
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
       SUBROUTINE ppiclf_comm_CreateBin
       use ppiclf_data
 !

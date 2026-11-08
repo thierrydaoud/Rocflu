@@ -104,10 +104,13 @@ With particles on, the particles take their periodicity from these patches:
 
 - a translation along x, y or z makes the particles periodic in that direction. The
   translation must be the length of the domain in that direction;
-- a rotation is printed in the Setup box (e.g. `90 deg about z`); the particles do not
-  use it yet;
-- all rotational pairs must have the same axis and angle, and no translation may lie in
-  the plane of the rotation. The run stops at start-up otherwise.
+- a rotation is printed in the Setup box (e.g. `90 deg about z`). A particle that leaves
+  through one plane re-enters through the other, rotated with every vector it carries
+  (the `vec` slots of `ppiclf_slots.txt`). The gas interpolation and the projection do
+  not reach across the planes yet;
+- the two rotational patches must be flat, contain the axis, and bound a sector of at
+  most 180 degrees; all rotational pairs must have the same axis and angle, and no
+  translation may lie in the plane of the rotation. The run stops at start-up otherwise.
 
 ## Removed Sections and Keys
 
