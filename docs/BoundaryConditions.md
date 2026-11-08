@@ -106,8 +106,9 @@ With particles on, the particles take their periodicity from these patches:
   translation must be the length of the domain in that direction;
 - a rotation is printed in the Setup box (e.g. `90 deg about z`). A particle that leaves
   through one plane re-enters through the other, rotated with every vector it carries
-  (the `vec` slots of `ppiclf_slots.txt`). The gas interpolation and the projection do
-  not reach across the planes yet;
+  (the `vec` slots of `ppiclf_slots.txt`). The gas interpolation and the particle
+  projection reach across the planes: ppiclF also maps rotated images of the cells near
+  them (the vector fields rotated). Collisions do not reach across the planes yet;
 - the two rotational patches must be flat, contain the axis, and bound a sector of at
   most 180 degrees; all rotational pairs must have the same axis and angle, and no
   translation may lie in the plane of the rotation. The run stops at start-up otherwise.

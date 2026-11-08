@@ -36,6 +36,9 @@ c Particle options
 c Rotational periodic planes: outward unit normal, and the rotation
 c that takes a particle past the plane back in through the other one
       REAL*8 PPICLF_ROTNORMAL(3,2), PPICLF_ROTMATRIX(3,3,2)
+c and the in-plane direction pointing away from the axis, the axis,
+c and the sector angle
+      REAL*8 PPICLF_ROTRADIAL(3,2), PPICLF_ROTAXIS(3), PPICLF_ROTANGLE
       COMMON /PPICLF_OPT_PARAM_R/ PPICLF_FILTER
      >                           ,PPICLF_RK3COEF, PPICLF_DT
      >                           ,PPICLF_TIME, PPICLF_NNDIST
@@ -43,3 +46,5 @@ c that takes a particle past the plane back in through the other one
      >                           ,PPICLF_INTERP_DCHK
      >                           ,PPICLF_RK3DTRK
      >                           ,PPICLF_ROTNORMAL, PPICLF_ROTMATRIX
+     >                           ,PPICLF_ROTRADIAL, PPICLF_ROTAXIS
+     >                           ,PPICLF_ROTANGLE

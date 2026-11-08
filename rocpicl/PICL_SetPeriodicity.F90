@@ -19,12 +19,16 @@
 ! Output:
 !   planeNormal    Outward unit normal of each rotational periodic plane
 !   planeRotation  Rotation taking each plane onto the other one
+!   planeRadial    Unit vector in each plane, perpendicular to the axis,
+!                  pointing away from it
+!   axisVector     Unit vector of the rotation axis
 !   global%piclPeriodicX/Y/ZFlag, global%piclRotPeriodicAxis,
 !   global%piclRotPeriodicAngle
 !
 ! ******************************************************************************
 
-SUBROUTINE PICL_SetPeriodicity(pRegion,domainRange,planeNormal,planeRotation)
+SUBROUTINE PICL_SetPeriodicity(pRegion,domainRange,planeNormal,planeRotation, &
+                               planeRadial,axisVector)
 
   USE ModDataTypes
   USE ModDataStruct, ONLY: t_region
@@ -38,13 +42,14 @@ SUBROUTINE PICL_SetPeriodicity(pRegion,domainRange,planeNormal,planeRotation)
 
   TYPE(t_region), POINTER :: pRegion
   REAL(RFREAL), INTENT(IN) :: domainRange(2,3)
-  REAL(RFREAL), INTENT(OUT) :: planeNormal(3,2),planeRotation(3,3,2)
+  REAL(RFREAL), INTENT(OUT) :: planeNormal(3,2),planeRotation(3,3,2), &
+                               planeRadial(3,2),axisVector(3)
 
   INTEGER :: axisLocal(2),axisAll(2),dirLocal(3),dirAll(3),errorFlag,ifc, &
              iDir,iPatch,iPlane,l
   REAL(RFREAL) :: angle,angleLocal(2),angleAll(2),area,inside,insideAll, &
-                  length,normal(3),shift(3),shiftLen
-  REAL(RFREAL) :: planeLocal(12,2),planeAll(12,2)
+                  length,normal(3),shift(3),shiftLen,center(3),axisLocal3(3)
+  REAL(RFREAL) :: planeLocal(15,2),planeAll(15,2)
   REAL(RFREAL), PARAMETER :: TOL = 1.0E-9_RFREAL
   CHARACTER(80) :: msg
   TYPE(t_global), POINTER :: global
@@ -59,7 +64,8 @@ SUBROUTINE PICL_SetPeriodicity(pRegion,domainRange,planeNormal,planeRotation)
 ! Classify the local periodic patches. axisLocal and angleLocal hold
 ! (max, -min) so that one MPI_MAX gives both extremes. planeLocal holds,
 ! for the patch with the lower (1) and higher (2) global number of the
-! rotational pair, its normal and rotation (column by column).
+! rotational pair, its normal, rotation (column by column) and radial
+! direction.
   dirLocal   = 0
   axisLocal  = (/ 0, -4 /)
   angleLocal = (/ -1.0_RFREAL, -HUGE(1.0_RFREAL) /)
@@ -98,10 +104,12 @@ SUBROUTINE PICL_SetPeriodicity(pRegion,domainRange,planeNormal,planeRotation)
 !     the related plane, with inward normals). The patch must be flat and
 !     its plane must contain the origin (the rotation axis)
       normal = 0.0_RFREAL
+      center = 0.0_RFREAL
       area   = 0.0_RFREAL
       DO ifc = 1,pPatch%nBFaces
         IF ( .NOT. Outward(ifc) ) CYCLE
         normal = normal + pPatch%fn(XCOORD:ZCOORD,ifc)*pPatch%fn(XYZMAG,ifc)
+        center = center + pPatch%fc(XCOORD:ZCOORD,ifc)*pPatch%fn(XYZMAG,ifc)
         area   = area + pPatch%fn(XYZMAG,ifc)
       END DO ! ifc
       IF ( area == 0.0_RFREAL ) CYCLE
@@ -122,6 +130,11 @@ SUBROUTINE PICL_SetPeriodicity(pRegion,domainRange,planeNormal,planeRotation)
       planeLocal(1:3,iPlane)  = normal
       planeLocal(4:12,iPlane) = RESHAPE(pPatch%tm(XCOORD:ZCOORD,XCOORD:ZCOORD), &
                                         (/ 9 /))
+      axisLocal3 = 0.0_RFREAL
+      axisLocal3(pPatch%axisRelated) = 1.0_RFREAL
+      center = center/area
+      center = center - DOT_PRODUCT(center,axisLocal3)*axisLocal3
+      planeLocal(13:15,iPlane) = center/SQRT(SUM(center**2))
     END IF ! MAXVAL
   END DO ! iPatch
 
@@ -131,7 +144,7 @@ SUBROUTINE PICL_SetPeriodicity(pRegion,domainRange,planeNormal,planeRotation)
                      errorFlag)
   CALL MPI_Allreduce(angleLocal,angleAll,2,MPI_RFREAL,MPI_MAX, &
                      global%mpiComm,errorFlag)
-  CALL MPI_Allreduce(planeLocal,planeAll,24,MPI_RFREAL,MPI_MAX, &
+  CALL MPI_Allreduce(planeLocal,planeAll,30,MPI_RFREAL,MPI_MAX, &
                      global%mpiComm,errorFlag)
 
   global%piclPeriodicXFlag = dirAll(1)
@@ -141,6 +154,8 @@ SUBROUTINE PICL_SetPeriodicity(pRegion,domainRange,planeNormal,planeRotation)
   global%piclRotPeriodicAngle = 0.0_RFREAL
   planeNormal   = 0.0_RFREAL
   planeRotation = 0.0_RFREAL
+  planeRadial   = 0.0_RFREAL
+  axisVector    = 0.0_RFREAL
 
   IF ( axisAll(1) > 0 ) THEN
     IF ( axisAll(1) /= -axisAll(2) .OR. &
@@ -160,6 +175,8 @@ SUBROUTINE PICL_SetPeriodicity(pRegion,domainRange,planeNormal,planeRotation)
     END IF ! MINVAL
     planeNormal   = planeAll(1:3,:)
     planeRotation = RESHAPE(planeAll(4:12,:),(/ 3,3,2 /))
+    planeRadial   = planeAll(13:15,:)
+    axisVector(axisAll(1)) = 1.0_RFREAL
 
 ! - Every cell centroid inside both planes: catches an inward normal and
 !   sectors wider than 180 degrees

@@ -135,7 +135,8 @@
       RETURN
       END
 !-----------------------------------------------------------------------
-      SUBROUTINE ppiclf_comm_InitRotPeriodic(normal,rotation)
+      SUBROUTINE ppiclf_comm_InitRotPeriodic(normal,rotation,radial,
+     >                                       axis)
       use ppiclf_data
 !
 ! This subroutine is called from rocpicl/PICL_InitSolver.F90
@@ -150,10 +151,153 @@
       ! outward unit normal of each rotational periodic plane
       REAL*8 rotation(3,3,2)
       ! rotation taking each plane onto the other one
+      REAL*8 radial(3,2)
+      ! unit vector in each plane, perpendicular to the axis, pointing
+      ! away from it
+      REAL*8 axis(3)
+      ! unit vector of the rotation axis
+!
+! Internal:
+!
+      REAL*8 prod(3,3)
+      INTEGER*4 i
 !
       ppiclf_rotnormal   = normal
       ppiclf_rotmatrix   = rotation
+      ppiclf_rotradial   = radial
+      ppiclf_rotaxis     = axis
       ppiclf_rotperiodic = .TRUE.
+      ! The two rotations must be inverse to each other
+      prod = MATMUL(rotation(:,:,1),rotation(:,:,2))
+      DO i = 1,3
+        prod(i,i) = prod(i,i) - 1.0D0
+      END DO
+      IF(MAXVAL(ABS(prod)) .GT. 1.0D-12) CALL ppiclf_exittr(
+     >  'Rotational periodic planes: rotations not inverse$',
+     >  MAXVAL(ABS(prod)),0)
+      ppiclf_rotangle = ACOS(MIN(1.0D0,MAX(-1.0D0,
+     >  0.5D0*(rotation(1,1,1)+rotation(2,2,1)+rotation(3,3,1)-1.0D0))))
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_comm_RotMatrix(m,rot)
+      use ppiclf_data
+!
+! Rotation of image m: plane-1 rotation applied m times (m > 0), plane-2
+! rotation -m times (m < 0), identity for m = 0
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+      INTEGER*4 m, k, i
+      REAL*8 rot(3,3)
+!
+      rot = 0.0D0
+      DO i = 1,3
+        rot(i,i) = 1.0D0
+      END DO
+      DO k = 1,ABS(m)
+        IF(m .GT. 0) THEN
+          rot = MATMUL(ppiclf_rotmatrix(:,:,1),rot)
+        ELSE
+          rot = MATMUL(ppiclf_rotmatrix(:,:,2),rot)
+        END IF
+      END DO
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_comm_RotImageGeom(m,grid,center,celllen)
+      use ppiclf_data
+!
+! Centroid and axis-aligned cell lengths of image m of a fluid cell
+! (grid: centroid, lengths, volume as in ppiclf_fluid_grid)
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+      INTEGER*4 m
+      REAL*8 grid(7), center(3), celllen(3), rot(3,3)
+!
+      CALL ppiclf_comm_RotMatrix(m,rot)
+      center  = MATMUL(rot,grid(1:3))
+      celllen = MATMUL(ABS(rot),grid(4:6))
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      REAL*8 FUNCTION ppiclf_comm_SectorDist(q)
+      use ppiclf_data
+!
+! Distance from point q to the periodic sector (0 inside), ignoring the
+! coordinate along the axis
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+      REAL*8 q(3), p(3), d(2), t
+      INTEGER*4 i
+!
+      p = q - DOT_PRODUCT(q,ppiclf_rotaxis)*ppiclf_rotaxis
+      IF(DOT_PRODUCT(p,ppiclf_rotnormal(:,1)) .LE. 0.0D0 .AND.
+     >   DOT_PRODUCT(p,ppiclf_rotnormal(:,2)) .LE. 0.0D0) THEN
+        ppiclf_comm_SectorDist = 0.0D0
+        RETURN
+      END IF
+      ! Outside: the nearest point is on one of the two half-planes
+      DO i = 1,2
+        t = DOT_PRODUCT(p,ppiclf_rotradial(:,i))
+        IF(t .GE. 0.0D0) THEN
+          d(i) = ABS(DOT_PRODUCT(p,ppiclf_rotnormal(:,i)))
+        ELSE
+          d(i) = SQRT(DOT_PRODUCT(p,p))
+        END IF
+      END DO
+      ppiclf_comm_SectorDist = MIN(d(1),d(2))
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_comm_RotImages(ie,reach,nimg,mimg,maximg)
+      use ppiclf_data
+!
+! Images of fluid cell ie to map: m = 0 (the cell), then every rotation
+! (m > 0 by plane 1, m < 0 by plane 2, up to 180 degrees) whose centroid
+! is within reach of the sector
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+      INTEGER*4 ie, nimg, maximg, mimg(maximg), k, isgn, iplane
+      REAL*8 reach, q(3)
+      REAL*8 ppiclf_comm_SectorDist
+      EXTERNAL ppiclf_comm_SectorDist
+!
+      nimg = 1
+      mimg(1) = 0
+      IF(.NOT. ppiclf_rotperiodic) RETURN
+      DO isgn = 1,-1,-2
+        iplane = 1
+        IF(isgn .LT. 0) iplane = 2
+        q = ppiclf_fluid_grid(1:3,ie)
+        DO k = 1,maximg
+          IF(k*ppiclf_rotangle .GT. ACOS(-1.0D0) + 1.0D-9) EXIT
+          ! 180 degrees: one image, from plane 1
+          IF(isgn .LT. 0 .AND. k*ppiclf_rotangle .GT.
+     >       ACOS(-1.0D0) - 1.0D-9) EXIT
+          q = MATMUL(ppiclf_rotmatrix(:,:,iplane),q)
+          IF(ppiclf_comm_SectorDist(q) .GT. reach) EXIT
+          nimg = nimg + 1
+          IF(nimg .GT. maximg) CALL ppiclf_exittr(
+     >      'Too many rotational images of a cell$',0.0d0,nimg)
+          mimg(nimg) = isgn*k
+        END DO
+      END DO
 
       RETURN
       END
@@ -567,7 +711,7 @@
       INTEGER*4 icalld
       SAVE      icalld
       DATA      icalld /0/
-      INTEGER*4 nkey(2), i, j, k, l, ie, iee, ii, jj, kk, nrank,
+      INTEGER*4 nkey(3), i, j, k, l, ie, iee, ii, jj, kk, nrank,
      >          nl, nii, njj, nrr, iic, jjc, kkc il, ierr
       INTEGER*4 ix, iy, iz, ixLow, ixHigh, iyLow,
      >          iyHigh, izLow, izHigh 
@@ -577,6 +721,11 @@
       LOGICAL   partl, ErrorFound
       EXTERNAL  ppiclf_vlmin, ppiclf_vlmax
       INTEGER*4 nSent, sentTo(27), m, nin
+      ! Rotational images of a cell (ppiclf_comm_RotImages)
+      INTEGER*4 MAXIMG
+      PARAMETER (MAXIMG = 64)
+      INTEGER*4 img, nimg, mimg(MAXIMG)
+      REAL*8    celllen(3)
       LOGICAL   dupl
       REAL*8    dfwork(3)
 !
@@ -592,16 +741,20 @@
       exchCellMultiplier  = 2.499D0
 
       ! Loops through number of fluid FV cells on this processor
-      DO ie=1,ppiclf_nFVCells  
+      DO ie=1,ppiclf_nFVCells
+        ! The cell (m = 0) and, with rotational periodicity, its rotated
+        ! images near the sector
+        CALL ppiclf_comm_RotImages(ie, exchCellMultiplier*
+     >       MAXVAL(ppiclf_fluid_grid(4:6,ie)), nimg, mimg, MAXIMG)
+        DO img = 1,nimg
+        CALL ppiclf_comm_RotImageGeom(mimg(img),ppiclf_fluid_grid(1,ie),
+     >                                centeri, celllen)
         DO l=1,3
-         !indicies 1:3
-         centeri(l) = ppiclf_fluid_grid(l,ie)
-         !indicies 4:6
-         EleSizei(l) =  exchCellMultiplier*ppiclf_fluid_grid(3+l,ie)
+         EleSizei(l) =  exchCellMultiplier*celllen(l)
          ! Small bins: map at least the 1.8 cell length support of
          ! the least-squares interpolation (ppiclf_solve_InterpLS)
          IF(EleSizei(l) .GT. ppiclf_bins_dx(l)/2) THEN
-           EleSizei(l) =  1.899D0*ppiclf_fluid_grid(3+l,ie)
+           EleSizei(l) =  1.899D0*celllen(l)
          END IF
         END DO !l 
 
@@ -729,9 +882,11 @@
               ppiclf_cell_map(4,ppiclf_nCells_FV2PICL) = ii
               ppiclf_cell_map(5,ppiclf_nCells_FV2PICL) = jj
               ppiclf_cell_map(6,ppiclf_nCells_FV2PICL) = kk
+              ppiclf_cell_map(7,ppiclf_nCells_FV2PICL) = mimg(img)
             END DO !iz
           END DO !iy
         END DO !ix
+        END DO !img
       END DO !ie
 
       DO ie=1,ppiclf_nCells_FV2PICL 
@@ -739,6 +894,11 @@
         iee = ppiclf_cell_map(1,ie)
         CALL ppiclf_copy(ppiclf_picl_grid(1,ie)
      >                 ,ppiclf_fluid_grid(1,iee),7)
+        ! A rotational image: rotated centroid and cell lengths
+        IF(ppiclf_cell_map(7,ie) .NE. 0)
+     >    CALL ppiclf_comm_RotImageGeom(ppiclf_cell_map(7,ie),
+     >      ppiclf_fluid_grid(1,iee),ppiclf_picl_grid(1,ie),
+     >      ppiclf_picl_grid(4,ie))
  
         ! ppiclf_filter initially set in PICL_InitSolver
         ! Want to only consider cells that reside in the particle domain
@@ -776,6 +936,7 @@
       ! Defines sorting order
       nkey(1) = 2
       nkey(2) = 1
+      nkey(3) = 7
 
       ! Grow the cell arrays to what this rank will receive. Before,
       ! cells beyond PPICLF_LEE were dropped here without a message.
@@ -797,7 +958,7 @@
      >        ,ppiclf_cell_map,nii !Integer to sort
      >        ,partl,nl                 !Logical to sort
      >        ,ppiclf_picl_grid,nrr      !Real to sort
-     >        ,nkey,2)                  !sorting method
+     >        ,nkey,3)                  !sorting method
 
 
       IF (icalld .EQ. 0) THEN 

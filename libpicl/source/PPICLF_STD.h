@@ -23,7 +23,7 @@
 #endif
 
 #ifndef PPICLF_LRMAX
-#define PPICLF_LRMAX 6
+#define PPICLF_LRMAX 7
 #endif
 
 ! Arrays a particle output field can come from (ppiclf_out_source)

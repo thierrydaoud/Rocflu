@@ -975,6 +975,7 @@ c----------------------------------------------------------------------
         DO j=1,ppiclf_lrp_int
            CALL ppiclf_solve_InterpField(j)
         END DO
+        IF(ppiclf_rotperiodic) CALL ppiclf_solve_RotateImageFields
       END IF
       
       ! Transfers ppiclf_er_mapc & ppiclf_int_fld for all Rocflu Grid
@@ -1103,7 +1104,7 @@ c----------------------------------------------------------------------
 ! Internal: 
 !
       REAL*8 Max_CellLen(3)
-      INTEGER*4 nkey(2), nl, nii, njj, nrr, ie, l, nin
+      INTEGER*4 nkey(3), nl, nii, njj, nrr, ie, l, nin
       LOGICAL partl
 !
       ! send it all
@@ -1113,6 +1114,7 @@ c----------------------------------------------------------------------
       nrr  = ppiclf_lrp_int
       nkey(1) = 2
       nkey(2) = 1
+      nkey(3) = 7
 
       ! Grow the cell arrays to what this rank will receive
       CALL ppiclf_comm_NumIncoming(ppiclf_nCells_Interp, nii,
@@ -1130,7 +1132,7 @@ c----------------------------------------------------------------------
      >      ,ppiclf_cell_map_interp,nii       ! Integer data
      >      ,partl,nl                         ! Logical data
      >      ,ppiclf_int_fld,nrr               ! Real data
-     >      ,nkey,2)                          ! Sorting order
+     >      ,nkey,3)                          ! Sorting order
 
       ! Find distance check for interpolation (subbin size).
       ! This is 1.8*MaxCellLength, the support radius of the
@@ -1799,7 +1801,7 @@ c----------------------------------------------------------------------
 
       ! Internal:
       INTEGER*4 i, j, ip, ie, nCellProj, CellID, nl, nii, njj,
-     >          nrr, nkey(2), iee, nin
+     >          nrr, nkey(3), iee, nin
       REAL*8    CellVol, GaussianConst, dist, w(27), wsum
       LOGICAL   partl 
  
@@ -1849,6 +1851,7 @@ c----------------------------------------------------------------------
       nrr = ppiclf_lrp_pro
       nkey(1) = 2
       nkey(2) = 1
+      nkey(3) = 7
       ! Grow the cell arrays to what this rank will receive
       CALL ppiclf_comm_NumIncoming(ppiclf_nCells_Proj, nii,
      >                             ppiclf_cell_map_proj, njj, nin)
@@ -1865,8 +1868,10 @@ c----------------------------------------------------------------------
      >      ,ppiclf_cell_map_proj,nii       ! Integer data
      >      ,partl,nl                       ! Logical data
      >      ,ppiclf_pro_fld_picl,nrr        ! Real data
-     >      ,nkey,2)                        ! Sorting order
+     >      ,nkey,3)                        ! Sorting order
 
+      ! Deposits on a rotational image: vectors back to the cell
+      IF(ppiclf_rotperiodic) CALL ppiclf_solve_RotateImageDeposits
       ppiclf_pro_fld = 0.0d0
       DO ie=1,ppiclf_nCells_Proj
          iee = ppiclf_cell_map_Proj(1,ie)
@@ -2288,6 +2293,79 @@ c----------------------------------------------------------------------
         sb = entSB(e)
         SBlist(next(sb)) = entID(e)
         next(sb) = next(sb) + 1
+      END DO
+
+      RETURN
+      END
+
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_solve_RotateImageFields
+      use ppiclf_data
+!
+! Vector fields of rotational images of cells (ppiclf_cell_map_interp
+! row 7 = m) rotated by the image rotation, before they are sent
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+#include "PPICLF_VECTORS.inc"
+!
+      INTEGER*4 ie, k, j, c, kfld(3), nfound, m
+      REAL*8 rot(3,3), v(3)
+!
+      DO k = 1,ppiclf_nvec_rprop
+        j = ppiclf_vec_rprop(k)
+        nfound = 0
+        DO c = 1,3
+          kfld(c) = 0
+          DO m = 1,ppiclf_lrp_int
+            IF(ppiclf_int_slots(m) .EQ. j+c-1) kfld(c) = m
+          END DO
+          IF(kfld(c) .GT. 0) nfound = nfound + 1
+        END DO
+        IF(nfound .EQ. 0) CYCLE
+        IF(nfound .NE. 3) CALL ppiclf_exittr(
+     >    'Vector only partly interpolated, rprop slot$',0.0d0,j)
+        DO ie = 1,ppiclf_nCells_Interp
+          m = ppiclf_cell_map_interp(7,ie)
+          IF(m .EQ. 0) CYCLE
+          CALL ppiclf_comm_RotMatrix(m,rot)
+          DO c = 1,3
+            v(c) = ppiclf_int_fld(kfld(c),ie)
+          END DO
+          v = MATMUL(rot,v)
+          DO c = 1,3
+            ppiclf_int_fld(kfld(c),ie) = v(c)
+          END DO
+        END DO
+      END DO
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_solve_RotateImageDeposits
+      use ppiclf_data
+!
+! Projected vectors received for rotational images of a cell
+! (ppiclf_cell_map_proj row 7 = m) rotated back by the inverse rotation
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+#include "PPICLF_VECTORS.inc"
+!
+      INTEGER*4 ie, k, j, m
+      REAL*8 rot(3,3)
+!
+      DO ie = 1,ppiclf_nCells_Proj
+        m = ppiclf_cell_map_proj(7,ie)
+        IF(m .EQ. 0) CYCLE
+        CALL ppiclf_comm_RotMatrix(-m,rot)
+        DO k = 1,ppiclf_nvec_pro
+          j = ppiclf_vec_pro(k)
+          ppiclf_pro_fld_picl(j:j+2,ie) =
+     >      MATMUL(rot,ppiclf_pro_fld_picl(j:j+2,ie))
+        END DO
       END DO
 
       RETURN

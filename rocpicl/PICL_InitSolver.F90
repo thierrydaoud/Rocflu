@@ -177,7 +177,8 @@ INTEGER :: errorFlag,icg
    REAL(RFREAL) :: domainRange(2,3)
    LOGICAL :: periodic(3)
    ! Rotational periodic planes: outward normal, rotation onto the other plane
-   REAL(RFREAL) :: planeNormal(3,2), planeRotation(3,3,2)
+   REAL(RFREAL) :: planeNormal(3,2), planeRotation(3,3,2), planeRadial(3,2), &
+                   axisVector(3)
    ! Detailed set-up messages: master rank, from -v 2 on
    LOGICAL :: showDetail
 
@@ -260,7 +261,8 @@ DO l = 1,3
 END DO
 
 ! Particle periodicity follows the periodic patches of the fluid
-CALL PICL_SetPeriodicity(pRegion,domainRange,planeNormal,planeRotation)
+CALL PICL_SetPeriodicity(pRegion,domainRange,planeNormal,planeRotation, &
+                         planeRadial,axisVector)
 periodic(1) = global%piclPeriodicXFlag == 1
 periodic(2) = global%piclPeriodicYFlag == 1
 periodic(3) = global%piclPeriodicZFlag == 1
@@ -657,7 +659,8 @@ END IF
 ! Init Solve
 CALL ppiclf_comm_InitOverlapGrid(nCells,rocGrid,domainRange,periodic)
 IF ( global%piclRotPeriodicAxis > 0 ) THEN
-  CALL ppiclf_comm_InitRotPeriodic(planeNormal,planeRotation)
+  CALL ppiclf_comm_InitRotPeriodic(planeNormal,planeRotation,planeRadial, &
+                                   axisVector)
 END IF
 !CALL MPI_Barrier(global%mpiComm,errorFlag)
 CALL ppiclf_solve_InitSolve
