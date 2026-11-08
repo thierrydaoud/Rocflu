@@ -791,6 +791,7 @@ c----------------------------------------------------------------------
      >   ppiclf_linperiodic(3)) THEN
 
         DO j= 1,3
+          IF(.NOT. ppiclf_linperiodic(j)) CYCLE
           ! particle leaving min. periodic face -> move it relative to 
           !                                         max periodic face
           IF(ppiclf_y(j,i) .LT. ppiclf_xdrange(1,j)) THEN
