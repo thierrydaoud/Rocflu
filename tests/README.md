@@ -25,10 +25,10 @@ on needs them (`ppiclf_user_Layout`), so cases without pressure-gradient, added-
 viscous-unsteady or rotational-collision models have no `dpdx_g` and similar fields. A
 field that is in a golden but no longer written fails the comparison.
 
-The 63 cases fall into four groups: [shock tube](#shock-tube-cases) (force models,
+The 73 cases fall into five groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
-collisions, walls), [gas only](#gas-only-cases) (the flow solver without particles) and
-[2D](#2d-cases) (`DIMENS 2`).
+collisions, walls), [gas only](#gas-only-cases) (the flow solver without particles),
+[2D](#2d-cases) (`DIMENS 2`) and [sector](#sector-cases) (rotational periodicity).
 One [unit test](#unit-test) runs with them.
 
 ## Running
@@ -133,7 +133,8 @@ Tolerances:
 ## What a Case Is
 
 Cases are defined in `rocpicl_tests/cases.py`. Each one specifies:
-- a box grid made with `mesh_generator`;
+- a box grid made with `mesh_generator`, or a sector of a cylinder made with
+  `utilities/mesh/sector_mesh.py`;
 - `templates/rectshktb.inp` with per-case overrides, written as `{("SECTION", "KEY"): value}`;
 - a boundary layout:
   - `shocktube`: `templates/rectshktb.bc`, with inflow at x−, outflow at x+, and periodic y and z;
@@ -142,9 +143,13 @@ Cases are defined in `rocpicl_tests/cases.py`. Each one specifies:
   - `partwall`: slip walls on all six faces that are also particle walls (`PARTWALL 1`);
   - `shocktube-2d`, `periodic-2d`, `closed-2d`, `partwall-2d`: the same in x and y, with
     `BC_VIRTUAL` z patches;
+  - `sector`: the `.bc` of the sector tool: the two planes a rotational periodic pair, an
+    outflow at the outer radius, and `BC_VIRTUAL` z patches (one layer) or a periodic pair
+    (several layers);
 - a particle list `(x, y, z, dp)` or `(x, y, z, dp, u, v, w)` (without a velocity the
   particle starts at rest), written to `points.dat` as `x y z vx vy vz dp`; density and
   specific heat come from `DENSITY` and `SPECIFICHEAT` in `# PICL`;
+- a case name (`rectshktb` unless set: `cylds` gives the radial blast initial state);
 - a rank count.
 
 Particles never start on a cell face, so round-off can't decide which cell or rank owns
@@ -173,6 +178,9 @@ by particle.
 | `wall_collisions` | Every particle that reaches a wall of the box rebounds from it and ends inside the box, clear of the wall; one that hits a single wall rebounds with the input `EREST` (within 0.035) |
 | `pg_impulse` | With the pressure-gradient force alone, each particle the shock has passed has `vp_x` = (p2 − p1)/(ρ_p V_s), V_s = ρ2 u2/(ρ2 − ρ1), within 2% |
 | `planar` | Gas density and energy vary by less than 2e-3 across y-z in each x-column (a plane shock between slip walls) |
+| `cradle_twin` | The second half of the particles is the first half moved away from the periodic boundary (shifted, or rotated into the sector); every particle ends where its twin ends, moved back, to 1e-10 m and 1e-5 m/s |
+| `ballistic_periodic` | Without forces, every particle ends on its straight path, brought back by the rotation of the planes and the z periodicity, to 1e-11 m |
+| `quarter_of` | The gas at the particles and their volume fraction match the unrotated copy in the referenced full-cylinder case, to 1e-8 of each field's largest value |
 | `same_as` | Particles match the referenced case, on a different number of ranks or with a different setting (all particle fields, or only those named by the case's `same_as_fields`) |
 
 The state a case is judged by (goldens, physics checks) comes from its dumps in
@@ -250,6 +258,7 @@ walls. The gas is uniform (1.2 kg/m³, 101 325 Pa) unless stated otherwise.
 | `box/ghost-collisions` | 1, 2, 4 | Periodic; 9 overlapping pairs at rest, collisions as the only force | `collision_pairs`, `same_as` | Pairs across bin faces, rank borders, periodic faces, edges and corners all behave like a pair inside one bin (ghost particles) |
 | `box/binary-collisions` | 1, 2, 4 | Periodic; 4 approaching pairs (equal and 8:1 mass, head-on and oblique, 1–10 m/s), `COLLISIONS 2` | `binary_collisions`, `same_as` | Momentum and angular momentum conserved, rebound with `EREST` (3afd23a) |
 | `box/walls` | 1, 2, 4 | Closed, all walls `PARTWALL 1`; 7 particles hitting faces, a quad diagonal, an edge and a corner at 1–300 m/s | `wall_collisions`, `same_as` (particle state only) | Particle–wall contacts (2ff0cd8) |
+| `box/cradle-linear` | 2 | Periodic; a Newton's cradle (5 resting particles, one at 10 m/s, elastic collisions only) across the face x = 0, and its twin shifted into the box | `particles_moved`, `cradle_twin` | Collisions through linear periodic faces |
 
 All box cases with particles also check `particles_moved` where the particles are
 meant to move.
@@ -348,6 +357,20 @@ has no z velocity.
 | `2d/walls` | 1, 2, 4 | Particle walls on x and y: faces, a quad diagonal, a corner | `particles_moved`, `wall_collisions` | Particle walls in 2D |
 | `2d/gas-jump/lz1mm` | 1, 2 | Gas only, slip walls | `mass`, `gas_energy` | Flow solver conservation in 2D |
 | `2d/gas-jump/lz100um` | 1 | Same, 0.1 mm thick | `mass`, `gas_energy`, gas fields equal to `lz1mm` | The gas does not depend on the thickness: virtual patches set no time-step limit |
+| `2d/sector-wedge-crossing` | 2 | 5° wedge (annulus, r = 20–30 mm); three particles without forces crossing the planes several times at up to 500 m/s | `particles_moved`, `ballistic_periodic`, `in_plane` | Crossing a rotational plane, and the rotation of the velocity |
+
+### Sector Cases
+
+Sectors of a cylinder about z made with `utilities/mesh/sector_mesh.py` (`bc="sector"`),
+the two planes a rotational periodic pair. Gas at rest and one-way coupling, except the
+blast.
+
+| Case | Ranks | Setup | Checks | What it guards |
+|---|---|---|---|---|
+| `sector/cradle` | 4 | 2D quarter cylinder; a Newton's cradle across the plane y = 0, and its twin rotated 45° into the sector; elastic collisions only | `particles_moved`, `cradle_twin`, `in_plane` | Collisions across a rotational plane (rotated ghost particles) |
+| `sector/z-periodic-crossing` | 4 | 3D quarter cylinder, 1 mm deep in 4 layers, z periodic; three particles without forces crossing the planes, the z faces, and both planes near the axis | `particles_moved`, `ballistic_periodic` | Rotational and linear periodicity together; a particle is wrapped only in its periodic directions (3aa799c) |
+| `sector/quarter-vs-full/full` | 8 | Full cylinder of four copies of the quarter mesh; radial blast (`cylds`) over 96 frozen particles, four rotated copies of the quarter's | `in_plane` | Reference for the quarter case |
+| `sector/quarter-vs-full/quarter` | 2 | Quarter cylinder, the same blast over 24 frozen particles | `in_plane`, `quarter_of` | Interpolation and projection across the planes and around the axis (rotated cell images) |
 
 ## Adding a Case
 

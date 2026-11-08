@@ -7,8 +7,8 @@ across MPI ranks and periodic boundaries. For each: what was wrong, how it was f
 how the fix was checked.
 
 All changes are covered by the regression suite in [Regression Tests](../tests/README.md):
-67 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks,
-and one unit test.
+73 cases, compared against stored goldens and checked against physics on 1, 2 and 4 ranks
+(up to 8 for the full cylinder), and one unit test.
 
 ## Contents
 
@@ -55,11 +55,15 @@ and one unit test.
   - [The New Count](#the-new-count)
   - [How the New Count Was Checked](#how-the-new-count-was-checked)
 - [MPI and Periodic Boundaries](#mpi-and-periodic-boundaries)
+- [Periodicity from the Boundary Conditions](#periodicity-from-the-boundary-conditions)
+  - [What Changed](#what-changed-2)
+  - [How It Was Checked](#how-it-was-checked-1)
+  - [Limits](#limits)
 - [2D Runs](#2d-runs)
   - [How It Works](#how-it-works)
   - [Choosing the Thickness](#choosing-the-thickness)
   - [Two Bugs Found on the Way](#two-bugs-found-on-the-way-1)
-  - [How It Was Checked](#how-it-was-checked-1)
+  - [How It Was Checked](#how-it-was-checked-2)
   - [The Wedge against 3D](#the-wedge-against-3d)
 - [Strong-Shock Numerics: Open Findings](#strong-shock-numerics-open-findings)
   - [The Test](#the-test)
@@ -73,7 +77,7 @@ and one unit test.
   - [Why a Quadratic Fit](#why-a-quadratic-fit)
   - [The Same Shock in MFC](#the-same-shock-in-mfc)
   - [How It Is Checked](#how-it-is-checked)
-  - [Limits](#limits)
+  - [Limits](#limits-1)
 - [Still Open](#still-open)
 - [Reproducing the Figures](#reproducing-the-figures)
 
@@ -107,6 +111,8 @@ and one unit test.
 | Particle bins | A particle bed stretched along one direction stopped the run with "Error in Createbins": the bin count split the bins with a wrong formula and went on with too many bins when its search failed (12% of bin boxes in a scan) | Bins added one at a time to the direction with the longest bins; valid for every box. Unit test in the suite | [0688f68](https://github.com/thierrydaoud/Rocflu/commit/0688f68), [0887252](https://github.com/thierrydaoud/Rocflu/commit/0887252) |
 | 2D | ppiclF stopped unless it was in 3D, so a 2D case had to run as a thin 3D one | `DIMENS 2` sets `ppiclf_ndim` 2: bins, ghosts, interpolation, projection, neighbour search and walls work in the plane; about 11 times faster on the wedge | [e687f98](https://github.com/thierrydaoud/Rocflu/commit/e687f98) |
 | Time step | Virtual faces counted in the CFL sum, so a thin 2D mesh took more steps (2227 at Δz = 0.1 mm against 403 at 10 mm) | Left out: 385 steps at every thickness, and stricter case checks | [6016d2a](https://github.com/thierrydaoud/Rocflu/commit/6016d2a) |
+| Periodicity | Particle periodicity was set apart from the gas, with `PERIODICX/Y/Z` kept in step with the `.bc` by hand, and a sector of a cylinder could be periodic only for the gas: the particles needed symmetry planes, where the bed ran ahead along the walls | Particle periodicity comes from the `BC_PERIODIC` pairs of the `.bc`. A rotation makes the particles rotationally periodic: they cross the planes, and the interpolation, the projection and the collisions reach across them | [3095a9c](https://github.com/thierrydaoud/Rocflu/commit/3095a9c), [7465182](https://github.com/thierrydaoud/Rocflu/commit/7465182), [8cdbe19](https://github.com/thierrydaoud/Rocflu/commit/8cdbe19), [84d94fd](https://github.com/thierrydaoud/Rocflu/commit/84d94fd) |
+| Linear periodicity | With one direction periodic, a particle was wrapped in all three: one crossing a wall of a z-periodic domain jumped by the domain length, out of the mesh | Wrapped only in the periodic directions | [3aa799c](https://github.com/thierrydaoud/Rocflu/commit/3aa799c) |
 | Particle gradients | The particle forces used the gas solver's WENO-smoothed gradients: at a shock a particle got 58% of the pressure-gradient impulse | A separate least-squares fit with the resolvable second derivatives, without WENO or limiter: the impulse is exact to 0.1%, and no false wall-normal gradient (30% with a linear fit) | [2c93e55](https://github.com/thierrydaoud/Rocflu/commit/2c93e55) |
 
 ## Regression Tests
@@ -120,14 +126,17 @@ decomposition independence), which say whether the result is right. The cases ar
 - **Shock tube** (15 cases): a Mach 1.27 shock over 1, 2 or 4 particles, one- and two-way,
   with each force model switched on in turn (added mass, pressure gradient, viscous
   unsteady, heat transfer, quasi-steady fluctuations, Parmar and Gidaspow drag).
-- **Box** (25 cases): an 8 mm cube, periodic or closed. Momentum and energy exchange,
+- **Box** (26 cases): an 8 mm cube, periodic or closed. Momentum and energy exchange,
   a quiescent cloud, heat exchange at rest, interpolation of a linear field, the
   projection on elongated cells, collisions through ghosts and periodic faces, binary
-  collisions, and particle–wall collisions.
+  collisions, particle–wall collisions, and a Newton's cradle across a periodic face.
 - **Gas only** (6 cases): a pressure jump in a closed, a periodic and a symmetry box,
   testing the flow solver's own conservation.
-- **2D** (21 cases): the coupling, interpolation, projection, collisions, walls and gas
-  conservation with `DIMENS 2` (see [2D Runs](#2d-runs)).
+- **2D** (22 cases): the coupling, interpolation, projection, collisions, walls and gas
+  conservation with `DIMENS 2` (see [2D Runs](#2d-runs)), and particles crossing the
+  planes of a 5° wedge.
+- **Sector** (4 cases): rotational periodicity in a quarter cylinder (see
+  [Periodicity from the Boundary Conditions](#periodicity-from-the-boundary-conditions)).
 - **Unit** (1 test): ppiclF's bin count, without MPI (see
   [Particle Bins](#particle-bins-number-of-bins-per-direction)).
 
@@ -136,7 +145,7 @@ them, from `tests/`:
 
 ```bash
 module purge; module load gcc/14.2.0 openmpi/5.0.7
-./run_tests.py run                     # all 67 cases and the unit test
+./run_tests.py run                     # all 73 cases and the unit test
 ./run_tests.py run -o box/walls        # a subset
 ```
 
@@ -1340,6 +1349,58 @@ on 1, 2 and 4 ranks.
 - **Uninitialized reads ([b10c5f1](https://github.com/thierrydaoud/Rocflu/commit/b10c5f1)).** The NSCBC patch `dv` is set at initialization, and an
   out-of-bounds read of `dv(4)` is fixed.
 
+## Periodicity from the Boundary Conditions
+
+Particle periodicity used to be an input of its own (`PERIODICX/Y/Z` in `# PICL`) that had
+to agree with the periodic patches of the gas. Rotational periodicity existed only for the
+gas: the old angular routines of ppiclF were commented out, so a quarter cylinder ran with
+symmetry planes, and in a radial blast the particle bed ran ahead along them. The
+particles now take their periodicity from the `BC_PERIODIC` pairs of `<case>.bc`, linear
+or rotational ([Boundary Conditions](BoundaryConditions.md#periodic-patches)).
+
+### What Changed
+
+- **Read from the `.bc` ([3095a9c](https://github.com/thierrydaoud/Rocflu/commit/3095a9c)).** `PICL_SetPeriodicity` classifies each
+  pair: a translation makes the particles periodic along x, y or z (it must be the length
+  of the domain), anything else is a rotation about `AXIS` by `ANGLE`. The case validator
+  rejects `PERIODICX/Y/Z` and the old angular keys, pointing to the `.bc`.
+- **Crossing a plane ([7465182](https://github.com/thierrydaoud/Rocflu/commit/7465182)).** A particle that leaves through one plane
+  re-enters through the other, its position and every vector it carries rotated (the
+  `vec` lines of `ppiclf_slots.txt`, [e7d6aa1](https://github.com/thierrydaoud/Rocflu/commit/e7d6aa1)).
+- **Interpolation and projection ([8cdbe19](https://github.com/thierrydaoud/Rocflu/commit/8cdbe19)).** ppiclF also maps rotated images
+  of the cells near the planes, so the gas fit and the volume-fraction projection see the
+  cells on the other side. Vector fields are rotated before they are sent, and deposits are
+  rotated back.
+- **Collisions ([84d94fd](https://github.com/thierrydaoud/Rocflu/commit/84d94fd)).** Rotated ghost particles let a particle collide with
+  one on the other side of a plane.
+- **Linear periodicity ([3aa799c](https://github.com/thierrydaoud/Rocflu/commit/3aa799c)).** A particle was wrapped in all three
+  directions as soon as one was periodic; it is now wrapped only in the periodic ones.
+
+### How It Was Checked
+
+Six regression cases ([Regression Tests](../tests/README.md#sector-cases)):
+
+- **Newton's cradle across a plane.** A chain of touching particles hit across the plane
+  y = 0 of a quarter cylinder, against the same chain rotated 45° into the sector. With
+  collisions as the only force any rotation is exact, so both must end the same, to
+  1e-10 m (`points.dat` holds 10 digits). The same test across a periodic face of a box
+  checks linear periodicity.
+- **Straight paths.** Particles without forces cross the planes of a 5° wedge several
+  times, and the planes and the z faces of a 3D quarter cylinder periodic in z: each ends
+  on its straight path, rotated or shifted back, to 1e-11 m. The 3D case found the linear
+  periodicity bug.
+- **Quarter against full cylinder.** A radial blast over frozen particles in a quarter
+  cylinder, against a full cylinder made of four copies of the quarter mesh: the gas at the
+  particles and their volume fraction agree to 3e-15.
+- **Existing cases.** The other 68 cases keep their goldens.
+
+### Limits
+
+- Thin wedges have no exact reference: only the straight paths are tested on the 5°
+  wedge.
+- Particles that leave through an outflow patch are not removed (see
+  [Still Open](#still-open)).
+
 ## 2D Runs
 
 `DIMENS 2` now runs the gas and the particles in 2D. ppiclF used to stop unless it was in
@@ -1389,12 +1450,12 @@ moved the velocity by 4%.
 
 ### How It Was Checked
 
-- **Regression suite:** 21 cases under `2d/` ([Regression Tests](../tests/README.md))
+- **Regression suite:** 22 cases under `2d/` ([Regression Tests](../tests/README.md))
   repeat the 3D coupling, interpolation, projection, collision, wall and gas-conservation
   tests in the plane, and check that nothing leaves the plane.
 - **3D results:** dumps stayed byte-identical to the commit before the 2D work (502 files).
 - **Case validator:** rejects a mesh more than one cell thick, virtual patches that are not
-  the z faces, particles off the mid-plane, nonzero v_z, and `PERIODICZ 1`.
+  the z faces, particles off the mid-plane, and nonzero v_z.
 
 ### The Wedge against 3D
 
@@ -1709,6 +1770,9 @@ Known limitations:
   files that restarts read are single precision.
 - `FEEDBACK 0` (one-way) still changes the gas through φ in the pressure.
 - PICL supports only one region per MPI rank, and there is no check for this.
+- Particles that leave through an outflow patch are not removed. Their interpolation
+  stencil shrinks to the last ring of cells and the run stops with "Singular
+  least-squares interpolation matrix" (a quarter-cylinder blast at 0.99 ms).
 
 ## Reproducing the Figures
 

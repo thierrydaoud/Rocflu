@@ -8,6 +8,7 @@ checks the file against the rules on this page.
 
 - [The File](#the-file)
 - [Sections and Their Keys](#sections-and-their-keys)
+- [Periodic Patches](#periodic-patches)
 - [Removed Sections and Keys](#removed-sections-and-keys)
 
 ## The File
@@ -112,6 +113,11 @@ With particles on, the particles take their periodicity from these patches:
 - the two rotational patches must be flat, contain the axis, and bound a sector of at
   most 180 degrees; all rotational pairs must have the same axis and angle, and no
   translation may lie in the plane of the rotation. The run stops at start-up otherwise.
+
+Any mesh works if the faces of the two planes match after the rotation. The regression
+cases make their sectors with `utilities/mesh/sector_mesh.py`, which also writes a `.bc`
+to start from; its meshes are a first version and have not been tuned for production
+runs.
 
 ## Removed Sections and Keys
 
