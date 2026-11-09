@@ -144,6 +144,9 @@ class Case:
     # Full-cylinder case this quarter must match (particle k against the
     # full case's particle 4k-3, its unrotated copy)
     quarter_of: Optional[str] = None
+    # Expected stop: rflump must not finish, and each regular expression must
+    # match a line of rflump.log. No golden, post program or physics checks.
+    expect_stop: Optional[List[str]] = None
 
     @property
     def uuid(self):
@@ -332,6 +335,23 @@ def run_solver(case, rundir, exe_dir, slurm):
                        if "srun:" in l or "slurm" in l.lower()][:3]
         raise RunError("rflump failed (rc=%d; see rflump.log)%s"
                        % (rc, ("; slurm: " + " | ".join(slurm_lines)) if slurm_lines else ""))
+
+
+def run_expect_stop(case, rundir, exe_dir, slurm):
+    """Run rflump expecting it to stop (case.expect_stop). Returns a list of
+    failure messages."""
+    cmd = srun_prefix(case.nranks, case.timeout_min, slurm)
+    cmd += [os.path.join(exe_dir, "rflump"), "-c", case.casename, "-v", "1"]
+    rc = _run(cmd, rundir, "rflump.log", timeout=60 * (case.timeout_min + 5))
+    with open(os.path.join(rundir, "rflump.log"), errors="replace") as f:
+        log = f.read()
+    errors = []
+    if rc == 0 or "| Finished" in log:
+        errors.append("rflump did not stop (rc=%d; see rflump.log)" % rc)
+    for pattern in case.expect_stop:
+        if not re.search(pattern, log, re.MULTILINE):
+            errors.append("rflump.log has no line matching %r" % pattern)
+    return errors
 
 
 def restart_test(case, rundir, exe_dir, slurm):

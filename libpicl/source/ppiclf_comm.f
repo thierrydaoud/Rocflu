@@ -64,11 +64,11 @@
       END
 !-----------------------------------------------------------------------
 #ifdef PPICLC
-      SUBROUTINE ppiclf_comm_InitOverlapGrid(ncell,fluidGrid,
+      SUBROUTINE ppiclf_comm_InitOverlapGrid(ncell,nrow,fluidGrid,
      >                                       domainRange,periodic)
      > bind(C, name="ppiclc_comm_InitOverlapGrid")
 #else
-      SUBROUTINE ppiclf_comm_InitOverlapGrid(ncell,fluidGrid,
+      SUBROUTINE ppiclf_comm_InitOverlapGrid(ncell,nrow,fluidGrid,
      >                                       domainRange,periodic)
 #endif
       use ppiclf_data
@@ -81,12 +81,14 @@
 !
 ! Input:
 !
-      INTEGER*4 ncell
-      REAL*8    fluidGrid(7,ncell)
-      ! Expected size: fluidGrid(7,ncell)
+      INTEGER*4 ncell, nrow
+      REAL*8    fluidGrid(nrow,ncell)
       ! Indicies 1-3: Centroid x,y,z position
       ! Indicies 4-6: Max cell dx,dy,dz based on any vertex combination
       ! Index      7: Cell Volume 
+      ! Index      8: number of boundary faces of the cell, then per
+      !               face (ppiclf_bflen): outward normal, centroid,
+      !               patch (negative for a particle wall)
       REAL*8    domainRange(2,3)
       ! min, max of the whole fluid domain in x, y, z
       LOGICAL   periodic(3)
@@ -120,6 +122,10 @@
         END IF
       END DO
 
+      IF(nrow .LT. 8 .OR. MOD(nrow-8,ppiclf_bflen) .NE. 0)
+     >  CALL ppiclf_exittr('InitOverlap: bad row count$',0.0d0,nrow)
+      CALL ppiclf_data_SetGridRows(nrow)
+
       ! Arrays indexed by the fluid solver's cells: exactly ncell
       CALL ppiclf_data_GrowFV(ncell)
 
@@ -127,7 +133,7 @@
       ppiclf_nFVCells = ncell
 
       DO ie=1,ppiclf_nFVCells
-        DO i = 1,7
+        DO i = 1,nrow
           ppiclf_fluid_grid(i,ie) = fluidGrid(i,ie)
         END DO
       END DO
@@ -225,6 +231,30 @@
       CALL ppiclf_comm_RotMatrix(m,rot)
       center  = MATMUL(rot,grid(1:3))
       celllen = MATMUL(ABS(rot),grid(4:6))
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_comm_RotImageFaces(m,grid)
+      use ppiclf_data
+!
+! Boundary faces of image m of a cell (rows 9 on of ppiclf_picl_grid):
+! normals and centroids rotated
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+      INTEGER*4 m, k, b
+      REAL*8 grid(*), rot(3,3)
+!
+      IF(NINT(grid(8)) .EQ. 0) RETURN
+      CALL ppiclf_comm_RotMatrix(m,rot)
+      DO k = 1,NINT(grid(8))
+        b = 8 + (k-1)*ppiclf_bflen
+        grid(b+1:b+3) = MATMUL(rot,grid(b+1:b+3))
+        grid(b+4:b+6) = MATMUL(rot,grid(b+4:b+6))
+      END DO
 
       RETURN
       END
@@ -911,12 +941,16 @@
         ! These copy all indicies since Fortran is column-major
         iee = ppiclf_cell_map(1,ie)
         CALL ppiclf_copy(ppiclf_picl_grid(1,ie)
-     >                 ,ppiclf_fluid_grid(1,iee),7)
-        ! A rotational image: rotated centroid and cell lengths
-        IF(ppiclf_cell_map(7,ie) .NE. 0)
-     >    CALL ppiclf_comm_RotImageGeom(ppiclf_cell_map(7,ie),
+     >                 ,ppiclf_fluid_grid(1,iee),ppiclf_lgrid)
+        ! A rotational image: rotated centroid, cell lengths and
+        ! boundary faces
+        IF(ppiclf_cell_map(7,ie) .NE. 0) THEN
+          CALL ppiclf_comm_RotImageGeom(ppiclf_cell_map(7,ie),
      >      ppiclf_fluid_grid(1,iee),ppiclf_picl_grid(1,ie),
      >      ppiclf_picl_grid(4,ie))
+          CALL ppiclf_comm_RotImageFaces(ppiclf_cell_map(7,ie),
+     >      ppiclf_picl_grid(1,ie))
+        END IF
  
         ! ppiclf_filter initially set in PICL_InitSolver
         ! Want to only consider cells that reside in the particle domain
@@ -950,7 +984,7 @@
       ! njj - Row index of ppiclf_cell_map with receiver processor/rank
       njj  = 3
       ! nrr - ppiclf_rocGrid row size declared
-      nrr  = 7
+      nrr  = ppiclf_lgrid
       ! Defines sorting order
       nkey(1) = 2
       nkey(2) = 1

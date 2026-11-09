@@ -25,10 +25,11 @@ on needs them (`ppiclf_user_Layout`), so cases without pressure-gradient, added-
 viscous-unsteady or rotational-collision models have no `dpdx_g` and similar fields. A
 field that is in a golden but no longer written fails the comparison.
 
-The 73 cases fall into five groups: [shock tube](#shock-tube-cases) (force models,
+The 76 cases fall into six groups: [shock tube](#shock-tube-cases) (force models,
 one- and two-way coupling), [box](#box-cases) (conservation, interpolation, projection,
 collisions, walls), [gas only](#gas-only-cases) (the flow solver without particles),
-[2D](#2d-cases) (`DIMENS 2`) and [sector](#sector-cases) (rotational periodicity).
+[2D](#2d-cases) (`DIMENS 2`), [sector](#sector-cases) (rotational periodicity) and
+[stop](#stop-cases) (runs that must stop: particles outside the domain).
 One [unit test](#unit-test) runs with them.
 
 ## Running
@@ -121,7 +122,7 @@ its value against the golden.
 
 | Status | Meaning |
 |---|---|
-| `PASS` | Matches the golden, and the physics checks pass |
+| `PASS` | Matches the golden, and the physics checks pass. A stop case: stopped with the expected messages |
 | `FAIL` | The run failed, the result differs from the golden, or a physics check failed |
 | `XFAIL` | The case has a `known_issue`. Its physics checks fail as expected, and it still matches its golden |
 | `XPASS` | The physics checks of a `known_issue` case now pass. Remove the marker |
@@ -151,6 +152,10 @@ Cases are defined in `rocpicl_tests/cases.py`. Each one specifies:
   specific heat come from `DENSITY` and `SPECIFICHEAT` in `# PICL`;
 - a case name (`rectshktb` unless set: `cylds` gives the radial blast initial state);
 - a rank count.
+
+A case with `expect_stop` (a list of regular expressions) must stop instead of finishing:
+rflump must not reach the end, and each expression must match a line of `rflump.log`. It
+has no golden, post program or physics checks.
 
 Particles never start on a cell face, so round-off can't decide which cell or rank owns
 them. A case's id changes whenever its definition changes. A stale golden is reported
@@ -371,6 +376,18 @@ blast.
 | `sector/z-periodic-crossing` | 4 | 3D quarter cylinder, 1 mm deep in 4 layers, z periodic; three particles without forces crossing the planes, the z faces, and both planes near the axis | `particles_moved`, `ballistic_periodic` | Rotational and linear periodicity together; a particle is wrapped only in its periodic directions (3aa799c) |
 | `sector/quarter-vs-full/full` | 8 | Full cylinder of four copies of the quarter mesh; radial blast (`cylds`) over 96 frozen particles, four rotated copies of the quarter's | `in_plane` | Reference for the quarter case |
 | `sector/quarter-vs-full/quarter` | 2 | Quarter cylinder, the same blast over 24 frozen particles | `in_plane`, `quarter_of` | Interpolation and projection across the planes and around the axis (rotated cell images) |
+
+### Stop Cases
+
+Runs that must stop (`expect_stop`) because a particle's centre is outside the fluid
+domain. Each requires the particle's line in `points.dat`, the patch it crossed and the
+final error line in `rflump.log`. Gas at rest, no forces.
+
+| Case | Ranks | Setup | Requires | What it guards |
+|---|---|---|---|---|
+| `stop/outside-at-start` | 2 | 2D quarter cylinder; particle 2 at r = 20.1 mm, outside the arc but inside the grid's box | particle 2, patch 3, t = 0 | The start-up check, where the validator's box check cannot see the particle |
+| `stop/outflow-near-plane` | 4 | 2D quarter cylinder; particle 2 leaving radially at 400 m/s, 0.3° from the plane y = 0 | particle 2, patch 3 | The check during the run, on rotated cell images |
+| `stop/wall-without-partwall` | 1 | Closed box (`closed`, no `PARTWALL`); particle 2 at 400 m/s towards z = 0 | particle 2, patch 5 | A wall that is not a particle wall |
 
 ## Adding a Case
 

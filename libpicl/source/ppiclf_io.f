@@ -1506,6 +1506,8 @@ c1511 continue
       call mpi_bcast(nsaved,1,MPI_INTEGER4,0,ppiclf_comm,ierr)
       call mpi_bcast(saved,ppiclf_lrp,MPI_INTEGER4,0,ppiclf_comm,ierr)
       call mpi_bcast(ntotal,1,MPI_INTEGER8,0,ppiclf_comm,ierr)
+      ! Lines of points.dat per rank (restarts keep the rank count)
+      ppiclf_idlines = int((ntotal + ppiclf_np - 1)/ppiclf_np,4)
       call mpi_bcast(istep,1,MPI_INTEGER8,0,ppiclf_comm,ierr)
       call mpi_bcast(time,1,MPI_DOUBLE_PRECISION,0,ppiclf_comm,ierr)
       call mpi_bcast(ntimebh,1,MPI_INTEGER4,0,ppiclf_comm,ierr)

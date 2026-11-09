@@ -177,6 +177,8 @@
       INTEGER*4  iendian ! From rocpicl: 0
       INTEGER*4  npart
       INTEGER*4  l
+      INTEGER*4  ppiclf_iglmax
+      EXTERNAL   ppiclf_iglmax
       REAL*8     y(*)
       REAL*8     rprop(*)
       REAL*8     filt2(3)
@@ -206,6 +208,8 @@
         CALL ppiclf_prints('   *End InitZero$')
         CALL ppiclf_prints('   *Begin AddParticles$')
         CALL ppiclf_solve_AddParticles(npart,y,rprop)
+        ! Lines of points.dat per rank: rank 0 reads the most
+        ppiclf_idlines = ppiclf_iglmax(npart,1)
         CALL ppiclf_prints('   *End AddParticles$')
       END IF
 
@@ -947,10 +951,13 @@ c----------------------------------------------------------------------
       IMPLICIT NONE
 !
       INCLUDE "PPICLF"
+      INCLUDE "mpif.h"
 !
 ! Internal:
 !
-      INTEGER*4 j
+      INTEGER*4 j, nout, ierr
+      INTEGER*4 ppiclf_iglsum
+      EXTERNAL  ppiclf_iglsum
 !
       ! Every interpolated field must have been handed over this stage
       ! (ppiclf_solve_InterpFieldUser), or none: the call from
@@ -986,7 +993,17 @@ c----------------------------------------------------------------------
       ! Maps up to 27 closest cell centers to particle (projection
       ! stencil) and interpolates rprop data to the particles
       ! (ppiclf_solve_InterpLS)
+      ppiclf_noutside = 0
       CALL ppiclf_solve_SBParticleToCellMap
+
+      ! Stop on every rank if a particle is outside the fluid domain
+      ! (each rank has printed its own)
+      nout = ppiclf_iglsum(ppiclf_noutside,1)
+      IF(nout .GT. 0) THEN
+        IF(ppiclf_nid .EQ. 0) CALL ppiclf_exittr(
+     >    'Particles outside the fluid domain:$',ppiclf_time,nout)
+        CALL MPI_Barrier(ppiclf_comm,ierr)
+      END IF
 
       ppiclf_int_ngiven = 0
       ppiclf_int_given = .FALSE.
@@ -1193,7 +1210,8 @@ c----------------------------------------------------------------------
      >           temp_SBin, iSB, jSB, kSB, loopSB, i_count,
      >           firstSB(3), lastSB(3)  
       REAL*8    bin_Min(3), x_range(3), size_SBin(3)
-      LOGICAL   remove
+      LOGICAL   ppiclf_solve_Outside
+      EXTERNAL  ppiclf_solve_Outside
       ! Least-squares interpolation stencil: cells whose support
       ! (1.8 cell lengths per direction) contains the particle.
       ! At most 4 per direction on a uniform hex mesh.
@@ -1513,44 +1531,12 @@ c----------------------------------------------------------------------
           END DO !jSB
         END DO !iSB
         nnearest = MIN(nnearest,27)
-        remove = .FALSE.
-        IF(nnearest .LT. 1) remove = .TRUE.
 
-        ! Thierry - 03/11/2026 - This section is not correct 
-        ! as it was deleting erroneously particles. Commenting out for
-        ! now.
-
-!        ! Remove particle outside of any cell
-!        IF(nnearest .LT. 27 .AND. nnearest .GE. 1) THEN
-!         ie = CellID_nearest(1)
-!         DO l = 1,3
-!          ! similar distance check as above, but only for the cell that is
-!          ! closest to the particle (1st index in nnearest)
-!          ! used ABS since distance isn't squared.
-!          ! ppiclf_interp_dchk is set to be 1.5xmax cell length per
-!          ! dimension (in SUBROUTINE ppiclf_solve_InterpTupleTransfer)
-!          IF(ppiclf_linperiodic(l) .AND.
-!     >                            ppiclf_EqualDomain(l)) THEN
-!            dl = ABS(MIN((ppiclf_picl_grid(l,ie) - xp(l)), 
-!     >             (binblength(l)-ABS(ppiclf_picl_grid(l,ie)
-!     >              - xp(l)))))
-!          ELSE
-!            dl = ABS(ppiclf_picl_grid(l,ie) - xp(l))
-!          END IF
-!          ! Ensure particle is within 1/2 cell distance of one cell.
-!          IF(dl .GT. ppiclf_interp_dchk(l)/1.5D0*0.5D0) remove = .TRUE.
-!         END DO
-!        END IF
-
-        IF (remove) THEN
-          ! Particle is outside of fluid domain.
-          ! iprop(8,ip) set to -1 means it will be removed
-          ! from ppiclf_y, ppiclf_rprop and rprop3
-          ppiclf_iprop(9,ip) = -1
-          ppiclf_remove_particle = .TRUE.
-          ! Removed silently for now; whether this should stop the run
-          ! instead is an open decision
-          remove = .FALSE.
+        ! Outside the fluid domain: not interpolated, and the run stops
+        ! after this loop (ppiclf_solve_InterpParticleGrid)
+        IF (ppiclf_solve_Outside(ip,xp,nnearest,CellID_nearest,
+     >                           perl,binblength)) THEN
+          CYCLE
         ELSE
           partCount = partCount + 1
           ! use partCount since ip includes possible removed particles
@@ -1584,6 +1570,89 @@ c----------------------------------------------------------------------
         CALL ppiclf_solve_RemoveParticle
         ppiclf_remove_particle = .FALSE.
       END IF
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      LOGICAL FUNCTION ppiclf_solve_Outside(ip,xp,n,ids,perl,blen)
+      use ppiclf_data
+!
+! True if particle ip (centre xp) is outside the fluid domain: no fluid
+! cell near it, or its centre is beyond the boundary face nearest to it
+! among the faces of its n nearest cells (ids). Offsets across linear
+! periodic faces as in ppiclf_solve_SBParticleToCellMap (perl, blen).
+! A particle wall pushes particles back from behind it, so there only
+! a centre more than a cell length behind it counts. The particle is
+! printed (at most 20 per rank) and counted in ppiclf_noutside.
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+      INTEGER*4 ip, n, ids(*)
+      REAL*8    xp(3), blen(3)
+      LOGICAL   perl(3)
+!
+      INTEGER*4 i, k, l, b, ie, patch
+      INTEGER*8 line
+      REAL*8    v(3), d2, best, side, tol
+!
+      best  = HUGE(1.0D0)
+      side  = 0.0D0
+      tol   = 0.0D0
+      patch = 0
+      DO i = 1,n
+        ie = ids(i)
+        DO k = 1,NINT(ppiclf_picl_grid(8,ie))
+          b = 8 + (k-1)*ppiclf_bflen
+          DO l = 1,3
+            v(l) = xp(l) - ppiclf_picl_grid(b+3+l,ie)
+            IF (perl(l)) THEN
+              IF (ABS(v(l)) .GT. blen(l)-ABS(v(l)))
+     >          v(l) = v(l) - SIGN(blen(l),v(l))
+            END IF
+          END DO
+          d2 = v(1)**2 + v(2)**2 + v(3)**2
+          IF (d2 .LT. best) THEN
+            best  = d2
+            side  = v(1)*ppiclf_picl_grid(b+1,ie)
+     >            + v(2)*ppiclf_picl_grid(b+2,ie)
+     >            + v(3)*ppiclf_picl_grid(b+3,ie)
+            patch = NINT(ppiclf_picl_grid(b+7,ie))
+            tol   = MAXVAL(ppiclf_picl_grid(4:6,ie))
+            IF (patch .GT. 0) tol = 1.0D-6*tol
+          END IF
+        END DO
+      END DO
+
+      ppiclf_solve_Outside = (n .LT. 1) .OR.
+     >                       (patch .NE. 0 .AND. side .GT. tol)
+      IF (.NOT. ppiclf_solve_Outside) RETURN
+
+      ppiclf_noutside = ppiclf_noutside + 1
+      IF (ppiclf_noutside .GT. 20) RETURN
+      line = INT(ppiclf_iprop(2,ip),8)*ppiclf_idlines
+     >     + ppiclf_iprop(1,ip)
+      IF (ppiclf_idlines .GT. 0) THEN
+        WRITE(6,'(A,I0,A)') 'PPICLF: particle ',line,
+     >    ' (line of points.dat) is outside the fluid domain'
+      ELSE
+        WRITE(6,'(A,I0,A,I0,A)') 'PPICLF: particle ',
+     >    ppiclf_iprop(1,ip),' read by rank ',ppiclf_iprop(2,ip),
+     >    ' is outside the fluid domain'
+      END IF
+      WRITE(6,'(A,1P,E14.6,A,3E14.6)') '  t =',ppiclf_time,
+     >  ' s, x y z =',xp(1),xp(2),xp(3)
+      IF (n .LT. 1) THEN
+        WRITE(6,'(A)') '  no fluid cell near it'
+      ELSE IF (patch .GT. 0) THEN
+        WRITE(6,'(A,I0,A,1P,E11.3,A)') '  beyond patch ',patch,
+     >    ' by ',side,' m'
+      ELSE
+        WRITE(6,'(A,I0,A,1P,E11.3,A)') '  behind particle-wall patch ',
+     >    -patch,' by ',side,' m'
+      END IF
+      FLUSH(6)
 
       RETURN
       END

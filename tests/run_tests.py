@@ -92,6 +92,9 @@ def run_case(case, args):
             if invalid:
                 res["errors"] += ["case validator: " + e for e in invalid]
                 return res
+            if case.expect_stop:
+                res["errors"] += rcase.run_expect_stop(case, rundir, args.exe, slurm)
+                return res
             try:
                 rcase.run_solver(case, rundir, args.exe, slurm)
                 break

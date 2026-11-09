@@ -5,6 +5,7 @@ so round-off cannot decide which cell or rank a particle starts in.
 """
 
 import math
+import re
 
 from .case import Case, Grid
 
@@ -753,3 +754,42 @@ add(name="sector/quarter-vs-full/quarter/np2",
     nranks=2, grid=QUARTER_SMALL, bc="sector", casename="cylds",
     inp={**ONE_WAY, **TWO_D, **BLAST}, particles=_qcloud,
     checks=["in_plane"], quarter_of="sector/quarter-vs-full/full/np8")
+
+
+# -- Particles outside the fluid domain: the run must stop -------------------
+def _outside_stop(particle, patch, t=None):
+    lines = [r"^PPICLF: particle %d \(line of points\.dat\) is outside the fluid domain$"
+             % particle,
+             r"^  beyond patch %d by " % patch,
+             r"PPICLF: ERROR .* Particles outside the fluid domain:"]
+    if t is not None:
+        lines.append(r"^  t = +%s s, x y z = " % re.escape(t))
+    return lines
+
+
+STOP_TIME = {("TIMESTEP", "MAXTIME"): "3.0E-06", ("TIMESTEP", "RUNTIME"): "3.0E-06",
+             ("TIMESTEP", "WRITIME"): "1.5E-06", ("TIMESTEP", "PRNTIME"): "1.5E-06"}
+add(name="stop/outside-at-start/np2",
+    description="A particle outside the outer arc of a quarter cylinder (inside its "
+                "bounding box) at t = 0: the run stops at start-up naming it",
+    nranks=2, grid=QUARTER, bc="sector",
+    inp={**uniform_gas(0.0), **ONE_WAY, **TWO_D, **NO_FORCES, **STOP_TIME},
+    particles=[_polar_particle(0.015, 45.0, 0.0, 0.0, 1.0e-4, 5.0e-5),
+               _polar_particle(0.0201, 45.0, 0.0, 0.0, 1.0e-4, 5.0e-5)],
+    expect_stop=_outside_stop(2, 3, t="0.000000E+00"))
+add(name="stop/outflow-near-plane/np4",
+    description="A particle leaving a quarter cylinder through the outflow 0.3 degrees "
+                "from a periodic plane (rotated cell images): the run stops",
+    nranks=4, grid=QUARTER, bc="sector",
+    inp={**uniform_gas(0.0), **ONE_WAY, **TWO_D, **NO_FORCES, **STOP_TIME},
+    particles=[_polar_particle(0.015, 45.0, 0.0, 0.0, 1.0e-4, 5.0e-5),
+               _polar_particle(0.0195, 0.3, 400.0, 0.0, 1.0e-4, 5.0e-5)],
+    expect_stop=_outside_stop(2, 3))
+add(name="stop/wall-without-partwall/np1",
+    description="A particle reaching a slip wall of a closed box without PARTWALL (no "
+                "particle wall): the run stops when it crosses the wall",
+    nranks=1, grid=BOX, bc="closed",
+    inp={**uniform_gas(0.0), **ONE_WAY, **NO_FORCES, **STOP_TIME},
+    particles=[(0.004, 0.004, 0.004, 1.0e-4),
+               (0.004, 0.004, 0.0005, 1.0e-4, 0.0, 0.0, -400.0)],
+    expect_stop=_outside_stop(2, 5))

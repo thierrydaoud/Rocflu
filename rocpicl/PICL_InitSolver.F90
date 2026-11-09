@@ -130,6 +130,9 @@ INTEGER :: errorFlag,icg
    REAL(RFREAL), ALLOCATABLE :: y(:,:), rprop(:,:)
    INTEGER(8) :: npartRead
    REAL(RFREAL), DIMENSION(:,:), ALLOCATABLE :: rocGrid 
+   ! Boundary faces of each cell handed to ppiclF, and rows of rocGrid
+   INTEGER, DIMENSION(:), ALLOCATABLE :: nBFaceCell
+   INTEGER :: nBFaceMax, nGridRows
    REAL(RFREAL), DIMENSION(:,:), ALLOCATABLE :: xGrid, yGrid, zGrid
    REAL(RFREAL),ALLOCATABLE,DIMENSION(:) :: xData,yData,zData,rData,dumData    
    REAL(RFREAL), DIMENSION(:), ALLOCATABLE :: volp,SPL 
@@ -431,22 +434,6 @@ IF(global%restartFromScratch) THEN
    END IF
 
 
-   IF(xp_min < domainRange(1,1) .OR. xp_max > domainRange(2,1) .OR. &
-      yp_min < domainRange(1,2) .OR. yp_max > domainRange(2,2) .OR. &
-      zp_min < domainRange(1,3) .OR. zp_max > domainRange(2,3)) THEN
-     IF(global%myProcid == MASTERPROC) THEN
-       WRITE(*,*) 'WARNING - Particles initalized outside of fluid domain'
-       WRITE(*,*) 'Particle domain boundaries at t=0'
-       WRITE(*,*) 'x - min, max, dx', xp_min, xp_max, xp_max - xp_min
-       WRITE(*,*) 'y - min, max, dx', yp_min, yp_max, yp_max - yp_min
-       WRITE(*,*) 'z - min, max, dx', zp_min, zp_max, zp_max - zp_min
-       WRITE(*,*) 'x fluid min/max', domainRange(:,1)
-       WRITE(*,*) 'y fluid min/max', domainRange(:,2)
-       WRITE(*,*) 'z fluid min/max', domainRange(:,3)
-     END IF
-     CALL MPI_Barrier(global%mpiComm,errorFlag)
-     !CALL ErrorStop(global,0,459,"rocpicl Init: Particles outside fluid domain")
-   END IF
 
    ! Close points.dat file
    CLOSE(iFile, IOSTAT=errorFlag)
@@ -512,7 +499,28 @@ IF ( global%error /= ERR_NONE ) THEN
   CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'PPICLF:zGrid')
 END IF ! global%error
 
-ALLOCATE(rocGrid(7,nCells),STAT=errorFlag)
+! Boundary faces per cell that particles must not cross: all patches but
+! periodic and virtual ones
+ALLOCATE(nBFaceCell(MAX(nCells,1)),STAT=errorFlag)
+IF ( errorFlag /= 0 ) THEN
+  CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'PPICLF:nBFaceCell')
+END IF
+nBFaceCell = 0
+DO iPatch = 1,pGrid%nPatches
+  pPatch => pRegion%patches(iPatch)
+  IF ( pPatch%bcType == BC_PERIODIC .OR. pPatch%bcType == BC_VIRTUAL ) CYCLE
+  DO ifc = 1,pPatch%nBFaces
+    nBFaceCell(pPatch%bf2c(ifc)) = nBFaceCell(pPatch%bf2c(ifc)) + 1
+  END DO
+END DO
+nBFaceMax = MAXVAL(nBFaceCell)
+CALL MPI_Allreduce(MPI_IN_PLACE,nBFaceMax,1,MPI_INTEGER,MPI_MAX, &
+                   global%mpiComm,errorFlag)
+! Rows per cell: centroid, lengths, volume, face count, then per boundary
+! face its outward normal, centroid and patch (ppiclf_bflen = 7)
+nGridRows = 8 + 7*nBFaceMax
+
+ALLOCATE(rocGrid(nGridRows,nCells),STAT=errorFlag)
 IF ( global%error /= ERR_NONE ) THEN
   CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'PPICLF:rocGrid')
 END IF ! global%error
@@ -611,6 +619,27 @@ DO i = 1,nCells
   rocGrid(7,i) = pRegion%grid%vol(i)    !Cell volume
 END DO !i
 
+! Boundary faces (counted above): outward normal, centroid, patch number,
+! negative for a particle wall
+nBFaceCell = 0
+DO iPatch = 1,pGrid%nPatches
+  pPatch => pRegion%patches(iPatch)
+  IF ( pPatch%bcType == BC_PERIODIC .OR. pPatch%bcType == BC_VIRTUAL ) CYCLE
+  DO ifc = 1,pPatch%nBFaces
+    i = pPatch%bf2c(ifc)
+    nBFaceCell(i) = nBFaceCell(i) + 1
+    k = 8 + 7*(nBFaceCell(i)-1)
+    rocGrid(k+1:k+3,i) = pPatch%fn(XCOORD:ZCOORD,ifc)
+    rocGrid(k+4:k+6,i) = pPatch%fc(XCOORD:ZCOORD,ifc)
+    rocGrid(k+7,i) = REAL(pPatch%iPatchGlobal,RFREAL)
+    IF ( pPatch%partWallFlag ) rocGrid(k+7,i) = -rocGrid(k+7,i)
+  END DO
+END DO
+DO i = 1,nCells
+  rocGrid(8,i) = REAL(nBFaceCell(i),RFREAL)
+END DO
+DEALLOCATE(nBFaceCell)
+
 !     CALL MPI_Barrier(global%mpiComm,errorFlag)
 
 MinFluidCells = 2.0D0 !Number of fluid cells for Minimum Bin Size and ppiclf_filter(1:3)
@@ -657,7 +686,7 @@ END IF
 
 ! Creates OverlapGrid (fluid cells, domain extent, periodicity) and Calls
 ! Init Solve
-CALL ppiclf_comm_InitOverlapGrid(nCells,rocGrid,domainRange,periodic)
+CALL ppiclf_comm_InitOverlapGrid(nCells,nGridRows,rocGrid,domainRange,periodic)
 IF ( global%piclRotPeriodicAxis > 0 ) THEN
   CALL ppiclf_comm_InitRotPeriodic(planeNormal,planeRotation,planeRadial, &
                                    axisVector)

@@ -29,6 +29,20 @@
       data ppiclf_maxpart, ppiclf_maxghost, ppiclf_maxcell,
      >     ppiclf_maxfv, ppiclf_maxwall /5*0/
 
+! Rows per cell of fluid_grid and picl_grid (ppiclf_lgrid): centroid
+! (1-3), cell lengths (4-6), volume (7), number of boundary faces (8),
+! then ppiclf_bflen entries per boundary face: outward normal, face
+! centroid, patch number (negative for a particle wall). Set by
+! ppiclf_comm_InitOverlapGrid.
+      integer*4, parameter :: ppiclf_bflen = 7
+      integer*4 ppiclf_lgrid
+      data ppiclf_lgrid /8/
+! Lines of points.dat read by each rank (a particle's line is
+! rank*ppiclf_idlines + index), and the particles found outside the
+! fluid domain this stage
+      integer*4 ppiclf_idlines, ppiclf_noutside
+      data ppiclf_idlines, ppiclf_noutside /0, 0/
+
 ! Field sizes: how many entries each particle or cell carries. Set
 ! once at start-up by ppiclf_solve_InitLayout (from the user routine
 ! ppiclf_user_Layout), before any array below is allocated.
@@ -255,7 +269,7 @@
 
       if (.not. allocated(ppiclf_fluid_grid)) then
         n = ppiclf_maxfv
-        allocate(ppiclf_fluid_grid(7,n),
+        allocate(ppiclf_fluid_grid(ppiclf_lgrid,n),
      >     ppiclf_int_fld_input(n,ppiclf_lrp_int),
      >     ppiclf_pro_fld(n,ppiclf_lrp_pro), stat=ierr)
         if (ierr .ne. 0) call ppiclf_exittr(
@@ -267,7 +281,7 @@
 
       if (.not. allocated(ppiclf_picl_grid)) then
         n = ppiclf_maxcell
-        allocate(ppiclf_picl_grid(7,n),
+        allocate(ppiclf_picl_grid(ppiclf_lgrid,n),
      >     ppiclf_int_fld(ppiclf_lrp_int,n),
      >     ppiclf_pro_fld_picl(ppiclf_lrp_pro,n),
      >     ppiclf_cell_map(PPICLF_LRMAX,n),
@@ -405,6 +419,35 @@
       call ppiclf_resize_r2(ppiclf_int_fld_input, nneed, 1)
       call ppiclf_resize_r2(ppiclf_pro_fld,       nneed, 1)
       ppiclf_maxfv = nneed
+
+      return
+      end
+!-----------------------------------------------------------------------
+      subroutine ppiclf_data_SetGridRows(nrow)
+!
+! Rows per cell of fluid_grid and picl_grid, set before any cell is
+! stored
+!
+      use ppiclf_data
+      implicit none
+      integer*4 nrow, ierr
+!
+      if (nrow .eq. ppiclf_lgrid) return
+      ppiclf_lgrid = nrow
+      if (allocated(ppiclf_fluid_grid)) then
+        deallocate(ppiclf_fluid_grid)
+        allocate(ppiclf_fluid_grid(nrow,ppiclf_maxfv), stat=ierr)
+        if (ierr .ne. 0) call ppiclf_exittr(
+     >     'Cannot allocate the fluid-cell arrays$',0.0d0,nrow)
+        ppiclf_fluid_grid = 0.0d0
+      end if
+      if (allocated(ppiclf_picl_grid)) then
+        deallocate(ppiclf_picl_grid)
+        allocate(ppiclf_picl_grid(nrow,ppiclf_maxcell), stat=ierr)
+        if (ierr .ne. 0) call ppiclf_exittr(
+     >     'Cannot allocate the overlap-grid arrays$',0.0d0,nrow)
+        ppiclf_picl_grid = 0.0d0
+      end if
 
       return
       end
