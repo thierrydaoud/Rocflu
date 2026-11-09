@@ -58,6 +58,7 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
 - [Periodicity from the Boundary Conditions](#periodicity-from-the-boundary-conditions)
   - [What Changed](#what-changed-2)
   - [How It Was Checked](#how-it-was-checked-1)
+  - [Slip Walls against Rotational Periodicity](#slip-walls-against-rotational-periodicity)
   - [Limits](#limits)
 - [Particles Outside the Fluid Domain](#particles-outside-the-fluid-domain)
   - [The Check](#the-check)
@@ -1401,6 +1402,65 @@ Six regression cases ([Regression Tests](../tests/README.md#sector-cases)):
   particles and their volume fraction agree to 3e-15.
 - **Existing cases.** The other 68 cases keep their goldens.
 
+A denser test, not in the suite: 150 particles at random positions in a quarter cylinder,
+with random velocities of about 10 m/s and collisions as the only force, against a full
+cylinder holding the same particles and their three rotated copies. In the animation the
+particles of the first quadrant are white in both panels and the others grey; in the
+quarter the grey ones are its rotated copies, drawn to show the full circle. Red marks a
+particle of the quarter more than dp/2 from its match in the full cylinder. The last view
+pairs every particle of the quarter with its match.
+
+![Collision cloud, quarter against full cylinder](figures/anim_rotper_cloud.gif)
+
+Up to 140 µs every particle of the quarter is within 0.06 dp of its match. At 200 µs, 7 of
+the 150 are more than dp/2 off (0.6 to 2.5 dp), all near the planes. The difference starts
+at round-off (1e-7 dp at 14 µs) and grows about tenfold every 25–30 µs: in a dense cloud
+each contact amplifies the difference left by the previous one, so no two runs that add in
+a different order can stay together. The same full cylinder on 16 and on 4 ranks drifts
+apart faster (416 of the 600 particles more than dp/2 off at 200 µs). This is why the
+suite tests periodicity with exact cases (cradle, straight paths, frozen particles).
+
+### Slip Walls against Rotational Periodicity
+
+A radial blast over a particle bed in a 2D quarter cylinder (gas at the post-shock state
+for r < 6 mm; bed between r = 6.3 and 12.5 mm at φ = 0.40, dp = 100 µm; two-way coupling
+and collisions), on one mesh, with the two planes either slip walls that are also particle
+walls or a rotationally periodic pair. The wall run's bed (6978 particles) keeps 50 µm off
+the planes; the periodic bed (7122) is packed periodically across them. The wall run used
+[7ffe490](https://github.com/thierrydaoud/Rocflu/commit/7ffe490), before particle
+periodicity, and ended at 583 µs; the periodic run used
+[84d94fd](https://github.com/thierrydaoud/Rocflu/commit/84d94fd), which also counts
+periodic and symmetry faces once in the time step
+([473cb3d](https://github.com/thierrydaoud/Rocflu/commit/473cb3d)).
+
+![Bed shape, slip-wall against periodic planes](figures/fig_rotper_walls_bed.png)
+
+With slip walls the bed runs ahead along both planes; with periodic planes it does not, and
+away from the planes the two beds expand alike. Outer edge (95th percentile of r) within
+9° of a plane minus the outer edge between 20° and 70°:
+
+| t (µs) | Slip wall planes | Rotationally periodic planes |
+|---|---|---|
+| 100 | +0.1 mm | 0.0 mm |
+| 200 | +1.0 mm | −0.1 mm |
+| 300 | +2.9 mm | −0.2 mm |
+| 400 | +4.9 mm | −0.2 mm |
+| 580 | +8.7 mm | −0.3 mm |
+
+At 580 µs the outer edge between 20° and 70° is 34.1 mm with walls and 34.9 mm with
+periodic planes.
+
+The gas shows the same: with walls a jet runs along y = 0 (about 55 mm by 300 µs) and a
+smaller one along x = 0; with periodic planes the fronts stay close to circular. The thin
+dark line along y = 0 in both runs appears already at 50 µs, ahead of the blast, and is
+likely an edge artefact of the maps.
+
+![Numerical schlieren with particles](figures/fig_rotper_walls_schlieren.png)
+
+![Gas density with particles](figures/fig_rotper_walls_rho.png)
+
+![Pressure with particles](figures/fig_rotper_walls_p.png)
+
 ### Limits
 
 - Thin wedges have no exact reference: only the straight paths are tested on the 5°
@@ -1845,6 +1905,12 @@ The particle-gradient figures are drawn by `figures/src/particle_gradients/plot.
 diagnostic build of [e7f0952](https://github.com/thierrydaoud/Rocflu/commit/e7f0952)
 (each gradient variant written on the same flow state, a particle force log) and MFC
 `master` 7b16d32f with its face states written out. They are not part of the repository.
+
+The rotational-periodicity figures come from the two quarter-cylinder runs and the cloud
+runs described in [Slip Walls against Rotational
+Periodicity](#slip-walls-against-rotational-periodicity) and
+[How It Was Checked](#how-it-was-checked-1); the runs and their scripts are not part of the
+repository either.
 
 Each figure compares the commit before a fix with the commit after it. The run and plot
 scripts (`sweeps.py`, `make_plots.py`, `qs_driver.F`) are kept locally under the
