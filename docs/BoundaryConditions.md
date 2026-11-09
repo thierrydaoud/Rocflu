@@ -69,6 +69,8 @@ Every section takes `PATCH` and `NAME` (both required) and `DISTRIB` (0: the val
 `KIND 1` is NSCBC (non-reflecting characteristic BC; 0 is the simple one). `ORDER` is the
 order of the boundary reconstruction; without it the patch uses `ORDERBF` from
 `# NUMERICS` (default 1). `PARTWALL 1` makes the patch a wall for the particles.
+Without it, a particle that reaches the patch leaves the domain and the run stops,
+naming the particle; so does a particle that leaves through an inflow or outflow.
 `THRUSTFLAG` only matters with `# FORCES` on.
 
 Rules across sections:

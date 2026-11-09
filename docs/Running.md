@@ -109,7 +109,8 @@ reports every problem at once, with the line it is on:
   reported as such), and every particle inside the fluid domain. The domain
   is the box around the grid's vertices, read from `<case>.hyb.asc` (CENTAUR ASCII,
   `GRIDSRC 0`; about a second for a million vertices). In a domain that is not a box
-  (a cylinder, a wedge), a particle can be inside the box but outside the grid.
+  (a cylinder, a wedge), a particle can be inside the box but outside the grid; rflump
+  then stops at start-up and names it.
 
 Settings of a model that is off (e.g. `KSP` without collisions) are ignored. `rocflu.sh
 run` and the regression suite run the same checks. The validator's own tests:

@@ -59,6 +59,9 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
   - [What Changed](#what-changed-2)
   - [How It Was Checked](#how-it-was-checked-1)
   - [Limits](#limits)
+- [Particles Outside the Fluid Domain](#particles-outside-the-fluid-domain)
+  - [The Check](#the-check)
+  - [How the Check Was Tested](#how-the-check-was-tested)
 - [2D Runs](#2d-runs)
   - [How It Works](#how-it-works)
   - [Choosing the Thickness](#choosing-the-thickness)
@@ -113,6 +116,7 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
 | Time step | Virtual faces counted in the CFL sum, so a thin 2D mesh took more steps (2227 at Δz = 0.1 mm against 403 at 10 mm) | Left out: 385 steps at every thickness, and stricter case checks | [6016d2a](https://github.com/thierrydaoud/Rocflu/commit/6016d2a) |
 | Periodicity | Particle periodicity was set apart from the gas, with `PERIODICX/Y/Z` kept in step with the `.bc` by hand, and a sector of a cylinder could be periodic only for the gas: the particles needed symmetry planes, where the bed ran ahead along the walls | Particle periodicity comes from the `BC_PERIODIC` pairs of the `.bc`. A rotation makes the particles rotationally periodic: they cross the planes, and the interpolation, the projection and the collisions reach across them | [3095a9c](https://github.com/thierrydaoud/Rocflu/commit/3095a9c), [7465182](https://github.com/thierrydaoud/Rocflu/commit/7465182), [8cdbe19](https://github.com/thierrydaoud/Rocflu/commit/8cdbe19), [84d94fd](https://github.com/thierrydaoud/Rocflu/commit/84d94fd) |
 | Linear periodicity | With one direction periodic, a particle was wrapped in all three: one crossing a wall of a z-periodic domain jumped by the domain length, out of the mesh | Wrapped only in the periodic directions | [3aa799c](https://github.com/thierrydaoud/Rocflu/commit/3aa799c) |
+| Particles outside the domain | At start-up only a particle outside the box around the grid gave a warning, and the run went on. A particle that left later (an outflow, a wall without `PARTWALL 1`) was not reported: the run went on to the end, or stopped later with "Singular least-squares interpolation matrix" | The run stops as soon as a particle's centre is outside the fluid domain, at start-up or in any stage, and prints the particle's line in `points.dat`, its position and the patch it crossed | (section "Particles outside the fluid domain") |
 | Particle gradients | The particle forces used the gas solver's WENO-smoothed gradients: at a shock a particle got 58% of the pressure-gradient impulse | A separate least-squares fit with the resolvable second derivatives, without WENO or limiter: the impulse is exact to 0.1%, and no false wall-normal gradient (30% with a linear fit) | [2c93e55](https://github.com/thierrydaoud/Rocflu/commit/2c93e55) |
 
 ## Regression Tests
@@ -137,6 +141,9 @@ decomposition independence), which say whether the result is right. The cases ar
   planes of a 5° wedge.
 - **Sector** (4 cases): rotational periodicity in a quarter cylinder (see
   [Periodicity from the Boundary Conditions](#periodicity-from-the-boundary-conditions)).
+- **Stop** (3 cases): runs that must stop, because a particle is outside the fluid
+  domain at start-up or leaves it (see
+  [Particles Outside the Fluid Domain](#particles-outside-the-fluid-domain)).
 - **Unit** (1 test): ppiclF's bin count, without MPI (see
   [Particle Bins](#particle-bins-number-of-bins-per-direction)).
 
@@ -145,7 +152,7 @@ them, from `tests/`:
 
 ```bash
 module purge; module load gcc/14.2.0 openmpi/5.0.7
-./run_tests.py run                     # all 73 cases and the unit test
+./run_tests.py run                     # all 76 cases and the unit test
 ./run_tests.py run -o box/walls        # a subset
 ```
 
@@ -1398,8 +1405,67 @@ Six regression cases ([Regression Tests](../tests/README.md#sector-cases)):
 
 - Thin wedges have no exact reference: only the straight paths are tested on the 5°
   wedge.
-- Particles that leave through an outflow patch are not removed (see
-  [Still Open](#still-open)).
+- Particle centres must start inside the domain, not past a periodic face; the sphere
+  may overlap the face. In a box, a centre past a periodic face stops the run at start-up
+  in ppiclF's bin set-up ("NumIncoming: invalid receiving rank"). In a sector it is moved
+  in at the first stage.
+
+## Particles Outside the Fluid Domain
+
+A particle outside the fluid mesh has no gas to interpolate. At start-up, Rocflu warned
+only when a particle was outside the box around the grid, so a particle outside a
+cylinder but inside its box went unnoticed. During a run, a particle that left through an
+outflow, or through a wall without `PARTWALL 1`, was not reported: the run went on to the
+end, or stopped later with "Singular least-squares interpolation matrix" (a
+quarter-cylinder blast at 0.99 ms). The run now stops as soon as a particle's centre is
+outside the domain, at start-up or in any stage, and names the particle:
+
+```
+PPICLF: particle 2 (line of points.dat) is outside the fluid domain
+  t =  1.245105E-06 s, x y z =  2.000159E-02  1.047290E-04  5.000000E-05
+  beyond patch 3 by   3.300E-06 m
+PPICLF: ERROR (rank      0) Particles outside the fluid domain:   1.245105E-06         1
+```
+
+Each rank prints up to 20 of its particles; the last line gives the time and the total
+count.
+
+### The Check
+
+- At start-up Rocflu gives ppiclF the boundary faces of each cell: the outward normal, the
+  face centre and the patch number. Periodic and virtual patches are not boundaries for
+  the particles and are left out. Each cell's data grows from 7 to
+  8 + 7 × (the most boundary faces of any cell) values: 15 for a 2D quarter cylinder.
+- ppiclF already finds the cells around each particle in every stage, for the
+  interpolation. Among those cells it takes the boundary face closest to the particle.
+  The particle is outside if it is on the outer side of that face's plane, by more than
+  1e-6 of the cell length. The rotated images of cells near a rotational plane carry
+  rotated faces.
+- A particle wall (`PARTWALL 1`) pushes particles back, so a particle may be up to one
+  cell length behind it before the run stops.
+- Only the centre is tested: a particle overlapping a boundary is inside.
+- The bounding-box warning is gone. The case validator still checks the box before the
+  run.
+
+The cost is a short loop over the faces of each particle's cells in every stage. The face
+data moves between ranks only when the bins change, not in every stage.
+
+### How the Check Was Tested
+
+Three cases must stop, naming the expected particle and patch
+([Regression Tests](../tests/README.md#stop-cases)):
+
+- a particle 0.1 mm outside the outer arc of a quarter cylinder, inside its bounding box:
+  the run stops at t = 0;
+- a particle leaving through the outflow 0.3° from a periodic plane, where the cells are
+  rotated images: the run stops at 1.245 µs, 3.3 µm past the arc;
+- a particle reaching a slip wall of a closed box without `PARTWALL`: the run stops
+  10.7 µm past the wall.
+
+All three fail with the build before the change. The first and the third ran to the end
+without a message. Particles at rest 7 µm inside the outer arc, and centres 50 µm past
+the periodic planes of a quarter cylinder, run to the end. The other cases keep their
+goldens.
 
 ## 2D Runs
 
@@ -1770,9 +1836,6 @@ Known limitations:
   files that restarts read are single precision.
 - `FEEDBACK 0` (one-way) still changes the gas through φ in the pressure.
 - PICL supports only one region per MPI rank, and there is no check for this.
-- Particles that leave through an outflow patch are not removed. Their interpolation
-  stencil shrinks to the last ring of cells and the run stops with "Singular
-  least-squares interpolation matrix" (a quarter-cylinder blast at 0.99 ms).
 
 ## Reproducing the Figures
 

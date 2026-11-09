@@ -237,7 +237,8 @@ before building, and the regression suite runs it on every case. It checks:
   all be there;
 - every particle inside the fluid domain, taken as the box around the grid's vertices
   (`<case>.hyb.asc`, `GRIDSRC 0`; about a second for a million vertices). In a domain
-  that is not a box, a particle can be inside the box but outside the grid.
+  that is not a box, a particle can be inside the box but outside the grid; rflump
+  then stops at start-up and names it.
 
 Without particles (`USED 0` or no `# PICL`), only the keys of `# PICL` are checked.
 
