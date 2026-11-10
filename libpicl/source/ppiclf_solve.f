@@ -1216,16 +1216,19 @@ c----------------------------------------------------------------------
       ! (1.8 cell lengths per direction) contains the particle.
       ! Sized by lsCap, the most subbin entries any particle's 27
       ! neighbouring subbins hold (the stencil is a subset of them).
-      INTEGER*4 nLS, m, mpos, lsCap, nCand
-      INTEGER*4, ALLOCATABLE :: lsID(:)
-      REAL*8, ALLOCATABLE :: lsDX(:,:), lsR(:,:), lsD2(:)
+      ! Collected in arrival order (lsID, lsD2, lsDX, lsR), then sorted
+      ! and cleared of same-offset copies into stID, stDX, stR
+      INTEGER*4 nLS, lsCap, nCand
+      INTEGER*4, ALLOCATABLE :: lsID(:), stID(:), lsWork(:,:)
+      REAL*8, ALLOCATABLE :: lsDX(:,:), lsR(:,:), lsD2(:),
+     >                       stDX(:,:), stR(:,:)
+      LOGICAL, ALLOCATABLE :: lsKeep(:)
       REAL*8    dx(3)
-      LOGICAL   inSupp, dupl, skip
+      LOGICAL   inSupp, skip
       ! lsMark(ie) = ip once cell ie is in particle ip's stencil
       INTEGER*4, ALLOCATABLE :: lsMark(:)
-      ! Largest support radius in the stencil and of the current cell,
-      ! and the distance window for the same-offset check
-      REAL*8    lsRmax(3), rc(3), d2tol
+      ! Support radius of the current cell
+      REAL*8    rc(3)
       ! Centre and lengths of the cell of each subbin entry, in subbin
       ! order (read contiguously by the particle loop)
       REAL*8, ALLOCATABLE :: sbCell(:,:)
@@ -1379,6 +1382,8 @@ c----------------------------------------------------------------------
       END DO
       ALLOCATE(lsMark(ppiclf_nCells_Interp), sbCell(6,MAX(nent,1)))
       ALLOCATE(lsID(lsCap), lsDX(3,lsCap), lsR(3,lsCap), lsD2(lsCap))
+      ALLOCATE(stID(lsCap), stDX(3,lsCap), stR(3,lsCap),
+     >         lsWork(3,lsCap), lsKeep(lsCap))
       lsMark = 0
       DO i_count = 1,nent
         ie = SBin_list(i_count)
@@ -1393,9 +1398,6 @@ c----------------------------------------------------------------------
       DO ip=1,ppiclf_npart !Loop all particles in this bin
         nnearest = 0 ! number of nearest elements
         nLS = 0
-        DO l=1,3
-          lsRmax(l) = 0.0D0
-        END DO
         DO ie = 1,28
           CellID_nearest(ie) = -1 ! index of nearest elements
           dSQ(ie) = 1E20 ! distance to center of nearest element
@@ -1450,74 +1452,20 @@ c----------------------------------------------------------------------
                     ! Offset in units of the cell length (projection)
                     dNSQi = dNSQi + dSQl/sbCell(3+l,i_count)**2
                   END DO !l
-                  ! Add to the least-squares stencil, once per cell
-                  ! (a cell can sit in two subbins with periodicity,
-                  ! or be received twice for a two-bin periodic box)
-                  IF (inSupp) THEN
-                    ! Once per cell: skip a cell already in the stencil
-                    ! (a cell can sit in two subbins with periodicity),
-                    ! and a copy of one at the same offset (within
-                    ! 1e-9 of the support; a cell received twice for a
-                    ! two-bin periodic box).
-                    dupl = (lsMark(ie) .EQ. ip)
-                    ! Find the place that keeps the stencil sorted by
-                    ! distance (then offset), so the sums do not depend
-                    ! on the order cells arrive in (domain
-                    ! decomposition). A same-offset copy has almost the
-                    ! same distance: only entries within d2tol of dSQi
-                    ! are compared (d2tol bounds the change in distance
-                    ! that offsets within 1e-9 of the support allow).
-                    IF (.NOT. dupl) THEN
-                      d2tol = 0.0D0
-                      DO l=1,3
-                        d2tol = d2tol + MAX(lsRmax(l),rc(l))**2
-                      END DO
-                      d2tol = 4.0D-9*d2tol
-                      mpos = nLS + 1
-                      DO m = nLS,1,-1
-                        IF (lsD2(m) .LT. dSQi - d2tol) EXIT
-                        IF (ABS(lsD2(m)-dSQi) .LE. d2tol) THEN
-                          IF (ABS(lsDX(1,m)-dx(1)) .LT. 1.0D-9*lsR(1,m)
-     >                  .AND. ABS(lsDX(2,m)-dx(2)) .LT. 1.0D-9*lsR(2,m)
-     >                  .AND. ABS(lsDX(3,m)-dx(3)) .LT. 1.0D-9*lsR(3,m))
-     >                      dupl = .TRUE.
-                        END IF
-                        ! entry m goes after the new cell?
-                        IF (lsD2(m) .GT. dSQi) THEN
-                          mpos = m
-                        ELSE IF (lsD2(m) .EQ. dSQi) THEN
-                          IF (lsDX(1,m) .GT. dx(1) .OR.
-     >                       (lsDX(1,m) .EQ. dx(1) .AND.
-     >                        lsDX(2,m) .GT. dx(2)) .OR.
-     >                       (lsDX(1,m) .EQ. dx(1) .AND.
-     >                        lsDX(2,m) .EQ. dx(2) .AND.
-     >                        lsDX(3,m) .GE. dx(3))) mpos = m
-                        END IF
-                      END DO
-                    END IF
-                    IF (.NOT. dupl) THEN
-                      nLS = nLS + 1
-                      IF (nLS .GT. lsCap) CALL ppiclf_exittr(
-     >                  'Stencil exceeds its subbin bound (bug)$',
-     >                  0.0D0,nLS)
-                      DO m = nLS,mpos+1,-1
-                        lsID(m) = lsID(m-1)
-                        lsD2(m) = lsD2(m-1)
-                        DO l=1,3
-                          lsDX(l,m) = lsDX(l,m-1)
-                          lsR(l,m)  = lsR(l,m-1)
-                        END DO
-                      END DO
-                      m = mpos
-                      lsID(m) = ie
-                      lsD2(m) = dSQi
-                      DO l=1,3
-                        lsDX(l,m) = dx(l)
-                        lsR(l,m)  = rc(l)
-                        lsRmax(l) = MAX(lsRmax(l),rc(l))
-                      END DO
-                      lsMark(ie) = ip
-                    END IF
+                  ! Collect for the least-squares stencil, once per cell
+                  ! (a cell can sit in two subbins with periodicity)
+                  IF (inSupp .AND. lsMark(ie) .NE. ip) THEN
+                    nLS = nLS + 1
+                    IF (nLS .GT. lsCap) CALL ppiclf_exittr(
+     >                'Stencil exceeds its subbin bound (bug)$',
+     >                0.0D0,nLS)
+                    lsID(nLS) = ie
+                    lsD2(nLS) = dSQi
+                    DO l=1,3
+                      lsDX(l,nLS) = dx(l)
+                      lsR(l,nLS)  = rc(l)
+                    END DO
+                    lsMark(ie) = ip
                   END IF
                   ! skip to next fluid cell if greater than 1.5*max cell
                   ! distance in respective x,y,z direction.
@@ -1558,6 +1506,11 @@ c----------------------------------------------------------------------
             END DO !kSB
           END DO !jSB
         END DO !iSB
+        ! Sort by distance then offset, so the sums do not depend on
+        ! the order cells arrive in; drop copies of a cell received
+        ! twice (two-bin periodic box) at the same offset
+        CALL ppiclf_solve_SortStencil(nLS,lsID,lsD2,lsDX,lsR,
+     >                                lsWork,lsKeep,stID,stDX,stR)
         nnearest = MIN(nnearest,27)
 
         ! Outside the fluid domain: not interpolated, and the run stops
@@ -1579,19 +1532,20 @@ c----------------------------------------------------------------------
           ! containing it: use the nearest cell value.
           IF (nLS .EQ. 0) THEN
             nLS = 1
-            lsID(1) = CellID_nearest(1)
+            stID(1) = CellID_nearest(1)
             DO l=1,3
-              lsDX(l,1) = 0.0D0
-              lsR(l,1)  = 1.0D0
+              stDX(l,1) = 0.0D0
+              stR(l,1)  = 1.0D0
             END DO
           END IF
           ! Interpolate fluid fields to the particle (index ip, before
           ! removed particles are compacted)
-          CALL ppiclf_solve_InterpLS(ip,nLS,lsID,lsDX,lsR)
+          CALL ppiclf_solve_InterpLS(ip,nLS,stID,stDX,stR)
         END IF !nnearest
       END DO !ip
 
       DEALLOCATE(lsMark, sbCell, lsID, lsDX, lsR, lsD2)
+      DEALLOCATE(stID, stDX, stR, lsWork, lsKeep)
 
       IF(ppiclf_remove_particle) THEN
         ! Delete particles that are outside of fluid grid
@@ -2353,6 +2307,142 @@ c----------------------------------------------------------------------
 !      
 !      RETURN
 !      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_solve_SortStencil(n,id,d2,dx,rs,wk,keep,
+     >                                    sid,sdx,srs)
+!
+! Sorts the n collected stencil cells by squared distance d2, then
+! offset dx (x, y, z), and drops a cell whose offset matches, within
+! 1e-9 of the support, that of a cell collected before it and kept.
+! The result (sid, sdx, srs; n on return) is what inserting the cells
+! one by one into a sorted list, in collection order, gives.
+!
+      IMPLICIT NONE
+!
+! Input:
+!
+      INTEGER*4 n, id(*)
+      REAL*8    d2(*), dx(3,*), rs(3,*)
+!
+! Work: wk(1,:) order, wk(2,:) merge buffer, wk(3,:) sorted position
+!
+      INTEGER*4 wk(3,*)
+      LOGICAL   keep(*)
+!
+! Output:
+!
+      INTEGER*4 sid(*)
+      REAL*8    sdx(3,*), srs(3,*)
+!
+! Internal:
+!
+      INTEGER*4 i, j, k, m, l, w, lo, mid, hi, a, b, nk
+      REAL*8    win, rmax(3)
+      LOGICAL   before, same
+!
+      IF (n .LE. 0) RETURN
+      DO k = 1,n
+        wk(1,k) = k
+      END DO
+
+      ! Bottom-up merge sort of the order, stable
+      w = 1
+      DO WHILE (w .LT. n)
+        lo = 1
+        DO WHILE (lo .LE. n - w)
+          mid = lo + w - 1
+          hi  = MIN(lo + 2*w - 1, n)
+          i = lo
+          j = mid + 1
+          k = lo
+          DO WHILE (i .LE. mid .AND. j .LE. hi)
+            a = wk(1,i)
+            b = wk(1,j)
+            ! b strictly before a: take b
+            before = d2(b) .LT. d2(a) .OR. (d2(b) .EQ. d2(a) .AND.
+     >        (dx(1,b) .LT. dx(1,a) .OR. (dx(1,b) .EQ. dx(1,a) .AND.
+     >        (dx(2,b) .LT. dx(2,a) .OR. (dx(2,b) .EQ. dx(2,a) .AND.
+     >         dx(3,b) .LT. dx(3,a))))))
+            IF (before) THEN
+              wk(2,k) = b
+              j = j + 1
+            ELSE
+              wk(2,k) = a
+              i = i + 1
+            END IF
+            k = k + 1
+          END DO
+          DO WHILE (i .LE. mid)
+            wk(2,k) = wk(1,i)
+            i = i + 1
+            k = k + 1
+          END DO
+          DO WHILE (j .LE. hi)
+            wk(2,k) = wk(1,j)
+            j = j + 1
+            k = k + 1
+          END DO
+          DO k = lo,hi
+            wk(1,k) = wk(2,k)
+          END DO
+          lo = lo + 2*w
+        END DO
+        w = 2*w
+      END DO
+      DO i = 1,n
+        wk(3,wk(1,i)) = i
+      END DO
+
+      ! Same-offset copies have almost the same distance: compare only
+      ! sorted neighbours within win, which bounds the change in d2
+      ! that offsets within 1e-9 of the support allow (factor 2 margin)
+      DO l = 1,3
+        rmax(l) = 0.0D0
+      END DO
+      DO k = 1,n
+        DO l = 1,3
+          rmax(l) = MAX(rmax(l),rs(l,k))
+        END DO
+      END DO
+      win = 4.0D-9*(rmax(1)**2 + rmax(2)**2 + rmax(3)**2)
+
+      ! In collection order, as cells were inserted before
+      DO k = 1,n
+        keep(k) = .TRUE.
+        DO l = -1,1,2
+          i = wk(3,k) + l
+          DO WHILE (i .GE. 1 .AND. i .LE. n .AND. keep(k))
+            m = wk(1,i)
+            IF (ABS(d2(m) - d2(k)) .GT. win) EXIT
+            IF (m .LT. k) THEN
+              IF (keep(m)) THEN
+                same = ABS(dx(1,m)-dx(1,k)) .LT. 1.0D-9*rs(1,m)
+     >           .AND. ABS(dx(2,m)-dx(2,k)) .LT. 1.0D-9*rs(2,m)
+     >           .AND. ABS(dx(3,m)-dx(3,k)) .LT. 1.0D-9*rs(3,m)
+                IF (same) keep(k) = .FALSE.
+              END IF
+            END IF
+            i = i + l
+          END DO
+        END DO
+      END DO
+
+      nk = 0
+      DO i = 1,n
+        m = wk(1,i)
+        IF (keep(m)) THEN
+          nk = nk + 1
+          sid(nk) = id(m)
+          DO l = 1,3
+            sdx(l,nk) = dx(l,m)
+            srs(l,nk) = rs(l,m)
+          END DO
+        END IF
+      END DO
+      n = nk
+
+      RETURN
+      END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_SortSubbins(nent,entSB,entID,nSB,
      >                                    SBstart,SBlist)
