@@ -713,6 +713,19 @@ add(name="sector/z-periodic-crossing/np4",
                (0.0031, 0.0042, 0.00087, 2.0e-5, 13.0, 9.0, 61.0)],
     checks=["particles_moved", "ballistic_periodic"])
 
+# All particles near one z face, not spanning z: the bin box in z must cover
+# the whole period (BinMinLen 0.25 mm here, the period 1 mm)
+QUARTER3D_THIN = SectorGrid(angle=90.0, r_out=0.01, ntheta=16, core=(0.002, 0.004),
+                            z=(0.0, 0.001), nz=8)
+add(name="sector/z-cluster-near-face/np2",
+    description="3D quarter cylinder, z periodic: particles without forces clustered "
+                "near the face z = 1 mm, crossing it to the face z = 0",
+    nranks=2, grid=QUARTER3D_THIN, bc="sector",
+    inp={**uniform_gas(0.0), **ONE_WAY, **NO_FORCES},
+    particles=[_polar_particle(0.006, deg, 5.0, 0.0, 2.0e-5, z)[:6] + (20.0,)
+               for deg, z in ((40.0, 0.00090), (45.0, 0.00092), (50.0, 0.00095))],
+    checks=["particles_moved", "ballistic_periodic"])
+
 # Quarter cylinder against the full cylinder of four exact copies: radial
 # blast (case cylds: r < RVAL1 at the post-shock state), particles frozen,
 # one-way coupling; the gas at the particles and their volume fraction must

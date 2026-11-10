@@ -1,14 +1,12 @@
 {
- "created": "2026-11-07T22:05:28",
- "host": "login12.ufhpc",
- "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocflu_main/build/bin",
+ "created": "2026-11-10T12:05:08",
+ "host": "login7.ufhpc",
+ "exe_dir": "/blue/bala1s/t.daoud/code_versions/2026/Rocflu_binsnap/build/bin",
  "git": {
-  "commit": "7ffe4901ffdcb61802be9db8dfd2ba2479bcb53d",
-  "branch": "main",
+  "commit": "000f0d7b6d76410a2ca89298646829729228bd46",
+  "branch": "bin-snap",
   "modified_sources": [
-   "modflu/RFLU_ModBoundLists.F90",
-   "rocflu/RFLU_TimeStepInviscid.F90",
-   "rocflu/RFLU_TimeStepViscous.F90"
+   "libpicl/source/ppiclf_comm.f"
   ]
  },
  "modules": "gcc/14.2.0:openmpi/5.0.7"

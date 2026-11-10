@@ -366,6 +366,7 @@
       REAL*8    xmin, ymin, zmin, xmax, ymax, zmax, temp1, temp2,
      >          binb_length(3), BinMinLen(3), periodicDistCheck,
      >          BinBuffer(3), extent(6), work(6)
+      LOGICAL   lowNear, highNear
       EXTERNAL  ppiclf_iglsum
 !
 
@@ -488,28 +489,31 @@
       ppiclf_EqualDomain(2) = .FALSE.
       ppiclf_EqualDomain(3) = .FALSE.
 
-      ! In a non-periodic direction a particle can be just outside the
-      ! fluid domain (its centre pushed past a wall during a soft
-      ! contact), so the bins are only snapped outwards there: cutting
-      ! them back to the domain would leave the particle in no bin.
+      ! Linear periodic: the box is the whole period as soon as one
+      ! edge is near a face (the wrap needs box length = period), else
+      ! it stays clear of both faces.
+      ! Non-periodic: snapped outwards only, since a particle can be
+      ! just outside the fluid domain (its centre pushed past a wall in
+      ! a soft contact) and cutting the box back would leave it in no
+      ! bin.
       DO i = 1,3
-        ! Check bin min domain
         periodicDistCheck = MAX(ppiclf_nndist,ppiclf_filter(i))
-        IF(ppiclf_binb(i*2-1) - periodicDistCheck .LE.
-     >                          ppiclf_xdrange(1,i)) THEN
-          IF(ppiclf_linperiodic(i) .OR.
-     >       ppiclf_binb(i*2-1) .GT. ppiclf_xdrange(1,i))
-     >      ppiclf_binb(i*2-1) = ppiclf_xdrange(1,i)
-          ppiclf_EqualDomain(i) = .TRUE.
-        END IF
-        ! Check bin max domain
-        IF(ppiclf_binb(i*2)+periodicDistCheck .GE.
-     >                          ppiclf_xdrange(2,i)) THEN
-          IF(ppiclf_linperiodic(i) .OR.
-     >       ppiclf_binb(i*2) .LT. ppiclf_xdrange(2,i))
-     >      ppiclf_binb(i*2) = ppiclf_xdrange(2,i)
+        lowNear  = ppiclf_binb(i*2-1) - periodicDistCheck .LE.
+     >             ppiclf_xdrange(1,i)
+        highNear = ppiclf_binb(i*2) + periodicDistCheck .GE.
+     >             ppiclf_xdrange(2,i)
+        IF(ppiclf_linperiodic(i)) THEN
+          IF(lowNear .OR. highNear) THEN
+            ppiclf_binb(i*2-1) = ppiclf_xdrange(1,i)
+            ppiclf_binb(i*2)   = ppiclf_xdrange(2,i)
+          END IF
+          ppiclf_EqualDomain(i) = lowNear .OR. highNear
         ELSE
-          ppiclf_EqualDomain(i) = .FALSE.
+          IF(lowNear) ppiclf_binb(i*2-1) =
+     >      MIN(ppiclf_binb(i*2-1),ppiclf_xdrange(1,i))
+          IF(highNear) ppiclf_binb(i*2) =
+     >      MAX(ppiclf_binb(i*2),ppiclf_xdrange(2,i))
+          ppiclf_EqualDomain(i) = lowNear .AND. highNear
         END IF
       END DO
 
