@@ -376,6 +376,7 @@ blast.
 | `sector/z-periodic-crossing` | 4 | 3D quarter cylinder, 1 mm deep in 4 layers, z periodic; three particles without forces crossing the planes, the z faces, and both planes near the axis | `particles_moved`, `ballistic_periodic` | Rotational and linear periodicity together; a particle is wrapped only in its periodic directions (3aa799c) |
 | `sector/quarter-vs-full/full` | 8 | Full cylinder of four copies of the quarter mesh; radial blast (`cylds`) over 96 frozen particles, four rotated copies of the quarter's | `in_plane` | Reference for the quarter case |
 | `sector/quarter-vs-full/quarter` | 2 | Quarter cylinder, the same blast over 24 frozen particles | `in_plane`, `quarter_of` | Interpolation and projection across the planes and around the axis (rotated cell images) |
+| `sector/stencil-bound` | 4 | 3D quarter cylinder, 1 mm deep in 4 layers, with a refinement ring (`max_cell` 0.4 mm); the blast over 3 frozen particles near 45° and the ring, whose stencils hold 144–152 cells | golden only | Interpolation stencils sized from the subbins: the fixed 125-cell limit stopped this case |
 
 ### Stop Cases
 

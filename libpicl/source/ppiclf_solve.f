@@ -1214,11 +1214,12 @@ c----------------------------------------------------------------------
       EXTERNAL  ppiclf_solve_Outside
       ! Least-squares interpolation stencil: cells whose support
       ! (1.8 cell lengths per direction) contains the particle.
-      ! At most 4 per direction on a uniform hex mesh.
-      INTEGER*4 LSMAX
-      PARAMETER (LSMAX = 125)
-      INTEGER*4 nLS, lsID(LSMAX), m, mpos
-      REAL*8    lsDX(3,LSMAX), lsR(3,LSMAX), lsD2(LSMAX), dx(3)
+      ! Sized by lsCap, the most subbin entries any particle's 27
+      ! neighbouring subbins hold (the stencil is a subset of them).
+      INTEGER*4 nLS, m, mpos, lsCap, nCand
+      INTEGER*4, ALLOCATABLE :: lsID(:)
+      REAL*8, ALLOCATABLE :: lsDX(:,:), lsR(:,:), lsD2(:)
+      REAL*8    dx(3)
       LOGICAL   inSupp, dupl, skip
       ! lsMark(ie) = ip once cell ie is in particle ip's stencil
       INTEGER*4, ALLOCATABLE :: lsMark(:)
@@ -1350,7 +1351,34 @@ c----------------------------------------------------------------------
       END DO !ie
       CALL ppiclf_solve_SortSubbins(nent,entSB,entID,tot_SBin,
      >                              SBin_start,SBin_list)
+      ! Bound the stencil size: same subbin arithmetic as the gather
+      lsCap = 1
+      DO ip=1,ppiclf_npart
+        xp(1) = ppiclf_y(PPICLF_JX, ip)
+        xp(2) = ppiclf_y(PPICLF_JY, ip)
+        xp(3) = ppiclf_y(PPICLF_JZ, ip)
+        DO l = 1,3
+          i_SBin(l) = FLOOR((xp(l) - bin_Min(l))
+     >                /ppiclf_interp_dchk(l))
+        END DO
+        temp_SBin = i_SBin(1) + i_SBin(2)*n_SBin(1) +
+     >              i_SBin(3)*n_SBin(1)*n_SBin(2)
+        nCand = 0
+        DO iSB = 1,3
+          DO jSB = 1,3
+            DO kSB = 1,3
+              loopSB = temp_SBin + (-2+iSB) + (-2+jSB)*n_SBin(1)
+     >                 + (-2 + kSB)*n_SBin(1)*n_SBin(2)
+              IF(loopSB .GT. (-1) .AND. loopSB .LT. tot_SBin)
+     >          nCand = nCand + SBin_start(loopSB+1)
+     >                        - SBin_start(loopSB)
+            END DO
+          END DO
+        END DO
+        lsCap = MAX(lsCap,nCand)
+      END DO
       ALLOCATE(lsMark(ppiclf_nCells_Interp), sbCell(6,MAX(nent,1)))
+      ALLOCATE(lsID(lsCap), lsDX(3,lsCap), lsR(3,lsCap), lsD2(lsCap))
       lsMark = 0
       DO i_count = 1,nent
         ie = SBin_list(i_count)
@@ -1469,8 +1497,8 @@ c----------------------------------------------------------------------
                     END IF
                     IF (.NOT. dupl) THEN
                       nLS = nLS + 1
-                      IF (nLS .GT. LSMAX) CALL ppiclf_exittr(
-     >                  'Too many cells in interpolation stencil$',
+                      IF (nLS .GT. lsCap) CALL ppiclf_exittr(
+     >                  'Stencil exceeds its subbin bound (bug)$',
      >                  0.0D0,nLS)
                       DO m = nLS,mpos+1,-1
                         lsID(m) = lsID(m-1)
@@ -1563,7 +1591,7 @@ c----------------------------------------------------------------------
         END IF !nnearest
       END DO !ip
 
-      DEALLOCATE(lsMark, sbCell)
+      DEALLOCATE(lsMark, sbCell, lsID, lsDX, lsR, lsD2)
 
       IF(ppiclf_remove_particle) THEN
         ! Delete particles that are outside of fluid grid

@@ -755,6 +755,21 @@ add(name="sector/quarter-vs-full/quarter/np2",
     inp={**ONE_WAY, **TWO_D, **BLAST}, particles=_qcloud,
     checks=["in_plane"], quarter_of="sector/quarter-vs-full/full/np8")
 
+# Stencils larger than the old fixed 125 cells: near 45 degrees and the
+# refinement ring the cells' bounding boxes are large, and all 4 z layers
+# are in the support (z = 0.29-0.30 mm): 152, 144 and 144 cells
+QUARTER3D_RING = SectorGrid(angle=90.0, r_out=0.012, ntheta=16, core=(0.002, 0.004),
+                            max_cell=4.0e-4, z=(0.0, 0.001), nz=4)
+add(name="sector/stencil-bound/np4",
+    description="3D quarter cylinder with a refinement ring, radial blast, frozen "
+                "particles whose interpolation stencils hold more than 125 cells",
+    nranks=4, grid=QUARTER3D_RING, bc="sector", casename="cylds",
+    inp={**ONE_WAY, **BLAST},
+    particles=[(0.003719, 0.003719, 0.00030, 5.0e-5),
+               (0.003726, 0.003598, 0.00030, 5.0e-5),
+               (0.003598, 0.003726, 0.00029, 5.0e-5)],
+    checks=[])
+
 
 # -- Particles outside the fluid domain: the run must stop -------------------
 def _outside_stop(particle, patch, t=None):
