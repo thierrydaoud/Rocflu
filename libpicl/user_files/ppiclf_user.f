@@ -108,14 +108,8 @@
       
       ! Subbin s holds SBin_list(SBin_start(s):SBin_start(s+1)-1),
       ! ghosts as negative indices; filled by ppiclf_user_subbinMap
-      INTEGER*4 SBin_start( 0 : (
-     > (FLOOR((ppiclf_bins_dx(1)+2*ppiclf_nndist)/ppiclf_nndist) 
-     >        + 1) *
-     > (FLOOR((ppiclf_bins_dx(2)+2*ppiclf_nndist)/ppiclf_nndist)
-     >        + 1) *
-     > (FLOOR((ppiclf_bins_dx(3)+2*ppiclf_nndist)/ppiclf_nndist) 
-     >       + 1) ))
-      INTEGER*4 SBin_list(ppiclf_npart+ppiclf_npart_gp)
+      ! Allocated only when a neighbour search runs
+      INTEGER*4, ALLOCATABLE :: SBin_start(:), SBin_list(:)
       INTEGER*4 i_Bin(3), n_SBin(3), tot_SBin
 
 
@@ -161,7 +155,12 @@
 !
       if((am_flag==2).or.(collisional_flag>=1)
      >                  .or.(qs_fluct_flag>=1)) then
-        call ppiclf_user_subbinMap(i_Bin, n_SBin, tot_SBin 
+        allocate(SBin_start(0:
+     >   (FLOOR((ppiclf_bins_dx(1)+2*ppiclf_nndist)/ppiclf_nndist)+1)*
+     >   (FLOOR((ppiclf_bins_dx(2)+2*ppiclf_nndist)/ppiclf_nndist)+1)*
+     >   (FLOOR((ppiclf_bins_dx(3)+2*ppiclf_nndist)/ppiclf_nndist)+1)),
+     >   SBin_list(MAX(ppiclf_npart+ppiclf_npart_gp,1)))
+        call ppiclf_user_subbinMap(i_Bin, n_SBin, tot_SBin
      >                               ,SBin_start ,SBin_list)
         if (collisional_flag>=1 .and. ppiclf_nwall>0
      >      .and. ppiclf_npart>0)
@@ -728,6 +727,7 @@
          call ppiclf_user_plag2prop
       endif
 
+      if (allocated(SBin_start)) deallocate(SBin_start, SBin_list)
 
 ! ----------------------------------------------------------------------
 

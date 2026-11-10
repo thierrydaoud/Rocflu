@@ -118,7 +118,7 @@ off (e.g. `KSP` without collisions) is not read and may stay in the file with an
 | `TEMP` | > 0 | 0 | initial temperature of every particle [K]; **required** |
 | `DENSITY` | > 0 | 0 | density of every particle [kg/m³]; **required** |
 | `SPECIFICHEAT` | > 0 | 0 | specific heat of every particle [J/(kg K)]; **required** |
-| `NEIGHBORWIDTH` | ≥ 0 | 0 | neighbour search distance; the code uses max(4 × largest diameter, `NEIGHBORWIDTH`) |
+| `NEIGHBORWIDTH` | ≥ 0 | 0 | neighbour search distance; the code uses max(w × largest diameter, `NEIGHBORWIDTH`), w = 4 with `AMFORCE 2` or `QSFLUCT` ≥ 1, else 1.1 |
 | `SUBBIN` | 0, 1 | 0 | neighbour-search method: 0 Zwick, 1 Avery sub-bins |
 | `PARTICLE_WRT` | 0, 1 | 0 | particle files also hold temperature, spin, density, volume |
 | `GAS_WRT` | 0, 1 | 0 | … and the gas density, velocity, sound speed and temperature at each particle |

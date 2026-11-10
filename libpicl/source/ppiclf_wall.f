@@ -17,13 +17,26 @@
 !
 ! Wall triangles of subbin s: wsb_list(wsb_start(s):wsb_start(s+1)-1)
 ! Subbin (l1,l2,l3) spans wsb_x0 + [l, l+1]*wsb_h in each direction,
-! the same grid as ppiclf_user_subbinMap.
+! the same grid as ppiclf_user_subbinMap. A triangle is filed in every
+! subbin within wsb_reach of it (at least one subbin width).
 !
       IMPLICIT NONE
       INTEGER*4 :: wsb_n(3) = 0, wsb_tot = 0, wsb_nwall = -1
-      REAL*8 :: wsb_x0(3) = 0.0d0, wsb_h = 0.0d0
+      REAL*8 :: wsb_x0(3) = 0.0d0, wsb_h = 0.0d0, wsb_reach = 0.0d0
       INTEGER*4, ALLOCATABLE :: wsb_start(:), wsb_list(:)
       END MODULE ppiclf_wallbin
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_solve_SetWallReach(reach)
+!
+! Distance behind and around a wall within which particles see it
+!
+      USE ppiclf_wallbin
+      IMPLICIT NONE
+      REAL*8 reach
+!
+      wsb_reach = reach
+      RETURN
+      END
 !-----------------------------------------------------------------------
       SUBROUTINE ppiclf_solve_AddWall(xp1,xp2,xp3,rnf)
       use ppiclf_data
@@ -82,9 +95,9 @@
       use ppiclf_data
 !
 ! File every wall triangle into the subbins of this rank's bin that
-! lie within ppiclf_nndist of it (bounding box, then plane distance
+! lie within the wall reach of it (bounding box, then plane distance
 ! from the subbin centre), so that a particle finds every triangle
-! within ppiclf_nndist of its centre in its own subbin's list. The
+! within the reach of its centre in its own subbin's list. The
 ! lists are rebuilt only when the subbin grid moves.
 !
       USE ppiclf_wallbin
@@ -99,13 +112,14 @@
 !
 ! Internal:
 !
-      REAL*8 x0(3), h, rlo(3), rhi(3), cc(3), rmax, dpl
+      REAL*8 x0(3), h, rch, rlo(3), rhi(3), cc(3), rmax, dpl
       INTEGER*4 ilo(3), ihi(3), l, w, ipass, n, i1, i2, i3, sb, s
       LOGICAL same
 !
       IF (ppiclf_nwall .LE. 0) RETURN
 
       h = ppiclf_nndist
+      rch = MAX(h, wsb_reach)
       DO l = 1,3
          x0(l) = ppiclf_binb(2*l-1) + i_Bin(l)*ppiclf_bins_dx(l) - h
       END DO
@@ -122,8 +136,8 @@
       ALLOCATE(wsb_start(0:tot_SBin))
 
       ! Distance from a subbin centre within which a triangle can be
-      ! closer than h to some point of the subbin
-      rmax = h + 0.5d0*sqrt(3.0d0)*h
+      ! closer than rch to some point of the subbin
+      rmax = rch + 0.5d0*sqrt(3.0d0)*h
 
       ! Pass 1 counts the entries of each subbin, pass 2 fills them
       DO ipass = 1,2
@@ -135,9 +149,9 @@
          DO w = 1,ppiclf_nwall
             DO l = 1,3
                rlo(l) = min(ppiclf_wall_c(l,w),ppiclf_wall_c(l+3,w),
-     >                      ppiclf_wall_c(l+6,w)) - h
+     >                      ppiclf_wall_c(l+6,w)) - rch
                rhi(l) = max(ppiclf_wall_c(l,w),ppiclf_wall_c(l+3,w),
-     >                      ppiclf_wall_c(l+6,w)) + h
+     >                      ppiclf_wall_c(l+6,w)) + rch
                ilo(l) = max(0, FLOOR((rlo(l)-x0(l))/h))
                ihi(l) = min(n_SBin(l)-1, FLOOR((rhi(l)-x0(l))/h))
             END DO
@@ -282,11 +296,11 @@
 !
 ! A particle whose centre has crossed a wall stays in
 ! contact with it, and is pushed back, as long as the triangle is in
-! its subbin's list (about ppiclf_nndist, at least 4 diameters,
+! its subbin's list (the wall reach, at least 4 diameters,
 ! behind the wall). This happens when the impact is fast compared
 ! with the contact time ksp*dt: the overlap is about v*ksp*dt/pi.
 ! The walls therefore assume that the solid behind them is at
-! least ppiclf_nndist thick, which holds for the boundary of the
+! least the wall reach thick, which holds for the boundary of the
 ! fluid domain.
 !
       USE ppiclf_wallbin

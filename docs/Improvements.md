@@ -794,8 +794,8 @@ its wall patches instead.
 - **A fluid side.** A patch wall pushes a particle back towards the fluid even when the
   particle's centre has crossed the wall. The old wall turned its normal towards whichever
   side the centre was on, so once the centre crossed, the wall pushed it out of the domain.
-  This assumes that the solid behind a `PARTWALL` patch is at least `NEIGHBORWIDTH` thick
-  (at least 4 diameters), which holds for the boundary of the fluid domain.
+  This assumes that the solid behind a `PARTWALL` patch is at least max(4 diameters,
+  `NEIGHBORWIDTH`) thick, which holds for the boundary of the fluid domain.
 - **Search.** Wall triangles are filed into the collision subbins of each rank, so a
   particle only checks the triangles near it. The old code checked every wall for every
   particle.
@@ -1884,10 +1884,10 @@ Known limitations:
   ranks by about 0.2% of a 4e-4 m/s flow (driven by φ with `FEEDBACK 0`). The particles
   agree; the gas difference is not explained yet.
 - Ghost particles are created and sent in every RK stage, even when nothing uses them.
-- The subbin start index in `ppiclf_user_SetYdot` is declared for every subbin even when
-  no neighbour search runs. Subbins are `NEIGHBORWIDTH` (at least 4 dp) wide, so very small
-  particles with `NEIGHBORWIDTH 0` give a huge count (about 40 GB of address space for
-  1 µm tracers in a 4 cm tube; it is never touched).
+- The subbin start index of the neighbour search has one entry per subbin, (bin length /
+  `NEIGHBORWIDTH`)³ per bin. It is allocated only when a search runs (collisions, `AMFORCE 2`
+  or `QSFLUCT`), but very small particles with collisions in a large bin still give a huge
+  count.
 - The quasi-steady fluctuation mean (`QSFLUCT`) only sees neighbours within
   `NEIGHBORWIDTH`, not the filter width it is meant to average over.
 - Feedback lags one RK stage, because particles are projected before `ppiclf_user_SetYdot`.

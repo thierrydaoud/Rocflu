@@ -2372,8 +2372,10 @@ c----------------------------------------------------------------------
 !
 ! Internal:
 !
-      INTEGER*4 e, sb, next(0:nSB-1)
+      INTEGER*4 e, sb
+      INTEGER*4, ALLOCATABLE :: next(:)
 !
+      ALLOCATE(next(0:MAX(nSB-1,0)))
       DO sb = 0,nSB
         SBstart(sb) = 0
       END DO
@@ -2392,6 +2394,7 @@ c----------------------------------------------------------------------
         SBlist(next(sb)) = entID(e)
         next(sb) = next(sb) + 1
       END DO
+      DEALLOCATE(next)
 
       RETURN
       END

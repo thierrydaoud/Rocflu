@@ -650,8 +650,13 @@ DO l = 1,3
       global%mpiComm,global%mpierr )
 END DO
 
-! At least 4 diameters of the largest particle; NEIGHBORWIDTH can widen it
-neighborWidth = MAX(4.0_RFREAL*dp_max, global%piclNeighborWidth)
+! 4 diameters of the largest particle for Briney added mass and QS
+! fluctuations, else 1.1 (contacts); NEIGHBORWIDTH can widen it
+IF ( global%piclAmFlag == 2 .OR. global%piclQsFluctFlag >= 1 ) THEN
+  neighborWidth = MAX(4.0_RFREAL*dp_max, global%piclNeighborWidth)
+ELSE
+  neighborWidth = MAX(1.1_RFREAL*dp_max, global%piclNeighborWidth)
+END IF
 
 !CALL MPI_Barrier(global%mpiComm,errorFlag)
 
@@ -771,6 +776,8 @@ DO k = 1,nTriTot
   CALL ppiclf_solve_AddWall(triAll(1:3,k),triAll(4:6,k),triAll(7:9,k), &
                             triAll(10:12,k))
 END DO
+! Walls push back particles sunk up to 4 diameters (or NEIGHBORWIDTH)
+CALL ppiclf_solve_SetWallReach(MAX(4.0_RFREAL*dp_max,global%piclNeighborWidth))
 
 ! Report which global patches are particle walls
 ALLOCATE(partWallPatch(global%nPatches))
