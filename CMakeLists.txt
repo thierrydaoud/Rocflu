@@ -40,6 +40,8 @@ foreach(lang C CXX Fortran)
   endforeach()
 endforeach()
 
+# Release optimisation of the Rocflu sources; machine profiles may set it (rocflu.sh).
+set(ROCFLU_OPT_FLAGS "-O" CACHE STRING "Optimisation flags of the Rocflu sources (release)")
 # -ffree-line-length-none: __FILE__ expands to the full path; gfortran < 14 truncates it
 set(DEBUG_FLAGS -g -O0 -fbacktrace -fcheck=all -ffpe-trap=invalid,zero,overflow)
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -48,7 +50,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(ROCFLU_CXX_FLAGS -g)
   set(GSLIB_C_FLAGS -g -O0)
 else()
-  set(ROCFLU_Fortran_FLAGS -O -fallow-argument-mismatch -ffree-line-length-none)
+  separate_arguments(rocflu_opt UNIX_COMMAND "${ROCFLU_OPT_FLAGS}")
+  set(ROCFLU_Fortran_FLAGS ${rocflu_opt} -fallow-argument-mismatch -ffree-line-length-none)
   # -fcheck=all costs about 2% and has caught real bugs, so it stays on.
   set(PPICLF_Fortran_FLAGS -w -O3 -std=legacy -g -fmax-errors=10
                            -fallow-argument-mismatch -fcheck=all -fbacktrace)

@@ -238,6 +238,7 @@ its host names to `detect_machine` near the top of `rocflu.sh` (or always pass
 |---|---|
 | `MACHINE_MODULES` | modules loaded by `build`, `run`, `post`, `test`, `load` and the job scripts |
 | `MACHINE_SRUN_MPI` | `srun --mpi=` plugin of the job scripts and the test suite (`srun --mpi=list` shows the choices) |
+| `MACHINE_ROCFLU_OPT` | optimisation flags of the Rocflu sources in a release build (empty: `-O`); ppiclF and gslib keep theirs. A build directory keeps the flags it was configured with: build with `--fresh` after changing them |
 | `MACHINE_ACCOUNT` | default Slurm account (`-a`) |
 | `MACHINE_PARTITION` | default partition of `run` and `post` (`-p`) |
 | `MACHINE_TEST_PARTITION` | default partition of `test` |

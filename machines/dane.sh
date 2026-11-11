@@ -2,6 +2,8 @@
 # No burst QOS: standby jobs are cancelled when a normal job needs the nodes.
 MACHINE_MODULES="StdEnv cmake/3.30.5 gcc/13.3.1 openmpi/4.1.2"
 MACHINE_SRUN_MPI=pmi2
+# Rocflu release flags for Sapphire Rapids (other machines: -O).
+MACHINE_ROCFLU_OPT="-O2 -march=sapphirerapids -ffp-contract=off"
 MACHINE_ACCOUNT=ufl
 MACHINE_PARTITION=pbatch
 MACHINE_TEST_PARTITION=pdebug

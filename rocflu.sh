@@ -253,7 +253,8 @@ build_config() {
   say "building ${OPTION:-}$name${PLAIN:-} ($jobs jobs), log: ${log#$ROOT/}"
 
   # Configure
-  if ! cmake -S "$ROOT" -B "$dir" -DCMAKE_INSTALL_PREFIX="$inst" "$@" \
+  if ! cmake -S "$ROOT" -B "$dir" -DCMAKE_INSTALL_PREFIX="$inst" \
+         -DROCFLU_OPT_FLAGS="${MACHINE_ROCFLU_OPT:--O}" "$@" \
          > "$dir/configure.log" 2>&1; then
     build_failed configure "" "$dir/configure.log"
   fi
