@@ -386,28 +386,75 @@ CONTAINS
   SUBROUTINE RFLU_CompleteDumpSteps(global,steps)
 
 ! Purpose: The steps of restart_data/ with every dump a run needs to start
-!   from them (DumpsComplete), in increasing order (on the calling rank).
+!   from them (as DumpsComplete), in increasing order (on the calling rank).
+!   Decided from the names in the listing, with no file query per dump.
 
     TYPE(t_global), POINTER :: global
     INTEGER, ALLOCATABLE, INTENT(OUT) :: steps(:)
 
     CHARACTER(CHRLEN), ALLOCATABLE :: entries(:)
-    INTEGER :: iEntry,nSteps,step
+    INTEGER :: errorFlag,iEntry,iReg,iRegLow,iRegUpp,k,nFound,nSteps,step
     INTEGER, ALLOCATABLE :: found(:)
+    LOGICAL, ALLOCATABLE :: haveFluid(:,:),haveParticles(:)
 
     CALL ListRestartData(global,entries)
+
+! A single-region run has only region 0 (the serial region)
+    IF ( global%nRegions == 1 ) THEN
+      iRegLow = 0
+      iRegUpp = 0
+    ELSE
+      iRegLow = 1
+      iRegUpp = global%nRegions
+    END IF ! global%nRegions
+
+! Steps with a fluid dump
     ALLOCATE(found(SIZE(entries)))
-    nSteps = 0
+    nFound = 0
     DO iEntry = 1,SIZE(entries)
       IF ( entries(iEntry)(1:6) /= 'fluid_' ) CYCLE
       IF ( INDEX(entries(iEntry),'.tmp') > 0 ) CYCLE
       step = DumpStep(entries(iEntry))
       IF ( step < 0 ) CYCLE
-      IF ( ANY(found(1:nSteps) == step) ) CYCLE
-      IF ( DumpsComplete(global,step) .EQV. .FALSE. ) CYCLE
-      nSteps = nSteps + 1
-      found(nSteps) = step
+      IF ( ANY(found(1:nFound) == step) ) CYCLE
+      nFound = nFound + 1
+      found(nFound) = step
     END DO ! iEntry
+
+! Dumps present at each of these steps: fluid_<step>_<region>.dat and
+! particles_<step>.dat, named as FluidDumpName and RFLU_ParticleDumpName
+    ALLOCATE(haveFluid(iRegLow:iRegUpp,nFound),haveParticles(nFound))
+    haveFluid     = .FALSE.
+    haveParticles = .FALSE.
+    DO iEntry = 1,SIZE(entries)
+      IF ( INDEX(entries(iEntry),'.tmp') > 0 ) CYCLE
+      step = DumpStep(entries(iEntry))
+      IF ( step < 0 ) CYCLE
+      k = FINDLOC(found(1:nFound),step,DIM=1)
+      IF ( k == 0 ) CYCLE
+      IF ( (entries(iEntry)(1:6) == 'fluid_') .AND. &
+           (LEN_TRIM(entries(iEntry)) == 24) .AND. &
+           (entries(iEntry)(21:24) == '.dat') ) THEN
+        READ(entries(iEntry)(16:20),'(I5)',IOSTAT=errorFlag) iReg
+        IF ( errorFlag /= 0 ) CYCLE
+        IF ( (iReg >= iRegLow) .AND. (iReg <= iRegUpp) ) THEN
+          haveFluid(iReg,k) = .TRUE.
+        END IF ! iReg
+      ELSE IF ( (entries(iEntry)(1:10) == 'particles_') .AND. &
+                (LEN_TRIM(entries(iEntry)) == 22) .AND. &
+                (entries(iEntry)(19:22) == '.dat') ) THEN
+        haveParticles(k) = .TRUE.
+      END IF ! entries
+    END DO ! iEntry
+
+    nSteps = 0
+    DO k = 1,nFound
+      IF ( .NOT. ALL(haveFluid(:,k)) ) CYCLE
+      IF ( (global%piclUsed .EQV. .TRUE.) .AND. (found(k) > 0) .AND. &
+           (.NOT. haveParticles(k)) ) CYCLE
+      nSteps = nSteps + 1
+      found(nSteps) = found(k)
+    END DO ! k
 
     ALLOCATE(steps(nSteps))
     steps = found(1:nSteps)
