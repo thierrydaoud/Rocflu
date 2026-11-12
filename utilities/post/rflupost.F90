@@ -87,6 +87,7 @@ SUBROUTINE rflupost(caseString,verbLevel,stepsString)
 ! Locals
 ! ==============================================================================
 
+  CHARACTER(:), ALLOCATABLE :: command
   CHARACTER(CHRLEN) :: binFile,casename,fileName,particleFile,regionDir
   CHARACTER(CHRLEN), ALLOCATABLE :: binFiles(:,:),fluidFiles(:,:), &
                                     particleFiles(:,:),regionFiles(:), &
@@ -158,14 +159,14 @@ SUBROUTINE rflupost(caseString,verbLevel,stepsString)
     nAvailable = SIZE(available)
     nSteps     = SIZE(steps)
 
-    CALL EXECUTE_COMMAND_LINE('mkdir -p post/root post/particles post/bins', &
-                              EXITSTAT=errorFlag)
+! Every directory with one command (each command starts a shell)
+    command = 'mkdir -p post/root post/particles post/bins'
     IF ( nSteps > 0 ) THEN
       DO iReg = iRegLow,iRegUpp
-        CALL EXECUTE_COMMAND_LINE('mkdir -p post/'//TRIM(RegionDirName(iReg)), &
-                                  EXITSTAT=errorFlag)
+        command = command//' post/'//TRIM(RegionDirName(iReg))
       END DO ! iReg
     END IF ! nSteps
+    CALL EXECUTE_COMMAND_LINE(command,EXITSTAT=errorFlag)
 
     WRITE(STDOUT,'(A,I0,A,I0,A,I0,A)') 'rflupost: converting ',nSteps,' of ', &
       nAvailable,' dump steps to post/ on ',global%nProcAlloc,' ranks'
