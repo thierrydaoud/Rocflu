@@ -16,7 +16,9 @@
 !   output-field table (PARTICLE_WRT, GAS_WRT, ... of # PICL).
 !
 !   The steps: 'new' (those without post/root/collection_<step>.vtm), 'all',
-!   'last', or a comma-separated list. Runs on one rank, region after region.
+!   'last', or a comma-separated list. Runs on any number of ranks: the
+!   regions, then the particle steps, are dealt round-robin to the ranks;
+!   rank 0 picks the steps and writes the .pvd files.
 !
 ! Input:
 !   caseString    Case name
@@ -89,7 +91,8 @@ SUBROUTINE rflupost(caseString,verbLevel,stepsString)
   CHARACTER(CHRLEN), ALLOCATABLE :: binFiles(:,:),fluidFiles(:,:), &
                                     particleFiles(:,:),regionFiles(:), &
                                     stepFiles(:)
-  INTEGER :: errorFlag,iReg,iRegLow,iRegUpp,iStep,nParticleSteps,nSteps,step
+  INTEGER :: errorFlag,iReg,iRegLow,iRegUpp,iStep,nAvailable,nParticleSteps, &
+             nSteps,step
   INTEGER, ALLOCATABLE :: available(:),steps(:)
   LOGICAL :: fileExists
   REAL(8), ALLOCATABLE :: particleTimes(:),times(:)
@@ -109,6 +112,10 @@ SUBROUTINE rflupost(caseString,verbLevel,stepsString)
 
   casename = caseString(1:LEN(caseString))
   CALL RFLU_InitGlobal(casename,verbLevel,MPI_COMM_WORLD,global)
+
+  CALL MPI_Init(errorFlag)
+  CALL MPI_Comm_size(global%mpiComm,global%nProcAlloc,errorFlag)
+  CALL MPI_Comm_rank(global%mpiComm,global%myProcid,errorFlag)
 
   CALL RegisterFunction(global,'rflupost',__FILE__)
 
@@ -142,32 +149,49 @@ SUBROUTINE rflupost(caseString,verbLevel,stepsString)
   END IF ! global%nRegions
 
 ! ******************************************************************************
-! Steps to convert
+! Steps to convert and the post/ directories, on rank 0
 ! ******************************************************************************
 
-  CALL RFLU_CompleteDumpSteps(global,available)
-  CALL ChooseSteps(TRIM(stepsString),available,steps)
-  nSteps = SIZE(steps)
+  IF ( global%myProcid == MASTERPROC ) THEN
+    CALL RFLU_CompleteDumpSteps(global,available)
+    CALL ChooseSteps(TRIM(stepsString),available,steps)
+    nAvailable = SIZE(available)
+    nSteps     = SIZE(steps)
 
-  CALL EXECUTE_COMMAND_LINE('mkdir -p post/root post/particles post/bins', &
-                            EXITSTAT=errorFlag)
+    CALL EXECUTE_COMMAND_LINE('mkdir -p post/root post/particles post/bins', &
+                              EXITSTAT=errorFlag)
+    IF ( nSteps > 0 ) THEN
+      DO iReg = iRegLow,iRegUpp
+        CALL EXECUTE_COMMAND_LINE('mkdir -p post/'//TRIM(RegionDirName(iReg)), &
+                                  EXITSTAT=errorFlag)
+      END DO ! iReg
+    END IF ! nSteps
 
-  WRITE(STDOUT,'(A,I0,A,I0,A)') 'rflupost: converting ',nSteps,' of ', &
-                                SIZE(available),' dump steps to post/'
+    WRITE(STDOUT,'(A,I0,A,I0,A,I0,A)') 'rflupost: converting ',nSteps,' of ', &
+      nAvailable,' dump steps to post/ on ',global%nProcAlloc,' ranks'
+  END IF ! global%myProcid
+
+  CALL MPI_Bcast(nAvailable,1,MPI_INTEGER,MASTERPROC,global%mpiComm,errorFlag)
+  CALL MPI_Bcast(nSteps,1,MPI_INTEGER,MASTERPROC,global%mpiComm,errorFlag)
+  IF ( global%myProcid /= MASTERPROC ) THEN
+    ALLOCATE(available(nAvailable),steps(nSteps))
+  END IF ! global%myProcid
+  CALL MPI_Bcast(available,nAvailable,MPI_INTEGER,MASTERPROC,global%mpiComm, &
+                 errorFlag)
+  CALL MPI_Bcast(steps,nSteps,MPI_INTEGER,MASTERPROC,global%mpiComm,errorFlag)
 
 ! ******************************************************************************
-! Fluid: region after region, each step of the region
+! Fluid: the regions of this rank (round-robin), each step of the region
 ! ******************************************************************************
 
   ALLOCATE(regionFiles(iRegUpp-iRegLow+1))
 
   IF ( nSteps > 0 ) THEN
     DO iReg = iRegLow,iRegUpp
+      IF ( MOD(iReg-iRegLow,global%nProcAlloc) /= global%myProcid ) CYCLE
       pRegion => levels(1)%regions(iReg)
 
       regionDir = RegionDirName(iReg)
-      CALL EXECUTE_COMMAND_LINE('mkdir -p post/'//TRIM(regionDir), &
-                                EXITSTAT=errorFlag)
 
       CALL SetUpRegion(pRegion)
       DO iStep = 1,nSteps
@@ -178,8 +202,11 @@ SUBROUTINE rflupost(caseString,verbLevel,stepsString)
   END IF ! nSteps
 
 ! ******************************************************************************
-! Particles, bins and the dataset of each step
+! Particles, bins and the dataset of each step of this rank (round-robin),
+! once every fluid file is written
 ! ******************************************************************************
+
+  CALL MPI_Barrier(global%mpiComm,errorFlag)
 
   DO iReg = iRegLow,iRegUpp
     WRITE(regionFiles(iReg-iRegLow+1),'(A,A,A)') '../',TRIM(RegionDirName(iReg)), &
@@ -187,6 +214,7 @@ SUBROUTINE rflupost(caseString,verbLevel,stepsString)
   END DO ! iReg
 
   DO iStep = 1,nSteps
+    IF ( MOD(iStep-1,global%nProcAlloc) /= global%myProcid ) CYCLE
     step = steps(iStep)
     CALL WriteParticlesAndBins(step,fileExists)
     particleFile = ''
@@ -206,53 +234,59 @@ SUBROUTINE rflupost(caseString,verbLevel,stepsString)
 ! ******************************************************************************
 ! The series: every step that has its dataset in post/. collection.pvd has
 ! everything; fluid.pvd, particles.pvd and bins.pvd one kind each, so that
-! ParaView shows them as separate objects
+! ParaView shows them as separate objects. Rank 0, once every step is written
 ! ******************************************************************************
 
-  ALLOCATE(times(SIZE(available)),stepFiles(SIZE(available)), &
-           fluidFiles(SIZE(regionFiles),SIZE(available)), &
-           particleTimes(SIZE(available)),particleFiles(1,SIZE(available)), &
-           binFiles(1,SIZE(available)))
-  nSteps = 0
-  nParticleSteps = 0
-  DO iStep = 1,SIZE(available)
-    step = available(iStep)
-    INQUIRE(FILE=TRIM(StepVTMName(step)),EXIST=fileExists)
-    IF ( .NOT. fileExists ) CYCLE
-    nSteps = nSteps + 1
-    times(nSteps) = RFLU_FluidDumpTime(global,step)
-    stepFiles(nSteps) = StepFileName('root/collection_',step)
-    stepFiles(nSteps) = stepFiles(nSteps)(1:LEN_TRIM(stepFiles(nSteps))-4)// &
-                        '.vtm'
-    DO iReg = iRegLow,iRegUpp
-      fluidFiles(iReg-iRegLow+1,nSteps) = &
-        StepFileName(TRIM(RegionDirName(iReg))//'/',step)
-    END DO ! iReg
-    INQUIRE(FILE=TRIM(StepFileName('post/particles/',step)),EXIST=fileExists)
-    IF ( fileExists ) THEN
-      nParticleSteps = nParticleSteps + 1
-      particleTimes(nParticleSteps) = times(nSteps)
-      particleFiles(1,nParticleSteps) = StepFileName('particles/',step)
-      binFiles(1,nParticleSteps)      = StepFileName('bins/',step)
-    END IF ! fileExists
-  END DO ! iStep
-  CALL WriteSeriesPVD('post/collection.pvd',times(1:nSteps), &
-                      RESHAPE(stepFiles(1:nSteps),(/1,nSteps/)))
-  CALL WriteSeriesPVD('post/fluid.pvd',times(1:nSteps),fluidFiles(:,1:nSteps))
-  IF ( nParticleSteps > 0 ) THEN
-    CALL WriteSeriesPVD('post/particles.pvd',particleTimes(1:nParticleSteps), &
-                        particleFiles(:,1:nParticleSteps))
-    CALL WriteSeriesPVD('post/bins.pvd',particleTimes(1:nParticleSteps), &
-                        binFiles(:,1:nParticleSteps))
-  END IF ! nParticleSteps
-  WRITE(STDOUT,'(A,I0,A)') 'rflupost: post/collection.pvd and fluid.pvd list ', &
-                           nSteps,' steps'
-  IF ( nParticleSteps > 0 ) THEN
-    WRITE(STDOUT,'(A,I0,A)') 'rflupost: post/particles.pvd and bins.pvd list ', &
-                             nParticleSteps,' steps'
-  END IF ! nParticleSteps
+  CALL MPI_Barrier(global%mpiComm,errorFlag)
+
+  IF ( global%myProcid == MASTERPROC ) THEN
+    ALLOCATE(times(SIZE(available)),stepFiles(SIZE(available)), &
+             fluidFiles(SIZE(regionFiles),SIZE(available)), &
+             particleTimes(SIZE(available)),particleFiles(1,SIZE(available)), &
+             binFiles(1,SIZE(available)))
+    nSteps = 0
+    nParticleSteps = 0
+    DO iStep = 1,SIZE(available)
+      step = available(iStep)
+      INQUIRE(FILE=TRIM(StepVTMName(step)),EXIST=fileExists)
+      IF ( .NOT. fileExists ) CYCLE
+      nSteps = nSteps + 1
+      times(nSteps) = RFLU_FluidDumpTime(global,step)
+      stepFiles(nSteps) = StepFileName('root/collection_',step)
+      stepFiles(nSteps) = stepFiles(nSteps)(1:LEN_TRIM(stepFiles(nSteps))-4)// &
+                          '.vtm'
+      DO iReg = iRegLow,iRegUpp
+        fluidFiles(iReg-iRegLow+1,nSteps) = &
+          StepFileName(TRIM(RegionDirName(iReg))//'/',step)
+      END DO ! iReg
+      INQUIRE(FILE=TRIM(StepFileName('post/particles/',step)),EXIST=fileExists)
+      IF ( fileExists ) THEN
+        nParticleSteps = nParticleSteps + 1
+        particleTimes(nParticleSteps) = times(nSteps)
+        particleFiles(1,nParticleSteps) = StepFileName('particles/',step)
+        binFiles(1,nParticleSteps)      = StepFileName('bins/',step)
+      END IF ! fileExists
+    END DO ! iStep
+    CALL WriteSeriesPVD('post/collection.pvd',times(1:nSteps), &
+                        RESHAPE(stepFiles(1:nSteps),(/1,nSteps/)))
+    CALL WriteSeriesPVD('post/fluid.pvd',times(1:nSteps),fluidFiles(:,1:nSteps))
+    IF ( nParticleSteps > 0 ) THEN
+      CALL WriteSeriesPVD('post/particles.pvd',particleTimes(1:nParticleSteps), &
+                          particleFiles(:,1:nParticleSteps))
+      CALL WriteSeriesPVD('post/bins.pvd',particleTimes(1:nParticleSteps), &
+                          binFiles(:,1:nParticleSteps))
+    END IF ! nParticleSteps
+    WRITE(STDOUT,'(A,I0,A)') 'rflupost: post/collection.pvd and fluid.pvd list ', &
+                             nSteps,' steps'
+    IF ( nParticleSteps > 0 ) THEN
+      WRITE(STDOUT,'(A,I0,A)') 'rflupost: post/particles.pvd and bins.pvd list ', &
+                               nParticleSteps,' steps'
+    END IF ! nParticleSteps
+  END IF ! global%myProcid
 
   CALL DeregisterFunction(global)
+
+  CALL MPI_Finalize(errorFlag)
 
 CONTAINS
 
@@ -331,6 +365,7 @@ CONTAINS
           IF ( errorFlag /= 0 .OR. .NOT. ANY(available == wanted) ) THEN
             WRITE(STDOUT,'(A,A,A)') 'rflupost: step ',rest(1:comma-1), &
               ' has no complete dump in restart_data/'
+            CALL MPI_Abort(global%mpiComm,1,errorFlag)
             STOP 1
           END IF ! errorFlag
           n = n + 1
