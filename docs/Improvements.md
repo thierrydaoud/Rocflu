@@ -82,6 +82,12 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
   - [The Same Shock in MFC](#the-same-shock-in-mfc)
   - [How It Is Checked](#how-it-is-checked)
   - [Limits](#limits-1)
+- [Post-Processing on Many Ranks](#post-processing-on-many-ranks)
+  - [The Problem](#the-problem-1)
+  - [What Changed](#what-changed-3)
+  - [Results](#results-2)
+  - [How It Was Checked](#how-it-was-checked-3)
+  - [Limits](#limits-2)
 - [Still Open](#still-open)
 - [Reproducing the Figures](#reproducing-the-figures)
 
@@ -119,6 +125,7 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
 | Linear periodicity | With one direction periodic, a particle was wrapped in all three: one crossing a wall of a z-periodic domain jumped by the domain length, out of the mesh | Wrapped only in the periodic directions | [3aa799c](https://github.com/thierrydaoud/Rocflu/commit/3aa799c) |
 | Particles outside the domain | At start-up only a particle outside the box around the grid gave a warning, and the run went on. A particle that left later (an outflow, a wall without `PARTWALL 1`) was not reported: the run went on to the end, or stopped later with "Singular least-squares interpolation matrix" | The run stops as soon as a particle's centre is outside the fluid domain, at start-up or in any stage, and prints the particle's line in `points.dat`, its position and the patch it crossed | (section "Particles outside the fluid domain") |
 | Particle gradients | The particle forces used the gas solver's WENO-smoothed gradients: at a shock a particle got 58% of the pressure-gradient impulse | A separate least-squares fit with the resolvable second derivatives, without WENO or limiter: the impulse is exact to 0.1%, and no false wall-normal gradient (30% with a linear fit) | [2c93e55](https://github.com/thierrydaoud/Rocflu/commit/2c93e55) |
+| Post-processing | `rflupost` ran on one process: 44 min for a case of 112 regions and 497 steps on Dane, 82–210 s of it checking the dump files one by one | The regions, then the particle steps, are shared among the ranks; complete steps come from one listing of `restart_data/`; `rocflu.sh run` and `rocflu.sh post` use the ranks of the job: 35 s on 112 ranks, byte-identical output | [02f7a2f](https://github.com/thierrydaoud/Rocflu/commit/02f7a2f), [8fb5500](https://github.com/thierrydaoud/Rocflu/commit/8fb5500), [ffe97df](https://github.com/thierrydaoud/Rocflu/commit/ffe97df), [9d65d66](https://github.com/thierrydaoud/Rocflu/commit/9d65d66) |
 
 ## Regression Tests
 
@@ -1838,6 +1845,66 @@ from the code and not measured.
   (the wedge) were not measured. There the quadratic fit differs from the linear one.
 - **∇F is unchanged.** The gradient of the projected feedback force, used in the torque, still
   uses least squares with WENO. It is a particle field, not a gas field.
+
+## Post-Processing on Many Ranks
+
+### The Problem
+
+`rflupost` converts the dumps in `restart_data/` into the ParaView files in `post/` (see
+[Running a Simulation](Running.md#post-process)). It ran on one process, and `rocflu.sh run`
+started it with `srun -n 1` at the end of the job, so the job's other ranks waited (and on
+several nodes `srun` warned about it). A case of 112 regions and 497 dump steps on Dane
+(56,161 dumps on Lustre) took 44 min. Timed on that case, checking that every dump of a step
+exists, one `INQUIRE` per file, took 82–210 s by itself, while listing the same directory takes
+0.6 s; the rest was the conversion, one region and one step after another.
+
+### What Changed
+
+- `rflupost` runs on any number of ranks. Rank 0 chooses the steps (`-s`) and sends them to the
+  others. The regions are dealt round-robin (region k to rank (k − 1) mod N): each rank writes
+  every step of its regions. Then the particle steps are dealt the same way, and rank 0 writes
+  the `.pvd` files. A barrier between the phases keeps `-s new` working: a step's `.vtm` is
+  written only when all of its fluid files exist.
+- The steps with every dump are found from one listing of `restart_data/` instead of one
+  `INQUIRE` per file.
+- The `post/` directories are created with one command instead of one per region.
+- `rocflu.sh run` converts on all the ranks of the job. `rocflu.sh post` runs `here` (one
+  process), `interactive` (on all the ranks of an allocation) or `batch` (a job with one rank
+  per region by default, or `-N` x `-n`).
+
+### Results
+
+The case above (112 regions, 497 steps) on Dane, 2 nodes:
+
+| | Time |
+|---|---|
+| One rank (before) | 44 min |
+| 112 ranks, regions and particle steps shared | 252 s |
+| + complete steps from one listing | 41.8 s |
+| + one `mkdir` | 34.6 s |
+
+Of the remaining 35 s, about 24 s is the fluid conversion (one region per rank), 5 s starting
+MPI, 4 s the particle steps and 4 s the `.pvd` files.
+
+### How It Was Checked
+
+The output is compared byte by byte with `rflupost` of
+[0a5fe71](https://github.com/thierrydaoud/Rocflu/commit/0a5fe71) on one rank:
+
+- the case above, all 497 steps (57,159 files);
+- 11 of its steps on 1, 3, 56 and 112 ranks, and through `rocflu.sh post -e batch` (112 ranks)
+  and `-e interactive` (56 ranks);
+- a copy with a fluid dump and a particle dump removed, a `.tmp` file and a dump of a region not
+  in the case, on 4 ranks: the same 9 of 11 steps are converted;
+- a single-region case (`shocktube/one-way/4-particles/np1`, dumps `fluid_<step>_00000.dat`)
+  on 1, 2, 4 and 8 ranks, so some ranks have no region and, on 8, no particle step either.
+
+### Limits
+
+- The fluid conversion uses at most one rank per region: more ranks speed up only the particle
+  steps.
+- A restart from the latest dump (`START_STEP -1`) still checks the dumps one `INQUIRE` at a
+  time, which is slow with many dumps on Lustre.
 
 ## Still Open
 
