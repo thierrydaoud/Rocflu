@@ -55,7 +55,7 @@ with particles, `points.dat`. `run` then:
    stamp for what it was redoing.
 3. **Writes `<case>.sbatch`** in the case directory and **submits it**: the job runs
    `rflump`, with `srun` on N nodes x n ranks per node, then (unless `--no-post`)
-   `rflupost` on one task if the simulation succeeded. The solver's output goes to
+   `rflupost` on the same ranks if the simulation succeeded. The solver's output goes to
    `<case>.<job id>.out`: a header box from the job script (start time, partition,
    account, QOS, walltime, nodes and ranks, job ID, build and commit, modules), the Setup box,
    one progress line per `PRNTIME` (percent done, t, dt, step, time per step, ETA) and a
@@ -77,7 +77,7 @@ with particles, `points.dat`. `run` then:
 | `-e`, `--engine` | `batch`: submit the job script with `sbatch`; `interactive`: run it right away in this shell, on a node you have already allocated (`srun --pty bash` or `salloc`; refused elsewhere), output also in `<case>.interactive.out` | `batch` |
 | `--repartition` | pre-process again even when the stamp says it is up to date | skip what is done |
 | `--dry-run` | build, pre-process and write the job script, but do not submit or run it | |
-| `--no-post` | do not run `rflupost` after the simulation. By default, after a simulation that succeeded, the job runs `rflupost` (one task), so `post/` is ready when the job ends | post on |
+| `--no-post` | do not run `rflupost` after the simulation. By default, after a simulation that succeeded, the job runs `rflupost` (on the job's ranks), so `post/` is ready when the job ends | post on |
 | `--debug` | debug build of the case | |
 | `-j, --jobs N` | compile with N processes | 16 |
 | `--machine M` | machine profile (`hpg`, `dane`, `local`): modules, `srun --mpi` plugin and the defaults of `-p`, `-a`, `-q` ([Machines](GettingStarted.md#machines)) | from the host name |
@@ -161,15 +161,18 @@ A case build stops at start-up if the input asks for a model whose slots it does
 have, with a message such as *Input needs ppiclF slots 'qsfluct' (QSFLUCT >= 1), not in
 this build: use ./rocflu.sh run*.
 
-The post program runs on one process, in the case directory:
-`$B/rflupost -c <case> [-s new|all|last|N,M]`.
+The post program runs in the case directory, on any number of ranks:
+`srun -n <ranks> $B/rflupost -c <case> [-s new|all|last|N,M]` (or `$B/rflupost ...` on one).
+The regions, then the particle steps, are dealt round-robin to the ranks: more ranks than
+regions speed up only the particle steps.
 
 ## Post-Process
 
 ```bash
 ./rocflu.sh post /path/to/case/<case>.inp               # the steps not yet in post/
 ./rocflu.sh post /path/to/case/<case>.inp -s all        # every step again
-./rocflu.sh post /path/to/case/<case>.inp -e batch      # as a one-task Slurm job
+./rocflu.sh post /path/to/case/<case>.inp -e batch      # as a Slurm job, one rank per region
+./rocflu.sh post /path/to/case/<case>.inp -e interactive # on the node(s) you have allocated
 ```
 
 `rflump` writes its results as raw dumps in `restart_data/` (the same files a restart
@@ -191,10 +194,21 @@ while the simulation is still going and again later; `-s all` redoes every step,
 after changing which fields to write (the `*_WRT` keys of `# POST` for the fluid,
 `PARTICLE_WRT`, ... of `# PICL` for the particles).
 
+Where it runs (`-e`): `here` runs `rflupost` as one process on the node you are on, which
+suits small cases or a few steps. For large cases, run it on several ranks: `interactive`
+uses all the ranks of an allocation you already have, `batch` submits a job with one rank
+per region (or the `-N` x `-n` given). Each region's fluid is converted by one rank, then
+the particle steps are shared among all the ranks, so one rank per region is the useful
+count: more ranks speed up only the particle steps. A case of 112 regions and 497 steps
+takes 44 min on one rank and 35 s on 112. The output is the same on any number of ranks.
+`./rocflu.sh run` already converts the dumps at the end of the job, on the job's ranks.
+
 | Option | Meaning | Default |
 |---|---|---|
 | `-s, --steps S` | `new`, `all`, `last`, or step numbers `N,M,...` | `new` |
-| `-e, --engine E` | `here`: run on this node; `batch`: submit `<case>.post.sbatch` (one task) | `here` |
-| `-p`, `-a`, `-q`, `-w`, `--mem` | partition, account, QOS (`primary` or `burst`), wall time, memory of the batch job | the machine's partition and account (as for `run`), `primary`, `00:30:00`, `8gb` |
+| `-e, --engine E` | `here`: run on this node, one process; `interactive`: run on all the ranks of a node you have already allocated (`srun --pty bash` or `salloc`; refused elsewhere); `batch`: submit `<case>.post.sbatch` | `here` |
+| `-N, --nodes N`, `-n, --tasks-per-node N` | nodes and ranks per node of the batch job | one rank per region (from `<case>.map`), placed by Slurm |
+| `-p`, `-a`, `-q`, `-w`, `--mem` | partition, account, QOS (`primary` or `burst`), wall time, memory per node of the batch job | the machine's partition and account (as for `run`), `primary`, `00:30:00`, 2 GB per rank |
+| `--dry-run` | build and show the command (or write the job script), but do not run or submit it | |
 | `--debug`, `-j N` | build options, as for `run` | |
 | `--machine M` | machine profile, as for `run` | from the host name |

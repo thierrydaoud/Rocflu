@@ -532,8 +532,8 @@ ${HEADING}What to do:${PLAIN}
                         do not submit or run it ${DEFAULT}(default: submit)${PLAIN}
   ${OPTION}--no-post${PLAIN}             do not convert the dumps after the simulation
                         ${DEFAULT}(default: when the simulation succeeds, rflupost
-                        converts its dumps into ParaView files in post/, one
-                        task; ./rocflu.sh post does it later)${PLAIN}
+                        converts its dumps into ParaView files in post/, on
+                        the job's ranks; ./rocflu.sh post does it later)${PLAIN}
 ${HEADING}Build:${PLAIN}
   ${OPTION}--debug${PLAIN}               debug build (-g -O0 -fcheck=all)
                         ${DEFAULT}(default: optimised release build)${PLAIN}
@@ -803,7 +803,7 @@ EOF
       # Only after a simulation that succeeded
       echo "status=\$?"
       echo "[ \$status == 0 ] || exit \$status"
-      echo "srun --mpi=$MACHINE_SRUN_MPI ${overlap}-n 1 $bin/rflupost -c $case_name -v 0"
+      echo "srun --mpi=$MACHINE_SRUN_MPI ${overlap}-n $nranks $bin/rflupost -c $case_name -v 0"
     fi
   } > "$script"
   say "job script: $script"
@@ -843,13 +843,22 @@ ${HEADING}Steps:${PLAIN}
                         N,M,...: the steps given
 ${HEADING}Where:${PLAIN}
   ${OPTION}-e, --engine${PLAIN} E        here: run on this node, one process ${DEFAULT}(default)${PLAIN}
-                        batch: submit a one-task Slurm job (<case>.post.sbatch)
+                        interactive: run on a node you have already allocated
+                        (srun --pty bash or salloc), on all its ranks
+                        batch: submit a Slurm job (<case>.post.sbatch)
+  ${OPTION}-N, --nodes${PLAIN} N         nodes for batch
+  ${OPTION}-n, --tasks-per-node${PLAIN} N
+                        MPI ranks per node for batch ${DEFAULT}(default for both: one
+                        rank per region, placed by Slurm)${PLAIN}
   ${OPTION}-p, --partition${PLAIN} P     Slurm partition for batch ${DEFAULT}(default: ${MACHINE_PARTITION:-none})${PLAIN}
   ${OPTION}-a, --account${PLAIN} A       Slurm account for batch ${DEFAULT}(default: ${MACHINE_ACCOUNT:-none})${PLAIN}
 $(qos_help)
                         for batch ${DEFAULT}(default: primary)${PLAIN}
   ${OPTION}-w, --walltime${PLAIN} T      wall time for batch, HH:MM:SS ${DEFAULT}(default: 00:30:00)${PLAIN}
-  ${OPTION}--mem${PLAIN} M               memory for batch, e.g. 16gb ${DEFAULT}(default: 8gb)${PLAIN}
+  ${OPTION}--mem${PLAIN} M               memory per node for batch, e.g. 64gb
+                        ${DEFAULT}(default: 2gb per rank, --mem-per-cpu=2gb)${PLAIN}
+  ${OPTION}--dry-run${PLAIN}             build and show the command (or write the job
+                        script), but do not run or submit it
 ${HEADING}Build:${PLAIN}
   ${OPTION}--debug${PLAIN}               debug build ${DEFAULT}(default: release)${PLAIN}
   ${OPTION}-j, --jobs${PLAIN} N          compile with N processes ${DEFAULT}(default: 16)${PLAIN}
@@ -860,11 +869,14 @@ EOF
 
 cmd_post() {
   local inp="" steps=new engine=here partition="$MACHINE_PARTITION" account="$MACHINE_ACCOUNT" qos=primary
-  local walltime=00:30:00 mem=8gb debug=0 jobs=16
+  local walltime=00:30:00 mem="" debug=0 jobs=16 nodes="" tasks="" dry=0
   while [ $# -gt 0 ]; do
     case "$1" in
       -s|--steps)     steps="$2"; shift ;;
       -e|--engine)    engine="$2"; shift ;;
+      -N|--nodes)     nodes="$2"; shift ;;
+      -n|--tasks-per-node) tasks="$2"; shift ;;
+      --dry-run)      dry=1 ;;
       -p|--partition) partition="$2"; shift ;;
       -a|--account)   account="$2"; shift ;;
       -q|--qos)       qos="$2"; shift ;;
@@ -883,7 +895,17 @@ cmd_post() {
   slurm_qos=$(qos_name "$qos" "$account") || exit 1
   [ -f "$inp" ] || fail "no file $inp"
   case "$inp" in *.inp) ;; *) fail "$inp: the case file must end in .inp" ;; esac
-  case "$engine" in here|batch) ;; *) fail "unknown engine $engine (here or batch)" ;; esac
+  case "$engine" in
+    here|batch) ;;
+    interactive)
+      [ -n "$SLURM_JOB_ID" ] || [ $dry == 1 ] || fail "-e interactive runs on a node you have allocated; get one first, e.g. srun -A $account -p $partition -n <ranks> -t $walltime --pty bash (or salloc), then run this again there" ;;
+    *) fail "unknown engine $engine (here, interactive or batch)" ;;
+  esac
+  if [ -n "$nodes$tasks" ]; then
+    [ $engine == batch ] || fail "-N and -n are for -e batch (interactive uses the ranks of the allocation)"
+    [[ "${nodes:-1}" =~ ^[1-9][0-9]*$ ]] || fail "-N must be a positive integer"
+    [[ "${tasks:-1}" =~ ^[1-9][0-9]*$ ]] || fail "-n must be a positive integer"
+  fi
   [[ "$steps" =~ ^(new|all|last|[0-9]+(,[0-9]+)*)$ ]] \
     || fail "-s must be new, all, last or step numbers separated by commas"
 
@@ -897,14 +919,33 @@ cmd_post() {
   local name bin
   build_for_case "$inp" "$debug" "$jobs"
 
-  if [ $engine == here ]; then
-    say "converting the dumps of $case_name (steps: $steps) into $case_dir/post"
-    (cd "$case_dir" && "$bin/rflupost" -c "$case_name" -s "$steps" -v 0) \
-      || fail "rflupost failed"
+  local post=("$bin/rflupost" -c "$case_name" -s "$steps" -v 0)
+  if [ $engine != batch ]; then
+    local ranks=1
+    if [ $engine == interactive ]; then
+      # All the ranks of the allocation; --overlap and --mem=0 as in run -e interactive
+      ranks=${SLURM_NTASKS:-1}
+      post=(srun --mpi="$MACHINE_SRUN_MPI" --overlap --mem=0 -n "$ranks" "${post[@]}")
+    fi
+    if [ $dry == 1 ]; then
+      say "dry run: not run (command, in $case_dir: ${post[*]})"
+      return
+    fi
+    say "converting the dumps of $case_name (steps: $steps) into $case_dir/post on $ranks rank(s)"
+    (cd "$case_dir" && "${post[@]}") || fail "rflupost failed"
     say "open $case_dir/post/collection.pvd in ParaView (or fluid.pvd, particles.pvd, bins.pvd)"
     return
   fi
 
+  # Default: one rank per region (the fluid is split by region)
+  local nranks
+  if [ -n "$nodes$tasks" ]; then
+    nodes=${nodes:-1}; tasks=${tasks:-1}
+    nranks=$((nodes * tasks))
+  else
+    nranks=$(awk '/# Number of regions/ { getline; print $1; exit }' "$case_dir/$case_name.map" 2> /dev/null)
+    [[ "$nranks" =~ ^[1-9][0-9]*$ ]] || fail "no region count in $case_name.map: give -N and -n"
+  fi
   local script="$case_dir/$case_name.post.sbatch"
   {
     echo "#!/bin/bash"
@@ -913,15 +954,29 @@ cmd_post() {
     [ -n "$account" ]   && echo "#SBATCH --account=$account"
     [ -n "$slurm_qos" ] && echo "#SBATCH --qos=$slurm_qos"
     [ -n "$partition" ] && echo "#SBATCH --partition=$partition"
-    echo "#SBATCH --ntasks=1"
-    echo "#SBATCH --mem=$mem"
+    if [ -n "$nodes" ]; then
+      echo "#SBATCH --nodes=$nodes"
+      echo "#SBATCH --ntasks-per-node=$tasks"
+    else
+      echo "#SBATCH --ntasks=$nranks"
+    fi
+    if [ -n "$mem" ]; then
+      echo "#SBATCH --mem=$mem"
+    else
+      echo "#SBATCH --mem-per-cpu=2gb"
+    fi
     echo "#SBATCH --time=$walltime"
     echo "#SBATCH --output=$case_name.post.%j.out"
     echo
     [ -n "$MODULES_TO_LOAD" ] && echo "module purge; module load $MODULES_TO_LOAD"
     echo "cd $case_dir"
-    echo "srun --mpi=$MACHINE_SRUN_MPI -n 1 $bin/rflupost -c $case_name -s $steps -v 0"
+    echo "srun --mpi=$MACHINE_SRUN_MPI -n $nranks ${post[*]}"
   } > "$script"
+  say "job script: $script ($nranks ranks)"
+  if [ $dry == 1 ]; then
+    say "dry run: not submitted (submit with: sbatch $script)"
+    return
+  fi
   command -v sbatch > /dev/null || fail "sbatch not found"
   local out
   out=$(cd "$case_dir" && sbatch "$script" 2>&1) || { echo "$out" >&2; fail "sbatch failed"; }
