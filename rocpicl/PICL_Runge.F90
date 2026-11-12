@@ -252,6 +252,8 @@ pGc => pRegion%mixt%piclGradCell
 !------------------------------------------------------------------------------------- 
       
        ! 03/11/2025 - Thierry - Du/Dt, Dv/Dt, Dw/Dt (not weighted by phi^g or rho^g)
+       ! rhs momentum holds the full face pressure flux (pf*n, not times phi^g) and
+       ! no particle feedback yet, so the pressure part here is -grad(p)/(phi^g rho^g)
 
        temp_dudtMixt  = (-pRegion%mixt%rhs(CV_MIXT_XMOM,i)/pRegion%grid%vol(i)& 
                          +ug(XCOORD)*pRegion%mixt%rhs(CV_MIXT_DENS,i)/pRegion%grid%vol(i))&
@@ -363,10 +365,10 @@ pGc => pRegion%mixt%piclGradCell
        SDOZ(i) = dodz
        ! End - TLJ - Calculate the substantial derivative of vorticity
 
-       ! Substantial derivative of gas-phase velocity
-       SDRX(i) = temp_dudtMixt ! Du/Dt
-       SDRY(i) = temp_dvdtMixt ! Dv/Dt
-       SDRZ(i) = temp_dwdtMixt ! Dw/Dt
+       ! Undisturbed Du/Dt: pressure part -grad(p)/(phi^g rho^g) from rhs replaced by -grad(p)/rho^g
+       SDRX(i) = temp_dudtMixt + dpxF(i)/pRegion%mixt%cv(CV_MIXT_DENS,i) - dpxF(i)/rhoF(i)
+       SDRY(i) = temp_dvdtMixt + dpyF(i)/pRegion%mixt%cv(CV_MIXT_DENS,i) - dpyF(i)/rhoF(i)
+       SDRZ(i) = temp_dwdtMixt + dpzF(i)/pRegion%mixt%cv(CV_MIXT_DENS,i) - dpzF(i)/rhoF(i)
 
        rhsR(i) = -pRegion%mixt%rhs(CV_MIXT_DENS,i)/pRegion%grid%vol(i) ! \p(rho*phi)/\p(t)
 

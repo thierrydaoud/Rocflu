@@ -235,6 +235,7 @@ They run to 20 µs.
 | `shocktube/two-way/4-particles` | 1, 2 | Four particles, `FEEDBACK 1` | `particles_moved`, `same_as` | Feedback to the gas, across a rank border |
 | `shocktube/two-way/pressure-gradient` | 2 | + `PGFORCE 1` | `particles_moved` | Pressure-gradient force |
 | `shocktube/two-way/viscous-unsteady` | 2 | + `VISCOUSUNSTEADY 1` | `particles_moved` | History force |
+| `shocktube/two-way/added-mass-dense` | 2 | 288 particles of 0.4 mm in x = −5 to −3 mm (φ_p ≈ 0.3), + `PGFORCE 1`, `AMFORCE 1` | `particles_moved` | Added mass (Parmar) in a dense bed: the gas Du/Dt it reads has the undisturbed pressure part −∇p/ρ_g, not −∇p/(φ_g ρ_g) |
 | `shocktube/two-way/heat-transfer` | 2 | + `HEATTRANSFER 3` | `particles_moved` | Heat-transfer closure |
 | `shocktube/two-way/qs-fluctuations` | 2 | + `QSFLUCT 2` | `particles_moved` | Quasi-steady force fluctuations run; the four particles have no neighbours, so the noise amplitude is 0 (see `box/qs-fluctuations`) |
 | `shocktube/two-way/qs-parmar` | 2 | `QSFORCE 2` | `particles_moved` | Parmar drag |
