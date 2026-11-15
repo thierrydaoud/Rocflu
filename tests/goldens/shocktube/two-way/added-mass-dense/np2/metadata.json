@@ -1,12 +1,15 @@
 {
- "created": "2026-11-11T20:10:04",
+ "created": "2026-11-15T10:53:30",
  "host": "dane7",
- "exe_dir": "/p/lustre3/daoud1/Rocflu_dudt/build/bin",
+ "exe_dir": "/p/lustre3/daoud1/Rocflu_sparsedump/build/bin",
  "git": {
-  "commit": "15cb0307fe6ab149391304cabd146761b547c8ce",
-  "branch": "undisturbed-dudt",
+  "commit": "93878bc2c60dc67ff0fa23f0bea297a18543bb3e",
+  "branch": "sparse-dump",
   "modified_sources": [
-   "rocpicl/PICL_Runge.F90"
+   "libpicl/source/ppiclf_io.f",
+   "modflu/RFLU_ModRestartData.F90",
+   "utilities/post/RFLU_ModPostParticles.F90",
+   "utilities/post/rflupost.F90"
   ]
  },
  "modules": "jobutils/1.0:texlive/20220321:StdEnv:cmake/3.30.5:gcc/13.3.1:openmpi/4.1.2"

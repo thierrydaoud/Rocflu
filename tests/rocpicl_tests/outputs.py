@@ -105,26 +105,41 @@ FORM_PURE, FORM_VOLUME_WEIGHTED = 1, 2
 
 def read_fluid_dump(path):
     """Return a dict: step, time, region, form, cv (list of nCv arrays over the
-    real cells) and, for PICL runs, phi and grad_rhog (3 arrays)."""
+    real cells) and, for PICL runs, phi (every cell) and, if the dump has it
+    (version 4, or GRADRHO_WRT 1), grad_rhog (3 arrays)."""
     with open(path, "rb") as f:
         data = f.read()
     magic, version, step, time, region, ncells, ncv, form, with_picl = \
         FLUID_DUMP_HEADER.unpack_from(data, 0)
-    if magic != b"RFLUDUMP" or version != 4:
-        raise ValueError("%s: not a version 4 fluid dump" % path)
+    if magic != b"RFLUDUMP" or version not in (4, 5):
+        raise ValueError("%s: not a version 4 or 5 fluid dump" % path)
     pos = FLUID_DUMP_HEADER.size
 
-    def take():
+    def take(fmt="d", n=None):
         nonlocal pos
-        a = struct.unpack_from("<%dd" % ncells, data, pos)
-        pos += 8 * ncells
+        n = ncells if n is None else n
+        a = struct.unpack_from("<%d%s" % (n, fmt), data, pos)
+        pos += struct.calcsize("<%d%s" % (n, fmt))
         return a
 
     out = {"step": step, "time": time, "region": region, "form": form,
            "cv": [take() for _ in range(ncv)]}
     if with_picl:
-        out["phi"] = take()
-        out["grad_rhog"] = [take() for _ in range(3)]
+        if version == 4:
+            out["phi"] = take()
+            out["grad_rhog"] = [take() for _ in range(3)]
+        else:
+            # phi of the cells not 0 (1-based), 0 elsewhere
+            nnz, = take("i", 1)
+            cells = take("i", nnz)
+            values = take("d", nnz)
+            phi = [0.0] * ncells
+            for c, v in zip(cells, values):
+                phi[c - 1] = v
+            out["phi"] = tuple(phi)
+            with_grad, = take("i", 1)
+            if with_grad:
+                out["grad_rhog"] = [take() for _ in range(3)]
     # NSCBC face states: {global patch: list of nCv arrays over the faces}
     npatches, = struct.unpack_from("<i", data, pos)
     pos += 4
@@ -162,8 +177,8 @@ def read_particle_dump(path):
         data = f.read()
     (magic, version, step, time, nranks, ntotal,
      lrs, lrp, lip, lrp3, lrppro, nhist, ntimebh) = PARTICLE_DUMP_HEADER.unpack_from(data, 0)
-    if magic != b"PPICLDMP" or version != 3:
-        raise ValueError("%s: not a version 3 particle dump" % path)
+    if magic != b"PPICLDMP" or version not in (3, 4):
+        raise ValueError("%s: not a version 3 or 4 particle dump" % path)
     pos = PARTICLE_DUMP_HEADER.size
 
     def take(fmt, n):
@@ -185,18 +200,39 @@ def read_particle_dump(path):
         fields.append((source, slot, name))
     nsaved, = take("i", 1)
     saved = take("i", nsaved)              # the rprop slots in the file
+    widths = (("d", lrs), ("d", nsaved), ("i", lip), ("d", lrp3), ("d", lrppro))
+    # version 4: per column, stored (1, per particle) or shared (0, its value)
+    if version == 4:
+        tables = [(take("i", width), take(fmt, width)) for fmt, width in widths]
+    else:
+        tables = [((1,) * width, (0,) * width) for _, width in widths]
     counts = take("q", nranks)
     cell_counts = take("q", nranks)
+    nonzero_counts = take("q", nranks) if version == 4 else None
     if sum(counts) != ntotal:
         raise ValueError("%s: rank counts add up to %d, not %d" % (path, sum(counts), ntotal))
     y, rprop, iprop, hist, feedback, projected = [], [], [], [], [], []
-    for n, ncells in zip(counts, cell_counts):
-        for arr, fmt, width in ((y, "d", lrs), (rprop, "d", nsaved), (iprop, "i", lip),
-                                (hist, "d", lrp3), (feedback, "d", lrppro)):
-            flat = take(fmt, width * n)
-            arr.extend(flat[k * width:(k + 1) * width] for k in range(n))
+    for r, (n, ncells) in enumerate(zip(counts, cell_counts)):
+        for arr, (fmt, width), (stored, shared) in zip((y, rprop, iprop, hist, feedback),
+                                                       widths, tables):
+            kept = [j for j in range(width) if stored[j] == 1]
+            flat = take(fmt, len(kept) * n)
+            for k in range(n):
+                row = list(shared)
+                for i, j in enumerate(kept):
+                    row[j] = flat[k * len(kept) + i]
+                arr.append(tuple(row))
         # fields projected to the rank's fluid cells: one array per field
-        projected.append([take("d", ncells) for _ in range(lrppro)])
+        if version == 3:
+            projected.append([take("d", ncells) for _ in range(lrppro)])
+        else:
+            nnz = nonzero_counts[r]
+            cells = take("i", nnz)
+            cell_values = [[0.0] * ncells for _ in range(lrppro)]
+            for m in range(lrppro):
+                for c, v in zip(cells, take("d", nnz)):
+                    cell_values[m][c - 1] = v
+            projected.append([tuple(f) for f in cell_values])
     if pos != len(data):
         raise ValueError("%s: %d bytes left after the data" % (path, len(data) - pos))
     # rprop as full rows (lrp slots, 0 where not saved)

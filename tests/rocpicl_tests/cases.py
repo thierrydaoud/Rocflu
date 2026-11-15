@@ -154,8 +154,12 @@ def slab(n, dp, x=(-0.0049, -0.0031), yz=(0.0001, 0.0039), seed=2024):
 add(name="shocktube/two-way/added-mass-dense/np2",
     description="Shock through a dense slab (phi_p ~0.3) with PGFORCE 1 and AMFORCE 1 "
                 "(Parmar); added mass sees the undisturbed Du/Dt",
-    nranks=2, inp={**SHOCKTUBE, **TWO_WAY, ("PICL", "PGFORCE"): 1, ("PICL", "AMFORCE"): 1},
-    particles=slab(288, 4.0e-4), checks=["particles_moved"])
+    nranks=2, inp={**SHOCKTUBE, **TWO_WAY, ("PICL", "PGFORCE"): 1, ("PICL", "AMFORCE"): 1,
+                   ("POST", "GRADRHO_WRT"): 0},
+    particles=slab(288, 4.0e-4), checks=["particles_moved"],
+    # added mass reads grad(rho_g); with GRADRHO_WRT 0 (the default) the dumps
+    # do not hold it and the restart must recompute it
+    restart_test=True)
 
 # -- Shock tube with slip side walls: constrained reconstruction --------------
 # 8 x 8 cells across, so nearly every cell is within the three layers next to a

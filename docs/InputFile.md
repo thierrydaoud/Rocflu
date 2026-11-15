@@ -86,7 +86,7 @@ accept more.
 | | `VISCOSITY` | Pa s | reference viscosity; **required with particles** |
 | | `REFTEMP`, `SUTHCOEF` | K | Sutherland's law |
 | `# POST` | `DENSITY_WRT`, `VELOCITY_WRT`, `PRESSURE_WRT`, `PHI_WRT` | 0, 1 (default 1) | fluid fields the post program writes: gas density, velocity, pressure, particle volume fraction (with particles) |
-| | `TEMPERATURE_WRT`, `SOUNDSPEED_WRT`, `ENERGY_WRT`, `GRADRHO_WRT`, `PT_WRT` | 0, 1 (default 0) | also temperature, speed of sound, total energy per mass, gas-density gradient, pseudo-turbulence fields `DivPhiRsg` and `FCell` (with `PSEUDOTURB`) |
+| | `TEMPERATURE_WRT`, `SOUNDSPEED_WRT`, `ENERGY_WRT`, `GRADRHO_WRT`, `PT_WRT` | 0, 1 (default 0) | also temperature, speed of sound, total energy per mass, gas-density gradient (set `GRADRHO_WRT` before the run: only then do the dumps hold it), pseudo-turbulence fields `DivPhiRsg` and `FCell` (with `PSEUDOTURB`) |
 | | `OLD_OUTPUT_WRT` | 0 (default), 1 | also the old-style output (`SOL_*`, `PARAVIEW_*`, `par*.vtu`, `bin*.vtu`, patch coefficients); needed with `MOVEGRID 1` or `SOLVERTYPE 3`, which write into `SOL_*` |
 | | other keys | | settings of the old-style ParaView output, as in the template |
 | `# MISC` | | | miscellaneous settings, as in the template |
@@ -179,12 +179,18 @@ The validator and `rflump` both stop on them.
 every `WRITIME` and the end of the run:
 
 - `fluid_<step>_<region>.dat`: the gas state of a region as it is in memory (real cells,
-  double precision), with particles also the particle volume fraction and the gas-density
-  gradient, with `PSEUDOTURB` the pseudo-turbulence fields, and the face states of the
-  non-reflecting (NSCBC) boundaries. `rfluinit` writes step 0.
+  double precision), with particles also the particle volume fraction (only the cells
+  where it is not 0) and, with `GRADRHO_WRT 1`, the gas-density gradient for the post
+  program, and the face states of the non-reflecting (NSCBC) boundaries. `rfluinit` writes
+  step 0.
 - `particles_<step>.dat`: every particle (state, properties, IDs, random-stream state,
-  viscous-unsteady history), the fields projected to the fluid cells, the bins and the
-  list of output fields.
+  viscous-unsteady history), the fields projected to the fluid cells (only the cells where
+  one is not 0), the bins and the list of output fields. A value that is the same for
+  every particle, such as the diameter of a bed of one size, is written once.
+
+Nothing is lost in either file: a restart reads back every bit of the state. The
+gas-density gradient is recomputed at every stage, so a restart does not need it; set
+`GRADRHO_WRT 1` before the run if the post program should write it.
 
 Layouts: `modflu/RFLU_ModRestartData.F90`. A file is written as `.tmp` and renamed when it
 is complete. The same files are what a restart reads and what the post program converts

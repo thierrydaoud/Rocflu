@@ -455,6 +455,8 @@ CONTAINS
     INTEGER(1), ALLOCATABLE :: cellTypes(:)
     INTEGER(8) :: nConn
     INTEGER(8), ALLOCATABLE :: connectivity(:),offsets(:)
+    LOGICAL :: gradRhogRead
+    LOGICAL, SAVE :: gradRhogWarned = .FALSE.
     REAL(8), ALLOCATABLE :: rhoG(:),phi(:),work(:,:)
     TYPE(t_grid), POINTER :: pGrid
     TYPE(t_postField), ALLOCATABLE :: fields(:)
@@ -465,7 +467,7 @@ CONTAINS
 
 ! State of the step: gas and PICL fields, NSCBC faces
     global%currentStep = stepNumber
-    CALL RFLU_ReadRestartData(pRegion)
+    CALL RFLU_ReadRestartData(pRegion,gradRhogRead)
     pRegion%mixt%cvState = CV_MIXT_STATE_CONS
     CALL RFLU_SetGasVars(pRegion,1,nCells)
     CALL RFLU_SetDependentVars(pRegion,1,nCells)
@@ -537,11 +539,23 @@ CONTAINS
         CALL AddPostField(fields,nFields,'Particle Volume Fraction', &
                           RESHAPE(phi,(/1,nCells/)))
       END IF ! global%postWritePhi
+! In the dump only if GRADRHO_WRT was 1 during the run; 0 at step 0
       IF ( global%postWriteGradRho ) THEN
-        DO c = 1,3
-          work(c,:) = pRegion%mixt%piclgradRhog(c,1,1:nCells)
-        END DO ! c
-        CALL AddPostField(fields,nFields,'Gradient Gas Density',work)
+        IF ( gradRhogRead ) THEN
+          DO c = 1,3
+            work(c,:) = pRegion%mixt%piclgradRhog(c,1,1:nCells)
+          END DO ! c
+          CALL AddPostField(fields,nFields,'Gradient Gas Density',work)
+        ELSE IF ( stepNumber == 0 ) THEN
+          work = 0.0D0
+          CALL AddPostField(fields,nFields,'Gradient Gas Density',work)
+        ELSE IF ( (global%myProcid == MASTERPROC) .AND. &
+                  (.NOT. gradRhogWarned) ) THEN
+          WRITE(STDOUT,'(A)') 'rflupost: warning: the dumps hold no '// &
+            'gas-density gradient (GRADRHO_WRT was 0 during the run); '// &
+            'Gradient Gas Density is not written'
+          gradRhogWarned = .TRUE.
+        END IF ! gradRhogRead
       END IF ! global%postWriteGradRho
     END IF ! global%piclUsed
 #endif

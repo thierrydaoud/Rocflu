@@ -1,5 +1,5 @@
 {
-"uuid": "7576F201",
+"uuid": "C6654068",
 "spec": {
 "nranks": 2,
 "grid": {
@@ -21,7 +21,8 @@
 "TIMESTEP/PRNTIME": "1.0E-05",
 "PICL/FEEDBACK": 1,
 "PICL/PGFORCE": 1,
-"PICL/AMFORCE": 1
+"PICL/AMFORCE": 1,
+"POST/GRADRHO_WRT": 0
 },
 "particles": [
 [

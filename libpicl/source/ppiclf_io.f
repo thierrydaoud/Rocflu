@@ -1269,6 +1269,8 @@ c1511 continue
 ! of this rank's particles, then the fields projected to this rank's
 ! fluid cells. At the start of a stage the gas reads the projected fields
 ! and ppiclF then projects feedbk of the stage before: a restart needs both.
+! A column with the same bits for every particle is in the header only;
+! of the projected fields, only the cells with a value not 0 are written.
       subroutine ppiclf_io_WriteRestart(fname,istep,time)
       use ppiclf_data
       use ppiclf_unsteady
@@ -1286,13 +1288,20 @@ c1511 continue
 !
 ! Internal:
 !
-      integer*4 iunit, fh, ierr, k, nhist, nsaved
+      integer*4 iunit, fh, ierr, j, k, nhist, nsaved, nnz
       integer*4 saved(ppiclf_lrp)
       integer*4 status(MPI_STATUS_SIZE)
+      integer*4 sty(ppiclf_lrs), str(ppiclf_lrp), sti(PPICLF_LIP),
+     >          sth(max(ppiclf_lrp3,1)), stf(ppiclf_lrp_pro),
+     >          shi(PPICLF_LIP)
       integer*8 nlocal, ntotal, npart_rank(ppiclf_np), header_size,
-     >          ncells, ncell_rank(ppiclf_np)
+     >          ncells, ncell_rank(ppiclf_np), nnzl,
+     >          nnz_rank(ppiclf_np), perpart
       integer(kind=MPI_OFFSET_KIND) offset
-      real*8, allocatable :: projected(:,:), props(:,:)
+      real*8 shy(ppiclf_lrs), shr(ppiclf_lrp),
+     >       shh(max(ppiclf_lrp3,1)), shf(ppiclf_lrp_pro)
+      integer*4, allocatable :: cells(:)
+      real*8, allocatable :: nonzero(:,:), props(:,:)
 !
       ! the output fields (ppiclf_user_OutputFields), built once
       if (ppiclf_nout .lt. 0) then
@@ -1315,12 +1324,47 @@ c1511 continue
       call mpi_allgather(ncells,1,MPI_INTEGER8,ncell_rank,1,
      >                   MPI_INTEGER8,ppiclf_comm,ierr)
 
+      allocate(props(max(nsaved,1),max(nlocal,1_8)))
+      if (nlocal .gt. 0 .and. nsaved .gt. 0)
+     >   props(1:nsaved,1:nlocal) =
+     >      ppiclf_rprop(saved(1:nsaved),1:nlocal)
+
+      ! columns with the same bits for every particle of every rank
+      sth = 1
+      shh = 0.0d0
+      call ppiclf_io_SharedColumns(ppiclf_y,ppiclf_lrs,nlocal,sty,shy)
+      call ppiclf_io_SharedColumns(props,nsaved,nlocal,str,shr)
+      call ppiclf_io_SharedTags(ppiclf_iprop,PPICLF_LIP,nlocal,sti,shi)
+      if (ppiclf_lrp3 .gt. 0)
+     >   call ppiclf_io_SharedColumns(ppiclf_rprop3,ppiclf_lrp3,nlocal,
+     >                                sth,shh)
+      call ppiclf_io_SharedColumns(ppiclf_feedbk,ppiclf_lrp_pro,nlocal,
+     >                             stf,shf)
+      perpart = 8*count(sty .eq. 1) + 8*count(str(1:nsaved) .eq. 1)
+     >        + 4*count(sti .eq. 1)
+     >        + 8*count(sth(1:ppiclf_lrp3) .eq. 1)
+     >        + 8*count(stf .eq. 1)
+
+      ! this rank's cells with a projected field not 0 (bit pattern)
+      allocate(cells(max(ncells,1_8)))
+      nnz = 0
+      do j=1,int(ncells,4)
+         if (any(transfer(ppiclf_pro_fld(j,1:ppiclf_lrp_pro),1_8,
+     >                    ppiclf_lrp_pro) .ne. 0_8)) then
+            nnz = nnz + 1
+            cells(nnz) = j
+         endif
+      enddo
+      nnzl = nnz
+      call mpi_allgather(nnzl,1,MPI_INTEGER8,nnz_rank,1,
+     >                   MPI_INTEGER8,ppiclf_comm,ierr)
+
       if (ppiclf_nid .eq. 0) then
          open(newunit=iunit,file=fname,form='unformatted',
      >        access='stream',status='replace',iostat=ierr)
          if (ierr .ne. 0)
      >      call ppiclf_exittr('Cannot open particle dump$',0.0d0,0)
-         write(iunit) 'PPICLDMP', 3_4, istep, time,
+         write(iunit) 'PPICLDMP', 4_4, istep, time,
      >      int(ppiclf_np,4), ntotal,
      >      int(ppiclf_lrs,4), int(ppiclf_lrp,4), int(PPICLF_LIP,4),
      >      int(ppiclf_lrp3,4), int(ppiclf_lrp_pro,4), int(nhist,4),
@@ -1333,7 +1377,12 @@ c1511 continue
      >                   int(ppiclf_out_slot(k),4), ppiclf_out_name(k)
          enddo
          write(iunit) int(nsaved,4), saved(1:nsaved)
-         write(iunit) npart_rank, ncell_rank
+         write(iunit) sty, shy
+         write(iunit) str(1:nsaved), shr(1:nsaved)
+         write(iunit) sti, shi
+         write(iunit) sth(1:ppiclf_lrp3), shh(1:ppiclf_lrp3)
+         write(iunit) stf, shf
+         write(iunit) npart_rank, ncell_rank, nnz_rank
          ! the next byte to write, 1-based: the header is one byte less
          inquire(unit=iunit,pos=header_size)
          header_size = header_size - 1
@@ -1348,44 +1397,274 @@ c1511 continue
 
       offset = header_size
       do k=1,ppiclf_nid
-         offset = offset + npart_rank(k)*(8*ppiclf_lrs + 8*nsaved
-     >                    + 4*PPICLF_LIP + 8*ppiclf_lrp3
-     >                    + 8*ppiclf_lrp_pro)
-     >                   + ncell_rank(k)*8*ppiclf_lrp_pro
+         offset = offset + npart_rank(k)*perpart
+     >                   + nnz_rank(k)*(4 + 8*ppiclf_lrp_pro)
       enddo
 
-      call mpi_file_write_at_all(fh,offset,ppiclf_y,
-     >   ppiclf_lrs*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
-      offset = offset + 8*ppiclf_lrs*nlocal
-      allocate(props(max(nsaved,1),max(nlocal,1_8)))
-      if (nlocal .gt. 0 .and. nsaved .gt. 0)
-     >   props(1:nsaved,1:nlocal) =
-     >      ppiclf_rprop(saved(1:nsaved),1:nlocal)
-      call mpi_file_write_at_all(fh,offset,props,
-     >   nsaved*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
+      call ppiclf_io_WriteColumns(fh,offset,ppiclf_y,ppiclf_lrs,
+     >                            nlocal,sty)
+      call ppiclf_io_WriteColumns(fh,offset,props,nsaved,nlocal,str)
       deallocate(props)
-      offset = offset + 8*nsaved*nlocal
-      call mpi_file_write_at_all(fh,offset,ppiclf_iprop,
-     >   PPICLF_LIP*ppiclf_npart,MPI_INTEGER4,status,ierr)
-      offset = offset + 4*PPICLF_LIP*nlocal
+      call ppiclf_io_WriteTags(fh,offset,ppiclf_iprop,PPICLF_LIP,
+     >                         nlocal,sti)
       if (ppiclf_lrp3 .gt. 0)
-     >   call mpi_file_write_at_all(fh,offset,ppiclf_rprop3,
-     >   ppiclf_lrp3*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
-      offset = offset + 8*ppiclf_lrp3*nlocal
+     >   call ppiclf_io_WriteColumns(fh,offset,ppiclf_rprop3,
+     >                               ppiclf_lrp3,nlocal,sth)
       ! the feedback to the gas, which the next stage projects first
-      call mpi_file_write_at_all(fh,offset,ppiclf_feedbk,
-     >   ppiclf_lrp_pro*ppiclf_npart,MPI_DOUBLE_PRECISION,status,ierr)
-      offset = offset + 8*ppiclf_lrp_pro*nlocal
+      call ppiclf_io_WriteColumns(fh,offset,ppiclf_feedbk,
+     >                            ppiclf_lrp_pro,nlocal,stf)
       ! the fields projected to this rank's fluid cells, which the next
-      ! stage reads
-      allocate(projected(max(ncells,1_8),ppiclf_lrp_pro))
-      if (ncells .gt. 0) projected(1:ncells,:) =
-     >   ppiclf_pro_fld(1:ncells,1:ppiclf_lrp_pro)
-      call mpi_file_write_at_all(fh,offset,projected,
-     >   int(ncells*ppiclf_lrp_pro,4),MPI_DOUBLE_PRECISION,status,ierr)
-      deallocate(projected)
+      ! stage reads: the cells not 0, then their values
+      call mpi_file_write_at_all(fh,offset,cells,nnz,MPI_INTEGER4,
+     >                           status,ierr)
+      offset = offset + 4*nnzl
+      allocate(nonzero(max(nnz,1),ppiclf_lrp_pro))
+      if (nnz .gt. 0) nonzero(1:nnz,:) =
+     >   ppiclf_pro_fld(cells(1:nnz),1:ppiclf_lrp_pro)
+      call mpi_file_write_at_all(fh,offset,nonzero,
+     >   nnz*ppiclf_lrp_pro,MPI_DOUBLE_PRECISION,status,ierr)
+      deallocate(nonzero,cells)
 
       call mpi_file_close(fh,ierr)
+
+      return
+      end
+!-----------------------------------------------------------------------
+! Particle dump: which columns of a(ncol,n) hold the same bits for every
+! particle of every rank (stored 0, the value in shared); the others
+! (stored 1) are written per particle. Collective.
+      subroutine ppiclf_io_SharedColumns(a,ncol,n,stored,shared)
+      use ppiclf_data
+!
+      implicit none
+!
+      include "PPICLF"
+      include 'mpif.h'
+!
+      integer*4 ncol, stored(*)
+      integer*8 n
+      real*8 a(ncol,*), shared(*)
+!
+      integer*4 ierr, j
+      integer*8 i, bits, lo(max(ncol,1)), hi(max(ncol,1)),
+     >          glo(max(ncol,1)), ghi(max(ncol,1))
+!
+      if (ncol .le. 0) return
+      lo = huge(1_8)
+      hi = -huge(1_8)
+      do i=1,n
+         do j=1,ncol
+            bits = transfer(a(j,i),1_8)
+            lo(j) = min(lo(j),bits)
+            hi(j) = max(hi(j),bits)
+         enddo
+      enddo
+      call mpi_allreduce(lo,glo,ncol,MPI_INTEGER8,MPI_MIN,
+     >                   ppiclf_comm,ierr)
+      call mpi_allreduce(hi,ghi,ncol,MPI_INTEGER8,MPI_MAX,
+     >                   ppiclf_comm,ierr)
+      do j=1,ncol
+         stored(j) = 1
+         shared(j) = 0.0d0
+         if (glo(j) .eq. ghi(j)) then
+            stored(j) = 0
+            shared(j) = transfer(glo(j),1.0d0)
+         endif
+      enddo
+
+      return
+      end
+!-----------------------------------------------------------------------
+! ppiclf_io_SharedColumns for the integer columns (iprop)
+      subroutine ppiclf_io_SharedTags(a,ncol,n,stored,shared)
+      use ppiclf_data
+!
+      implicit none
+!
+      include "PPICLF"
+      include 'mpif.h'
+!
+      integer*4 ncol, stored(*), a(ncol,*), shared(*)
+      integer*8 n
+!
+      integer*4 ierr, j, lo(max(ncol,1)), hi(max(ncol,1)),
+     >          glo(max(ncol,1)), ghi(max(ncol,1))
+      integer*8 i
+!
+      if (ncol .le. 0) return
+      lo = huge(1_4)
+      hi = -huge(1_4)
+      do i=1,n
+         do j=1,ncol
+            lo(j) = min(lo(j),a(j,i))
+            hi(j) = max(hi(j),a(j,i))
+         enddo
+      enddo
+      call mpi_allreduce(lo,glo,ncol,MPI_INTEGER4,MPI_MIN,
+     >                   ppiclf_comm,ierr)
+      call mpi_allreduce(hi,ghi,ncol,MPI_INTEGER4,MPI_MAX,
+     >                   ppiclf_comm,ierr)
+      do j=1,ncol
+         stored(j) = 1
+         shared(j) = 0
+         if (glo(j) .eq. ghi(j)) then
+            stored(j) = 0
+            shared(j) = glo(j)
+         endif
+      enddo
+
+      return
+      end
+!-----------------------------------------------------------------------
+! Particle dump: write the stored columns of a(ncol,n) at offset, as
+! (columns,n), and move offset past them. Collective.
+      subroutine ppiclf_io_WriteColumns(fh,offset,a,ncol,n,stored)
+!
+      implicit none
+!
+      include 'mpif.h'
+!
+      integer*4 fh, ncol, stored(*)
+      integer*8 n
+      integer(kind=MPI_OFFSET_KIND) offset
+      real*8 a(ncol,*)
+!
+      integer*4 ierr, j, k, nkept
+      integer*4 status(MPI_STATUS_SIZE)
+      integer*8 i
+      real*8, allocatable :: packed(:,:)
+!
+      nkept = count(stored(1:ncol) .eq. 1)
+      allocate(packed(max(nkept,1),max(n,1_8)))
+      k = 0
+      do j=1,ncol
+         if (stored(j) .eq. 1) then
+            k = k + 1
+            do i=1,n
+               packed(k,i) = a(j,i)
+            enddo
+         endif
+      enddo
+      call mpi_file_write_at_all(fh,offset,packed,int(nkept*n,4),
+     >                           MPI_DOUBLE_PRECISION,status,ierr)
+      offset = offset + 8*nkept*n
+      deallocate(packed)
+
+      return
+      end
+!-----------------------------------------------------------------------
+! ppiclf_io_WriteColumns for the integer columns (iprop)
+      subroutine ppiclf_io_WriteTags(fh,offset,a,ncol,n,stored)
+!
+      implicit none
+!
+      include 'mpif.h'
+!
+      integer*4 fh, ncol, stored(*), a(ncol,*)
+      integer*8 n
+      integer(kind=MPI_OFFSET_KIND) offset
+!
+      integer*4 ierr, j, k, nkept
+      integer*4 status(MPI_STATUS_SIZE)
+      integer*8 i
+      integer*4, allocatable :: packed(:,:)
+!
+      nkept = count(stored(1:ncol) .eq. 1)
+      allocate(packed(max(nkept,1),max(n,1_8)))
+      k = 0
+      do j=1,ncol
+         if (stored(j) .eq. 1) then
+            k = k + 1
+            do i=1,n
+               packed(k,i) = a(j,i)
+            enddo
+         endif
+      enddo
+      call mpi_file_write_at_all(fh,offset,packed,int(nkept*n,4),
+     >                           MPI_INTEGER4,status,ierr)
+      offset = offset + 4*nkept*n
+      deallocate(packed)
+
+      return
+      end
+!-----------------------------------------------------------------------
+! Particle dump: read the stored columns of a(ncol,n) at offset (as
+! ppiclf_io_WriteColumns wrote them), set the others to their shared
+! value, and move offset past them. Collective.
+      subroutine ppiclf_io_ReadColumns(fh,offset,a,ncol,n,stored,shared)
+!
+      implicit none
+!
+      include 'mpif.h'
+!
+      integer*4 fh, ncol, stored(*)
+      integer*8 n
+      integer(kind=MPI_OFFSET_KIND) offset
+      real*8 a(ncol,*), shared(*)
+!
+      integer*4 ierr, j, k, nkept
+      integer*4 status(MPI_STATUS_SIZE)
+      integer*8 i
+      real*8, allocatable :: packed(:,:)
+!
+      nkept = count(stored(1:ncol) .eq. 1)
+      allocate(packed(max(nkept,1),max(n,1_8)))
+      call mpi_file_read_at_all(fh,offset,packed,int(nkept*n,4),
+     >                          MPI_DOUBLE_PRECISION,status,ierr)
+      offset = offset + 8*nkept*n
+      k = 0
+      do j=1,ncol
+         if (stored(j) .eq. 1) then
+            k = k + 1
+            do i=1,n
+               a(j,i) = packed(k,i)
+            enddo
+         else
+            do i=1,n
+               a(j,i) = shared(j)
+            enddo
+         endif
+      enddo
+      deallocate(packed)
+
+      return
+      end
+!-----------------------------------------------------------------------
+! ppiclf_io_ReadColumns for the integer columns (iprop)
+      subroutine ppiclf_io_ReadTags(fh,offset,a,ncol,n,stored,shared)
+!
+      implicit none
+!
+      include 'mpif.h'
+!
+      integer*4 fh, ncol, stored(*), a(ncol,*), shared(*)
+      integer*8 n
+      integer(kind=MPI_OFFSET_KIND) offset
+!
+      integer*4 ierr, j, k, nkept
+      integer*4 status(MPI_STATUS_SIZE)
+      integer*8 i
+      integer*4, allocatable :: packed(:,:)
+!
+      nkept = count(stored(1:ncol) .eq. 1)
+      allocate(packed(max(nkept,1),max(n,1_8)))
+      call mpi_file_read_at_all(fh,offset,packed,int(nkept*n,4),
+     >                          MPI_INTEGER4,status,ierr)
+      offset = offset + 4*nkept*n
+      k = 0
+      do j=1,ncol
+         if (stored(j) .eq. 1) then
+            k = k + 1
+            do i=1,n
+               a(j,i) = packed(k,i)
+            enddo
+         else
+            do i=1,n
+               a(j,i) = shared(j)
+            enddo
+         endif
+      enddo
+      deallocate(packed)
 
       return
       end
@@ -1423,14 +1702,20 @@ c1511 continue
      >          nbins(3), nsaved, needed(ppiclf_lrp), nneeded,
      >          saved(ppiclf_lrp)
       integer*4 status(MPI_STATUS_SIZE)
+      integer*4 nnz
       integer*8 istep, nlocal, npart_rank(ppiclf_np), header_size,
-     >          ncells, ncell_rank(ppiclf_np)
+     >          ncells, ncell_rank(ppiclf_np), nnz_rank(ppiclf_np),
+     >          perpart
       integer(kind=MPI_OFFSET_KIND) offset
       real*8 time, rdum(9), dpl
       integer*4 j
       real*8, allocatable :: ytmp(:,:), rtmp(:,:), htmp(:,:),
-     >                       ftmp(:,:), props(:,:), timebh(:)
-      integer*4, allocatable :: itmp(:,:)
+     >                       ftmp(:,:), props(:,:), timebh(:),
+     >                       nonzero(:,:)
+      real*8, allocatable :: shy(:), shr(:), shh(:), shf(:)
+      integer*4, allocatable :: itmp(:,:), cells(:)
+      integer*4, allocatable :: sty(:), str(:), sti(:), sth(:),
+     >                          stf(:), shi(:)
       integer*4 istartout
       common /ppiclf_io_restart/ istartout
 !
@@ -1438,11 +1723,30 @@ c1511 continue
       PPICLF_RESTART = .true.
       istartout = istartoutin
 
+      ! column tables of the dump; ppiclf_lrp3 is set by InitZero
+      allocate(sty(ppiclf_lrs), str(ppiclf_lrp), sti(PPICLF_LIP),
+     >         sth(max(ppiclf_lrp3,1)), stf(ppiclf_lrp_pro),
+     >         shi(PPICLF_LIP), shy(ppiclf_lrs), shr(ppiclf_lrp),
+     >         shh(max(ppiclf_lrp3,1)), shf(ppiclf_lrp_pro))
+
       nhist = max(ppiclf_nUnsteadyData,0)
       allocate(timebh(max(nhist,1)))
       timebh = 0.0d0
+      ! version 3: every column per particle, every cell's fields
+      sty = 1
+      str = 1
+      sti = 1
+      sth = 1
+      stf = 1
+      shy = 0.0d0
+      shr = 0.0d0
+      shi = 0
+      shh = 0.0d0
+      shf = 0.0d0
+      nnz_rank = 0
 
       ibad = 0
+      version = 0
       if (ppiclf_nid .eq. 0) then
          open(newunit=iunit,file=fname,form='unformatted',
      >        access='stream',status='old',iostat=ierr)
@@ -1452,7 +1756,7 @@ c1511 continue
             read(iunit,iostat=ierr) magic, version, istep, time,
      >         nranks, ntotal, lrs, lrp, lip, lrp3, lrppro, k, ntimebh
             if (ierr .ne. 0 .or. magic .ne. 'PPICLDMP' .or.
-     >          version .ne. 3) then
+     >          (version .ne. 3 .and. version .ne. 4)) then
                ibad = 2
             elseif (nranks .ne. ppiclf_np) then
                ibad = 3
@@ -1479,7 +1783,16 @@ c1511 continue
      >                   ppiclf_restart_slots(k))) ibad = 4
                   enddo
                endif
-               read(iunit) npart_rank, ncell_rank
+               if (ibad .eq. 0 .and. version .eq. 4) then
+                  read(iunit) sty, shy
+                  read(iunit) str(1:nsaved), shr(1:nsaved)
+                  read(iunit) sti, shi
+                  read(iunit) sth(1:ppiclf_lrp3), shh(1:ppiclf_lrp3)
+                  read(iunit) stf, shf
+                  read(iunit) npart_rank, ncell_rank, nnz_rank
+               else
+                  read(iunit) npart_rank, ncell_rank
+               endif
                ! the next byte to read, 1-based
                inquire(unit=iunit,pos=header_size)
                header_size = header_size - 1
@@ -1492,7 +1805,7 @@ c1511 continue
       if (ibad .eq. 1) call ppiclf_exittr(
      >   'Cannot open the particle dump$',0.0d0,0)
       if (ibad .eq. 2) call ppiclf_exittr(
-     >   'Not a version 3 particle dump$',0.0d0,0)
+     >   'Not a version 3 or 4 particle dump$',0.0d0,0)
       if (ibad .eq. 3) call ppiclf_exittr(
      >   'Particle dump from a different number of ranks$',0.0d0,0)
       if (ibad .eq. 4) call ppiclf_exittr(
@@ -1505,6 +1818,25 @@ c1511 continue
      >               ppiclf_comm,ierr)
       call mpi_bcast(nsaved,1,MPI_INTEGER4,0,ppiclf_comm,ierr)
       call mpi_bcast(saved,ppiclf_lrp,MPI_INTEGER4,0,ppiclf_comm,ierr)
+      call mpi_bcast(version,1,MPI_INTEGER4,0,ppiclf_comm,ierr)
+      call mpi_bcast(nnz_rank,ppiclf_np,MPI_INTEGER8,0,
+     >               ppiclf_comm,ierr)
+      call mpi_bcast(sty,ppiclf_lrs,MPI_INTEGER4,0,ppiclf_comm,ierr)
+      call mpi_bcast(str,ppiclf_lrp,MPI_INTEGER4,0,ppiclf_comm,ierr)
+      call mpi_bcast(sti,PPICLF_LIP,MPI_INTEGER4,0,ppiclf_comm,ierr)
+      call mpi_bcast(sth,max(ppiclf_lrp3,1),MPI_INTEGER4,0,
+     >               ppiclf_comm,ierr)
+      call mpi_bcast(stf,ppiclf_lrp_pro,MPI_INTEGER4,0,
+     >               ppiclf_comm,ierr)
+      call mpi_bcast(shy,ppiclf_lrs,MPI_DOUBLE_PRECISION,0,
+     >               ppiclf_comm,ierr)
+      call mpi_bcast(shr,ppiclf_lrp,MPI_DOUBLE_PRECISION,0,
+     >               ppiclf_comm,ierr)
+      call mpi_bcast(shi,PPICLF_LIP,MPI_INTEGER4,0,ppiclf_comm,ierr)
+      call mpi_bcast(shh,max(ppiclf_lrp3,1),MPI_DOUBLE_PRECISION,0,
+     >               ppiclf_comm,ierr)
+      call mpi_bcast(shf,ppiclf_lrp_pro,MPI_DOUBLE_PRECISION,0,
+     >               ppiclf_comm,ierr)
       call mpi_bcast(ntotal,1,MPI_INTEGER8,0,ppiclf_comm,ierr)
       ! Lines of points.dat per rank (restarts keep the rank count)
       ppiclf_idlines = int((ntotal + ppiclf_np - 1)/ppiclf_np,4)
@@ -1531,38 +1863,63 @@ c1511 continue
      >   deallocate(ppiclf_restart_pro_fld)
       allocate(ppiclf_restart_pro_fld(ncells,ppiclf_lrp_pro))
 
+      ! the same layout as ppiclf_io_WriteRestart
+      perpart = 8*count(sty .eq. 1) + 8*count(str(1:nsaved) .eq. 1)
+     >        + 4*count(sti .eq. 1)
+     >        + 8*count(sth(1:ppiclf_lrp3) .eq. 1)
+     >        + 8*count(stf .eq. 1)
       offset = header_size
       do k=1,ppiclf_nid
-         offset = offset + npart_rank(k)*(8*ppiclf_lrs + 8*nsaved
-     >                    + 4*PPICLF_LIP + 8*ppiclf_lrp3
-     >                    + 8*ppiclf_lrp_pro)
-     >                   + ncell_rank(k)*8*ppiclf_lrp_pro
+         if (version .eq. 3) then
+            offset = offset + npart_rank(k)*perpart
+     >                      + ncell_rank(k)*8*ppiclf_lrp_pro
+         else
+            offset = offset + npart_rank(k)*perpart
+     >                      + nnz_rank(k)*(4 + 8*ppiclf_lrp_pro)
+         endif
       enddo
 
       call mpi_file_open(ppiclf_comm,fname,MPI_MODE_RDONLY,
      >                   MPI_INFO_NULL,fh,ierr)
-      call mpi_file_read_at_all(fh,offset,ytmp,
-     >   int(ppiclf_lrs*nlocal,4),MPI_DOUBLE_PRECISION,status,ierr)
-      offset = offset + 8*ppiclf_lrs*nlocal
-      call mpi_file_read_at_all(fh,offset,props,
-     >   int(nsaved*nlocal,4),MPI_DOUBLE_PRECISION,status,ierr)
-      offset = offset + 8*nsaved*nlocal
+      call ppiclf_io_ReadColumns(fh,offset,ytmp,ppiclf_lrs,nlocal,
+     >                           sty,shy)
+      call ppiclf_io_ReadColumns(fh,offset,props,nsaved,nlocal,
+     >                           str,shr)
       ! slots not saved start at 0: interpolated before they are used
       rtmp = 0.0d0
       if (nlocal .gt. 0 .and. nsaved .gt. 0)
      >   rtmp(saved(1:nsaved),1:nlocal) = props(1:nsaved,1:nlocal)
-      call mpi_file_read_at_all(fh,offset,itmp,
-     >   int(PPICLF_LIP*nlocal,4),MPI_INTEGER4,status,ierr)
-      offset = offset + 4*PPICLF_LIP*nlocal
+      call ppiclf_io_ReadTags(fh,offset,itmp,PPICLF_LIP,nlocal,
+     >                        sti,shi)
       if (ppiclf_lrp3 .gt. 0)
-     >   call mpi_file_read_at_all(fh,offset,htmp,
-     >   int(ppiclf_lrp3*nlocal,4),MPI_DOUBLE_PRECISION,status,ierr)
-      offset = offset + 8*ppiclf_lrp3*nlocal
-      call mpi_file_read_at_all(fh,offset,ftmp,
-     >   int(ppiclf_lrp_pro*nlocal,4),MPI_DOUBLE_PRECISION,status,ierr)
-      offset = offset + 8*ppiclf_lrp_pro*nlocal
-      call mpi_file_read_at_all(fh,offset,ppiclf_restart_pro_fld,
-     >   int(ncells*ppiclf_lrp_pro,4),MPI_DOUBLE_PRECISION,status,ierr)
+     >   call ppiclf_io_ReadColumns(fh,offset,htmp,ppiclf_lrp3,nlocal,
+     >                              sth,shh)
+      call ppiclf_io_ReadColumns(fh,offset,ftmp,ppiclf_lrp_pro,nlocal,
+     >                           stf,shf)
+      if (version .eq. 3) then
+         call mpi_file_read_at_all(fh,offset,ppiclf_restart_pro_fld,
+     >      int(ncells*ppiclf_lrp_pro,4),MPI_DOUBLE_PRECISION,status,
+     >      ierr)
+      else
+         ! the cells not 0, then their values; the others are 0
+         nnz = int(nnz_rank(ppiclf_nid+1),4)
+         allocate(cells(max(nnz,1)),nonzero(max(nnz,1),ppiclf_lrp_pro))
+         call mpi_file_read_at_all(fh,offset,cells,nnz,MPI_INTEGER4,
+     >                             status,ierr)
+         offset = offset + 4*nnz_rank(ppiclf_nid+1)
+         call mpi_file_read_at_all(fh,offset,nonzero,
+     >      nnz*ppiclf_lrp_pro,MPI_DOUBLE_PRECISION,status,ierr)
+         if (nnz .gt. 0) then
+            if (minval(cells(1:nnz)) .lt. 1 .or.
+     >          maxval(cells(1:nnz)) .gt. ncells)
+     >         call ppiclf_exittr('Particle dump: bad cell number$',
+     >                            0.0d0,0)
+         endif
+         ppiclf_restart_pro_fld = 0.0d0
+         if (nnz .gt. 0) ppiclf_restart_pro_fld(cells(1:nnz),:) =
+     >      nonzero(1:nnz,1:ppiclf_lrp_pro)
+         deallocate(cells,nonzero)
+      endif
       call mpi_file_close(fh,ierr)
 
       ! state and properties (PPICLF_RESTART: the IDs are not reset)
@@ -1612,6 +1969,7 @@ c1511 continue
       enddo
 
       deallocate(ytmp,rtmp,itmp,htmp,ftmp,props,timebh)
+      deallocate(sty,str,sti,sth,stf,shi,shy,shr,shh,shf)
 
       return
       end

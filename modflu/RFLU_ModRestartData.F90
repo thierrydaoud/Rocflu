@@ -10,7 +10,7 @@
 !   (raw bytes, no Fortran record markers, native byte order):
 !
 !     CHARACTER(8)  'RFLUDUMP'
-!     INTEGER(4)    format version (4)
+!     INTEGER(4)    format version (5; version 4 is still read)
 !     INTEGER(8)    step
 !     REAL(8)       time
 !     INTEGER(4)    region, nCells, nCv
@@ -19,8 +19,13 @@
 !     INTEGER(4)    1 if the PICL fields follow, else 0
 !     REAL(8)       cv(iCv,1:nCells) for iCv = 1..nCv, one variable after
 !                   the other
-!     REAL(8)       PICL only: piclVF(1:nCells), then piclgradRhog(i,1,1:nCells)
-!                   for i = 1..3
+!     PICL only:
+!     INTEGER(4)    nNonzero, the cells where piclVF is not 0 (bit pattern),
+!                   then INTEGER(4) cells(nNonzero), REAL(8) piclVF(cells)
+!     INTEGER(4)    1 if piclgradRhog follows (GRADRHO_WRT 1, for the post
+!                   program: every stage recomputes it), else 0; then
+!                   REAL(8) piclgradRhog(i,1,1:nCells) for i = 1..3
+!     (version 4: REAL(8) piclVF(1:nCells), then piclgradRhog for i = 1..3)
 !     INTEGER(4)    number of NSCBC patches (non-reflecting boundaries, whose
 !                   face state evolves in time), then per patch: INTEGER(4)
 !                   global patch number, nBFaces; REAL(8) face state
@@ -30,7 +35,7 @@
 !   same stream layout:
 !
 !     CHARACTER(8)  'PPICLDMP'
-!     INTEGER(4)    format version (2)
+!     INTEGER(4)    format version (4; version 3 is still read)
 !     INTEGER(8)    step
 !     REAL(8)       time
 !     INTEGER(4)    nRanks
@@ -45,14 +50,25 @@
 !     INTEGER(4)    nOut, then per output field: INTEGER(4) source (1 y,
 !                   2 rprop, 3 iprop), INTEGER(4) slot, CHARACTER(24) name
 !                   (ppiclf_user_OutputFields: the par*.vtu fields)
+!     INTEGER(4)    nSaved, then the rprop slots saved (saved(1:nSaved))
+!     for each particle array, in the order y (lrs columns), rprop of the
+!     saved slots (nSaved), iprop (lip), rprop3 (lrp3), feedbk (lrpPro):
+!     INTEGER(4)    stored(column): 1 a value per particle, 0 the same bits
+!                   for every particle of every rank, then the shared values,
+!                   REAL(8) (INTEGER(4) for iprop) shared(column), used where
+!                   stored is 0
 !     INTEGER(8)    particles on each rank (nRanks), fluid cells on each rank
+!                   (nRanks), cells of each rank with a projected field not 0
 !                   (nRanks)
-!     then one block per rank, in rank order: for that rank's particles
-!     REAL(8) y(lrs,:), REAL(8) rprop(lrp,:), INTEGER(4) iprop(lip,:),
-!     REAL(8) rprop3(lrp3,:), REAL(8) feedbk(lrpPro,:) (the feedback to the
-!     gas); then REAL(8) the fields projected to its fluid cells, cells x
-!     lrpPro. At the start of a stage the gas reads the projected fields and
-!     ppiclF then projects feedbk of the stage before: a restart needs both
+!     then one block per rank, in rank order: for that rank's particles the
+!     stored columns of y, rprop, iprop, rprop3 and feedbk (the feedback to
+!     the gas), each (columns,particles); then INTEGER(4) the local numbers
+!     of its cells with a projected field not 0 and REAL(8) their projected
+!     fields (cells x lrpPro). At the start of a stage the gas reads the
+!     projected fields and ppiclF then projects feedbk of the stage before: a
+!     restart needs both
+!     (version 3: no stored/shared tables, every column in the blocks, no
+!     third count, and the projected fields of every cell of the rank)
 !
 !   Each file is written as <name>.tmp and renamed when it is complete, so
 !   an interrupted run never leaves a partial dump under a final name.
@@ -88,7 +104,7 @@ MODULE RFLU_ModRestartData
   INTEGER, PARAMETER, PUBLIC :: RESTART_FORM_PURE = 1, &
                                 RESTART_FORM_VOLUME_WEIGHTED = 2
 
-  INTEGER, PARAMETER :: RESTART_DATA_VERSION = 4
+  INTEGER, PARAMETER :: RESTART_DATA_VERSION = 5
 
   INTERFACE
     FUNCTION c_mkdir(path,mode) BIND(C,NAME='mkdir')
@@ -133,6 +149,9 @@ CONTAINS
 
     CHARACTER(CHRLEN) :: dirName,fileName
     INTEGER :: errorFlag,form,i,iCv,iFile,iPatch,nCells,nPatchesNSCBC,withPicl
+#ifdef PICL
+    INTEGER(4), ALLOCATABLE :: cells(:)
+#endif
     TYPE(t_global), POINTER :: global
     TYPE(t_grid), POINTER :: pGrid
     TYPE(t_patch), POINTER :: pPatch
@@ -182,10 +201,17 @@ CONTAINS
 
 #ifdef PICL
     IF ( withPicl == 1 ) THEN
-      WRITE(iFile) REAL(pRegion%mixt%piclVF(1:nCells),8)
-      DO i = 1,3
-        WRITE(iFile) REAL(pRegion%mixt%piclgradRhog(i,1,1:nCells),8)
-      END DO ! i
+      cells = NonzeroCells(pRegion%mixt%piclVF(1:nCells))
+      WRITE(iFile) INT(SIZE(cells),4),cells, &
+                   REAL(pRegion%mixt%piclVF(cells),8)
+      IF ( global%postWriteGradRho .EQV. .TRUE. ) THEN
+        WRITE(iFile) 1_4
+        DO i = 1,3
+          WRITE(iFile) REAL(pRegion%mixt%piclgradRhog(i,1,1:nCells),8)
+        END DO ! i
+      ELSE
+        WRITE(iFile) 0_4
+      END IF ! global%postWriteGradRho
     END IF ! withPicl
 #endif
 
@@ -299,43 +325,6 @@ CONTAINS
 
 ! ******************************************************************************
 !
-! Purpose: Whether every dump a run needs to start from a step exists: the
-!   fluid dump of every region and, with particles after step 0, the
-!   particle dump (step 0 particles come from points.dat).
-!
-! ******************************************************************************
-
-  LOGICAL FUNCTION DumpsComplete(global,step)
-
-    TYPE(t_global), POINTER :: global
-    INTEGER, INTENT(IN) :: step
-
-    INTEGER :: iReg,iRegLow,iRegUpp
-    LOGICAL :: fileExists
-
-! A single-region run has only region 0 (the serial region)
-    IF ( global%nRegions == 1 ) THEN
-      iRegLow = 0
-      iRegUpp = 0
-    ELSE
-      iRegLow = 1
-      iRegUpp = global%nRegions
-    END IF ! global%nRegions
-
-    DumpsComplete = .TRUE.
-    DO iReg = iRegLow,iRegUpp
-      INQUIRE(FILE=TRIM(FluidDumpName(global,step,iReg)),EXIST=fileExists)
-      DumpsComplete = DumpsComplete .AND. fileExists
-    END DO ! iReg
-    IF ( (global%piclUsed .EQV. .TRUE.) .AND. (step > 0) ) THEN
-      INQUIRE(FILE=TRIM(RFLU_ParticleDumpName(global,step)),EXIST=fileExists)
-      DumpsComplete = DumpsComplete .AND. fileExists
-    END IF ! global%piclUsed
-
-  END FUNCTION DumpsComplete
-
-! ******************************************************************************
-!
 ! Purpose: The entries of restart_data/ (on the calling rank).
 !
 ! Output:
@@ -386,7 +375,8 @@ CONTAINS
   SUBROUTINE RFLU_CompleteDumpSteps(global,steps)
 
 ! Purpose: The steps of restart_data/ with every dump a run needs to start
-!   from them (as DumpsComplete), in increasing order (on the calling rank).
+!   from them (the fluid dump of every region and, with particles after step
+!   0, the particle dump), in increasing order (on the calling rank).
 !   Decided from the names in the listing, with no file query per dump.
 
     TYPE(t_global), POINTER :: global
@@ -529,6 +519,29 @@ CONTAINS
 
   END FUNCTION DumpStep
 
+! The cells whose value is not 0 (bit pattern: -0.0 is kept), in order
+  FUNCTION NonzeroCells(values) RESULT(cells)
+
+    REAL(RFREAL), INTENT(IN) :: values(:)
+    INTEGER(4), ALLOCATABLE :: cells(:)
+
+    INTEGER :: i,n
+
+    n = 0
+    DO i = 1,SIZE(values)
+      IF ( TRANSFER(REAL(values(i),8),0_8) /= 0_8 ) n = n + 1
+    END DO ! i
+    ALLOCATE(cells(n))
+    n = 0
+    DO i = 1,SIZE(values)
+      IF ( TRANSFER(REAL(values(i),8),0_8) /= 0_8 ) THEN
+        n = n + 1
+        cells(n) = INT(i,4)
+      END IF ! TRANSFER
+    END DO ! i
+
+  END FUNCTION NonzeroCells
+
 ! ******************************************************************************
 !
 ! Purpose: Choose the step the run starts from (START_STEP) and set the start
@@ -536,8 +549,8 @@ CONTAINS
 !
 ! Description: Rank 0 decides and broadcasts. START_STEP 0: a new run from
 !   rfluinit's step 0 dump. -1: the latest step with every dump the run needs
-!   (DumpsComplete). N: step N, which must have them. The time is read from
-!   the header of the first region's dump.
+!   (RFLU_CompleteDumpSteps, from one listing). N: step N, which must have
+!   them. The time is read from the header of the first region's dump.
 !
 ! Input:
 !   global      Global data
@@ -552,8 +565,8 @@ CONTAINS
 
     CHARACTER(8) :: magic
     CHARACTER(CHRLEN) :: fileName,stepString
-    CHARACTER(CHRLEN), ALLOCATABLE :: entries(:)
-    INTEGER :: chosenStep,errorFlag,iEntry,iFile,step
+    INTEGER :: chosenStep,errorFlag,iFile
+    INTEGER, ALLOCATABLE :: steps(:)
     INTEGER(4) :: version
     INTEGER(8) :: dumpStep8
     REAL(8) :: startTime
@@ -564,35 +577,28 @@ CONTAINS
     startTime  = 0.0D0
 
     IF ( global%myProcid == MASTERPROC ) THEN
+      CALL RFLU_CompleteDumpSteps(global,steps)
       IF ( global%startStep == 0 ) THEN
-        IF ( DumpsComplete(global,0) .EQV. .FALSE. ) THEN
+        IF ( .NOT. ANY(steps == 0) ) THEN
           CALL ErrorStop(global,ERR_FILE_EXIST,__LINE__, &
             'restart_data/ has no step 0 fluid dump of every region: run '// &
             'rfluinit first')
-        END IF ! DumpsComplete
+        END IF ! steps
       ELSE IF ( global%startStep == -1 ) THEN
-        chosenStep = -1
-        CALL ListRestartData(global,entries)
-        DO iEntry = 1,SIZE(entries)
-          step = DumpStep(entries(iEntry))
-          IF ( (step > chosenStep) .AND. (step > 0) .AND. &
-               (INDEX(entries(iEntry),'.tmp') == 0) ) THEN
-            IF ( DumpsComplete(global,step) .EQV. .TRUE. ) chosenStep = step
-          END IF ! step
-        END DO ! iEntry
-        IF ( chosenStep < 0 ) THEN
+        chosenStep = MAXVAL(steps,MASK=(steps > 0),DIM=1)
+        IF ( .NOT. ANY(steps > 0) ) THEN
           CALL ErrorStop(global,ERR_FILE_EXIST,__LINE__, &
             'START_STEP -1: restart_data/ has no complete dump after step 0 '// &
             'to restart from')
-        END IF ! chosenStep
+        END IF ! steps
       ELSE
         chosenStep = global%startStep
-        IF ( DumpsComplete(global,chosenStep) .EQV. .FALSE. ) THEN
+        IF ( .NOT. ANY(steps == chosenStep) ) THEN
           WRITE(stepString,'(I0)') chosenStep
           CALL ErrorStop(global,ERR_FILE_EXIST,__LINE__, &
             'START_STEP '//TRIM(stepString)//': restart_data/ does not have '// &
             'the dumps of every region (and the particle dump) of that step')
-        END IF ! DumpsComplete
+        END IF ! steps
       END IF ! global%startStep
 
 ! A single-region run has only region 0 (the serial region)
@@ -715,22 +721,26 @@ CONTAINS
 ! Input:
 !   pRegion     Region data
 !
-! Output: None.
+! Output:
+!   gradRhogRead  (optional) whether the dump held piclgradRhog
 !
 ! ******************************************************************************
 
-  SUBROUTINE RFLU_ReadRestartData(pRegion)
+  SUBROUTINE RFLU_ReadRestartData(pRegion,gradRhogRead)
 
     TYPE(t_region), POINTER :: pRegion
+    LOGICAL, INTENT(OUT), OPTIONAL :: gradRhogRead
 
     CHARACTER(8) :: magic
     CHARACTER(CHRLEN) :: fileName
-    INTEGER :: errorFlag,expectedForm,i,iCv,iFile,iPatch,iPatchDump,iVar
-    INTEGER(4) :: dumpRegion,form,nBFacesDump,nCellsDump,nCvDump, &
-                  nPatchesNSCBC,patchGlobalDump,version,withPicl
+    INTEGER :: errorFlag,expectedForm,i,iCv,iFile,iPatch,iPatchDump
+    INTEGER(4) :: dumpRegion,form,nBFacesDump,nCellsDump,nCvDump,nGrad, &
+                  nNonzero,nPatchesNSCBC,patchGlobalDump,version,withGrad, &
+                  withPicl
+    INTEGER(4), ALLOCATABLE :: cells(:)
     INTEGER(8) :: step
     REAL(8) :: dumpTime
-    REAL(8), ALLOCATABLE :: values(:)
+    REAL(8), ALLOCATABLE :: nonzero(:),values(:)
     TYPE(t_global), POINTER :: global
     TYPE(t_grid), POINTER :: pGrid
     TYPE(t_patch), POINTER :: pPatch
@@ -757,7 +767,7 @@ CONTAINS
     READ(iFile,IOSTAT=errorFlag) magic,version,step,dumpTime,dumpRegion, &
                                  nCellsDump,nCvDump,form,withPicl
     IF ( errorFlag /= 0 .OR. magic /= 'RFLUDUMP' .OR. &
-         version /= RESTART_DATA_VERSION ) THEN
+         ((version /= RESTART_DATA_VERSION) .AND. (version /= 4)) ) THEN
       CALL ErrorStop(global,ERR_INVALID_MARKER,__LINE__,TRIM(fileName)// &
         ': not a fluid dump of this version (rerun rfluinit for step 0)')
     END IF ! errorFlag
@@ -784,23 +794,53 @@ CONTAINS
       pRegion%mixt%cv(iCv,1:pGrid%nCells) = REAL(values,RFREAL)
     END DO ! iCv
 
-! PICL fields: 4 arrays (piclVF, piclgradRhog x, y, z)
+! PICL fields: piclVF (version 4: every cell; 5: the cells not 0), then
+! piclgradRhog if the dump has it
+    nGrad = 0
     IF ( withPicl == 1 ) THEN
-      DO iVar = 1,4
+      IF ( version == 4 ) THEN
+        READ(iFile,IOSTAT=errorFlag) values
+        nGrad = 3
+#ifdef PICL
+        IF ( errorFlag == 0 ) THEN
+          pRegion%mixt%piclVF(1:pGrid%nCells) = REAL(values,RFREAL)
+        END IF ! errorFlag
+#endif
+      ELSE
+        READ(iFile,IOSTAT=errorFlag) nNonzero
+        IF ( (errorFlag == 0) .AND. &
+             ((nNonzero < 0) .OR. (nNonzero > pGrid%nCells)) ) errorFlag = 1
+        IF ( errorFlag == 0 ) THEN
+          ALLOCATE(cells(nNonzero),nonzero(nNonzero))
+          READ(iFile,IOSTAT=errorFlag) cells,nonzero
+        END IF ! errorFlag
+        IF ( errorFlag == 0 .AND. nNonzero > 0 ) THEN
+          IF ( (MINVAL(cells) < 1) .OR. (MAXVAL(cells) > pGrid%nCells) ) &
+            errorFlag = 1
+        END IF ! errorFlag
+#ifdef PICL
+        IF ( errorFlag == 0 ) THEN
+          pRegion%mixt%piclVF(1:pGrid%nCells) = 0.0_RFREAL
+          pRegion%mixt%piclVF(cells) = REAL(nonzero,RFREAL)
+        END IF ! errorFlag
+#endif
+        IF ( errorFlag == 0 ) READ(iFile,IOSTAT=errorFlag) withGrad
+        IF ( errorFlag == 0 ) nGrad = 3*withGrad
+      END IF ! version
+      IF ( errorFlag /= 0 ) THEN
+        CALL ErrorStop(global,ERR_FILE_READ,__LINE__,TRIM(fileName))
+      END IF ! errorFlag
+      DO i = 1,nGrad
         READ(iFile,IOSTAT=errorFlag) values
         IF ( errorFlag /= 0 ) THEN
           CALL ErrorStop(global,ERR_FILE_READ,__LINE__,TRIM(fileName))
         END IF ! errorFlag
 #ifdef PICL
-        IF ( iVar == 1 ) THEN
-          pRegion%mixt%piclVF(1:pGrid%nCells) = REAL(values,RFREAL)
-        ELSE
-          i = iVar - 1
-          pRegion%mixt%piclgradRhog(i,1,1:pGrid%nCells) = REAL(values,RFREAL)
-        END IF ! iVar
+        pRegion%mixt%piclgradRhog(i,1,1:pGrid%nCells) = REAL(values,RFREAL)
 #endif
-      END DO ! iVar
+      END DO ! i
     END IF ! withPicl
+    IF ( PRESENT(gradRhogRead) ) gradRhogRead = (nGrad > 0)
 
     DEALLOCATE(values)
 
