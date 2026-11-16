@@ -175,8 +175,7 @@ SUBROUTINE RFLU_PrintWriteConvergence(global)
 
   ELSE IF ( (global%flowType == FLOW_UNSTEADY) .AND. & 
             (global%myProcid==MASTERPROC) ) THEN
-    endTime  = global%restartTime &
-             + MIN(global%maxTime - global%restartTime,global%runTime)
+    endTime  = global%maxTime
     timeDone = global%currentTime - global%restartTime
     percent  = 100
     IF ( endTime > global%restartTime ) THEN

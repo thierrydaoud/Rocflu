@@ -147,8 +147,7 @@ SUBROUTINE RFLU_PrintSetup(regions)
                  (/ 'Zwick         ','Avery sub-bins' /)))
   END IF ! global%piclUsed
 
-  endTime = global%restartTime &
-          + MIN(global%maxTime - global%restartTime,global%runTime)
+  endTime = global%maxTime
   CALL AddItem('CFL',RealText(regions(1)%mixtInput%cfl))
   CALL AddItem('dt max',TRIM(RealText(global%dtImposed))//' s')
   CALL AddItem('Start time',TRIM(RealText(global%restartTime))//' s')

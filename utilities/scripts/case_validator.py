@@ -427,6 +427,20 @@ class Validator:
                           "%s was removed: the run stops with a dump before the Slurm "
                           "job ends, set from the job's end time; remove the line" % key,
                           number)
+        number, _ = simple_value(body, "RUNTIME")
+        self.prohibit(number is not None,
+                      "RUNTIME was removed: a run goes to MAXTIME and stops with a dump "
+                      "before the Slurm job ends; remove the line", number)
+        number, _ = simple_value(body, "FOMWRITIME")
+        self.prohibit(number is not None,
+                      "FOMWRITIME is not used while # FORCES and # MVFRAME are disabled; "
+                      "remove the line", number)
+        _, flow = simple_value(body, "FLOWTYPE")
+        if flow is not None and round(flow) == 1:
+            for key, what in (("MAXTIME", "the end time"), ("WRITIME", "the dump interval")):
+                number, value = simple_value(body, key)
+                self.prohibit(number is None,
+                              "%s (%s, s) must be given in # TIMESTEP" % (key, what))
         number, start = simple_value(body, "START_STEP")
         if number is not None:
             self.prohibit(start is None or start != int(start) or start < -1,
@@ -442,6 +456,12 @@ class Validator:
         self.prohibit(used is not None and round(used) != 0,
                       "# SPECIES USED 1: species transport is disabled for now "
                       "(not tested for a while)", number)
+        for section, what in (("FORCES", "gas forces and moments on the patches"),
+                              ("MVFRAME", "moving reference frame")):
+            number, flag = simple_value(sections.get(section, []), "FLAG")
+            self.prohibit(flag is not None and round(flag) != 0,
+                          "# %s FLAG 1 (%s) is disabled for now (not tested for a "
+                          "while)" % (section, what), number)
         number, model = simple_value(sections.get("MIXTURE", []), "GASMODEL")
         self.prohibit(model is not None and 3 <= round(model) <= 7,
                       "GASMODEL %d (mixture or JWL) needs species transport, which is "

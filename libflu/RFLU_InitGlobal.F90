@@ -264,7 +264,6 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
   global%maxTime           = 1.0E-4_RFREAL
   global%printTime         = 1.0E-12_RFREAL
   global%restartTime       = 0.0_RFREAL
-  global%runTime           = global%maxTime
   global%timeSinceRestart  = 0.0_RFREAL
   global%timeSincePrint    = 0.0_RFREAL
   global%timeSinceProbe    = 0.0_RFREAL

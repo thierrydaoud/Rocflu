@@ -182,7 +182,7 @@ MODULE ModGlobal
                postWriteEnergy,postWriteGradRho
     ! Old-style output (SOL_*, PARAVIEW_*, par*.vtu, bin*.vtu; OLD_OUTPUT_WRT)
     LOGICAL :: postWriteOldOutput
-    ! endTime: time this job ends at (MAXTIME, or the start time + RUNTIME);
+    ! endTime: time this job ends at (MAXTIME);
     ! the last step is shortened to end exactly there
     REAL(RFREAL) :: endTime
     INTEGER :: currentIter,currentStep,flowType,hypreSolver,iterSinceRestart, &
@@ -190,7 +190,7 @@ MODULE ModGlobal
                solverType,tstepOrder,writeIter
     INTEGER :: maxIterPC,maxIterHypre
     REAL(RFREAL) :: currentTime,dTimeSystem,dtImposed,maxTime,printTime, &
-                    resTol,runTime,stopRun,tolSubIter, &
+                    resTol,stopRun,tolSubIter, &
                     writeTime
     REAL(RFREAL) :: currentTimeRK,restartTime,timeSincePrint,timeSinceProbe, &
                     timeSinceRestart,timeSinceWrite

@@ -83,7 +83,7 @@ SUBROUTINE ReadTimestepSection( global )
   TYPE(t_global), POINTER :: global
 
 ! ... local variables
-  INTEGER, PARAMETER :: NVALS_MAX = 26
+  INTEGER, PARAMETER :: NVALS_MAX = 25
 
   CHARACTER(11) :: keys(NVALS_MAX)
 
@@ -115,14 +115,13 @@ SUBROUTINE ReadTimestepSection( global )
   keys(16) = 'PREDICTSOL'
   keys(17) = 'DTMINLIMIT'
   keys(18) = 'RKSCHEME'
-  keys(19) = 'RUNTIME'
+  keys(19) = 'HYPRESOLVER'
   keys(20) = 'FOMWRITIME'
   keys(21) = 'TOLPC'
   keys(22) = 'TOLHYPRE'
   keys(23) = 'MAXITPC'
   keys(24) = 'MAXITHYPRE'
   keys(25) = 'FOMWRIITER'
-  keys(26) = 'HYPRESOLVER'
   
   CALL ReadSection( global,IF_INPUT,NVALS_MAX,keys,vals,defined )
 
@@ -133,7 +132,11 @@ SUBROUTINE ReadTimestepSection( global )
   IF (defined( 2)) global%dtImposed     = ABS(vals(2))
   IF (defined( 3)) global%maxTime       = ABS(vals(3))
   IF (defined( 4)) global%writeTime     = ABS(vals(4))
-  IF (defined( 5)) global%printTime     = ABS(vals(5))
+  IF (defined( 5)) THEN
+    global%printTime = ABS(vals(5))
+  ELSE
+    global%printTime = global%writeTime
+  END IF ! defined(5)
   IF (defined( 6)) global%maxIter       = INT(ABS(vals(6))+0.5_RFREAL)
   IF (defined( 7)) global%resTol        = ABS(vals(7))
   IF (defined( 8)) global%writeIter     = MAX(1,INT(ABS(vals(8))+0.5_RFREAL))
@@ -181,10 +184,6 @@ SUBROUTINE ReadTimestepSection( global )
     global%rkScheme = INT(ABS(vals(18)) + 0.5_RFREAL)
   END IF ! defined
 
-  IF ( defined(19) .EQV. .TRUE. ) THEN 
-    global%runTime = ABS(vals(19))
-  END IF ! defined 
-
   IF (defined(20)) THEN
     global%fomWriteTime = ABS(vals(20)) 
   ELSE
@@ -213,10 +212,10 @@ SUBROUTINE ReadTimestepSection( global )
     global%fomWriteIter = global%writeIter 
   END IF ! defined 
 
-  IF ( defined(26) .EQV. .TRUE. ) THEN 
-    IF ( NINT(vals(26)) == HYPRE_SOLV_BAMG ) THEN
+  IF ( defined(19) .EQV. .TRUE. ) THEN 
+    IF ( NINT(vals(19)) == HYPRE_SOLV_BAMG ) THEN
       global%hypreSolver = HYPRE_SOLV_BAMG
-    ELSE IF ( NINT(vals(26)) == HYPRE_SOLV_GMRES ) THEN
+    ELSE IF ( NINT(vals(19)) == HYPRE_SOLV_GMRES ) THEN
       global%hypreSolver = HYPRE_SOLV_GMRES
     ELSE
       global%hypreSolver = HYPRE_SOLV_BAMG

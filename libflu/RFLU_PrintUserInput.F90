@@ -404,8 +404,6 @@ SUBROUTINE RFLU_PrintUserInput(regions)
     WRITE(STDOUT,'(A,5X,A,1X,E12.5)') SOLVER_NAME,'Timestep:',global%dtImposed
     WRITE(STDOUT,'(A,5X,A,1X,E12.5)') SOLVER_NAME,'Maximum time:', &
                                       global%maxTime
-    WRITE(STDOUT,'(A,5X,A,1X,E12.5)') SOLVER_NAME,'Run time:', &
-                                      global%runTime
     WRITE(STDOUT,'(A,5X,A,1X,E12.5)') SOLVER_NAME,'Writing interval:', &
                                       global%writeTime
     WRITE(STDOUT,'(A,5X,A,1X,E12.5)') SOLVER_NAME,'Printing interval:', &

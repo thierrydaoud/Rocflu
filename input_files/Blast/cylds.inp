@@ -31,10 +31,8 @@ CRECONSTFW 1    ! Weight of the wall values in the constrained face-gradient fit
 FLOWTYPE   1        ! 0=steady flow, 1=unsteady flow
 SOLVERTYPE 1        ! 1-dissipative, 3-nondissipative
 MAXTIME    1.0E-03  ! Simulation runtime [s]
-RUNTIME    1.0E-03  ! Maximum runtime [s]
 WRITIME    1.0E-05  ! Solution write frequency [s]
 PRNTIME    1.0E-05  ! time offset [s] to print convergence
-FOMWRITIME 2.5E-07    ! time offset [s] to store fom solution
 TIMESTEP   1.0E-10  ! max. physical time step [s]
 DTMINLIMIT 1.0E-10  ! sets smallest dt that overrides CFL limit
 RKSCHEME    2       ! 1-RK4 2-RK3

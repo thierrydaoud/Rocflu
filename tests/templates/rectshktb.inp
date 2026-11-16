@@ -31,10 +31,8 @@ CRECONSTC  1    ! Constrained reconstruction to compute cell gradients (0 - OFF 
 FLOWTYPE   1        ! 0=steady flow, 1=unsteady flow 
 SOLVERTYPE 1        ! 1-dissipative, 3-nondissipative 
 MAXTIME    5.0E-04  ! time [s] at which computation is stopped, relevant if FLOWTYPE=1 
-RUNTIME    5.0E-04  ! Simulation runtime 
 WRITIME    5.0E-06  ! Offset time [s] at which flow files are written, relevant if FLOWTYPE=1
 PRNTIME    5.0E-06  ! time offset [s] to print convergence 
-FOMWRITIME 1.0E-05  ! time offset [s] to store fom solution 
 TIMESTEP   1.0E-09  ! max. time step for computation [s], relevant if FLOWTYPE=1
 DTMINLIMIT 2.0E-10  ! sets smallest dt that overrides CFL limit
 RKSCHEME    2       ! 1-RK4 2-RK3

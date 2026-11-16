@@ -17,7 +17,6 @@ from .case import Case, Grid
 # particles at rest. Dumps at ~10 and ~20 us; compared at the last one.
 SHOCKTUBE = {
     ("TIMESTEP", "MAXTIME"): "2.05E-05",
-    ("TIMESTEP", "RUNTIME"): "2.05E-05",
     ("TIMESTEP", "WRITIME"): "1.0E-05",
     ("TIMESTEP", "PRNTIME"): "1.0E-05",
 }
@@ -46,7 +45,6 @@ def uniform_gas(u):
         ("INITFLOW", "RVAL5"): "1.2",
         ("INITFLOW", "RVAL6"): "101325.0",
         ("TIMESTEP", "MAXTIME"): "1.05E-04",
-        ("TIMESTEP", "RUNTIME"): "1.05E-04",
         ("TIMESTEP", "WRITIME"): "5.0E-05",
         ("TIMESTEP", "PRNTIME"): "5.0E-05",
     }
@@ -100,8 +98,7 @@ SHOCK_STATE = {("INITFLOW", "RVAL2"): "1.4190765531700", ("INITFLOW", "RVAL3"): 
 add(name="shocktube/one-way/pg-impulse/np2",
     description="Pressure-gradient force alone on two particles the shock passes",
     nranks=2, inp={**SHOCKTUBE, **ONE_WAY, **SHOCK_STATE, ("PICL", "QSFORCE"): 0,
-                   ("PICL", "PGFORCE"): 1, ("TIMESTEP", "MAXTIME"): "4.05E-05",
-                   ("TIMESTEP", "RUNTIME"): "4.05E-05"},
+                   ("PICL", "PGFORCE"): 1, ("TIMESTEP", "MAXTIME"): "4.05E-05"},
     particles=[(-0.0030, 0.00163, 0.00137, 1.0e-4), (-0.0010, 0.00241, 0.00263, 1.0e-4)],
     checks=["pg_impulse"])
 
@@ -328,7 +325,7 @@ def collision_pairs():
 
 
 COLLISIONS_ONLY = {("PICL", "QSFORCE"): 0, ("PICL", "COLLISIONS"): 1,
-                   ("TIMESTEP", "MAXTIME"): "2.05E-05", ("TIMESTEP", "RUNTIME"): "2.05E-05",
+                   ("TIMESTEP", "MAXTIME"): "2.05E-05",
                    ("TIMESTEP", "WRITIME"): "1.0E-05", ("TIMESTEP", "PRNTIME"): "1.0E-05"}
 for n in (1, 2, 4):
     add(name="box/ghost-collisions/np%d" % n,
@@ -432,7 +429,7 @@ for n in (1, 2, 4):
                     "the input restitution and ends inside the box",
         nranks=n, grid=BOX, bc="partwall",
         inp={**uniform_gas(0.0), **ONE_WAY, **COLLISIONS_ONLY, ("PICL", "COLLISIONS"): 2,
-             ("TIMESTEP", "MAXTIME"): "8.05E-06", ("TIMESTEP", "RUNTIME"): "8.05E-06",
+             ("TIMESTEP", "MAXTIME"): "8.05E-06",
              ("TIMESTEP", "WRITIME"): "4.0E-06", ("TIMESTEP", "PRNTIME"): "4.0E-06"},
         particles=wall_shots(),
         checks=["particles_moved", "wall_collisions"],
@@ -486,7 +483,7 @@ for n in (1, 2, 4):
                     "of the feedback force; the gas must stay uniform from cell to cell",
         nranks=n, grid=BOX, bc="periodic",
         inp={**uniform_gas(50.0), **TWO_WAY,
-             ("TIMESTEP", "MAXTIME"): "2.0E-06", ("TIMESTEP", "RUNTIME"): "2.0E-06",
+             ("TIMESTEP", "MAXTIME"): "2.0E-06",
              ("TIMESTEP", "WRITIME"): "1.0E-06", ("TIMESTEP", "PRNTIME"): "1.0E-06",
              ("PICL", "QSFORCE"): 3, ("PICL", "COLLISIONS"): 2,
              ("PICL", "NEIGHBORWIDTH"): "3.0e-3"},
@@ -638,11 +635,11 @@ from .case import SectorGrid  # noqa: E402
 
 COLLISIONS_ELASTIC = {("PICL", "QSFORCE"): 0, ("PICL", "COLLISIONS"): 1,
                       ("PICL", "KSP"): 10, ("PICL", "EREST"): "1.0",
-                      ("TIMESTEP", "MAXTIME"): "3.0E-05", ("TIMESTEP", "RUNTIME"): "3.0E-05",
+                      ("TIMESTEP", "MAXTIME"): "3.0E-05",
                       ("TIMESTEP", "WRITIME"): "1.5E-05", ("TIMESTEP", "PRNTIME"): "1.5E-05"}
 NO_FORCES = {("PICL", "QSFORCE"): 0, ("PICL", "AMFORCE"): 0, ("PICL", "PGFORCE"): 0,
              ("PICL", "COLLISIONS"): 0,
-             ("TIMESTEP", "MAXTIME"): "2.0E-05", ("TIMESTEP", "RUNTIME"): "2.0E-05",
+             ("TIMESTEP", "MAXTIME"): "2.0E-05",
              ("TIMESTEP", "WRITIME"): "1.0E-05", ("TIMESTEP", "PRNTIME"): "1.0E-05"}
 
 
@@ -780,7 +777,7 @@ QUARTER_SMALL = SectorGrid(angle=90.0, r_out=0.012, ntheta=32, core=(0.002, 0.00
 FULL_SMALL = SectorGrid(angle=90.0, r_out=0.012, ntheta=32, core=(0.002, 0.004), full=True)
 BLAST = {("INITFLOW", "RVAL1"): "0.006", ("INITFLOW", "RVAL3"): "0.0",
          ("PICL", "VELOCITYMODEL"): 0, ("PICL", "PGFORCE"): 1,
-         ("TIMESTEP", "MAXTIME"): "4.0E-06", ("TIMESTEP", "RUNTIME"): "4.0E-06",
+         ("TIMESTEP", "MAXTIME"): "4.0E-06",
          ("TIMESTEP", "WRITIME"): "2.0E-06", ("TIMESTEP", "PRNTIME"): "2.0E-06"}
 
 
@@ -841,7 +838,7 @@ def _outside_stop(particle, patch, t=None):
     return lines
 
 
-STOP_TIME = {("TIMESTEP", "MAXTIME"): "3.0E-06", ("TIMESTEP", "RUNTIME"): "3.0E-06",
+STOP_TIME = {("TIMESTEP", "MAXTIME"): "3.0E-06",
              ("TIMESTEP", "WRITIME"): "1.5E-06", ("TIMESTEP", "PRNTIME"): "1.5E-06"}
 add(name="stop/outside-at-start/np2",
     description="A particle outside the outer arc of a quarter cylinder (inside its "

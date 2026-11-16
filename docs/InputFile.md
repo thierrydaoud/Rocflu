@@ -69,8 +69,9 @@ accept more.
 | | `CRECONSTCW`, `CRECONSTFW` | ≥ 0 (default 1) | weight of the wall values in the cell / face fit (the sign is ignored). A weight, not a switch: to turn the constraint off, set `CRECONSTC` / `CRECONSTF` to 0 |
 | `# TIMESTEP` | `FLOWTYPE` | 0 steady, 1 unsteady | |
 | | `SOLVERTYPE` | 1 dissipative, 3 non-dissipative | |
-| | `MAXTIME`, `RUNTIME` | s | end time; run time of this job |
-| | `WRITIME`, `PRNTIME`, `FOMWRITIME` | s | intervals for solution files, printing, FOM files |
+| | `MAXTIME` | s | end time; **required** with `FLOWTYPE 1` |
+| | `WRITIME` | s | interval of the dumps in `restart_data/`; **required** with `FLOWTYPE 1` |
+| | `PRNTIME` | s | interval of the progress lines (default `WRITIME`) |
 | | `TIMESTEP` | s | largest time step |
 | | `DTMINLIMIT` | s | smallest time step, overrides the CFL limit |
 | | `RKSCHEME` | 1 RK4 (default), 2 RK3 | **must be 2 with particles** |
@@ -270,5 +271,7 @@ The validator mirrors `rocpicl/PICL_ReadPiclSection.F90` (keys and their order),
 | `OUTPARTICLE`, `OUTGAS`, `OUTGRADGAS`, `OUTMODEL` | renamed `PARTICLE_WRT`, `GAS_WRT`, `GRADGAS_WRT`, `MODEL_WRT` |
 | `PRNTENDTIME` (`# TIMESTEP`) | nothing: the end of every run is written |
 | `STARTTIME` (`# TIMESTEP`) | nothing: the start time is read from the dump `START_STEP` selects |
+| `RUNTIME` (`# TIMESTEP`) | nothing: a run goes to `MAXTIME` and stops with a dump before the Slurm job ends |
+| `FOMWRITIME` (`# TIMESTEP`) | nothing while `# FORCES` and `# MVFRAME` are disabled (`FLAG 1` is rejected; not tested for a while) |
 | `WALLTIME`, `SAFEWRTIME` (`# TIMESTEP`) | nothing: the run stops with a dump before the Slurm job ends (see [Output and Restarts](#output-and-restarts)) |
 | `# MATERIAL` for particles | `DENSITY` and `SPECIFICHEAT` in `# PICL` (`# MATERIAL` is rejected while species transport is disabled) |

@@ -9,6 +9,7 @@ errors the validator reports.
 """
 
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -298,9 +299,26 @@ class CaseValidatorTest(unittest.TestCase):
         self.assertError(self.errors(text=text), "PRNTENDTIME", "removed")
         text = TEMPLATE.replace("# TIMESTEP", "# TIMESTEP\nSTARTTIME 0.0", 1)
         self.assertError(self.errors(text=text), "STARTTIME", "removed")
-        for key in ("WALLTIME", "SAFEWRTIME"):
+        for key in ("WALLTIME", "SAFEWRTIME", "RUNTIME"):
             text = TEMPLATE.replace("# TIMESTEP", "# TIMESTEP\n%s 3600" % key, 1)
             self.assertError(self.errors(text=text), key, "removed")
+        text = TEMPLATE.replace("# TIMESTEP", "# TIMESTEP\nFOMWRITIME 1.0E-05", 1)
+        self.assertError(self.errors(text=text), "FOMWRITIME", "not used")
+        for key in ("MAXTIME", "WRITIME"):
+            text = re.sub(r"(?m)^%s .*\n" % key, "", TEMPLATE)
+            self.assertError(self.errors(text=text), key, "must be given")
+
+    def test_forces_and_moving_frame_disabled(self):
+        # the template has # FORCES with FLAG commented out, and no # MVFRAME
+        for flag in (1, 0):
+            forces = TEMPLATE.replace("!FLAG       0", "FLAG %d" % flag, 1)
+            frame = TEMPLATE + "\n# MVFRAME\nFLAG %d\n#\n" % flag
+            for section, text in (("FORCES", forces), ("MVFRAME", frame)):
+                errors = self.errors(text=text)
+                if flag:
+                    self.assertError(errors, "# %s FLAG 1" % section, "disabled")
+                else:
+                    self.assertFalse(any(section in e for e in errors))
         self.assertEqual(self.errors({("TIMESTEP", "START_STEP"): 0}), [])
         self.assertEqual(self.errors({("TIMESTEP", "START_STEP"): -1}), [])
         self.assertError(self.errors({("TIMESTEP", "START_STEP"): -2}), "START_STEP")

@@ -155,9 +155,7 @@ def make_inp(path, maxtime):
     if count != 1:
         sys.exit("no DIMENS line in wedge.inp")
     if maxtime:
-        for key in ("MAXTIME", "RUNTIME"):
-            text, _ = re.subn(r"(?m)^%s .*$" % key, "%s    %s" % (key, maxtime), text)
-        for key in ("WRITIME", "PRNTIME"):
+        for key in ("MAXTIME", "WRITIME", "PRNTIME"):
             text, _ = re.subn(r"(?m)^%s .*$" % key, "%s    %s" % (key, maxtime), text)
     with open(path, "w") as f:
         f.write(text)
