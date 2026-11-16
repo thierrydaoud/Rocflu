@@ -544,7 +544,6 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
   global%piclQsFlag           = 0
   global%piclAmFlag           = 0
   global%piclSBNearFlag       = 0
-  global%piclActiveBins       = 0
   global%piclPeriodicXFlag    = 0
   global%piclPeriodicYFlag    = 0
   global%piclPeriodicZFlag    = 0

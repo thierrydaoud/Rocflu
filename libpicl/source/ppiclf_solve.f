@@ -909,7 +909,7 @@ c----------------------------------------------------------------------
       ! ppiclf_particleMoved .EQ. 0 means all particles
       ! stayed in same bin as previous RK Stage.
       CALL ppiclf_comm_FindParticle
-      ! ACTIVEBINS: a particle moved into a bin without a rank
+      ! A particle moved into a bin without a rank
       IF(ppiclf_particleMoved .EQ. 2) THEN
         ppiclf_nforcedbins = ppiclf_nforcedbins + 1
         ppiclf_forcebins = .TRUE.
@@ -1968,20 +1968,6 @@ c----------------------------------------------------------------------
       REAL*8 fld
 !
       fld = ppiclf_pro_fld(e,m)
-
-      RETURN
-      END
-!-----------------------------------------------------------------------
-      SUBROUTINE ppiclf_solve_SetActiveBins(flag)
-      use ppiclf_data
-!
-      IMPLICIT NONE
-!
-! Input: 1 gives ranks only to bins with particles (ACTIVEBINS)
-!
-      INTEGER*4 flag
-!
-      ppiclf_activebins = flag
 
       RETURN
       END

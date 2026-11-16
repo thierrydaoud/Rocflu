@@ -553,13 +553,10 @@
       ! *** AVERY
       ! Find this processor's x,y,z bin indicies
       ! This rank's bin; without one, an empty box
-      myBin = ppiclf_nid
-      IF(ppiclf_activebins .NE. 0) THEN
-        myBin = -1
-        DO b = 0,UBOUND(ppiclf_bin_rank,1)
-          IF(ppiclf_bin_rank(b) .EQ. ppiclf_nid) myBin = b
-        END DO
-      END IF
+      myBin = -1
+      DO b = 0,UBOUND(ppiclf_bin_rank,1)
+        IF(ppiclf_bin_rank(b) .EQ. ppiclf_nid) myBin = b
+      END DO
       IF(myBin .LT. 0) THEN
         DO i = 1,3
           ppiclf_bin_pos(1,i) =  1.0D30
@@ -586,11 +583,10 @@
       SUBROUTINE ppiclf_comm_SetBinRanks(length,minLen)
       use ppiclf_data
 !
-! Bin -> rank table for the bin box of the given lengths. Default: the
-! bins of ppiclf_comm_BinCounts, bin b on rank b. ACTIVEBINS 1: the
-! finest layout (bin budgets from the rank count up to 4x, within the
-! minimum bin lengths) whose bins with particles fit the ranks; only
-! those bins get a rank, numbered in bin order.
+! Bin -> rank table for the bin box of the given lengths: the finest
+! layout (bin budgets from the rank count up to 4x, within the minimum
+! bin lengths) whose bins with particles fit the ranks; only those bins
+! get a rank, numbered in bin order.
 !
       IMPLICIT NONE
 !
@@ -606,52 +602,44 @@
      >          nBest(3)
       INTEGER*4, ALLOCATABLE :: counts(:)
 !
-      IF(ppiclf_activebins .NE. 0) THEN
-        maxBins = 1
-        DO l = 1,3
-          maxBins = maxBins*MAX(1,INT(length(l)/minLen(l)))
-        END DO
-        maxBins = MIN(maxBins,4*ppiclf_np)
-        nBest = ppiclf_n_bins
-        budget = ppiclf_np
-        DO
-          budget = MAX(budget+1,NINT(1.05D0*budget))
-          IF(budget .GT. maxBins) EXIT
-          CALL ppiclf_comm_BinCounts(length,minLen,budget,nTry)
-          nbins = nTry(1)*nTry(2)*nTry(3)
-          IF(nbins .LE. nBest(1)*nBest(2)*nBest(3)) CYCLE
-          ALLOCATE(counts(0:nbins-1))
-          CALL ppiclf_comm_CountBinParticles(length,nTry,counts)
-          nActive = COUNT(counts .GT. 0)
-          DEALLOCATE(counts)
-          IF(nActive .LE. ppiclf_np) nBest = nTry
-        END DO
-        ppiclf_n_bins = nBest
-        DO l = 1,3
-          ppiclf_bins_dx(l) = length(l)/ppiclf_n_bins(l)
-        END DO
-      END IF
+      maxBins = 1
+      DO l = 1,3
+        maxBins = maxBins*MAX(1,INT(length(l)/minLen(l)))
+      END DO
+      maxBins = MIN(maxBins,4*ppiclf_np)
+      nBest = ppiclf_n_bins
+      budget = ppiclf_np
+      DO
+        budget = MAX(budget+1,NINT(1.05D0*budget))
+        IF(budget .GT. maxBins) EXIT
+        CALL ppiclf_comm_BinCounts(length,minLen,budget,nTry)
+        nbins = nTry(1)*nTry(2)*nTry(3)
+        IF(nbins .LE. nBest(1)*nBest(2)*nBest(3)) CYCLE
+        ALLOCATE(counts(0:nbins-1))
+        CALL ppiclf_comm_CountBinParticles(length,nTry,counts)
+        nActive = COUNT(counts .GT. 0)
+        DEALLOCATE(counts)
+        IF(nActive .LE. ppiclf_np) nBest = nTry
+      END DO
+      ppiclf_n_bins = nBest
+      DO l = 1,3
+        ppiclf_bins_dx(l) = length(l)/ppiclf_n_bins(l)
+      END DO
 
       nbins = ppiclf_n_bins(1)*ppiclf_n_bins(2)*ppiclf_n_bins(3)
       IF(ALLOCATED(ppiclf_bin_rank)) DEALLOCATE(ppiclf_bin_rank)
       ALLOCATE(ppiclf_bin_rank(0:nbins-1))
-      IF(ppiclf_activebins .EQ. 0) THEN
-        DO b = 0,nbins-1
-          ppiclf_bin_rank(b) = b
-        END DO
-      ELSE
-        ALLOCATE(counts(0:nbins-1))
-        CALL ppiclf_comm_CountBinParticles(length,ppiclf_n_bins,counts)
-        nActive = 0
-        DO b = 0,nbins-1
-          ppiclf_bin_rank(b) = -1
-          IF(counts(b) .GT. 0) THEN
-            ppiclf_bin_rank(b) = nActive
-            nActive = nActive + 1
-          END IF
-        END DO
-        DEALLOCATE(counts)
-      END IF
+      ALLOCATE(counts(0:nbins-1))
+      CALL ppiclf_comm_CountBinParticles(length,ppiclf_n_bins,counts)
+      nActive = 0
+      DO b = 0,nbins-1
+        ppiclf_bin_rank(b) = -1
+        IF(counts(b) .GT. 0) THEN
+          ppiclf_bin_rank(b) = nActive
+          nActive = nActive + 1
+        END IF
+      END DO
+      DEALLOCATE(counts)
 
       RETURN
       END

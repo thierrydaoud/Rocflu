@@ -1,5 +1,5 @@
 {
-"uuid": "D640F6F7",
+"uuid": "DFA91EA5",
 "spec": {
 "nranks": 4,
 "grid": {
@@ -29,8 +29,7 @@
 "PICL/QSFORCE": 0,
 "PICL/AMFORCE": 0,
 "PICL/PGFORCE": 0,
-"PICL/COLLISIONS": 0,
-"PICL/ACTIVEBINS": 1
+"PICL/COLLISIONS": 0
 },
 "particles": [
 [

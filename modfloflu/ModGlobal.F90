@@ -511,7 +511,7 @@ MODULE ModGlobal
                piclQsFluctFilterAdaptFlag, &
                piclViscousUnsteady, &
                piclPeriodicXFlag, piclPeriodicYFlag, piclPeriodicZFlag, &
-               piclSBNearFlag, piclActiveBins, &
+               piclSBNearFlag, &
                piclMoveParticles, piclHTUnsteadyFlag, &
                piclVUSteps, piclOutParticle, piclOutGas, piclOutGradGas, &
                piclOutModel

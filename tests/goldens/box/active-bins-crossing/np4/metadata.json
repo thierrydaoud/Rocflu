@@ -1,10 +1,10 @@
 {
- "created": "2026-11-11T12:35:50",
+ "created": "2026-11-15T19:24:30",
  "host": "dane7",
  "exe_dir": "/p/lustre3/daoud1/Rocflu_activebins/build/bin",
  "git": {
-  "commit": "15cb0307fe6ab149391304cabd146761b547c8ce",
-  "branch": "active-bins",
+  "commit": "fb0fc60aedb161d630fe4df0e9665cbe56374500",
+  "branch": "activebins-only",
   "modified_sources": [
    "libflu/RFLU_InitGlobal.F90",
    "libpicl/source/ppiclf_comm.f",

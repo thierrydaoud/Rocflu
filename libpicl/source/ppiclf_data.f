@@ -109,12 +109,11 @@
 ! Rank of each bin, bins numbered ii + nx*jj + nx*ny*kk from 0
 ! (ppiclf_comm_CreateBin); -1: the bin has no rank
       integer*4, allocatable :: ppiclf_bin_rank(:)
-! Ranks only for bins with particles (ACTIVEBINS 1). Re-binnings so
-! far: all, and those forced by a particle in a bin without a rank
-      integer*4 ppiclf_activebins, ppiclf_nbinnings, ppiclf_nforcedbins
+! Re-binnings so far: all, and those forced by a particle in a bin
+! without a rank
+      integer*4 ppiclf_nbinnings, ppiclf_nforcedbins
       logical ppiclf_forcebins
-      data ppiclf_activebins, ppiclf_nbinnings, ppiclf_nforcedbins
-     >     /3*0/
+      data ppiclf_nbinnings, ppiclf_nforcedbins /2*0/
       data ppiclf_forcebins /.false./
 
 ! Particle output: the fields written to par*.vtu, in order. Field k is
