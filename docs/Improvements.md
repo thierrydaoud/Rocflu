@@ -21,6 +21,7 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
   - [Measured Breakdown](#measured-breakdown)
   - [A Faster Stencil Search](#a-faster-stencil-search)
 - [Projection: Kernel Width per Direction, and Cloud-Edge Cells](#projection-kernel-width-per-direction-and-cloud-edge-cells)
+  - [Which Cells a Particle Deposits Onto](#which-cells-a-particle-deposits-onto)
 - [Low-Slip Closures](#low-slip-closures)
 - [Quasi-Steady Drag](#quasi-steady-drag)
 - [Heat Transfer: Reynolds Number in the Gunn and Sun Correlations](#heat-transfer-reynolds-number-in-the-gunn-and-sun-correlations)
@@ -98,6 +99,7 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
 | Interpolation | Inverse distance (1/d³) had errors of up to ±18% of the change in density across one cell, even in a linear field, and was discontinuous at cell faces. A particle sheet hit by a planar shock rippled with the cell size (57 µm standard deviation after 250 µs) | Weighted linear least squares, exact for linear fields; the sheet stays flat (0.07 µm) | [89f9661](https://github.com/thierrydaoud/Rocflu/commit/89f9661), [6d00ca4](https://github.com/thierrydaoud/Rocflu/commit/6d00ca4) |
 | Projection | The kernel used one length for every direction, so the spread on stretched cells was wrong | Each direction is scaled by its own cell length | [414ce7f](https://github.com/thierrydaoud/Rocflu/commit/414ce7f) |
 | Projection | Cells just outside the bin domain were dropped, so cloud-edge particles reached 8 cells instead of 27; φ was ~8% too high at the edge | Map those cells to particle bins | [affad85](https://github.com/thierrydaoud/Rocflu/commit/affad85) |
+| Projection | The 27 cells were the physically nearest within 1.5 times the largest cell on the rank, so the deposit depended on the bins and the number of ranks (φ up to 2.3·10⁻⁴ of its max between two layouts), and on stretched cells it skipped neighbours along the long side | The 27 with the smallest scaled distance, each within 1.5 of its own cell length: the cells with the largest weights, the same on any layout | [5ade667](https://github.com/thierrydaoud/Rocflu/commit/5ade667) |
 | Closures | Forces and heat transfer were skipped below 1 mm/s slip, and the old value was kept | Evaluate at any slip; skip only the quasi-steady drag at zero slip | [f0ae123](https://github.com/thierrydaoud/Rocflu/commit/f0ae123) |
 | Quasi-steady drag | Gidaspow's C_D was capped below Re = 0.1 (100% error); Osnes had a spurious Knudsen reduction (25% error) | Correlations match the published ones; QSFORCE renumbered | [94607fd](https://github.com/thierrydaoud/Rocflu/commit/94607fd) |
 | Heat transfer | Gunn's and Sun's Nusselt correlations were evaluated with the particle Reynolds number Re_p instead of the mean slip Reynolds number Re_m = ε_f Re_p they were fitted with: Nu up to 35% too high (Sun) and 62% (Gunn) at ε_s = 0.5 | Both use Re_m; Sun's Nu is within 7.9% of its PR-DNS data on average (20.9% before) | [3c677d9](https://github.com/thierrydaoud/Rocflu/commit/3c677d9) |
@@ -390,7 +392,9 @@ For every particle, `SBParticleToCellMap` scans the cells of the 27 subbins arou
 cells; subbins are 1.8 cell lengths wide). A cell goes into the least-squares stencil if the
 particle is inside its support (at most 64 cells, kept sorted by distance and then offset, so
 the sums do not depend on the order cells arrive in), and into the 27-cell projection list if it
-is within 1.5 cell lengths. Per candidate cell the old code
+is within 1.5 of its own cell length in each direction (see
+[Which Cells a Particle Deposits Onto](#which-cells-a-particle-deposits-onto)). Per candidate
+cell the old code
 
 - checked it against every stencil cell found so far (up to 64): same cell, or a copy of it at
   the same offset (a cell received twice in a two-bin periodic box);
@@ -447,6 +451,59 @@ cube cells, the bottom row 2:1:1 cells.
   The same bug made φ about 8% too high at the edge of a particle cloud.
 
 The kernel width is still about 0.46h, so it depends on the mesh.
+
+### Which Cells a Particle Deposits Onto
+
+A particle deposits onto at most 27 cells, with weights
+
+  w = V_cell · exp(−2.305 · dNSQ),  dNSQ = Σ_l (Δx_l / L_l)²,
+
+normalised to sum to 1. Δx_l is the offset from the particle to the cell centre and L_l the
+cell's own length in direction l, so dNSQ = 1 is one cell length away (weight 0.1) and
+dNSQ = 4 two cell lengths (10⁻⁴).
+
+The weight used each cell's own lengths, but the cells were chosen differently:
+
+| | Before [5ade667](https://github.com/thierrydaoud/Rocflu/commit/5ade667) | Now |
+|---|---|---|
+| Candidates | \|Δx_l\| ≤ 1.5 × the largest cell **on the rank** | \|Δx_l\| ≤ 1.5 × the cell's **own** length L_l |
+| The 27 kept | smallest physical distance Σ Δx_l² | smallest dNSQ, the largest weights |
+
+Two things went wrong with the old choice:
+
+- **It depended on the bins.** The largest cell on a rank depends on which cells its bin
+  holds, so the same particle on the same mesh deposited differently with another bin
+  layout or number of ranks. On `sector/cradle/np4`, 2×2 and 4×4 bins gave φ differing by up
+  to 2.3·10⁻⁴ of its maximum in 69 cells: the finer bins held smaller cells, the box shrank
+  from 1.49 to 1.27 mm, particles lost cells and the weights were renormalised over the rest.
+  Now φ is bit-identical between the two layouts.
+- **It skipped neighbours on stretched cells.** Ranked by physical distance, cells many short
+  lengths away came before the neighbours along the long side. On cells of 1 mm × 0.1 mm the
+  27 kept were a column of 27 cells across the short side (weights down to 10⁻¹⁶⁹), and the
+  neighbours along the long side, with weight 0.1, were left out. Now the 27 are the cells
+  with the largest weights; on that mesh the 3 × 3 block.
+
+On cube cells of one size the two choices are the same, and so are the results: 66 of the
+80 suite cases are byte-identical. The cases with non-cubic cells change (sectors, the wedge
+and `shocktube/one-way/pg-impulse`): particle φ by 0.2–1.4% of its maximum, all physics checks
+pass, and the quarter and full sectors still agree exactly.
+
+On the quarter cylinder with the 5% bed (90,005 particles, 224 ranks, 10 steps):
+
+| | Before | Now |
+|---|---|---|
+| Cells per particle | 27 | 27 |
+| Largest dNSQ kept | 10.3 (weight 5·10⁻¹¹) | 6.2 (weight 7·10⁻⁷) |
+| Cells with φ > 0 | 14,138 | 13,632 |
+| Total φ | 617.631 | 617.595 |
+
+The share of a particle's deposit that goes to other cells has a median of 2.7% and a 99th
+percentile of 20%; the largest local change in φ is 6.1·10⁻³, against a peak φ of 0.083. Runs
+before and after this change differ by that much.
+
+The projection and the least-squares interpolation still use different cells: the
+interpolation takes every cell whose support (1.8 of its own lengths) contains the particle,
+with a weight that goes smoothly to zero at the support's edge, and no cap.
 
 ## Low-Slip Closures
 
