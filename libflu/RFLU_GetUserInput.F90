@@ -61,15 +61,7 @@
 !
 ! Output: None.
 !
-! Notes:
-!   1. timeStampPrep is written into timeStamp and currentTime only if this
-!      routine is called from the preprocessor. This is indicated by the
-!      optional argument isPrep. This construct is required because the
-!      routine reading the timeStamp from the input file only sets timeStamp
-!      and currentTime if not compiled within GENX. This is done because
-!      RFLU_InitFlowSolver gets the actual time passed in as an argument when
-!      running within GENX, and hence it should not be overwritten. For this
-!      to work with the preprocessor, the little detour has to be taken...
+! Notes: None.
 !
 !******************************************************************************
 !

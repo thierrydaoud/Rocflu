@@ -402,8 +402,6 @@ SUBROUTINE RFLU_PrintUserInput(regions)
   IF ( global%flowType == FLOW_UNSTEADY ) THEN
     WRITE(STDOUT,'(A,5X,A)')          SOLVER_NAME,'Flow type: Unsteady'
     WRITE(STDOUT,'(A,5X,A,1X,E12.5)') SOLVER_NAME,'Timestep:',global%dtImposed
-    WRITE(STDOUT,'(A,5X,A,1X,E12.5)') SOLVER_NAME,'Current time:', &
-                                      global%timeStamp
     WRITE(STDOUT,'(A,5X,A,1X,E12.5)') SOLVER_NAME,'Maximum time:', &
                                       global%maxTime
     WRITE(STDOUT,'(A,5X,A,1X,E12.5)') SOLVER_NAME,'Run time:', &

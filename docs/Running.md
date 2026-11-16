@@ -48,7 +48,7 @@ with particles, `points.dat`. `run` then:
    `# POST`, `# PROBE`, `CFL` and the run-length keys of `# TIMESTEP` (`MAXTIME`,
    `RUNTIME`, `WRITIME`, `PRNTIME`, `FOMWRITIME`, `TIMESTEP`, `DTMINLIMIT`, `WALLTIME`,
    `SAFEWRTIME`, `START_STEP`) for both, and also `# INITFLOW`, `# PICL`, `# REFERENCE`,
-   `# MIXTURE` and `STARTTIME` for the partition. So a longer run skips everything, a new
+   and `# MIXTURE` for the partition. So a longer run skips everything, a new
    initial condition reruns only `rfluinit`, and new numerics rerun all three. A step is
    also redone when one of its files is missing. The executables do not count: after a
    change to the pre-processing code, use `--repartition`. A run stopped halfway leaves no

@@ -60,13 +60,7 @@
 !
 ! Output: global = flow type and global time-stepping parameters.
 !
-! Notes: 
-!   1. RFLU: Must not overwrite global%currentTime if running within GENX 
-!      because solver gets actual time from Roccom. In preprocessor, however,
-!      do not get time from Roccom, so need to read timeStamp into separate
-!      variable. This will be used in RFLU_GetUserInput to set the variable
-!      global%currentTime iff RFLU_GetUserInput is called from within the
-!      preprocessing module. 
+! Notes: none.
 !
 !******************************************************************************
 !
@@ -91,7 +85,7 @@ SUBROUTINE ReadTimestepSection( global )
 ! ... local variables
 !  INTEGER, PARAMETER :: NVALS_MAX = 26
 ! BBR - new value for NVALS_MAX
-  INTEGER, PARAMETER :: NVALS_MAX = 29
+  INTEGER, PARAMETER :: NVALS_MAX = 28
 
   CHARACTER(11) :: keys(NVALS_MAX)
 
@@ -114,7 +108,7 @@ SUBROUTINE ReadTimestepSection( global )
   keys( 7) = 'RESTOL'
   keys( 8) = 'WRIITER'
   keys( 9) = 'PRNITER'
-  keys(10) = 'STARTTIME'
+  keys(10) = 'START_STEP'
   keys(11) = 'STARTITER'
   keys(12) = 'SOLVERTYPE'
   keys(13) = 'ORDER'
@@ -133,7 +127,6 @@ SUBROUTINE ReadTimestepSection( global )
   keys(26) = 'HYPRESOLVER'
   keys(27) = 'WALLTIME'
   keys(28) = 'SAFEWRTIME'
-  keys(29) = 'START_STEP'
   
   CALL ReadSection( global,IF_INPUT,NVALS_MAX,keys,vals,defined )
 
@@ -149,14 +142,6 @@ SUBROUTINE ReadTimestepSection( global )
   IF (defined( 7)) global%resTol        = ABS(vals(7))
   IF (defined( 8)) global%writeIter     = MAX(1,INT(ABS(vals(8))+0.5_RFREAL))
   IF (defined( 9)) global%printIter     = MAX(1,INT(ABS(vals(9))+0.5_RFREAL))
-
-  IF (defined(10)) global%timeStamp     = ABS(vals(10))
-
-  IF ( defined(10) .EQV. .TRUE. ) THEN
-    global%currentTime = global%timeStamp
-  ELSE 
-    global%currentTime = 0.0_RFREAL
-  END IF ! defined
 
   IF ( defined(11) .EQV. .TRUE. ) THEN 
     global%currentIter = INT(ABS(vals(11))+0.5_RFREAL)
@@ -250,8 +235,8 @@ SUBROUTINE ReadTimestepSection( global )
     global%safeWriteTime = ABS(vals(28))
   END IF
 
-  IF ( defined(29) .EQV. .TRUE. ) THEN
-    global%startStep = NINT(vals(29))
+  IF ( defined(10) .EQV. .TRUE. ) THEN
+    global%startStep = NINT(vals(10))
   END IF
 
 ! finalize

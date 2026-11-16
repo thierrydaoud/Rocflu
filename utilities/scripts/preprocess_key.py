@@ -35,7 +35,7 @@ IGNORED = {
 
 # ... and those only the initial fields depend on (rflupart does not read them)
 PARTITION_IGNORED = IGNORED | {
-    "INITFLOW", "PICL", "REFERENCE", "MIXTURE", ("TIMESTEP", "STARTTIME"),
+    "INITFLOW", "PICL", "REFERENCE", "MIXTURE",
 }
 
 

@@ -300,8 +300,6 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
 
   global%rkScheme = RK_SCHEME_4_CLASSICAL
 
-  global%timeStamp = 0.0E+0_RFREAL
-
   global%restartFromScratch = .FALSE.
 
   global%dualTstSource = .FALSE.

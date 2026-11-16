@@ -193,7 +193,7 @@ MODULE RFLU_ModDimensions
 ! as straightforward as may appear at first sight because vertices cannot be 
 ! summed... Do not actually need to build vertex lists, but would need to 
 ! estimate number of vertices. 
-      IF ( global%timeStamp > 0.0_RFREAL ) THEN
+      IF ( global%currentTime > 0.0_RFREAL ) THEN
         global%warnCounter = global%warnCounter + 1    
 
         IF ( global%myProcid == MASTERPROC .AND. &
@@ -201,7 +201,7 @@ MODULE RFLU_ModDimensions
           WRITE(STDOUT,'(A,3X,A,1X,A)') SOLVER_NAME,'*** WARNING ***', & 
                                         'Hard-code - read file from time zero.'
         END IF ! global%myProcid
-      END IF ! global%timeStamp
+      END IF ! global%currentTime
 
       currentTime = 0.0_RFREAL 
 ! END TEMPORARY      

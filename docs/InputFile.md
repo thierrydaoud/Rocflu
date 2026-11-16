@@ -73,7 +73,6 @@ accept more.
 | | `WRITIME`, `PRNTIME`, `FOMWRITIME` | s | intervals for solution files, printing, FOM files |
 | | `TIMESTEP` | s | largest time step |
 | | `DTMINLIMIT` | s | smallest time step, overrides the CFL limit |
-| | `STARTTIME` | s | |
 | | `WALLTIME`, `SAFEWRTIME` | s | wall time; write a restart this long before it |
 | | `RKSCHEME` | 1 RK4 (default), 2 RK3 | **must be 2 with particles** |
 | | `START_STEP` | 0 (default), -1, N | 0: a new run from rfluinit's step 0, replacing the results of an earlier run in the directory; -1: restart from the latest dump in `restart_data/`; N: restart from the dump of step N. Dumps newer than the start step are removed. A restart needs the same number of ranks (regions) and the same particle physics as the run that wrote the dump, and continues it exactly: it gives the same results, to the last bit, as a run that never stopped |

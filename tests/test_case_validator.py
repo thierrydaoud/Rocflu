@@ -296,6 +296,8 @@ class CaseValidatorTest(unittest.TestCase):
     def test_end_of_run_and_start_step(self):
         text = TEMPLATE.replace("# TIMESTEP", "# TIMESTEP\nPRNTENDTIME 2", 1)
         self.assertError(self.errors(text=text), "PRNTENDTIME", "removed")
+        text = TEMPLATE.replace("# TIMESTEP", "# TIMESTEP\nSTARTTIME 0.0", 1)
+        self.assertError(self.errors(text=text), "STARTTIME", "removed")
         self.assertEqual(self.errors({("TIMESTEP", "START_STEP"): 0}), [])
         self.assertEqual(self.errors({("TIMESTEP", "START_STEP"): -1}), [])
         self.assertError(self.errors({("TIMESTEP", "START_STEP"): -2}), "START_STEP")

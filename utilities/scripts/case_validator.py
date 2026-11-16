@@ -417,6 +417,10 @@ class Validator:
                       "PRNTENDTIME was removed: the end of every run is now always "
                       "written (it is the dump a later run restarts from); remove the "
                       "line", number)
+        number, _ = simple_value(body, "STARTTIME")
+        self.prohibit(number is not None,
+                      "STARTTIME was removed: the start time is read from the dump "
+                      "START_STEP selects; remove the line", number)
         number, start = simple_value(body, "START_STEP")
         if number is not None:
             self.prohibit(start is None or start != int(start) or start < -1,

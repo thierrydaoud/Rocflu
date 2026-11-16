@@ -190,7 +190,7 @@ MODULE ModGlobal
                solverType,tstepOrder,writeIter
     INTEGER :: maxIterPC,maxIterHypre
     REAL(RFREAL) :: currentTime,dTimeSystem,dtImposed,maxTime,printTime, &
-                    resTol,runTime,stopRun,timeStamp,timeStampPrep,tolSubIter, &
+                    resTol,runTime,stopRun,tolSubIter, &
                     writeTime
     REAL(RFREAL) :: currentTimeRK,restartTime,timeSincePrint,timeSinceProbe, &
                     timeSinceRestart,timeSinceWrite
