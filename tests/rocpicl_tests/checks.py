@@ -820,6 +820,24 @@ def check_ballistic_periodic(init, final, case):
     return errors
 
 
+def check_ballistic_box(init, final, case):
+    """No forces: every particle moves on a straight line, brought back into
+    the periodic box."""
+    g = case.grid
+    lo, length = (g.x0, g.y0, g.z0), (g.lx, g.ly, g.lz)
+    t = final["time"] - init["time"]
+    errors = []
+    for pid, p0 in init["particles"].items():
+        x0, v0 = _pos_vel(p0)
+        x = [lo[i] + (x0[i] + v0[i] * t - lo[i]) % length[i] for i in range(3)]
+        xf, vf = _pos_vel(final["particles"][pid])
+        dx, dv = _dist(x, xf), _dist(v0, vf)
+        if dx > 1.0e-11 or dv > 1.0e-8:
+            errors.append("particle %d: |x - straight path| %.2e m, |v - v0| %.2e m/s"
+                          % (pid, dx, dv))
+    return errors
+
+
 # Quarter against the full cylinder: equal to round-off on this mesh (measured
 # 3e-15); larger meshes can differ by the rank-count dependence of the
 # projection box (up to 3e-3 in phi), which this case does not have
@@ -859,6 +877,7 @@ PHYSICS = {
     "energy": check_energy,
     "gas_energy": check_gas_energy,
     "particles_moved": check_particles_moved,
+    "ballistic_box": check_ballistic_box,
     "particles_heat_exchange": check_particles_heat_exchange,
     "linear_interp": check_linear_interp,
     "projection_shape": check_projection_shape,

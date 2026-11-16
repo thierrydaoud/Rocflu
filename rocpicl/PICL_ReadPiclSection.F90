@@ -85,7 +85,7 @@ SUBROUTINE PICL_ReadPiclSection( global )
   INTEGER :: nVals
 
   INTEGER :: iReg
-  INTEGER, PARAMETER :: NVALS_MAX = 25
+  INTEGER, PARAMETER :: NVALS_MAX = 26
 
   CHARACTER(20) :: keys(NVALS_MAX)
 
@@ -131,6 +131,8 @@ SUBROUTINE PICL_ReadPiclSection( global )
 ! Particle material, the same for every particle
   keys(24)  = 'DENSITY'
   keys(25)  = 'SPECIFICHEAT'
+! Ranks only for bins with particles
+  keys(26)  = 'ACTIVEBINS'
  
   CALL ReadSection( global,IF_INPUT,nVals,keys(1:nVals),vals(1:nVals), & 
                     defined(1:nVals) ) 
@@ -212,6 +214,10 @@ SUBROUTINE PICL_ReadPiclSection( global )
 
   IF (defined(19) .EQV. .TRUE. ) THEN
     global%piclVUSteps = NINT(vals(19))
+  END IF
+
+  IF ( defined(26) .EQV. .TRUE. ) THEN
+    global%piclActiveBins = NINT(vals(26))
   END IF
 
   IF (defined(20) .EQV. .TRUE. ) global%piclOutParticle = NINT(vals(20))

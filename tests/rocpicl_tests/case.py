@@ -147,6 +147,8 @@ class Case:
     # Expected stop: rflump must not finish, and each regular expression must
     # match a line of rflump.log. No golden, post program or physics checks.
     expect_stop: Optional[List[str]] = None
+    # Each regular expression must match a line of rflump.log (a normal run)
+    expect_log: Optional[List[str]] = None
 
     @property
     def uuid(self):
@@ -335,6 +337,14 @@ def run_solver(case, rundir, exe_dir, slurm):
                        if "srun:" in l or "slurm" in l.lower()][:3]
         raise RunError("rflump failed (rc=%d; see rflump.log)%s"
                        % (rc, ("; slurm: " + " | ".join(slurm_lines)) if slurm_lines else ""))
+
+
+def check_log(rundir, patterns):
+    """Each regular expression must match a line of rflump.log."""
+    with open(os.path.join(rundir, "rflump.log"), errors="replace") as f:
+        log = f.read()
+    return ["rflump.log has no line matching %r" % p for p in patterns
+            if not re.search(p, log, re.MULTILINE)]
 
 
 def run_expect_stop(case, rundir, exe_dir, slurm):

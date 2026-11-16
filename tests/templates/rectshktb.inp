@@ -111,6 +111,7 @@ NEIGHBORWIDTH    0.0 ! Actual neighbor width = max(4*dp_max, neighborwidth)
 KSP              10    ! a contact lasts KSP time steps (collisions only)
 EREST            0.7    ! Coefficient of restitution
 SUBBIN           0 ! 0 = Zwick subbin; 1 = Avery subbin
+ACTIVEBINS       0 ! 1 = ranks only for bins with particles
 PARTICLE_WRT      1 ! particle files: also Tp, spin, rhop, volp
 GAS_WRT           1 ! particle files: also gas density, velocity, sound speed, T at the particle
 GRADGAS_WRT       1 ! particle files: also gas gradients at the particle

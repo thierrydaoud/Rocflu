@@ -711,6 +711,25 @@ add(name="box/cradle-linear/np2",
     twin=("shift", _lshift, (0.008, 0.008, 0.008)))
 
 
+# Two clusters with an empty bin between them (bins 3 x 1 x 1, the x
+# period whole, 2.1 mm minimum length); one particle flies into the empty
+# bin, which has no rank with ACTIVEBINS 1: the bins must be made again
+_cluster = [(0.0016, 0.0044, 0.0044), (0.0014, 0.0046, 0.0043), (0.0018, 0.0043, 0.0046),
+            (0.0013, 0.0045, 0.0047), (0.0017, 0.0047, 0.0045)]
+_crossing = ([p + (1.0e-4, 0.0, 0.0, 0.0) for p in _cluster]
+             + [(p[0] + 0.005,) + p[1:] + (1.0e-4, 0.0, 0.0, 0.0) for p in _cluster]
+             + [(0.0024, 0.00445, 0.00455, 1.0e-4, 100.0, 0.0, 0.0)])
+add(name="box/active-bins-crossing/np4",
+    description="ACTIVEBINS 1: two clusters without forces and one particle flying into "
+                "the empty bin between them; the bins are made again, every particle "
+                "keeps its straight path",
+    nranks=4, grid=BOX, bc="periodic",
+    inp={**uniform_gas(0.0), **ONE_WAY, **NO_FORCES, ("PICL", "ACTIVEBINS"): 1},
+    particles=_crossing,
+    checks=["particles_moved", "ballistic_box"],
+    expect_log=[r"particle in a bin without a rank, new bins"])
+
+
 def _polar_particle(r, deg, v_r, v_t, dp, z):
     t = math.radians(deg)
     c, s = math.cos(t), math.sin(t)

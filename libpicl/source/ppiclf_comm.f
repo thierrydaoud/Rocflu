@@ -362,7 +362,7 @@
 ! Internal:
 !
       INTEGER*4 ix, iy, iz, npt_total, i, j, k, idum, jdum, kdum,
-     >          ppiclf_iglsum, BinCheck
+     >          ppiclf_iglsum, BinCheck, myBin, b
       REAL*8    xmin, ymin, zmin, xmax, ymax, zmax, temp1, temp2,
      >          binb_length(3), BinMinLen(3), periodicDistCheck,
      >          BinBuffer(3), extent(6), work(6)
@@ -466,6 +466,9 @@
         END IF
       END DO
 
+      ! A particle in a bin without a rank (ppiclf_solve_InitSolve)
+      IF(ppiclf_forcebins) BinCheck = 1
+
       ! Same on every rank (global bin boxes), so no reduction needed
       IF(BinCheck .EQ. 0) THEN
         DO i = 1,3
@@ -541,15 +544,32 @@
       DO i = 1,3
         ppiclf_bins_dx(i) = binb_length(i)/ppiclf_n_bins(i)
       END DO
+      CALL ppiclf_comm_SetBinRanks(binb_length,BinMinLen)
+      ppiclf_nbinnings = ppiclf_nbinnings + 1
 
 ! CALL ActiveBinCounter
 ! End active bin check loop
 ! CALL BinToProcessorMap
       ! *** AVERY
       ! Find this processor's x,y,z bin indicies
-      idum = modulo(ppiclf_nid,ppiclf_n_bins(1))
-      jdum = modulo(ppiclf_nid/ppiclf_n_bins(1),ppiclf_n_bins(2))
-      kdum = ppiclf_nid/(ppiclf_n_bins(1)*ppiclf_n_bins(2))
+      ! This rank's bin; without one, an empty box
+      myBin = ppiclf_nid
+      IF(ppiclf_activebins .NE. 0) THEN
+        myBin = -1
+        DO b = 0,UBOUND(ppiclf_bin_rank,1)
+          IF(ppiclf_bin_rank(b) .EQ. ppiclf_nid) myBin = b
+        END DO
+      END IF
+      IF(myBin .LT. 0) THEN
+        DO i = 1,3
+          ppiclf_bin_pos(1,i) =  1.0D30
+          ppiclf_bin_pos(2,i) = -1.0D30
+        END DO
+        RETURN
+      END IF
+      idum = modulo(myBin,ppiclf_n_bins(1))
+      jdum = modulo(myBin/ppiclf_n_bins(1),ppiclf_n_bins(2))
+      kdum = myBin/(ppiclf_n_bins(1)*ppiclf_n_bins(2))
 
       ! Calculate this processor's bin min/max position in each dimension.
       ! Note that this value stays with this MPI rank.
@@ -559,6 +579,152 @@
       ppiclf_bin_pos(2,2) = ppiclf_binb(3) + (jdum+1)*ppiclf_bins_dx(2)
       ppiclf_bin_pos(1,3) = ppiclf_binb(5) + kdum    *ppiclf_bins_dx(3)
       ppiclf_bin_pos(2,3) = ppiclf_binb(5) + (kdum+1)*ppiclf_bins_dx(3)
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_comm_SetBinRanks(length,minLen)
+      use ppiclf_data
+!
+! Bin -> rank table for the bin box of the given lengths. Default: the
+! bins of ppiclf_comm_BinCounts, bin b on rank b. ACTIVEBINS 1: the
+! finest layout (bin budgets from the rank count up to 4x, within the
+! minimum bin lengths) whose bins with particles fit the ranks; only
+! those bins get a rank, numbered in bin order.
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+! Input:
+!
+      REAL*8    length(3), minLen(3)
+!
+! Internal:
+!
+      INTEGER*4 nbins, b, l, budget, maxBins, nActive, nTry(3),
+     >          nBest(3)
+      INTEGER*4, ALLOCATABLE :: counts(:)
+!
+      IF(ppiclf_activebins .NE. 0) THEN
+        maxBins = 1
+        DO l = 1,3
+          maxBins = maxBins*MAX(1,INT(length(l)/minLen(l)))
+        END DO
+        maxBins = MIN(maxBins,4*ppiclf_np)
+        nBest = ppiclf_n_bins
+        budget = ppiclf_np
+        DO
+          budget = MAX(budget+1,NINT(1.05D0*budget))
+          IF(budget .GT. maxBins) EXIT
+          CALL ppiclf_comm_BinCounts(length,minLen,budget,nTry)
+          nbins = nTry(1)*nTry(2)*nTry(3)
+          IF(nbins .LE. nBest(1)*nBest(2)*nBest(3)) CYCLE
+          ALLOCATE(counts(0:nbins-1))
+          CALL ppiclf_comm_CountBinParticles(length,nTry,counts)
+          nActive = COUNT(counts .GT. 0)
+          DEALLOCATE(counts)
+          IF(nActive .LE. ppiclf_np) nBest = nTry
+        END DO
+        ppiclf_n_bins = nBest
+        DO l = 1,3
+          ppiclf_bins_dx(l) = length(l)/ppiclf_n_bins(l)
+        END DO
+      END IF
+
+      nbins = ppiclf_n_bins(1)*ppiclf_n_bins(2)*ppiclf_n_bins(3)
+      IF(ALLOCATED(ppiclf_bin_rank)) DEALLOCATE(ppiclf_bin_rank)
+      ALLOCATE(ppiclf_bin_rank(0:nbins-1))
+      IF(ppiclf_activebins .EQ. 0) THEN
+        DO b = 0,nbins-1
+          ppiclf_bin_rank(b) = b
+        END DO
+      ELSE
+        ALLOCATE(counts(0:nbins-1))
+        CALL ppiclf_comm_CountBinParticles(length,ppiclf_n_bins,counts)
+        nActive = 0
+        DO b = 0,nbins-1
+          ppiclf_bin_rank(b) = -1
+          IF(counts(b) .GT. 0) THEN
+            ppiclf_bin_rank(b) = nActive
+            nActive = nActive + 1
+          END IF
+        END DO
+        DEALLOCATE(counts)
+      END IF
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      SUBROUTINE ppiclf_comm_CountBinParticles(length,nb,counts)
+      use ppiclf_data
+!
+! Particles of all ranks in each bin of an nb(1) x nb(2) x nb(3) layout
+! of the bin box (ppiclf_binb, lengths given), bins numbered from 0.
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+      INCLUDE "mpif.h"
+!
+! Input:
+!
+      REAL*8    length(3)
+      INTEGER*4 nb(3)
+!
+! Output:
+!
+      INTEGER*4 counts(0:*)
+!
+! Internal:
+!
+      INTEGER*4 i, l, b, ib(3), nbins, ierr
+      INTEGER*4, ALLOCATABLE :: local(:)
+!
+      nbins = nb(1)*nb(2)*nb(3)
+      ALLOCATE(local(0:nbins-1))
+      local = 0
+      DO i = 1,ppiclf_npart
+        DO l = 1,3
+          ib(l) = FLOOR((ppiclf_y(l,i)-ppiclf_binb(2*l-1))
+     >                  /(length(l)/nb(l)))
+          ib(l) = MAX(0,MIN(nb(l)-1,ib(l)))
+        END DO
+        b = ib(1) + nb(1)*ib(2) + nb(1)*nb(2)*ib(3)
+        local(b) = local(b) + 1
+      END DO
+      CALL MPI_ALLREDUCE(local,counts,nbins,MPI_INTEGER,MPI_SUM,
+     >                   ppiclf_comm,ierr)
+      DEALLOCATE(local)
+
+      RETURN
+      END
+!-----------------------------------------------------------------------
+      INTEGER*4 FUNCTION ppiclf_comm_BinRank(ii,jj,kk)
+      use ppiclf_data
+!
+! Rank of bin (ii,jj,kk) from the table, -1 if the bin has no rank.
+! Indices past the bins give the bin number itself (no table entry).
+!
+      IMPLICIT NONE
+!
+      INCLUDE "PPICLF"
+!
+! Input:
+!
+      INTEGER*4 ii, jj, kk
+!
+! Internal:
+!
+      INTEGER*4 b
+!
+      b = ii + ppiclf_n_bins(1)*jj
+     >  + ppiclf_n_bins(1)*ppiclf_n_bins(2)*kk
+      ppiclf_comm_BinRank = b
+      IF(.NOT. ALLOCATED(ppiclf_bin_rank)) RETURN
+      IF(b .LT. LBOUND(ppiclf_bin_rank,1) .OR.
+     >   b .GT. UBOUND(ppiclf_bin_rank,1)) RETURN
+      ppiclf_comm_BinRank = ppiclf_bin_rank(b)
 
       RETURN
       END
@@ -575,8 +741,8 @@
 ! Internal:
 !
       INTEGER*4  i, ii, jj, kk, nrank, partcheck
-      EXTERNAL   ppiclf_iglmax
-      INTEGER*4  ppiclf_iglmax
+      EXTERNAL   ppiclf_iglmax, ppiclf_comm_BinRank
+      INTEGER*4  ppiclf_iglmax, ppiclf_comm_BinRank
 !
       partcheck = 0
       DO i=1,ppiclf_npart
@@ -586,9 +752,10 @@
          kk  = FLOOR((ppiclf_y(3,i)-ppiclf_binb(5))/ppiclf_bins_dx(3)) 
         
          ! Calculates particle's bin
-         nrank  = ii + ppiclf_n_bins(1)*jj + 
-     >                ppiclf_n_bins(1)*ppiclf_n_bins(2)*kk
-         IF(nrank .NE. ppiclf_iprop(4,i)) partcheck = 1
+         nrank  = ppiclf_comm_BinRank(ii,jj,kk)
+         IF(nrank .NE. ppiclf_iprop(4,i)) partcheck = MAX(partcheck,1)
+         ! A bin without a rank: new bins (ppiclf_solve_InitSolve)
+         IF(nrank .LT. 0) partcheck = 2
 
          ! Maps particle to correct processor based on active bin number
          ! ***Use BinToProcMap for active/inactive bin***
@@ -771,7 +938,8 @@
      >          MinPoint(3), ppiclf_vlmin, ppiclf_vlmax,
      >          centeri(3), exchCellMultiplier
       LOGICAL   partl, ErrorFound
-      EXTERNAL  ppiclf_vlmin, ppiclf_vlmax
+      EXTERNAL  ppiclf_vlmin, ppiclf_vlmax, ppiclf_comm_BinRank
+      INTEGER*4 ppiclf_comm_BinRank
       INTEGER*4 nSent, sentTo(27), m, nin
       ! Rotational images of a cell (ppiclf_comm_RotImages)
       INTEGER*4 MAXIMG
@@ -906,8 +1074,8 @@
 
 
               ! Calculates processor rank
-              nrank  = ii + ppiclf_n_bins(1)*jj + 
-     >                     ppiclf_n_bins(1)*ppiclf_n_bins(2)*kk
+              nrank  = ppiclf_comm_BinRank(ii,jj,kk)
+              IF (nrank .LT. 0) CYCLE
 
               ! Send each cell once per bin: with two bins in a
               ! periodic direction, both neighbours wrap to the same bin
@@ -1045,6 +1213,8 @@
      >           distSQ(3), distCheckSQ, buffer
       INTEGER*4  ip, idum, iip, jjp, kkp, iig, jjg, kkg, nrank, 
      >           j, k, l, GhostInc(3), ix, iy, iz
+      EXTERNAL   ppiclf_comm_BinRank
+      INTEGER*4  ppiclf_comm_BinRank
 
       ! Calculate the linear periodicity shift in each dimension
       DO l = 1,3
@@ -1169,8 +1339,8 @@
      >           GhostInc(3) .EQ. 0 ) CYCLE
               
               ! Add ghost particle and map integer and real properties
-              nrank = iig + ppiclf_n_bins(1)*jjg 
-     >               + ppiclf_n_bins(1)*ppiclf_n_bins(2)*kkg
+              nrank = ppiclf_comm_BinRank(iig,jjg,kkg)
+              IF(nrank .LT. 0) CYCLE
               !ghostsMade = ghostsMade + 1
               CALL ppiclf_data_GrowGhost(ppiclf_npart_gp + 1)
               ppiclf_npart_gp = ppiclf_npart_gp + 1
@@ -1227,6 +1397,8 @@
       INTEGER*4 ip, img, nimg, mimg(MAXIMG), l, ib(3), jb(3), off(3),
      >          k, j, c, nrank, ngp, kslot(3), nfound, nd3, i1, i2, i3
       REAL*8    reach, q(3), qg(3), rot(3,3), lo, dist2, v(3)
+      EXTERNAL  ppiclf_comm_BinRank
+      INTEGER*4 ppiclf_comm_BinRank
 !
       ! Same reach as the bin ghosts (ppiclf_comm_CreateGhost)
       reach = ppiclf_nndist*1.02D0
@@ -1271,8 +1443,8 @@
               END IF
             END DO
             IF(dist2 .GT. reach**2) GOTO 100
-            nrank = jb(1) + ppiclf_n_bins(1)*jb(2)
-     >            + ppiclf_n_bins(1)*ppiclf_n_bins(2)*jb(3)
+            nrank = ppiclf_comm_BinRank(jb(1),jb(2),jb(3))
+            IF(nrank .LT. 0) GOTO 100
             CALL ppiclf_data_GrowGhost(ppiclf_npart_gp + 1)
             ppiclf_npart_gp = ppiclf_npart_gp + 1
             ngp = ppiclf_npart_gp

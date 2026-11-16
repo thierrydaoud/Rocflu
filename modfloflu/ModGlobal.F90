@@ -511,7 +511,7 @@ MODULE ModGlobal
                piclQsFluctFilterAdaptFlag, &
                piclViscousUnsteady, &
                piclPeriodicXFlag, piclPeriodicYFlag, piclPeriodicZFlag, &
-               piclSBNearFlag, &
+               piclSBNearFlag, piclActiveBins, &
                piclMoveParticles, piclHTUnsteadyFlag, &
                piclVUSteps, piclOutParticle, piclOutGas, piclOutGradGas, &
                piclOutModel
@@ -521,7 +521,7 @@ MODULE ModGlobal
                     piclERest, ppiclf_p0, piclDensity, piclSpecificHeat
 
     ! Set by PICL_InitSolver for the Setup box of the run log
-    INTEGER :: piclNParticles, piclNBins(3)
+    INTEGER :: piclNParticles, piclNBins(3), piclNActiveBins
     ! Set by PICL_SetPeriodicity from the periodic patches: axis of the
     ! rotational periodicity (0 none, 1-3 x-z) and sector angle (rad)
     INTEGER :: piclRotPeriodicAxis

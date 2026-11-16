@@ -138,6 +138,10 @@ SUBROUTINE RFLU_PrintSetup(regions)
     CALL AddItem('Bins',TRIM(IntText(global%piclNBins(1)))//' x '// &
                  TRIM(IntText(global%piclNBins(2)))//' x '// &
                  TRIM(IntText(global%piclNBins(3))))
+    IF ( global%piclActiveBins /= 0 ) THEN
+      CALL AddItem('Bins on ranks',TRIM(IntText(global%piclNActiveBins))// &
+                   ' (with particles)')
+    END IF
     CALL AddItem('Filter width',FilterText())
     CALL AddItem('Neighb. width', &
                  TRIM(RealText(global%piclNeighborWidthUsed))//' m')

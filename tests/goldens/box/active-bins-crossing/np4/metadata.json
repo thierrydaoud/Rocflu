@@ -1,0 +1,20 @@
+{
+ "created": "2026-11-11T12:35:50",
+ "host": "dane7",
+ "exe_dir": "/p/lustre3/daoud1/Rocflu_activebins/build/bin",
+ "git": {
+  "commit": "15cb0307fe6ab149391304cabd146761b547c8ce",
+  "branch": "active-bins",
+  "modified_sources": [
+   "libflu/RFLU_InitGlobal.F90",
+   "libpicl/source/ppiclf_comm.f",
+   "libpicl/source/ppiclf_data.f",
+   "libpicl/source/ppiclf_solve.f",
+   "modfloflu/ModGlobal.F90",
+   "rocflu/RFLU_PrintSetup.F90",
+   "rocpicl/PICL_InitSolver.F90",
+   "rocpicl/PICL_ReadPiclSection.F90"
+  ]
+ },
+ "modules": "jobutils/1.0:texlive/20220321:StdEnv:cmake/3.30.5:gcc/13.3.1:openmpi/4.1.2"
+}

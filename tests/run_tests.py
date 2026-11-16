@@ -123,6 +123,8 @@ def run_case(case, args):
             res["errors"].append("non-finite values in final state")
         for name in case.checks:
             res["physics"] += checks.PHYSICS[name](init, final, case)
+        if case.expect_log:
+            res["physics"] += rcase.check_log(rundir, case.expect_log)
 
         gpath = os.path.join(golden_dir(case), "golden.json")
         if args.generate:

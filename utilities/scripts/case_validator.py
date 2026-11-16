@@ -30,7 +30,7 @@ PICL_KEYS = [
     "NEIGHBORWIDTH", "KSP", "EREST", "QSFLUCTFILT", "QSFLUCTFILTADAPT",
     "VISCOUSUNSTEADY", "SUBBIN",
     "VUSTEPS", "PARTICLE_WRT", "GAS_WRT", "GRADGAS_WRT", "MODEL_WRT",
-    "DENSITY", "SPECIFICHEAT",
+    "DENSITY", "SPECIFICHEAT", "ACTIVEBINS",
 ]
 
 # Values used when a key is not in the file (RFLU_InitGlobal). KSP and EREST
@@ -43,6 +43,7 @@ PICL_DEFAULTS = {
     "SUBBIN": 0,
     "VUSTEPS": 50, "PARTICLE_WRT": 0, "GAS_WRT": 0,
     "GRADGAS_WRT": 0, "MODEL_WRT": 0, "DENSITY": 0.0, "SPECIFICHEAT": 0.0,
+    "ACTIVEBINS": 0,
 }
 
 # Whole-number flags and their allowed range
@@ -62,6 +63,7 @@ PICL_FLAGS = {
     "SUBBIN": (0, 1),
     "PARTICLE_WRT": (0, 1), "GAS_WRT": (0, 1), "GRADGAS_WRT": (0, 1),
     "MODEL_WRT": (0, 1),
+    "ACTIVEBINS": (0, 1),
 }
 
 # Keys only read when a model is on: left in the file with the model off,

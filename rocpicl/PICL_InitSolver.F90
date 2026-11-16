@@ -681,6 +681,7 @@ IF (.NOT. ALLOCATED(y)) THEN
   y = 0.0_RFREAL
   rprop = 0.0_RFREAL
 END IF
+CALL ppiclf_solve_SetActiveBins(global%piclActiveBins)
 CALL ppiclf_solve_InitParticle(2,pRegion%mixtInput%dimens,0,npart_local,y,rprop, &
                                filter,neighborWidth)
 IF( showDetail ) THEN
@@ -706,6 +707,7 @@ global%piclDpMax             = dp_max
 global%piclFilterWidth       = filter
 global%piclNeighborWidthUsed = neighborWidth
 CALL ppiclf_solve_GetNBins(global%piclNBins)
+CALL ppiclf_solve_GetNActiveBins(global%piclNActiveBins)
 
 ! Particle walls used to be read from filein.vtk. They now come only from
 ! the fluid wall patches, so stop rather than silently run without walls.
