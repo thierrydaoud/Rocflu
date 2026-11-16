@@ -911,15 +911,10 @@ c----------------------------------------------------------------------
       CALL ppiclf_comm_FindParticle
       ! A particle moved into a bin without a rank
       IF(ppiclf_particleMoved .EQ. 2) THEN
-        ppiclf_nforcedbins = ppiclf_nforcedbins + 1
         ppiclf_forcebins = .TRUE.
         CALL ppiclf_comm_CreateBin
         ppiclf_forcebins = .FALSE.
         CALL ppiclf_comm_FindParticle
-        IF(ppiclf_nid .EQ. 0) PRINT '(A,I0,A,I0,A,3(I0,1X))',
-     >    ' ppiclF: particle in a bin without a rank, new bins (',
-     >    ppiclf_nforcedbins,' of ',ppiclf_nbinnings,' binnings): ',
-     >    ppiclf_n_bins
       END IF
       IF(ppiclf_particleMoved .NE. 0 .OR.
      >              ppiclf_binchanged) THEN

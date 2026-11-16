@@ -726,8 +726,7 @@ add(name="box/active-bins-crossing/np4",
     nranks=4, grid=BOX, bc="periodic",
     inp={**uniform_gas(0.0), **ONE_WAY, **NO_FORCES},
     particles=_crossing,
-    checks=["particles_moved", "ballistic_box"],
-    expect_log=[r"particle in a bin without a rank, new bins"])
+    checks=["particles_moved", "ballistic_box"])
 
 
 def _polar_particle(r, deg, v_r, v_t, dp, z):

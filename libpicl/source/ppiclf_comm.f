@@ -545,7 +545,6 @@
         ppiclf_bins_dx(i) = binb_length(i)/ppiclf_n_bins(i)
       END DO
       CALL ppiclf_comm_SetBinRanks(binb_length,BinMinLen)
-      ppiclf_nbinnings = ppiclf_nbinnings + 1
 
 ! CALL ActiveBinCounter
 ! End active bin check loop
