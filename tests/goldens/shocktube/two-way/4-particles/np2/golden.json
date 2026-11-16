@@ -1,5 +1,5 @@
 {
-"uuid": "0C57593B",
+"uuid": "CBBB9B78",
 "spec": {
 "nranks": 2,
 "grid": {
@@ -16,7 +16,6 @@
 "bc": "shocktube",
 "inp": {
 "TIMESTEP/MAXTIME": "2.05E-05",
-"TIMESTEP/RUNTIME": "2.05E-05",
 "TIMESTEP/WRITIME": "1.0E-05",
 "TIMESTEP/PRNTIME": "1.0E-05",
 "PICL/FEEDBACK": 1
@@ -4012,10 +4011,10 @@
 "gas_rhov": 3.5757625231540484e-16,
 "gas_rhow": 3.4042942987428125e-15,
 "gas_rhoE": 0.18142787686257628,
-"par_momx": 2.241636974557234e-09,
+"par_momx": 2.2416369745572346e-09,
 "par_momy": -3.4883025289582274e-16,
 "par_momz": -3.4185411531769664e-15,
-"par_ke": 7.599613497998185e-10,
+"par_ke": 7.599613497998186e-10,
 "par_eth": 0.0009803337362252825,
 "momx": 5.9932758786887484e-05,
 "momy": 8.745999419582104e-18,

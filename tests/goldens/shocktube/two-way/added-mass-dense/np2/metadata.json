@@ -1,16 +1,11 @@
 {
- "created": "2026-11-15T10:53:30",
- "host": "dane7",
- "exe_dir": "/p/lustre3/daoud1/Rocflu_sparsedump/build/bin",
+ "created": "2026-11-16T12:42:08",
+ "host": "dane6",
+ "exe_dir": "/p/lustre3/daoud1/Rocflu_tskeys/build/bin",
  "git": {
-  "commit": "93878bc2c60dc67ff0fa23f0bea297a18543bb3e",
-  "branch": "sparse-dump",
-  "modified_sources": [
-   "libpicl/source/ppiclf_io.f",
-   "modflu/RFLU_ModRestartData.F90",
-   "utilities/post/RFLU_ModPostParticles.F90",
-   "utilities/post/rflupost.F90"
-  ]
+  "commit": "a869b9eb42440085bdc60c4a5e29cda5b43a7eb8",
+  "branch": "timestep-keys",
+  "modified_sources": []
  },
  "modules": "jobutils/1.0:texlive/20220321:StdEnv:cmake/3.30.5:gcc/13.3.1:openmpi/4.1.2"
 }

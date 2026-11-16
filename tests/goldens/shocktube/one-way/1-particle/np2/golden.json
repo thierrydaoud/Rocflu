@@ -1,5 +1,5 @@
 {
-"uuid": "617A33B6",
+"uuid": "955DE3FB",
 "spec": {
 "nranks": 2,
 "grid": {
@@ -16,7 +16,6 @@
 "bc": "shocktube",
 "inp": {
 "TIMESTEP/MAXTIME": "2.05E-05",
-"TIMESTEP/RUNTIME": "2.05E-05",
 "TIMESTEP/WRITIME": "1.0E-05",
 "TIMESTEP/PRNTIME": "1.0E-05",
 "PICL/FEEDBACK": 0

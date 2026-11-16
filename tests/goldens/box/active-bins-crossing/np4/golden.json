@@ -1,5 +1,5 @@
 {
-"uuid": "DFA91EA5",
+"uuid": "4B12C37F",
 "spec": {
 "nranks": 4,
 "grid": {
@@ -22,7 +22,6 @@
 "INITFLOW/RVAL5": "1.2",
 "INITFLOW/RVAL6": "101325.0",
 "TIMESTEP/MAXTIME": "2.0E-05",
-"TIMESTEP/RUNTIME": "2.0E-05",
 "TIMESTEP/WRITIME": "1.0E-05",
 "TIMESTEP/PRNTIME": "1.0E-05",
 "PICL/FEEDBACK": 0,

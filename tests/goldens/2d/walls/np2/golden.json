@@ -1,5 +1,5 @@
 {
-"uuid": "A85B4B43",
+"uuid": "99F9F928",
 "spec": {
 "nranks": 2,
 "grid": {
@@ -22,7 +22,6 @@
 "INITFLOW/RVAL5": "1.2",
 "INITFLOW/RVAL6": "101325.0",
 "TIMESTEP/MAXTIME": "8.05E-06",
-"TIMESTEP/RUNTIME": "8.05E-06",
 "TIMESTEP/WRITIME": "4.0E-06",
 "TIMESTEP/PRNTIME": "4.0E-06",
 "PICL/FEEDBACK": 0,
@@ -637,12 +636,12 @@
 "gas_rhov": -1.3019572924594828e-12,
 "gas_rhow": 0.0,
 "gas_rhoE": 0.01621120419531094,
-"par_momx": -1.9690446921049153e-07,
+"par_momx": -1.969044692104915e-07,
 "par_momy": 6.758292023406538e-08,
 "par_momz": 0.0,
-"par_ke": 2.3969180906573047e-05,
-"par_eth": 0.0014705006043379235,
-"momx": -1.968907992868663e-07,
+"par_ke": 2.3969180906573044e-05,
+"par_eth": 0.0014705006043379237,
+"momx": -1.9689079928686626e-07,
 "momy": 6.758161827677292e-08,
 "momz": 0.0
 }

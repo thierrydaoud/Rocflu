@@ -1,5 +1,5 @@
 {
-"uuid": "72B9E7BC",
+"uuid": "17A861E2",
 "spec": {
 "nranks": 1,
 "grid": {
@@ -22,7 +22,6 @@
 "INITFLOW/RVAL5": "1.2",
 "INITFLOW/RVAL6": "101325.0",
 "TIMESTEP/MAXTIME": "2.05E-05",
-"TIMESTEP/RUNTIME": "2.05E-05",
 "TIMESTEP/WRITIME": "1.0E-05",
 "TIMESTEP/PRNTIME": "1.0E-05",
 "PICL/FEEDBACK": 0,
@@ -825,7 +824,7 @@
 "par_momy": 2.895132143935597e-23,
 "par_momz": 0.0,
 "par_ke": 8.936910360600487e-08,
-"par_eth": 0.0034311680767884875,
+"par_eth": 0.003431168076788489,
 "momx": 1.1246569869716323e-22,
 "momy": 6.0103420822927004e-24,
 "momz": 0.0

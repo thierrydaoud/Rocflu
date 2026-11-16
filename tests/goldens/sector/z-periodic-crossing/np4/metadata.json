@@ -1,13 +1,11 @@
 {
- "created": "2026-11-15T19:04:30",
- "host": "dane7",
- "exe_dir": "/p/lustre3/daoud1/Rocflu_projfix/build/bin",
+ "created": "2026-11-16T12:43:24",
+ "host": "dane6",
+ "exe_dir": "/p/lustre3/daoud1/Rocflu_tskeys/build/bin",
  "git": {
-  "commit": "757745210282f80f8cedffd5b2febb26148f63bf",
-  "branch": "proj-select",
-  "modified_sources": [
-   "libpicl/source/ppiclf_solve.f"
-  ]
+  "commit": "a869b9eb42440085bdc60c4a5e29cda5b43a7eb8",
+  "branch": "timestep-keys",
+  "modified_sources": []
  },
  "modules": "jobutils/1.0:texlive/20220321:StdEnv:cmake/3.30.5:gcc/13.3.1:openmpi/4.1.2"
 }

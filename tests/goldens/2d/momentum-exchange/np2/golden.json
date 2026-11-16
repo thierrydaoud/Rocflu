@@ -1,5 +1,5 @@
 {
-"uuid": "300A2B4B",
+"uuid": "3CC8AE60",
 "spec": {
 "nranks": 2,
 "grid": {
@@ -22,7 +22,6 @@
 "INITFLOW/RVAL5": "1.2",
 "INITFLOW/RVAL6": "101325.0",
 "TIMESTEP/MAXTIME": "1.05E-04",
-"TIMESTEP/RUNTIME": "1.05E-04",
 "TIMESTEP/WRITIME": "5.0E-05",
 "TIMESTEP/PRNTIME": "5.0E-05",
 "PICL/FEEDBACK": 1,
@@ -1537,14 +1536,14 @@
 "gas_rhow": 0.0,
 "gas_rhoE": 0.016307948654765037,
 "par_momx": 2.3355169680704136e-09,
-"par_momy": -1.712220733631704e-14,
+"par_momy": -1.7122207336317036e-14,
 "par_momz": 0.0,
 "par_ke": 8.658239995807795e-09,
-"par_eth": 7.842669889802256e-05,
+"par_eth": 7.842669889802262e-05,
 "momx": 3.839989686596805e-06,
-"momy": -7.470259407293356e-18,
+"momy": -7.4702594072902e-18,
 "momz": 0.0,
-"par_energy": 7.843535713801837e-05
+"par_energy": 7.843535713801844e-05
 }
 }
 }

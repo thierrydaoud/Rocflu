@@ -1,5 +1,5 @@
 {
-"uuid": "DEFAFAD4",
+"uuid": "7BE7319B",
 "spec": {
 "nranks": 2,
 "grid": {
@@ -16,7 +16,6 @@
 "bc": "shocktube-walls",
 "inp": {
 "TIMESTEP/MAXTIME": "2.05E-05",
-"TIMESTEP/RUNTIME": "2.05E-05",
 "TIMESTEP/WRITIME": "1.0E-05",
 "TIMESTEP/PRNTIME": "1.0E-05",
 "PICL/FEEDBACK": 1,
@@ -15547,9 +15546,9 @@
 "gas_rhow": 3.593457613490457e-10,
 "gas_rhoE": 0.7257128164454977,
 "par_momx": 2.497836892254288e-09,
-"par_momy": 9.363507602960045e-15,
+"par_momy": 9.363507602960043e-15,
 "par_momz": 7.16455317523119e-15,
-"par_ke": 9.106169284782339e-10,
+"par_ke": 9.106169284782338e-10,
 "par_eth": 0.0009803337362252825,
 "momx": 0.00023973102719812082,
 "momy": 3.151730566011669e-10,
