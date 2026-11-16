@@ -298,6 +298,9 @@ class CaseValidatorTest(unittest.TestCase):
         self.assertError(self.errors(text=text), "PRNTENDTIME", "removed")
         text = TEMPLATE.replace("# TIMESTEP", "# TIMESTEP\nSTARTTIME 0.0", 1)
         self.assertError(self.errors(text=text), "STARTTIME", "removed")
+        for key in ("WALLTIME", "SAFEWRTIME"):
+            text = TEMPLATE.replace("# TIMESTEP", "# TIMESTEP\n%s 3600" % key, 1)
+            self.assertError(self.errors(text=text), key, "removed")
         self.assertEqual(self.errors({("TIMESTEP", "START_STEP"): 0}), [])
         self.assertEqual(self.errors({("TIMESTEP", "START_STEP"): -1}), [])
         self.assertError(self.errors({("TIMESTEP", "START_STEP"): -2}), "START_STEP")

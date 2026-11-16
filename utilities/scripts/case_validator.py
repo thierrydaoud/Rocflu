@@ -421,6 +421,12 @@ class Validator:
         self.prohibit(number is not None,
                       "STARTTIME was removed: the start time is read from the dump "
                       "START_STEP selects; remove the line", number)
+        for key in ("WALLTIME", "SAFEWRTIME"):
+            number, _ = simple_value(body, key)
+            self.prohibit(number is not None,
+                          "%s was removed: the run stops with a dump before the Slurm "
+                          "job ends, set from the job's end time; remove the line" % key,
+                          number)
         number, start = simple_value(body, "START_STEP")
         if number is not None:
             self.prohibit(start is None or start != int(start) or start < -1,

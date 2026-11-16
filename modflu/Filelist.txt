@@ -65,6 +65,7 @@ SRCF90+=	RFLU_ModIRPrecision.F90\
                 RFLU_ModInterfacesSolver.F90\
                 RFLU_ModInterfacesUtilities.F90\
                 RFLU_ModInterpolation.F90\
+                RFLU_ModJobEnd.F90\
                 RFLU_ModJWL.F90\
                 RFLU_ModLimiters.F90\
                 RFLU_ModMovingFrame.F90\

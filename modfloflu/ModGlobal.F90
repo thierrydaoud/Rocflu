@@ -195,7 +195,7 @@ MODULE ModGlobal
     REAL(RFREAL) :: currentTimeRK,restartTime,timeSincePrint,timeSinceProbe, &
                     timeSinceRestart,timeSinceWrite
     !begin BBR
-    REAL(RFREAL) :: halftimeSinceWrite,wallTime,safeWriteTime,previousTime
+    REAL(RFREAL) :: halftimeSinceWrite,previousTime
     REAL(RFREAL) :: timeruninit 
     ! Progress line: wall-clock time at the start of time stepping and at
     ! the last progress line, and the step of the last progress line
@@ -208,9 +208,6 @@ MODULE ModGlobal
     REAL(RFREAL) :: posFixBox(6) = HUGE(1.0_RFREAL)
     REAL(RFREAL) :: posFixWorst(6) = HUGE(1.0_RFREAL)
     !end BBR
-    ! begin TLJ
-    INTEGER :: SafeWrite
-    ! end TLJ
     REAL(RFREAL) :: tolPC,tolHypre
 
 

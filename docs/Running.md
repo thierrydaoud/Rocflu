@@ -46,8 +46,8 @@ with particles, `points.dat`. `run` then:
    file and the input file; rfluinit on the partition and the input file. The input file
    counts without comments and without the settings that cannot change these outputs:
    `# POST`, `# PROBE`, `CFL` and the run-length keys of `# TIMESTEP` (`MAXTIME`,
-   `RUNTIME`, `WRITIME`, `PRNTIME`, `FOMWRITIME`, `TIMESTEP`, `DTMINLIMIT`, `WALLTIME`,
-   `SAFEWRTIME`, `START_STEP`) for both, and also `# INITFLOW`, `# PICL`, `# REFERENCE`,
+   `RUNTIME`, `WRITIME`, `PRNTIME`, `FOMWRITIME`, `TIMESTEP`, `DTMINLIMIT`,
+   `START_STEP`) for both, and also `# INITFLOW`, `# PICL`, `# REFERENCE`,
    and `# MIXTURE` for the partition. So a longer run skips everything, a new
    initial condition reruns only `rfluinit`, and new numerics rerun all three. A step is
    also redone when one of its files is missing. The executables do not count: after a

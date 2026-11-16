@@ -73,7 +73,6 @@ accept more.
 | | `WRITIME`, `PRNTIME`, `FOMWRITIME` | s | intervals for solution files, printing, FOM files |
 | | `TIMESTEP` | s | largest time step |
 | | `DTMINLIMIT` | s | smallest time step, overrides the CFL limit |
-| | `WALLTIME`, `SAFEWRTIME` | s | wall time; write a restart this long before it |
 | | `RKSCHEME` | 1 RK4 (default), 2 RK3 | **must be 2 with particles** |
 | | `START_STEP` | 0 (default), -1, N | 0: a new run from rfluinit's step 0, replacing the results of an earlier run in the directory; -1: restart from the latest dump in `restart_data/`; N: restart from the dump of step N. Dumps newer than the start step are removed. A restart needs the same number of ranks (regions) and the same particle physics as the run that wrote the dump, and continues it exactly: it gives the same results, to the last bit, as a run that never stopped |
 | `# INITFLOW` | `FLAG` | 1 from scratch, 2 from file, 3 hard-coded, 4-6 combinations | initial gas state |
@@ -204,6 +203,12 @@ and the same particle physics as the run that wrote the dump, and continues it e
 the results are the same, to the last bit, as a run that never stopped (checked by the
 suite's restart test).
 
+**Stopping before the job ends:** in a Slurm job `rflump` reads the job's end
+(`SLURM_JOB_END_TIME`) and stops in time for the end-of-run dump: when the time left is
+below twice the slowest step plus the slowest dump so far, plus 2 min (at least 10 min
+until a dump has been timed). `START_STEP -1` continues from that dump. Outside Slurm there
+is no such stop. (`modflu/RFLU_ModJobEnd.F90`)
+
 The old-style output (`SOL_*`, `PARAVIEW_*`, `par*.vtu`, `bin*.vtu`, patch coefficients)
 is written only with `OLD_OUTPUT_WRT 1` in `# POST`; the suite keeps it on in a few cases
 to check that it agrees with the dumps and the post program. Without particles its
@@ -264,4 +269,6 @@ The validator mirrors `rocpicl/PICL_ReadPiclSection.F90` (keys and their order),
 | `PERIODICX`, `PERIODICY`, `PERIODICZ` | nothing: particle periodicity follows the periodic patches in `<case>.bc` |
 | `OUTPARTICLE`, `OUTGAS`, `OUTGRADGAS`, `OUTMODEL` | renamed `PARTICLE_WRT`, `GAS_WRT`, `GRADGAS_WRT`, `MODEL_WRT` |
 | `PRNTENDTIME` (`# TIMESTEP`) | nothing: the end of every run is written |
+| `STARTTIME` (`# TIMESTEP`) | nothing: the start time is read from the dump `START_STEP` selects |
+| `WALLTIME`, `SAFEWRTIME` (`# TIMESTEP`) | nothing: the run stops with a dump before the Slurm job ends (see [Output and Restarts](#output-and-restarts)) |
 | `# MATERIAL` for particles | `DENSITY` and `SPECIFICHEAT` in `# PICL` (`# MATERIAL` is rejected while species transport is disabled) |

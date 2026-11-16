@@ -83,9 +83,7 @@ SUBROUTINE ReadTimestepSection( global )
   TYPE(t_global), POINTER :: global
 
 ! ... local variables
-!  INTEGER, PARAMETER :: NVALS_MAX = 26
-! BBR - new value for NVALS_MAX
-  INTEGER, PARAMETER :: NVALS_MAX = 28
+  INTEGER, PARAMETER :: NVALS_MAX = 26
 
   CHARACTER(11) :: keys(NVALS_MAX)
 
@@ -125,8 +123,6 @@ SUBROUTINE ReadTimestepSection( global )
   keys(24) = 'MAXITHYPRE'
   keys(25) = 'FOMWRIITER'
   keys(26) = 'HYPRESOLVER'
-  keys(27) = 'WALLTIME'
-  keys(28) = 'SAFEWRTIME'
   
   CALL ReadSection( global,IF_INPUT,NVALS_MAX,keys,vals,defined )
 
@@ -226,14 +222,6 @@ SUBROUTINE ReadTimestepSection( global )
       global%hypreSolver = HYPRE_SOLV_BAMG
     END IF ! NINT
   ENDIF
-
-  IF ( defined(27) .EQV. .TRUE. ) THEN
-    global%wallTime = ABS(vals(27))
-  END IF
-
-  IF ( defined(28) .EQV. .TRUE. ) THEN
-    global%safeWriteTime = ABS(vals(28))
-  END IF
 
   IF ( defined(10) .EQV. .TRUE. ) THEN
     global%startStep = NINT(vals(10))

@@ -156,6 +156,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 #endif
 
   USE RFLU_ModRestartData, ONLY: RFLU_WriteRestartData
+  USE RFLU_ModJobEnd, ONLY: RFLU_JobEndInit,RFLU_JobEndNear,RFLU_JobEndDumpTime
 
 #ifdef PICL
 !DEC$ NOFREEFORM
@@ -197,10 +198,9 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
   TYPE(t_patch), POINTER :: pPatch
 
 ! BBR - begin
-  LOGICAL :: doSmallWrite,first,donesafewrite
-  INTEGER :: t1,t2,clock_rate,clock_max,safew_l,safew
-  INTEGER :: timeroutineat,errorFlag
-  REAL(RFREAL) :: tc1,tc2,iter,cumulreal,cumulcpu,elapsedtime
+  LOGICAL :: doSmallWrite,first
+  INTEGER :: t1,t2,clock_rate,clock_max
+  REAL(RFREAL) :: tc1,tc2,iter,cumulreal,cumulcpu
   CHARACTER(CHRLEN) :: NameSolDir
 ! BBR - end
 
@@ -208,9 +208,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
   REAL(RFREAL) :: vFrac, ir
   REAL(RFREAL), ALLOCATABLE :: cvSaved(:,:)
 
-!CRN - begin
-  REAL(RFREAL) :: timerStart, timerEnd
-!CRN - end
+  REAL(RFREAL) :: dumpStart,stepStart
   ! 03/24/2025 - Thierry - variable used to store max time and dt 
   LOGICAL, SAVE :: initialized = .FALSE.
 
@@ -228,11 +226,6 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
   CALL RegisterFunction(global,'RFLU_TimeStepping',__FILE__)
 
   finished = .FALSE. ! run not finished yet
-
-  ! BBR - begin
-  donesafewrite = .FALSE.
-  safew_l = 0; safew = 0;
-  ! BBR - end
 
 
 ! ==============================================================================
@@ -351,13 +344,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 
 ! BBR - end
 
-!CRN - Begin
-!Set initial time before starting loop
- CALL MPI_Barrier(global%mpiComm,errorFlag)
- IF(global%myProcid == 0) THEN
-    timerStart=MPI_Wtime()
- END IF
-!CRN - end
+ CALL RFLU_JobEndInit(global)
 
  global%progressWallStart = MPI_Wtime()
  global%progressWallLast  = global%progressWallStart
@@ -367,16 +354,7 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 
 ! BBR - begin
    
-  !CRN - Begin
-  IF(global%myProcid == 0) THEN
-    timerEnd=MPI_Wtime()
-    elapsedtime = timerEnd - timerStart
-  END IF
-  !CRN - end
-
-
-  !CALL SYSTEM_CLOCK ( timeroutineat, clock_rate, clock_max )
-  !elapsedtime = REAL( timeroutineat - global%timeruninit ) / REAL(clock_rate)
+  stepStart = MPI_Wtime()
 
   IF ( global%TimeCycle ) THEN
     IF ( global%myProcid .EQ. 1 ) THEN
@@ -385,8 +363,6 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
       END IF
       CALL SYSTEM_CLOCK ( t1, clock_rate, clock_max )
       CALL CPU_TIME ( tc1 )
-      ! BBR - testing safe restart timing works properly
-      !WRITE(999,*)global%wallTime,elapsedtime,global%wallTime-elapsedtime
     END IF
   END IF
 ! BBR - end
@@ -702,54 +678,13 @@ SUBROUTINE RFLU_TimeStepping(dTimeSystem,dIterSystem,regions)
 
 ! BBR - end
 
-! BBR - begin
 ! ==============================================================================
-!   Check whether it is close enough to walltime to force a safe restart dump
+!   Stop in time for the end-of-run dump before the Slurm job ends
 ! ==============================================================================
 
-! CRN - Edited MPI call
-!Have the master processor check the walltime and then pass a variable to all
-!other processors. The variable is safew_l (that is lowercase L). A 0 means to
-!keep going. A one means to stop and print the final solution before exiting.
-
-IF(global%myProcid == 0) THEN
-
-   IF ( ( (global%wallTime - elapsedtime) .LE. global%safeWriteTime  )  &
-     .AND. ( donesafewrite .EQV. .FALSE. ) ) THEN
-       safew_l = 1
-
-   END IF
-
-END IF
-
-!Broadcast the data to all processors from the master processor
-CALL MPI_Bcast(safew_l, 1, MPI_INT, 0,global%mpiComm,global%mpierr)
-
-!All processors check the broadcasted variable that they recieved
-IF(safew_l == 1) THEN
-
-  doWrite = .TRUE.
-  donesafewrite = .TRUE.
-  global%SafeWrite = safew_l
-
-!  IF ( global%flowType == FLOW_UNSTEADY ) THEN
-!    WRITE(NameSolDir,'(1PE11.5)') global%currentTime
-!  ELSEIF ( global%flowType == FLOW_STEADY ) THEN
-!    WRITE(NameSolDir,'(i10)') global%currentIter
-!  END IF
-!#ifdef FOLDER
-!  IF(global%myProcid==MASTERPROC) THEN
-!      CALL system( 'mkdir -p SOL_'//NameSolDir )
-!      CALL system( 'mkdir -p PARAVIEW_'//NameSolDir )
-!  END IF
-!#endif
-!rahul folder debug
-END IF
-
-! END CRN
-
-
-! BBR - end
+    IF ( RFLU_JobEndNear(global,stepStart) .EQV. .TRUE. ) THEN
+      finished = .TRUE.
+    END IF ! RFLU_JobEndNear
 
 ! ==============================================================================
 !   Check for stop file
@@ -901,6 +836,7 @@ END IF
     !  Subroutine RFLU_WriteFlowWrapper
     !    Call RFLU_WriteVTK
     IF( (doWrite .EQV. .TRUE.) .AND. (finished .EQV. .FALSE.) )THEN
+      dumpStart = MPI_Wtime()
 
     !BBR - Begin - write Prediction Metrics (PM)
     ! to be replaced by some Catalyst function later
@@ -1018,7 +954,7 @@ END IF
 #endif
       END DO ! iReg
 
-
+      CALL RFLU_JobEndDumpTime(global,MPI_Wtime() - dumpStart)
     END IF ! doWrite
 
 #ifdef STATS
@@ -1072,27 +1008,11 @@ END IF
 
 ! BBR - End - timing
 
-! BBR - Begin - Exit main loop if saferestart done
-
-! ==============================================================================
-!   If run saferestart done
-!   Total runtime close to walltime requested. Restart dump accomplished. 
-!   Exiting run cleanly
-! ==============================================================================
-
-  IF ( global%SafeWrite .EQ. 1 ) THEN
-    CALL MPI_Barrier(global%mpiComm,errorFlag)
-    EXIT  ! exiting loop
-  END IF
-! BBR - End - Exit main loop
 
   END DO ! loop over time/iterations
 
 
 
-  IF (global%myProcid==MASTERPROC .AND. (global%SafeWrite .EQ. 1) ) THEN
-    WRITE(STDOUT,'(A)') SOLVER_NAME,'Safe Restart Done, exiting this run ...'
-  END IF
 
 ! ******************************************************************************
 ! End

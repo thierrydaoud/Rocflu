@@ -37,8 +37,6 @@ PRNTIME    5.0E-06  ! time offset [s] to print convergence
 FOMWRITIME 1.0E-05  ! time offset [s] to store fom solution 
 TIMESTEP   1.0E-09  ! max. time step for computation [s], relevant if FLOWTYPE=1
 DTMINLIMIT 2.0E-10  ! sets smallest dt that overrides CFL limit
-WALLTIME   432000   ! 11:59:00 in seconds 
-SAFEWRTIME 360      ! to dump 1 hr before walltime 
 RKSCHEME    2       ! 1-RK4 2-RK3
 START_STEP  0       ! 0 new run; -1 latest dump; N the dump of step N
 # 

@@ -29,8 +29,7 @@ IGNORED = {
     ("NUMERICS", "CFL"),
     ("TIMESTEP", "MAXTIME"), ("TIMESTEP", "RUNTIME"), ("TIMESTEP", "WRITIME"),
     ("TIMESTEP", "PRNTIME"), ("TIMESTEP", "FOMWRITIME"), ("TIMESTEP", "TIMESTEP"),
-    ("TIMESTEP", "DTMINLIMIT"), ("TIMESTEP", "WALLTIME"), ("TIMESTEP", "SAFEWRTIME"),
-    ("TIMESTEP", "START_STEP"),
+    ("TIMESTEP", "DTMINLIMIT"), ("TIMESTEP", "START_STEP"),
 }
 
 # ... and those only the initial fields depend on (rflupart does not read them)

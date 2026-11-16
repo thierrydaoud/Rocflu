@@ -272,10 +272,6 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
 
   !begin BBR
   global%halftimeSinceWrite = 0.0_RFREAL
-  global%wallTime           = 99999999_RFREAL ! Walltime Larger than what any 
-                                              ! cluster allows (3years) except
-                                              ! maybe Hipergator... (hehehe...)
-  global%safeWriteTime      = 99999999_RFREAL ! Same as above
   global%previousTime      = -1.0_RFREAL
 
   CALL SYSTEM_CLOCK ( dummy, clock_rate, clock_max )
@@ -290,8 +286,6 @@ SUBROUTINE RFLU_InitGlobal(casename,verbLevel,communicator,global)
   global%Test_Sappy = .FALSE.
   global%Test_Rahul = .FALSE.
   global%Test_Brad = .FALSE.
-
-  global%SafeWrite = 0
 
   !end BBR
 
