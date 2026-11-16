@@ -1189,7 +1189,7 @@ c----------------------------------------------------------------------
      >          CellID_nearest(28), partCount
       REAL*8    dSQl, dSQi, dSQ(28), xp(3), dl, dNSQi, dNSQ(28),
      >          CellCenter(3,28), w(27), binblength(3),  
-     >          Max_CellLen(3), Max_CellLenSQ(3), dSQchk(3)
+     >          Max_CellLen(3), Max_CellLenSQ(3)
       LOGICAL   added, farAway, alreadyMapped
  
       ! Cells of subbin s: SBin_list(SBin_start(s):SBin_start(s+1)-1),
@@ -1248,8 +1248,6 @@ c----------------------------------------------------------------------
         bin_Min(l) = ppiclf_bin_pos(1,l) - ppiclf_interp_dchk(l)
         n_SBin(l) = FLOOR((ppiclf_bins_dx(l) + 2*ppiclf_interp_dchk(l))
      >                                     / ppiclf_interp_dchk(l)) + 1
-        ! 27-cell projection stencil box: 1.5*MaxCellLength
-        dSQchk(l) = (ppiclf_interp_dchk(l)/1.2D0)**2
         ! SB at bin min boundary
         firstSB(l) = FLOOR((ppiclf_bin_pos(1,l) - bin_Min(l))
      >               / ppiclf_interp_dchk(l))
@@ -1433,7 +1431,8 @@ c----------------------------------------------------------------------
      >                  dl = dl - SIGN(binblength(l),dl)
                     END IF
                     dx(l) = dl
-                    IF (dl**2 .GT. dSQchk(l)) farAway = .TRUE.
+                    IF (ABS(dl) .GT. 1.5D0*sbCell(3+l,i_count))
+     >                farAway = .TRUE.
                     rc(l) = 1.8D0*sbCell(3+l,i_count)
                     IF (ABS(dl) .GE. rc(l)) inSupp = .FALSE.
                     ! Outside both the least-squares support and the
@@ -1482,7 +1481,7 @@ c----------------------------------------------------------------------
                   DO i = 1,27
                     IF(alreadyMapped) EXIT ! go to next cell in SB
                     j = 27 - i + 1
-                    IF (dSQi .LT. dSQ(j)) THEN
+                    IF (dNSQi .LT. dNSQ(j)) THEN
                       dSQ(j+1) = dSQ(j)
                       dNSQ(j+1) = dNSQ(j)
                       CellID_nearest(j+1) = CellID_nearest(j)
