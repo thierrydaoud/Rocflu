@@ -166,6 +166,8 @@ SUBROUTINE RFLU_SYPE_AddVirtualCells(pRegion)
 
   INTEGER :: errorFlag,i,icg,icg2,icl,ict,iLayer,iLoc,iPatch,iReg,j,key, &
              nCellsVirt,nCellsVirtMax,nLayers
+  INTEGER :: iPatch2,nCellsBefore,nElig
+  INTEGER, DIMENSION(:), ALLOCATABLE :: elig,virtBeg,virtEnd
   INTEGER, DIMENSION(:), ALLOCATABLE :: vc
   TYPE(t_global), POINTER :: global   
   TYPE(t_grid), POINTER :: pGrid      
@@ -207,12 +209,36 @@ SUBROUTINE RFLU_SYPE_AddVirtualCells(pRegion)
     CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'vc')
   END IF ! global%error 
 
+! Virtual cells of each patch, and the earlier ones a later patch may copy
+  ALLOCATE(virtBeg(pGrid%nPatches),virtEnd(pGrid%nPatches),elig(nCellsVirtMax), &
+           STAT=errorFlag)
+  global%error = errorFlag
+  IF ( global%error /= ERR_NONE ) THEN
+    CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'virtBeg')
+  END IF ! global%error
+
+  virtBeg(:) = 1
+  virtEnd(:) = 0
+
 ! ******************************************************************************
 ! Add virtual cells
 ! ******************************************************************************
 
   DO iPatch = 1,pGrid%nPatches
     pPatch => pRegion%patches(iPatch)
+
+    nCellsBefore = pGrid%nCellsTot
+
+! Earlier virtual cells, except those of this patch and its related patch
+    nElig = 0
+    DO iPatch2 = 1,iPatch-1
+      IF ( (iPatch2 == pPatch%iPatchRelated) .AND. &
+           (pPatch%bcType == BC_PERIODIC) ) CYCLE
+      DO icg = virtBeg(iPatch2),virtEnd(iPatch2)
+        nElig = nElig + 1
+        elig(nElig) = icg
+      END DO ! icg
+    END DO ! iPatch2
 
     SELECT CASE ( pPatch%bcType ) 
       CASE ( BC_SYMMETRY )       
@@ -227,12 +253,15 @@ SUBROUTINE RFLU_SYPE_AddVirtualCells(pRegion)
                                                nCellsVirtMax,nCellsVirt)
           CASE ( 2 ) 
             CALL RFLU_SYPE_AddVirtualCellsInv2(pRegion,pPatch,vc, & 
-                                               nCellsVirtMax,nCellsVirt)
+                                               nCellsVirtMax,nCellsVirt, &
+                                               elig,nElig)
           CASE DEFAULT
             CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
         END SELECT ! pRegion%mixtInput%spaceOrder                                     
                                                
         CALL RFLU_SYPE_AugmentCellLists(pRegion,pPatch,vc,nCellsVirt)
+        virtBeg(iPatch) = nCellsBefore + 1
+        virtEnd(iPatch) = pGrid%nCellsTot
       CASE ( BC_PERIODIC ) 
         pPatchRelated => pRegion%patches(pPatch%iPatchRelated)
 
@@ -247,18 +276,27 @@ SUBROUTINE RFLU_SYPE_AddVirtualCells(pRegion)
                                                nCellsVirtMax,nCellsVirt)
           CASE ( 2 ) 
             CALL RFLU_SYPE_AddVirtualCellsInv2(pRegion,pPatchRelated,vc, & 
-                                               nCellsVirtMax,nCellsVirt)
+                                               nCellsVirtMax,nCellsVirt, &
+                                               elig,nElig)
           CASE DEFAULT
             CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
         END SELECT ! pRegion%mixtInput%spaceOrder    
                                                          
-        CALL RFLU_SYPE_AugmentCellLists(pRegion,pPatch,vc,nCellsVirt)                                           
+        CALL RFLU_SYPE_AugmentCellLists(pRegion,pPatch,vc,nCellsVirt)
+        virtBeg(iPatch) = nCellsBefore + 1
+        virtEnd(iPatch) = pGrid%nCellsTot
     END SELECT ! pPatch%bcType
   END DO ! iPatch             
 
 ! ******************************************************************************
 ! Deallocate temporary memory for virtual cells
 ! ******************************************************************************
+
+  DEALLOCATE(virtBeg,virtEnd,elig,STAT=errorFlag)
+  global%error = errorFlag
+  IF ( global%error /= ERR_NONE ) THEN
+    CALL ErrorStop(global,ERR_DEALLOCATE,__LINE__,'virtBeg')
+  END IF ! global%error
 
   DEALLOCATE(vc,STAT=errorFlag)
   global%error = errorFlag   
@@ -430,7 +468,8 @@ END SUBROUTINE RFLU_SYPE_AddVirtualCellsInv1
 ! ******************************************************************************
 
 SUBROUTINE RFLU_SYPE_AddVirtualCellsInv2(pRegion,pPatch,vc,nCellsVirtMax, &
-                                         nCellsVirt)                                   
+                                         nCellsVirt, &
+                                         elig,nElig)
 
   USE ModSortSearch
 
@@ -454,6 +493,8 @@ SUBROUTINE RFLU_SYPE_AddVirtualCellsInv2(pRegion,pPatch,vc,nCellsVirtMax, &
   INTEGER, INTENT(IN) :: nCellsVirtMax
   INTEGER, INTENT(OUT) :: nCellsVirt
   INTEGER, INTENT(INOUT) :: vc(nCellsVirtMax)
+  INTEGER, INTENT(IN) :: nElig
+  INTEGER, INTENT(IN) :: elig(nElig)
   TYPE(t_patch), POINTER :: pPatch    
   TYPE(t_region), POINTER :: pRegion
 
@@ -463,6 +504,9 @@ SUBROUTINE RFLU_SYPE_AddVirtualCellsInv2(pRegion,pPatch,vc,nCellsVirtMax, &
 
   INTEGER :: errorFlag,i,icg,icg2,iflBeg,iflEnd,iLayer,iLoc,j,nLayers, &
              nVert,scDim,vcNewDim,vcNewDimMax,vcOldDim
+  INTEGER :: iElig,ivl,nSrcVert
+  INTEGER :: cellVert(8)
+  INTEGER, DIMENSION(:), ALLOCATABLE :: srcVert
   INTEGER, DIMENSION(:), ALLOCATABLE :: avv,sc,vcNew,vcOld
   TYPE(t_grid), POINTER :: pGrid
   TYPE(t_global), POINTER :: global     
@@ -651,6 +695,52 @@ SUBROUTINE RFLU_SYPE_AddVirtualCellsInv2(pRegion,pPatch,vc,nCellsVirtMax, &
 
   CALL RFLU_DestroyC2CStencilWrapper(pRegion)                           
 
+! Also copy earlier patches' virtual cells that touch these sources (topology only)
+  IF ( nElig > 0 ) THEN
+    ALLOCATE(srcVert(8*nCellsVirt),STAT=errorFlag)
+    global%error = errorFlag
+    IF ( global%error /= ERR_NONE ) THEN
+      CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'srcVert')
+    END IF ! global%error
+
+    nSrcVert = 0
+    DO i = 1,nCellsVirt
+      CALL GetCellVertices(vc(i),cellVert,nVert)
+      srcVert(nSrcVert+1:nSrcVert+nVert) = cellVert(1:nVert)
+      nSrcVert = nSrcVert + nVert
+    END DO ! i
+
+    CALL QuickSortInteger(srcVert(1:nSrcVert),nSrcVert)
+
+    DO iElig = 1,nElig
+      icg2 = elig(iElig)
+      CALL GetCellVertices(icg2,cellVert,nVert)
+
+      DO ivl = 1,nVert
+        CALL BinarySearchInteger(srcVert(1:nSrcVert),nSrcVert,cellVert(ivl),iLoc)
+        IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN
+          CALL BinarySearchInteger(vc(1:nCellsVirt),nCellsVirt,icg2,iLoc)
+          IF ( iLoc == ELEMENT_NOT_FOUND ) THEN
+            IF ( nCellsVirt < nCellsVirtMax ) THEN
+              nCellsVirt = nCellsVirt + 1
+              vc(nCellsVirt) = icg2
+            ELSE
+              CALL ErrorStop(global,ERR_EXCEED_DIMENS,__LINE__,'vc')
+            END IF ! nCellsVirt
+            CALL InsertLastInteger(vc(1:nCellsVirt),nCellsVirt)
+          END IF ! iLoc
+          EXIT
+        END IF ! iLoc
+      END DO ! ivl
+    END DO ! iElig
+
+    DEALLOCATE(srcVert,STAT=errorFlag)
+    global%error = errorFlag
+    IF ( global%error /= ERR_NONE ) THEN
+      CALL ErrorStop(global,ERR_DEALLOCATE,__LINE__,'srcVert')
+    END IF ! global%error
+  END IF ! nElig
+
 ! ******************************************************************************
 ! End
 ! ******************************************************************************
@@ -662,6 +752,36 @@ SUBROUTINE RFLU_SYPE_AddVirtualCellsInv2(pRegion,pPatch,vc,nCellsVirtMax, &
   END IF ! global%myProcid
 
   CALL DeregisterFunction(global)
+
+  CONTAINS
+
+    SUBROUTINE GetCellVertices(icgCell,cellVertices,nCellVertices)
+
+      INTEGER, INTENT(IN) :: icgCell
+      INTEGER, INTENT(OUT) :: cellVertices(8),nCellVertices
+
+      INTEGER :: iclCell
+
+      iclCell = pGrid%cellGlob2Loc(2,icgCell)
+
+      SELECT CASE ( pGrid%cellGlob2Loc(1,icgCell) )
+        CASE ( CELL_TYPE_TET )
+          nCellVertices = 4
+          cellVertices(1:4) = pGrid%tet2v(1:4,iclCell)
+        CASE ( CELL_TYPE_HEX )
+          nCellVertices = 8
+          cellVertices(1:8) = pGrid%hex2v(1:8,iclCell)
+        CASE ( CELL_TYPE_PRI )
+          nCellVertices = 6
+          cellVertices(1:6) = pGrid%pri2v(1:6,iclCell)
+        CASE ( CELL_TYPE_PYR )
+          nCellVertices = 5
+          cellVertices(1:5) = pGrid%pyr2v(1:5,iclCell)
+        CASE DEFAULT
+          CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
+      END SELECT ! pGrid%cellGlob2Loc
+
+    END SUBROUTINE GetCellVertices
 
 END SUBROUTINE RFLU_SYPE_AddVirtualCellsInv2
 
@@ -716,6 +836,9 @@ SUBROUTINE RFLU_SYPE_AugmentCellLists(pRegion,pPatch,vc,nCellsVirt)
   INTEGER :: errorFlag,iBorder,icg,icg2,icl,ict,icv,ifl,iflBeg,iflEnd,ifl2, & 
              iLayer,iLoc,iLoc2,iPatchRelated,iPatch2,ivg,ivgm,ivl,ivlm,ivl2, & 
              j,nLayers,nVert,nVertVirtEst,scDim,vcNewDim,vcNewDimMax,vcOldDim
+  INTEGER :: icgSrc,ifv,iSrcVert,nFaceVert,nSrcVert,nVirtFaces
+  INTEGER :: faceVert(4),srcVert(8)
+  INTEGER, DIMENSION(:), ALLOCATABLE :: vfKey,vfMin
   INTEGER, DIMENSION(:), ALLOCATABLE :: ivgRecvSorted,ivgSendSorted, & 
                                         ivgSharedSorted
   TYPE(t_border), POINTER :: pBorder,pBorderRelated
@@ -1009,143 +1132,143 @@ SUBROUTINE RFLU_SYPE_AugmentCellLists(pRegion,pPatch,vc,nCellsVirt)
 ! Loop over cells to be sent 
 ! ******************************************************************************
 
-  DO icl = 1,pBorderRelated%nCellsSend
-    icg = pBorderRelated%icgSend(icl)
+  DO iPatch2 = 1,pGrid%nPatches
+    pPatch2 => pRegion%patches(iPatch2)
 
-! ==============================================================================
-!   Loop over patches         
-! ==============================================================================
+    IF ( (pPatch2%iPatchGlobal == pPatch%iPatchGlobal) .OR. &
+         (pPatch2%nbMap(pPatch%iPatchGlobal) .EQV. .FALSE. ) ) CYCLE
 
-    DO iPatch2 = 1,pGrid%nPatches
-      pPatch2 => pRegion%patches(iPatch2)
+! Virtual faces made before this patch, looked up for virtual sources
+    CALL BuildVirtualFaceKeys(pPatch2)
+
+    DO icl = 1,pBorderRelated%nCellsSend
+      icgSrc = pBorderRelated%icgSend(icl)
 
 ! ------------------------------------------------------------------------------
-!     If current patch is not the same as patch associated with symmetry or 
-!     periodic patch, find out whether cell to be sent is adjacent to current 
-!     patch
+!     Face of the source on this patch (a virtual face for a virtual source)
 ! ------------------------------------------------------------------------------
 
-      IF ( (pPatch2%iPatchGlobal /= pPatch%iPatchGlobal) .AND. & 
-           (pPatch2%nbMap(pPatch%iPatchGlobal) .EQV. .TRUE. ) ) THEN  
-        CALL BinarySearchInteger(pPatch2%bf2cSorted(1:pPatch2%nBFaces), & 
-                                 pPatch2%nBFaces,icg,iLoc)
-                
-! ----- Cell found, so adjacent to current patch -------------------------------        
-        
-        IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN 
-        
-! ------- Triangle face       
-        
-          IF ( pPatch2%bf2vSorted(4,iLoc) == VERT_NONE ) THEN                            
-            IF ( pPatch2%nBTrisTot < pPatch2%nBTrisMax ) THEN
-              pPatch2%nBTrisTot  = pPatch2%nBTrisTot  + 1
-              pPatch2%nBFacesTot = pPatch2%nBFacesTot + 1
-            ELSE 
-              CALL ErrorStop(global,ERR_EXCEED_DIMENS,__LINE__,'tri2v')
-            END IF ! pPatch2%nBTrisTot
-               
-            DO ivl2 = 1,3
-              ivl = pPatch2%bf2vSorted(ivl2,iLoc)
-              ivg = pPatch2%bv(ivl)
-            
-              CALL BinarySearchInteger(ivgSendSorted(1:pBorderRelated%nVertSend), & 
-                                       pBorderRelated%nVertSend,ivg,iLoc2)
+      nFaceVert = 0
 
-              IF ( iLoc2 /= ELEMENT_NOT_FOUND ) THEN                            
-                pPatch2%bTri2v(ivl2,pPatch2%nBTrisTot) = ivgRecvSorted(iLoc2)                   
-              ELSE
-                IF ( pPatch%bcType == BC_SYMMETRY ) THEN 
-                  CALL BinarySearchInteger(ivgSharedSorted(1:pBorder%nVertShared), & 
-                                           pBorder%nVertShared,ivg,iLoc2)
-                ELSE IF ( pPatch%bcType == BC_PERIODIC ) THEN 
-                  iPatchRelated = pPatch%iPatchRelated
-                    
-                  pPatch3 => pRegion%patches(iPatchRelated)
-                  
-                  CALL BinarySearchInteger(pPatch3%bv(1:pPatch3%nBVert), & 
-                                           pPatch3%nBVert,ivg,iLoc2)                                    
-                ELSE 
-                  CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
-                END IF ! pPatch%bcType
-                                         
-                IF ( iLoc2 /= ELEMENT_NOT_FOUND ) THEN
-                  IF ( pPatch%bcType == BC_SYMMETRY ) THEN  
-                    pPatch2%bTri2v(ivl2,pPatch2%nBTrisTot) = ivg
-                  ELSE IF ( pPatch%bcType == BC_PERIODIC ) THEN 
-                    ivlm = pPatch3%bv2bv(iLoc2)
-                    ivgm = pPatch%bv(ivlm) 
+      IF ( icgSrc <= pGrid%nCells ) THEN
+        CALL BinarySearchInteger(pPatch2%bf2cSorted(1:pPatch2%nBFaces), &
+                                 pPatch2%nBFaces,icgSrc,iLoc)
 
-                    pPatch2%bTri2v(ivl2,pPatch2%nBTrisTot) = ivgm
-                  END IF ! pPatch%bcType                  
-                ELSE
-                  CALL ErrorStop(global,ERR_VERTEX_NOT_FOUND,__LINE__)
-                END IF ! iLoc2             
-              END IF ! iLoc2
-            END DO ! ivl2   
-                        
-            IF ( pPatch%bcType == BC_SYMMETRY ) THEN
-              CALL SwapIntegers(pPatch2%bTri2v(2,pPatch2%nBTrisTot), & 
-                                pPatch2%bTri2v(3,pPatch2%nBTrisTot))
-            END IF ! pPatch%bcType
-            
-! ------- Quadrilateral face           
-            
-          ELSE 
-            IF ( pPatch2%nBQuadsTot < pPatch2%nBQuadsMax ) THEN
-              pPatch2%nBQuadsTot = pPatch2%nBQuadsTot + 1
-              pPatch2%nBFacesTot = pPatch2%nBFacesTot + 1
-            ELSE 
-              CALL ErrorStop(global,ERR_EXCEED_DIMENS,__LINE__,'quad2v')
-            END IF ! pPatch2%nBQuadsTot
-               
-            DO ivl2 = 1,4
-              ivl = pPatch2%bf2vSorted(ivl2,iLoc)
-              ivg = pPatch2%bv(ivl)
-            
-              CALL BinarySearchInteger(ivgSendSorted(1:pBorderRelated%nVertSend), & 
-                                       pBorderRelated%nVertSend,ivg,iLoc2)
-            
-              IF ( iLoc2 /= ELEMENT_NOT_FOUND ) THEN                            
-                pPatch2%bQuad2v(ivl2,pPatch2%nBQuadsTot) = ivgRecvSorted(iLoc2)                    
-              ELSE
-                IF ( pPatch%bcType == BC_SYMMETRY ) THEN 
-                  CALL BinarySearchInteger(ivgSharedSorted(1:pBorder%nVertShared), & 
-                                           pBorder%nVertShared,ivg,iLoc2)
-                ELSE IF ( pPatch%bcType == BC_PERIODIC ) THEN 
-                  iPatchRelated = pPatch%iPatchRelated
-                    
-                  pPatch3 => pRegion%patches(iPatchRelated)
-                  
-                  CALL BinarySearchInteger(pPatch3%bv(1:pPatch3%nBVert), & 
-                                           pPatch3%nBVert,ivg,iLoc2)                                    
-                ELSE 
-                  CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
-                END IF ! pPatch%bcType
-                                         
-                IF ( iLoc2 /= ELEMENT_NOT_FOUND ) THEN
-                  IF ( pPatch%bcType == BC_SYMMETRY ) THEN  
-                    pPatch2%bQuad2v(ivl2,pPatch2%nBQuadsTot) = ivg
-                  ELSE IF ( pPatch%bcType == BC_PERIODIC ) THEN 
-                    ivlm = pPatch3%bv2bv(iLoc2)
-                    ivgm = pPatch%bv(ivlm) 
+        IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN
+          IF ( pPatch2%bf2vSorted(4,iLoc) == VERT_NONE ) THEN
+            nFaceVert = 3
+          ELSE
+            nFaceVert = 4
+          END IF ! pPatch2%bf2vSorted
 
-                    pPatch2%bQuad2v(ivl2,pPatch2%nBQuadsTot) = ivgm
-                  END IF ! pPatch%bcType                 
-                ELSE
-                  CALL ErrorStop(global,ERR_VERTEX_NOT_FOUND,__LINE__)
-                END IF ! iLoc2
-              END IF ! iLoc2
-            END DO ! ivl2   
-                        
-            IF ( pPatch%bcType == BC_SYMMETRY ) THEN
-              CALL SwapIntegers(pPatch2%bQuad2v(2,pPatch2%nBQuadsTot), & 
-                                pPatch2%bQuad2v(4,pPatch2%nBQuadsTot))
-            END IF ! pPatch%bcType
-          END IF ! pPatch2%bf2v
+          DO ivl2 = 1,nFaceVert
+            faceVert(ivl2) = pPatch2%bv(pPatch2%bf2vSorted(ivl2,iLoc))
+          END DO ! ivl2
         END IF ! iLoc
-      END IF ! pPatch2%iPatchGlobal
-    END DO ! iPatch
-  END DO ! icl
+      ELSE
+        CALL GetCellVertices(icgSrc,srcVert,nSrcVert)
+        CALL QuickSortInteger(srcVert(1:nSrcVert),nSrcVert)
+
+        srcLoop: DO iSrcVert = 1,nSrcVert
+          CALL BinarySearchInteger(vfMin(1:nVirtFaces),nVirtFaces, &
+                                   srcVert(iSrcVert),iLoc)
+          IF ( iLoc == ELEMENT_NOT_FOUND ) CYCLE
+
+! Back to the first face with this smallest vertex
+          DO WHILE ( iLoc > 1 )
+            IF ( vfMin(iLoc-1) /= srcVert(iSrcVert) ) EXIT
+            iLoc = iLoc - 1
+          END DO ! iLoc
+
+          DO ifv = iLoc,nVirtFaces
+            IF ( vfMin(ifv) /= srcVert(iSrcVert) ) EXIT
+            CALL GetPatchFaceVertices(pPatch2,vfKey(ifv),faceVert,nFaceVert)
+            IF ( FaceInCell(faceVert,nFaceVert,srcVert,nSrcVert) ) THEN
+              EXIT srcLoop
+            END IF ! FaceInCell
+            nFaceVert = 0
+          END DO ! ifv
+        END DO srcLoop
+
+      END IF ! icgSrc
+
+      IF ( nFaceVert == 0 ) CYCLE
+
+! ------------------------------------------------------------------------------
+!     Add the face of the new virtual cell
+! ------------------------------------------------------------------------------
+
+      IF ( nFaceVert == 3 ) THEN
+        IF ( pPatch2%nBTrisTot < pPatch2%nBTrisMax ) THEN
+          pPatch2%nBTrisTot  = pPatch2%nBTrisTot  + 1
+          pPatch2%nBFacesTot = pPatch2%nBFacesTot + 1
+        ELSE
+          CALL ErrorStop(global,ERR_EXCEED_DIMENS,__LINE__,'pPatch2%bTri2v')
+        END IF ! pPatch2%nBTrisTot
+      ELSE
+        IF ( pPatch2%nBQuadsTot < pPatch2%nBQuadsMax ) THEN
+          pPatch2%nBQuadsTot = pPatch2%nBQuadsTot + 1
+          pPatch2%nBFacesTot = pPatch2%nBFacesTot + 1
+        ELSE
+          CALL ErrorStop(global,ERR_EXCEED_DIMENS,__LINE__,'pPatch2%bQuad2v')
+        END IF ! pPatch2%nBQuadsTot
+      END IF ! nFaceVert
+
+      DO ivl2 = 1,nFaceVert
+        ivg = faceVert(ivl2)
+
+        CALL BinarySearchInteger(ivgSendSorted(1:pBorderRelated%nVertSend), &
+                                 pBorderRelated%nVertSend,ivg,iLoc2)
+
+        IF ( iLoc2 /= ELEMENT_NOT_FOUND ) THEN
+          ivgm = ivgRecvSorted(iLoc2)
+        ELSE
+          IF ( pPatch%bcType == BC_SYMMETRY ) THEN
+            CALL BinarySearchInteger(ivgSharedSorted(1:pBorder%nVertShared), &
+                                     pBorder%nVertShared,ivg,iLoc2)
+          ELSE IF ( pPatch%bcType == BC_PERIODIC ) THEN
+            iPatchRelated = pPatch%iPatchRelated
+            pPatch3 => pRegion%patches(iPatchRelated)
+            CALL BinarySearchInteger(pPatch3%bv(1:pPatch3%nBVert), &
+                                     pPatch3%nBVert,ivg,iLoc2)
+          END IF ! pPatch%bcType
+
+          IF ( iLoc2 /= ELEMENT_NOT_FOUND ) THEN
+            IF ( pPatch%bcType == BC_SYMMETRY ) THEN
+              ivgm = ivg
+            ELSE
+              ivlm = pPatch3%bv2bv(iLoc2)
+              ivgm = pPatch%bv(ivlm)
+            END IF ! pPatch%bcType
+          ELSE
+            CALL ErrorStop(global,ERR_VERTEX_NOT_FOUND,__LINE__)
+          END IF ! iLoc2
+        END IF ! iLoc2
+
+        IF ( nFaceVert == 3 ) THEN
+          pPatch2%bTri2v(ivl2,pPatch2%nBTrisTot) = ivgm
+        ELSE
+          pPatch2%bQuad2v(ivl2,pPatch2%nBQuadsTot) = ivgm
+        END IF ! nFaceVert
+      END DO ! ivl2
+
+      IF ( pPatch%bcType == BC_SYMMETRY ) THEN
+        IF ( nFaceVert == 3 ) THEN
+          CALL SwapIntegers(pPatch2%bTri2v(2,pPatch2%nBTrisTot), &
+                            pPatch2%bTri2v(3,pPatch2%nBTrisTot))
+        ELSE
+          CALL SwapIntegers(pPatch2%bQuad2v(2,pPatch2%nBQuadsTot), &
+                            pPatch2%bQuad2v(4,pPatch2%nBQuadsTot))
+        END IF ! nFaceVert
+      END IF ! pPatch%bcType
+    END DO ! icl
+
+    DEALLOCATE(vfMin,vfKey,STAT=errorFlag)
+    global%error = errorFlag
+    IF ( global%error /= ERR_NONE ) THEN
+      CALL ErrorStop(global,ERR_DEALLOCATE,__LINE__,'vfMin')
+    END IF ! global%error
+  END DO ! iPatch2
 
   DO iPatch2 = 1,pGrid%nPatches
     pPatch2 => pRegion%patches(iPatch2)
@@ -1184,6 +1307,115 @@ SUBROUTINE RFLU_SYPE_AugmentCellLists(pRegion,pPatch,vc,nCellsVirt)
   END IF ! global%myProcid
 
   CALL DeregisterFunction(global)
+
+  CONTAINS
+
+! Vertices of a cell
+    SUBROUTINE GetCellVertices(icgCell,cellVertices,nCellVertices)
+
+      INTEGER, INTENT(IN) :: icgCell
+      INTEGER, INTENT(OUT) :: cellVertices(8),nCellVertices
+
+      INTEGER :: iclCell
+
+      iclCell = pGrid%cellGlob2Loc(2,icgCell)
+
+      SELECT CASE ( pGrid%cellGlob2Loc(1,icgCell) )
+        CASE ( CELL_TYPE_TET )
+          nCellVertices = 4
+          cellVertices(1:4) = pGrid%tet2v(1:4,iclCell)
+        CASE ( CELL_TYPE_HEX )
+          nCellVertices = 8
+          cellVertices(1:8) = pGrid%hex2v(1:8,iclCell)
+        CASE ( CELL_TYPE_PRI )
+          nCellVertices = 6
+          cellVertices(1:6) = pGrid%pri2v(1:6,iclCell)
+        CASE ( CELL_TYPE_PYR )
+          nCellVertices = 5
+          cellVertices(1:5) = pGrid%pyr2v(1:5,iclCell)
+        CASE DEFAULT
+          CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
+      END SELECT ! pGrid%cellGlob2Loc
+
+    END SUBROUTINE GetCellVertices
+
+! Vertices of a patch face: ifk > 0 triangle ifk, ifk < 0 quadrilateral -ifk
+    SUBROUTINE GetPatchFaceVertices(pPatchFace,ifk,faceVertices,nFaceVertices)
+
+      TYPE(t_patch), POINTER :: pPatchFace
+      INTEGER, INTENT(IN) :: ifk
+      INTEGER, INTENT(OUT) :: faceVertices(4),nFaceVertices
+
+      IF ( ifk > 0 ) THEN
+        nFaceVertices = 3
+        faceVertices(1:3) = pPatchFace%bTri2v(1:3,ifk)
+      ELSE
+        nFaceVertices = 4
+        faceVertices(1:4) = pPatchFace%bQuad2v(1:4,-ifk)
+      END IF ! ifk
+
+    END SUBROUTINE GetPatchFaceVertices
+
+! Virtual faces of a patch, sorted by their smallest vertex
+    SUBROUTINE BuildVirtualFaceKeys(pPatchFace)
+
+      TYPE(t_patch), POINTER :: pPatchFace
+
+      INTEGER :: ifk,nFaceVertices
+      INTEGER :: faceVertices(4)
+
+      ALLOCATE(vfMin(pPatchFace%nBFacesTot),vfKey(pPatchFace%nBFacesTot), &
+               STAT=errorFlag)
+      global%error = errorFlag
+      IF ( global%error /= ERR_NONE ) THEN
+        CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'vfMin')
+      END IF ! global%error
+
+      nVirtFaces = 0
+
+      DO ifk = pPatchFace%nBTris+1,pPatchFace%nBTrisTot
+        nVirtFaces = nVirtFaces + 1
+        vfKey(nVirtFaces) = ifk
+      END DO ! ifk
+
+      DO ifk = pPatchFace%nBQuads+1,pPatchFace%nBQuadsTot
+        nVirtFaces = nVirtFaces + 1
+        vfKey(nVirtFaces) = -ifk
+      END DO ! ifk
+
+      DO ifk = 1,nVirtFaces
+        CALL GetPatchFaceVertices(pPatchFace,vfKey(ifk),faceVertices,nFaceVertices)
+        vfMin(ifk) = MINVAL(faceVertices(1:nFaceVertices))
+      END DO ! ifk
+
+      IF ( nVirtFaces > 1 ) THEN
+        CALL QuickSortIntegerInteger(vfMin(1:nVirtFaces),vfKey(1:nVirtFaces), &
+                                     nVirtFaces)
+      END IF ! nVirtFaces
+
+    END SUBROUTINE BuildVirtualFaceKeys
+
+! Whether every vertex of a face is a vertex of the cell (sorted vertex list)
+    LOGICAL FUNCTION FaceInCell(faceVertices,nFaceVertices,cellVertices, &
+                                nCellVertices)
+
+      INTEGER, INTENT(IN) :: nCellVertices,nFaceVertices
+      INTEGER, INTENT(IN) :: cellVertices(8),faceVertices(4)
+
+      INTEGER :: ifv2,iLocCell
+
+      FaceInCell = .TRUE.
+
+      DO ifv2 = 1,nFaceVertices
+        CALL BinarySearchInteger(cellVertices(1:nCellVertices),nCellVertices, &
+                                 faceVertices(ifv2),iLocCell)
+        IF ( iLocCell == ELEMENT_NOT_FOUND ) THEN
+          FaceInCell = .FALSE.
+          RETURN
+        END IF ! iLocCell
+      END DO ! ifv2
+
+    END FUNCTION FaceInCell
 
 END SUBROUTINE RFLU_SYPE_AugmentCellLists
  
@@ -1582,11 +1814,15 @@ END SUBROUTINE RFLU_SYPE_AugmentVertexLists
 
             IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN 
               iPatch =  iPatchGlob2iPatchLoc(iPatchSerial)              
+              IF ( iPatch == CRAZY_VALUE_INT ) THEN
+                CALL ErrorStop(global,ERR_BC_INVALID,__LINE__, &
+                  'virtual cell of a patch this region does not have')
+              END IF ! iPatch
               pPatch => pRegion%patches(iPatch)
 
               pPatch%nBCellsVirt = pPatch%nBCellsVirt + 1
               
-              EXIT patchSerialLoop      
+              ! a cell across two patches is in both lists
             END IF ! iLoc                                  
           END IF ! pPatchSerial%bcType
         END DO patchSerialLoop        
@@ -1626,12 +1862,16 @@ END SUBROUTINE RFLU_SYPE_AugmentVertexLists
                                      
             IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN 
               iPatch =  iPatchGlob2iPatchLoc(iPatchSerial)              
+              IF ( iPatch == CRAZY_VALUE_INT ) THEN
+                CALL ErrorStop(global,ERR_BC_INVALID,__LINE__, &
+                  'virtual cell of a patch this region does not have')
+              END IF ! iPatch
               pPatch => pRegion%patches(iPatch)
               
               pPatch%nBCellsVirt = pPatch%nBCellsVirt + 1              
               pPatch%bvc(pPatch%nBCellsVirt) = icg
 
-              EXIT patchSerialLoop2      
+              ! a cell across two patches is in both lists
             END IF ! iLoc                                  
           END IF ! pPatchSerial%bcType
         END DO patchSerialLoop2
@@ -1703,7 +1943,9 @@ END SUBROUTINE RFLU_SYPE_AugmentVertexLists
 !   Locals
 ! ==============================================================================
       
-    INTEGER :: errorFlag,iBorder,icl,iPatch
+    INTEGER :: errorFlag,iBorder,icg,icl,iPatch,iPatch2
+    INTEGER, DIMENSION(:), ALLOCATABLE :: src
+    LOGICAL, DIMENSION(:,:), ALLOCATABLE :: member
     TYPE(t_global), POINTER :: global
     TYPE(t_border), POINTER :: pBorder
     TYPE(t_grid), POINTER :: pGrid
@@ -1739,31 +1981,84 @@ END SUBROUTINE RFLU_SYPE_AugmentVertexLists
 !   Build list
 ! ******************************************************************************
 
+! A virtual cell belongs to its own patch and to every patch of its source
+    ALLOCATE(src(pGrid%nCells+1:pGrid%nCellsTot), &
+             member(pGrid%nPatches,pGrid%nCells+1:pGrid%nCellsTot),STAT=errorFlag)
+    global%error = errorFlag
+    IF ( global%error /= ERR_NONE ) THEN
+      CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'member')
+    END IF ! global%error
+
+    src(:)      = 0
+    member(:,:) = .FALSE.
+
     DO iPatch = 1,pGrid%nPatches
       pPatch => pRegion%patches(iPatch)
 
-      IF ( pPatch%bcType == BC_PERIODIC .OR. & 
+      IF ( pPatch%bcType == BC_PERIODIC .OR. &
            pPatch%bcType == BC_SYMMETRY ) THEN
-        iBorder =  pPatch%iBorder
-        pBorder => pGrid%borders(iBorder)   
-                         
-        pPatch%nBCellsVirt = pBorder%nCellsRecv                    
-              
+        pBorder => pGrid%borders(pPatch%iBorder)
+
+        DO icl = 1,pBorder%nCellsRecv
+          icg = pBorder%icgRecv(icl)
+          member(iPatch,icg) = .TRUE.
+          src(icg) = pGrid%borders(pBorder%iBorder)%icgSend(icl)
+        END DO ! icl
+      END IF ! pPatch%bcType
+    END DO ! iPatch
+
+! Sources are created before their copies, so ascending order suffices
+    DO icg = pGrid%nCells+1,pGrid%nCellsTot
+      IF ( src(icg) > pGrid%nCells ) THEN
+        member(:,icg) = member(:,icg) .OR. member(:,src(icg))
+      END IF ! src
+
+! A reflection and a rotation do not commute: the order would matter
+      DO iPatch = 1,pGrid%nPatches
+        IF ( .NOT. member(iPatch,icg) ) CYCLE
+        IF ( pRegion%patches(iPatch)%bcType /= BC_SYMMETRY ) CYCLE
+        DO iPatch2 = 1,pGrid%nPatches
+          IF ( .NOT. member(iPatch2,icg) ) CYCLE
+          IF ( pRegion%patches(iPatch2)%bcType /= BC_PERIODIC ) CYCLE
+          IF ( pRegion%patches(iPatch2)%angleRelated /= 0.0_RFREAL ) THEN
+            CALL ErrorStop(global,ERR_BC_INVALID,__LINE__, &
+              'a symmetry patch meets a rotationally periodic patch: not supported')
+          END IF ! angleRelated
+        END DO ! iPatch2
+      END DO ! iPatch
+    END DO ! icg
+
+    DO iPatch = 1,pGrid%nPatches
+      pPatch => pRegion%patches(iPatch)
+
+      IF ( pPatch%bcType == BC_PERIODIC .OR. &
+           pPatch%bcType == BC_SYMMETRY ) THEN
+        pPatch%nBCellsVirt = COUNT(member(iPatch,:))
+
         ALLOCATE(pPatch%bvc(pPatch%nBCellsVirt),STAT=errorFlag)
         global%error = errorFlag
         IF ( global%error /= ERR_NONE ) THEN
           CALL ErrorStop(global,ERR_ALLOCATE,__LINE__,'pPatch%bvc')
         END IF ! global%error
 
-        DO icl = 1,pPatch%nBCellsVirt
-          pPatch%bvc(icl) = pBorder%icgRecv(icl)
-        END DO ! icl
-      ELSE 
+        icl = 0
+        DO icg = pGrid%nCells+1,pGrid%nCellsTot
+          IF ( member(iPatch,icg) ) THEN
+            icl = icl + 1
+            pPatch%bvc(icl) = icg
+          END IF ! member
+        END DO ! icg
+      ELSE
         pPatch%nBCellsVirt = 0
-        
         NULLIFY(pPatch%bvc)
       END IF ! pPatch%bcType
     END DO ! iPatch
+
+    DEALLOCATE(src,member,STAT=errorFlag)
+    global%error = errorFlag
+    IF ( global%error /= ERR_NONE ) THEN
+      CALL ErrorStop(global,ERR_DEALLOCATE,__LINE__,'member')
+    END IF ! global%error
         
 ! ******************************************************************************
 !   End 
@@ -2597,7 +2892,7 @@ SUBROUTINE RFLU_SYPE_GetActualSerialCell(pRegionSerial,icgs,icgs2)
 ! ==============================================================================
 
   LOGICAL :: foundFlag
-  INTEGER :: iBorderSerial,iBorderSerial2,iLoc
+  INTEGER :: iBorderSerial,iBorderSerial2,iChain,iLoc
   TYPE(t_border), POINTER :: pBorderSerial,pBorderSerial2
   TYPE(t_global), POINTER :: global   
   TYPE(t_grid), POINTER :: pGridSerial   
@@ -2633,36 +2928,47 @@ SUBROUTINE RFLU_SYPE_GetActualSerialCell(pRegionSerial,icgs,icgs2)
 ! Loop over serial borders and search for cell 
 ! ******************************************************************************
 
-  borderLoop2: DO iBorderSerial = 1,pGridSerial%nBorders
-    pBorderSerial => pGridSerial%borders(iBorderSerial)
+! A cell across two patches is a copy of a virtual cell: follow the chain
+  icgs2 = icgs
 
-    CALL BinarySearchInteger(pBorderSerial%icgRecv(1:pBorderSerial%nCellsRecv), &
-                             pBorderSerial%nCellsRecv,icgs,iLoc)
+  DO iChain = 1,pGridSerial%nBorders
+    foundFlag = .FALSE.
 
-    IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN 
-      foundFlag = .TRUE.
+    borderLoop2: DO iBorderSerial = 1,pGridSerial%nBorders
+      pBorderSerial => pGridSerial%borders(iBorderSerial)
 
-      iBorderSerial2 = pBorderSerial%iBorder
+      CALL BinarySearchInteger(pBorderSerial%icgRecv(1:pBorderSerial%nCellsRecv), &
+                               pBorderSerial%nCellsRecv,icgs2,iLoc)
 
-      IF ( iBorderSerial2 > pGridSerial%nBorders ) THEN 
-        CALL ErrorStop(global,ERR_BORDER_INDEX_INVALID,__LINE__)            
-      END IF ! iBorderSerial2
+      IF ( iLoc /= ELEMENT_NOT_FOUND ) THEN
+        foundFlag = .TRUE.
 
-      pBorderSerial2 => pGridSerial%borders(iBorderSerial2)
+        iBorderSerial2 = pBorderSerial%iBorder
 
-      icgs2 = pBorderSerial2%icgSend(iLoc)
+        IF ( iBorderSerial2 > pGridSerial%nBorders ) THEN
+          CALL ErrorStop(global,ERR_BORDER_INDEX_INVALID,__LINE__)
+        END IF ! iBorderSerial2
 
-      IF ( icgs2 > pGridSerial%nCells ) THEN 
-        CALL ErrorStop(global,ERR_CELL_KIND_INVALID,__LINE__)      
-      END IF ! icgs2
+        pBorderSerial2 => pGridSerial%borders(iBorderSerial2)
 
-      EXIT borderLoop2
-    END IF ! iLoc                                    
-  END DO borderLoop2
+        icgs2 = pBorderSerial2%icgSend(iLoc)
 
-  IF ( foundFlag .EQV. .FALSE. ) THEN 
-    CALL ErrorStop(global,ERR_CELL_NOT_FOUND,__LINE__)          
-  END IF ! foundFlag
+        EXIT borderLoop2
+      END IF ! iLoc
+    END DO borderLoop2
+
+    IF ( foundFlag .EQV. .FALSE. ) THEN
+      CALL ErrorStop(global,ERR_CELL_NOT_FOUND,__LINE__)
+    END IF ! foundFlag
+
+    IF ( icgs2 <= pGridSerial%nCells ) THEN
+      EXIT
+    END IF ! icgs2
+  END DO ! iChain
+
+  IF ( icgs2 > pGridSerial%nCells ) THEN
+    CALL ErrorStop(global,ERR_CELL_KIND_INVALID,__LINE__)
+  END IF ! icgs2
   
 ! ******************************************************************************
 ! End

@@ -89,6 +89,12 @@ All changes are covered by the regression suite in [Regression Tests](../tests/R
   - [Results](#results-2)
   - [How It Was Checked](#how-it-was-checked-3)
   - [Limits](#limits-2)
+- [Virtual Cells Where Periodic Directions Meet](#virtual-cells-where-periodic-directions-meet)
+  - [The Problem](#the-problem-2)
+  - [What Changed](#what-changed-4)
+  - [Results](#results-3)
+  - [How It Was Checked](#how-it-was-checked-4)
+  - [Limits](#limits-3)
 - [Still Open](#still-open)
 - [Reproducing the Figures](#reproducing-the-figures)
 
@@ -1853,6 +1859,9 @@ are 1/|d|², as in Rocflu's linear fit, and are computed once per region. No wal
 | Periodic (4 × 4 cells of 0.25 mm), corners | 0.061 | 7e-12 |
 | Periodic, other cells | 3e-12 | 7e-12 |
 
+The periodic-corner row was measured before the missing corner cells were added (see
+[Virtual Cells Where Periodic Directions Meet](#virtual-cells-where-periodic-directions-meet)).
+
 What is left next to the walls is in the flow itself. Between the slip walls the pressure
 varies by 2.8 Pa across the 8 mm section without feedback and by 4.9 Pa with it, which is
 1.6–2.7e-4 of ∂p/∂x times Δx. The streamwise gradient is the same in both fits to four
@@ -1964,18 +1973,95 @@ The output is compared byte by byte with `rflupost` of
 - A restart from the latest dump (`START_STEP -1`) still checks the dumps one `INQUIRE` at a
   time, which is slow with many dumps on Lustre.
 
+## Virtual Cells Where Periodic Directions Meet
+
+### The Problem
+
+`rflupart` adds virtual cells behind every periodic and symmetry patch, one patch at a
+time. A cell next to two such patches (a periodic edge of a box, or where a rotationally
+periodic plane meets periodic z faces) also needs the cells across both patches at once: a
+copy of a copy. They were never built, because each patch only copied actual cells. Such a
+cell had 23 stencil members instead of 26, all missing on one side, so a field that varies
+in x only got a false gradient in y and z. In the 3D Sod slab of the validation tests
+(n × 8 × 8 cells, periodic in y and z), at the initial jump:
+
+| Corner cell | ∂ρ/∂x | ∂ρ/∂y, ∂ρ/∂z | ∂p/∂y |
+|---|---|---|---|
+| Before | −87.5 | −9.21 | −9.5e5 |
+| Now | −87.5 | 3e-13 | 3e-8 |
+
+WENO (`RECONST 1, 2`) mostly hid this. The Barth–Jespersen limiter (`RECONST 10`) applies
+one factor to the whole gradient and checks it on every face, so on the y and z faces,
+where the flow is uniform, the false slope reduced the limiter of the corner cells only.
+The slab then developed a transverse velocity along the diagonal of the cross section
+(v = w, largest in the four corner columns), 1e-4 of the sound speed, and its 2D and 3D
+results differed by up to 27%.
+
+### What Changed
+
+- **Copies of copies.** After a patch's sources are found, the virtual cells of earlier
+  patches that share a vertex with them are copied as well (`RFLU_SYPE_AddVirtualCellsInv2`),
+  except those of the same periodic pair, whose copy would land inside the domain. This uses
+  the cell-to-vertex lists only: the new virtual cells have no geometry yet at that point.
+- **Their faces on other patches.** A virtual source's faces on other patches (the z faces
+  in 2D, walls) are found among that patch's virtual faces, the face whose vertices all
+  belong to the source (`RFLU_SYPE_AugmentCellLists`).
+- **Filled from one actual cell.** `RFLU_SYPE_GetActualSerialCell` follows a copy of a copy
+  back to the actual cell, so every virtual cell is filled in one exchange, as before.
+- **Both transforms.** A cell across two patches is in both patches' lists of virtual cells,
+  so a rotation is applied to its vectors and gradients when one of the patches is
+  rotationally periodic (`RFLU_SYPE_BuildP2VCListSerial`, `RFLU_SYPE_BuildP2VCList`).
+- **Room for them.** `rflupart` now calls `RFLU_SYPE_SetSyPePatchesFlag` before reading the
+  grid, so the reader leaves the room meant for these cells (the call had been lost, and the
+  limits were then set below the allocated size).
+
+### Results
+
+| | Before | Now |
+|---|---|---|
+| Corner stencil (3D Sod slab, 1 and 4 ranks) | 23 members | 26 |
+| Rung 1, 3D, `RECONST 10`: transverse velocity / sound speed | 3e-5 to 2e-4 | 1e-12 to 4e-7 |
+| Rung 1, 2D against 3D, L1(ρ) at n = 800 | 5e-4 to 0.27 | 2e-4 to 7e-4 |
+| Rung 1, Lax, HLLC, 3D, L1(ρ) rate 400–800 | 0.46 | 0.74 (2D: 0.74) |
+| Quarter annulus periodic in z (4 layers), spread of u_θ over z / max u_r | 5e-5 | 3e-16 |
+| `rflupart`, quarter cylinder 2.56 M cells, 224 regions: memory, time | 2.96 GB, 6:54 | 3.04 GB, 7:27 |
+
+The new cells are exactly the expected ones: in the slab (200 × 8 × 8) 3,200 more virtual
+cells, four periodic edges × 2 × 2 layers × 200; in a 40 × 4 × 4 tube 640.
+
+### How It Was Checked
+
+- Stencil members and gradients of a corner and an interior cell printed at the first step,
+  on 1 and 4 ranks.
+- Rung 1 (Sod and Lax, HLLC, AUSM+, AUSM+UP, 2D and 3D, n = 200–800) with `RECONST 10`,
+  against the same runs before the change and with `RECONST 2`.
+- The radial blast in a quarter annulus periodic in z must not depend on z. With the cells
+  but without the second transform, the new cells next to the rotational planes had an
+  unrotated velocity (u_θ spread 1e-5).
+- Results of the Sod and Lax slabs (linear periodicity only) are identical with and without
+  the second transform.
+- Regression suite: 47 of 81 goldens regenerated, all cases with two or more periodic or
+  symmetry directions. 28 changed values only, 6 the partition only (below), 13 both. The
+  physics and cross-rank checks pass before and after; `box/lattice-torque/np1` (uniform gas,
+  zero gradients) is unchanged.
+
+### Limits
+
+- **Partitions change.** METIS partitions a graph that includes the virtual cells, so the
+  new cells change it, and a case with corner cells can get a different decomposition. Its
+  dumps from before cannot be used for a restart after running `rflupart` again: start new
+  runs from step 0.
+- **Symmetry against rotational periodicity.** A cell across a symmetry patch and a
+  rotationally periodic patch would need the reflection and the rotation in a fixed order;
+  `rflupart` stops with a message instead.
+- Only the inviscid second-order layers (`AddVirtualCellsInv2`) copy earlier virtual cells;
+  first-order runs need only face neighbours.
+
 ## Still Open
 
 Gas numerics:
 - **Instability behind very strong shocks.** See
   [Strong-Shock Numerics](#strong-shock-numerics-open-findings).
-- **Missing virtual cells where two periodic directions meet.** Cells there have 23 stencil
-  members instead of 26. The three cells across both periodic patches at once are never
-  built, because `RFLU_SYPE_AddVirtualCells` handles one patch at a time, and a later patch
-  does not see the earlier one's virtual cells. A linear field is still fitted exactly. A
-  curved one gets a false transverse gradient, 6% of ∂p/∂x at a shock, in the gas
-  reconstruction (partly hidden by WENO). The particle gradients are not affected (see
-  [Why a Quadratic Fit](#why-a-quadratic-fit)).
 
 Collision model:
 - **The normal force turns attractive at the end of a contact.** The normal force is

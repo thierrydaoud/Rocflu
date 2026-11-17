@@ -284,6 +284,9 @@ SUBROUTINE rflupart(caseString,verbLevel)
 
   pRegionSerial => levels(1)%regions(0) ! NOTE must set otherwise get core dump 
     
+! Periodic or symmetry patches: the reader leaves room for their virtual cells
+  CALL RFLU_SYPE_SetSyPePatchesFlag(global)
+
   CALL RFLU_ReadConvGridWrapper(pRegionSerial)
 
 ! ******************************************************************************

@@ -690,12 +690,23 @@ MODULE RFLU_ModDimensions
 !   Set maximum dimensions
 ! ******************************************************************************
       
-    pGrid%nVertMax = ratioMax2Tot*pGrid%nVertTot    
-   
-    pGrid%nTetsMax = ratioMax2Tot*pGrid%nTetsTot
-    pGrid%nHexsMax = ratioMax2Tot*pGrid%nHexsTot
-    pGrid%nPrisMax = ratioMax2Tot*pGrid%nPrisTot
-    pGrid%nPyrsMax = ratioMax2Tot*pGrid%nPyrsTot
+! Serial grid of rflupart with s/p patches: keep the reader's larger sizes
+    IF ( (pRegion%iRegionGlobal == 0) .AND. &
+         (global%moduleType == MODULE_TYPE_PART) .AND. &
+         (global%syPePatchesFlag .EQV. .TRUE.) ) THEN
+      pGrid%nVertMax = RFLU_SetMaxDimension(global,pGrid%nVertTot)
+      pGrid%nTetsMax = RFLU_SetMaxDimension(global,pGrid%nTetsTot)
+      pGrid%nHexsMax = RFLU_SetMaxDimension(global,pGrid%nHexsTot)
+      pGrid%nPrisMax = RFLU_SetMaxDimension(global,pGrid%nPrisTot)
+      pGrid%nPyrsMax = RFLU_SetMaxDimension(global,pGrid%nPyrsTot)
+    ELSE
+      pGrid%nVertMax = ratioMax2Tot*pGrid%nVertTot
+
+      pGrid%nTetsMax = ratioMax2Tot*pGrid%nTetsTot
+      pGrid%nHexsMax = ratioMax2Tot*pGrid%nHexsTot
+      pGrid%nPrisMax = ratioMax2Tot*pGrid%nPrisTot
+      pGrid%nPyrsMax = ratioMax2Tot*pGrid%nPyrsTot
+    END IF ! pRegion%iRegionGlobal
 
     pGrid%nCellsMax = pGrid%nTetsMax & 
                     + pGrid%nHexsMax & 
@@ -705,8 +716,15 @@ MODULE RFLU_ModDimensions
     DO iPatch = 1,pGrid%nPatches
       pPatch => pRegion%patches(iPatch)
       
-      pPatch%nBTrisMax  = ratioMax2Tot*pPatch%nBTrisTot
-      pPatch%nBQuadsMax = ratioMax2Tot*pPatch%nBQuadsTot    
+      IF ( (pRegion%iRegionGlobal == 0) .AND. &
+           (global%moduleType == MODULE_TYPE_PART) .AND. &
+           (global%syPePatchesFlag .EQV. .TRUE.) ) THEN
+        pPatch%nBTrisMax  = RFLU_SetMaxDimension(global,pPatch%nBTrisTot)
+        pPatch%nBQuadsMax = RFLU_SetMaxDimension(global,pPatch%nBQuadsTot)
+      ELSE
+        pPatch%nBTrisMax  = ratioMax2Tot*pPatch%nBTrisTot
+        pPatch%nBQuadsMax = ratioMax2Tot*pPatch%nBQuadsTot
+      END IF ! pRegion%iRegionGlobal
     END DO ! iPatch
 
 ! ******************************************************************************
