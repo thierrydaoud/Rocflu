@@ -126,6 +126,9 @@ class Case:
     # Name of another case whose final gas fields must match this one, cell by
     # cell (same grid in x and y, other thickness in z)
     same_gas_as: Optional[str] = None
+    # (case, degrees): the same mesh rotated about z by that angle; final gas
+    # fields must match cell by cell, with the reference's x/y vector rotated
+    same_gas_rotated_as: Optional[Tuple[str, float]] = None
     # Known code problem that makes the physics/cross checks fail. The case
     # reports XFAIL while they fail (golden still guards against changes) and
     # XPASS once they pass, so the marker can be removed.

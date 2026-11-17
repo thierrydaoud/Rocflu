@@ -301,6 +301,32 @@ def compare_gas_fields(new, ref, label, rtol):
     return errors
 
 
+# Gas results on a rotated mesh, rotated back: limited by the mesh file's digits
+GAS_FRAME_RTOL = 1e-7
+
+
+def compare_gas_rotated(new, ref, label, degrees, rtol):
+    """Final gas fields cell by cell against a run on the mesh rotated back by
+    degrees about z; q2, q3 (x, y parts) of the reference are rotated."""
+    c, s = math.cos(math.radians(degrees)), math.sin(math.radians(degrees))
+    errors = []
+    for region, gas in new["gas"].items():
+        old = ref["gas"][region]
+        expected = dict(old)
+        expected["q2"] = [c * x - s * y for x, y in zip(old["q2"], old["q3"])]
+        expected["q3"] = [s * x + c * y for x, y in zip(old["q2"], old["q3"])]
+        speed = max(math.sqrt(x * x + y * y + z * z)
+                    for x, y, z in zip(old["q2"], old["q3"], old["q4"])) or 1.0
+        for name in state.FLOW_NAMES:
+            a, b = gas[name], expected[name]
+            scale = speed if name in ("q2", "q3", "q4") else (max(abs(v) for v in b) or 1.0)
+            worst = max(abs(x - y) for x, y in zip(a, b)) / scale
+            if worst > rtol:
+                errors.append("%s region %s differs from %s rotated by %g deg: %.2e of its "
+                              "maximum (allowed %.0e)" % (name, region, label, degrees, worst, rtol))
+    return errors
+
+
 def compare_particles_only(new, ref, label, fields=None):
     """Decomposition-independence: particles must agree, gas regions differ."""
     return compare_states(dict(new, gas={}), dict(ref, gas={}), label, fields)

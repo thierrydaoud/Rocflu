@@ -827,6 +827,26 @@ add(name="sector/stencil-bound/np4",
     checks=[])
 
 
+# -- Gas limiter in a rotated frame ------------------------------------------
+# The same quarter annulus generated at theta0 = 0 and 3.7 degrees: a
+# frame-invariant scheme gives the same blast cell by cell, rotated.
+FRAME_INP = {**BLAST, ("PICL", "USED"): 0, ("NUMERICS", "RECONST"): 10,
+             ("NUMERICS", "CRECONSTC"): 0, ("NUMERICS", "CRECONSTF"): 0}
+FRAME_ANGLE = 3.7
+for theta0 in (0.0, FRAME_ANGLE):
+    add(name="sector/limiter-frame/theta0-%g/np2" % theta0,
+        description=("Radial blast in a quarter annulus at theta0 = %g deg, Barth-Jespersen "
+                     "(RECONST 10)" % theta0) + ("; reference of the rotated case"
+                                                if theta0 == 0.0 else
+                                                "; the gas must match the theta0 = 0 run rotated"),
+        nranks=2, bc="sector", casename="cylds", inp=FRAME_INP,
+        grid=SectorGrid(angle=90.0, theta0=theta0, r_in=0.002, r_out=0.012, ntheta=16,
+                        z=(0.0, 5.0e-4), nz=2),
+        checks=[],
+        same_gas_rotated_as=None if theta0 == 0.0 else
+        ("sector/limiter-frame/theta0-0/np2", FRAME_ANGLE))
+
+
 # -- Particles outside the fluid domain: the run must stop -------------------
 def _outside_stop(particle, patch, t=None):
     lines = [r"^PPICLF: particle %d \(line of points\.dat\) is outside the fluid domain$"

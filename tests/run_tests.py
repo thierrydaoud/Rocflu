@@ -197,6 +197,14 @@ def cross_checks(results):
             r["physics"] += checks.compare_gas_fields(r["final"], ref["final"], ref_name,
                                                       checks.GAS_THICKNESS_RTOL)
     for r in results:
+        if not r["case"].same_gas_rotated_as or r["final"] is None:
+            continue
+        ref_name, degrees = r["case"].same_gas_rotated_as
+        ref = by_name.get(ref_name)
+        if ref is not None and ref["final"] is not None:
+            r["physics"] += checks.compare_gas_rotated(r["final"], ref["final"], ref_name,
+                                                       degrees, checks.GAS_FRAME_RTOL)
+    for r in results:
         ref_name = r["case"].quarter_of
         if not ref_name or ref_name not in by_name or r["final"] is None:
             continue

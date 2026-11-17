@@ -1,0 +1,18 @@
+{
+ "created": "2026-11-16T21:14:43",
+ "host": "dane6",
+ "exe_dir": "/p/lustre3/daoud1/Rocflu_veclim/build/bin",
+ "git": {
+  "commit": "623a727b24b9a9f97cf799ac4d42fbf5fafa071c",
+  "branch": "veclim",
+  "modified_sources": [
+   "libfloflu/CellGradientsMP.F90",
+   "libflu/RFLU_CheckUserInput.F90",
+   "modfloflu/ModParameters.F90",
+   "modflu/RFLU_ModExplicitMultiStage.F90",
+   "modflu/RFLU_ModLimiters.F90",
+   "modflu/RFLU_ModResidual.F90"
+  ]
+ },
+ "modules": "jobutils/1.0:texlive/20220321:StdEnv:cmake/3.30.5:gcc/13.3.1:openmpi/4.1.2"
+}
