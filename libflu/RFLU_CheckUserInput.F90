@@ -438,6 +438,7 @@ SUBROUTINE RFLU_CheckUserInput(regions)
            pMixtInput%reconst /= RECONST_WENO_SIMPLE   .AND. & 
            pMixtInput%reconst /= RECONST_WENO_XYZ      .AND. & 
            pMixtInput%reconst /= RECONST_LIM_BARTHJESP .AND. & 
+           pMixtInput%reconst /= RECONST_LIM_BARTHJESP_COMP .AND. & 
            pMixtInput%reconst /= RECONST_LIM_VENKAT    ) THEN 
         CALL ErrorStop(global,ERR_RECONST_INVALID,__LINE__)
       END IF ! pMixtInput%reconst

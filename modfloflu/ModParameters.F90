@@ -679,7 +679,8 @@ MODULE ModParameters
                         RECONST_WENO_SIMPLE   =  1, & 
                         RECONST_WENO_XYZ      =  2, & 
                         RECONST_LIM_BARTHJESP = 10, & 
-                        RECONST_LIM_VENKAT    = 11
+                        RECONST_LIM_VENKAT    = 11, &
+                        RECONST_LIM_BARTHJESP_COMP = 100 ! componentwise, temporary
 
   INTEGER, PARAMETER :: PSWITCH_STD = 0, &
                         PSWITCH_TVD = 1

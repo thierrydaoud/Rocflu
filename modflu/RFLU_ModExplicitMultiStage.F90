@@ -216,7 +216,7 @@ SUBROUTINE RFLU_EMS_ComputeResidual(pRegion)
                                       GRC_MIXT_DENS,GRC_MIXT_PRES, & 
                                       pRegion%mixt%cv,pRegion%mixt%cvInfo, &
                                       pRegion%mixt%gradCell)
-      CASE ( RECONST_LIM_BARTHJESP )  
+      CASE ( RECONST_LIM_BARTHJESP,RECONST_LIM_BARTHJESP_COMP )
         CALL RFLU_CreateLimiter(pRegion,GRC_MIXT_DENS,GRC_MIXT_PRES, &
                                 pRegion%mixt%lim)
         CALL RFLU_ComputeLimiterBarthJesp(pRegion,CV_MIXT_DENS,CV_MIXT_PRES, &
@@ -224,6 +224,12 @@ SUBROUTINE RFLU_EMS_ComputeResidual(pRegion)
                                           pRegion%mixt%cv, &
                                           pRegion%mixt%gradCell, &
                                           pRegion%mixt%lim)
+        IF ( pRegion%mixtInput%reconst == RECONST_LIM_BARTHJESP ) THEN
+          CALL RFLU_LimitGradVelocityBarthJesp(pRegion,CV_MIXT_XVEL, &
+                                               GRC_MIXT_XVEL,pRegion%mixt%cv, &
+                                               pRegion%mixt%gradCell, &
+                                               pRegion%mixt%lim)
+        END IF ! pRegion%mixtInput%reconst
         CALL RFLU_LimitGradCells(pRegion,GRC_MIXT_DENS,GRC_MIXT_PRES, &
                                  pRegion%mixt%gradCell,pRegion%mixt%lim)
         CALL RFLU_DestroyLimiter(pRegion,pRegion%mixt%lim)

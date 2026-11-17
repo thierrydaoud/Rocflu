@@ -89,6 +89,7 @@ SUBROUTINE CellGradientsMP(region)
   USE RFLU_ModLimiters, ONLY: RFLU_CreateLimiter, &
                               RFLU_ComputeLimiterBarthJesp, &
                               RFLU_ComputeLimiterVenkat, &
+                              RFLU_LimitGradVelocityBarthJesp, &
                               RFLU_LimitGradCells, &
                               RFLU_LimitGradCellsSimple, &
                               RFLU_DestroyLimiter
@@ -222,7 +223,7 @@ SUBROUTINE CellGradientsMP(region)
                                       GRC_MIXT_DENS,GRC_MIXT_PRES, & 
                                       pRegion%mixt%cv,pRegion%mixt%cvInfo, &
                                       pRegion%mixt%gradCell)
-      CASE ( RECONST_LIM_BARTHJESP )  
+      CASE ( RECONST_LIM_BARTHJESP,RECONST_LIM_BARTHJESP_COMP )
         CALL RFLU_CreateLimiter(pRegion,GRC_MIXT_DENS,GRC_MIXT_PRES, &
                                 pRegion%mixt%lim)
         CALL RFLU_ComputeLimiterBarthJesp(pRegion,CV_MIXT_DENS,CV_MIXT_PRES, &
@@ -230,6 +231,12 @@ SUBROUTINE CellGradientsMP(region)
                                           pRegion%mixt%cv, &
                                           pRegion%mixt%gradCell, &
                                           pRegion%mixt%lim)
+        IF ( pRegion%mixtInput%reconst == RECONST_LIM_BARTHJESP ) THEN
+          CALL RFLU_LimitGradVelocityBarthJesp(pRegion,CV_MIXT_XVEL, &
+                                               GRC_MIXT_XVEL,pRegion%mixt%cv, &
+                                               pRegion%mixt%gradCell, &
+                                               pRegion%mixt%lim)
+        END IF ! pRegion%mixtInput%reconst
         CALL RFLU_LimitGradCells(pRegion,GRC_MIXT_DENS,GRC_MIXT_PRES, &
                                  pRegion%mixt%gradCell,pRegion%mixt%lim)
         CALL RFLU_DestroyLimiter(pRegion,pRegion%mixt%lim)
@@ -343,7 +350,7 @@ SUBROUTINE CellGradientsMP(region)
                                          pRegion%specInput%nSpecies, & 
                                          pRegion%spec%cv,pRegion%spec%cvInfo, & 
                                          pRegion%spec%gradCell)
-        CASE ( RECONST_LIM_BARTHJESP )  
+        CASE ( RECONST_LIM_BARTHJESP,RECONST_LIM_BARTHJESP_COMP )
           CALL RFLU_CreateLimiter(pRegion,1,pRegion%specInput%nSpecies, &
                                   pRegion%spec%lim)
           CALL RFLU_ComputeLimiterBarthJesp(pRegion,1, & 
