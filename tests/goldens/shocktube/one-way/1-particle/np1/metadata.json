@@ -1,11 +1,15 @@
 {
- "created": "2026-11-16T12:42:19",
- "host": "dane6",
- "exe_dir": "/p/lustre3/daoud1/Rocflu_tskeys/build/bin",
+ "created": "2026-11-17T12:48:54",
+ "host": "dane5",
+ "exe_dir": "/p/lustre3/daoud1/Rocflu_pcorner/build/bin",
  "git": {
-  "commit": "a869b9eb42440085bdc60c4a5e29cda5b43a7eb8",
-  "branch": "timestep-keys",
-  "modified_sources": []
+  "commit": "623a727b24b9a9f97cf799ac4d42fbf5fafa071c",
+  "branch": "periodic-corners",
+  "modified_sources": [
+   "modflu/RFLU_ModDimensions.F90",
+   "modflu/RFLU_ModSymmetryPeriodic.F90",
+   "utilities/part/rflupart.F90"
+  ]
  },
  "modules": "jobutils/1.0:texlive/20220321:StdEnv:cmake/3.30.5:gcc/13.3.1:openmpi/4.1.2"
 }
