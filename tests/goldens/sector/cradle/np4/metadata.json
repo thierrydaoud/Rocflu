@@ -1,10 +1,10 @@
 {
- "created": "2026-11-16T12:43:30",
+ "created": "2026-11-18T13:32:43",
  "host": "dane6",
- "exe_dir": "/p/lustre3/daoud1/Rocflu_tskeys/build/bin",
+ "exe_dir": "/p/lustre3/daoud1/Rocflu_fullprec/build/bin",
  "git": {
-  "commit": "a869b9eb42440085bdc60c4a5e29cda5b43a7eb8",
-  "branch": "timestep-keys",
+  "commit": "c9cfbcc7e97ebbcd781c46d4e508f10484bd0914",
+  "branch": "fullprec",
   "modified_sources": []
  },
  "modules": "jobutils/1.0:texlive/20220321:StdEnv:cmake/3.30.5:gcc/13.3.1:openmpi/4.1.2"
