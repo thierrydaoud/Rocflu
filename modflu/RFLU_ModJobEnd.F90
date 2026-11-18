@@ -6,8 +6,8 @@
 ! Description: Rank 0 reads the end of the job from SLURM_JOB_END_TIME (Unix
 !   time) and turns it into MPI_Wtime units. Each step it compares the time
 !   left with a margin measured from the run: twice the slowest step plus the
-!   slowest dump so far, plus 2 min; at least 10 min until a dump has been
-!   timed. Without SLURM_JOB_END_TIME there is no such stop. The stop line
+!   slowest dump so far, plus 1 min. Until a dump is written, the dump time
+!   is that of reading the start dump. Without SLURM_JOB_END_TIME there is no such stop. The stop line
 !   is printed at every verbosity: it is the only sign that the run needs a
 !   restart.
 !
@@ -29,15 +29,16 @@ MODULE RFLU_ModJobEnd
   PRIVATE
   PUBLIC :: RFLU_JobEndInit, &
             RFLU_JobEndNear, &
-            RFLU_JobEndDumpTime
+            RFLU_JobEndDumpTime, &
+            RFLU_JobEndReadTime
 
-  REAL(RFREAL), PARAMETER :: SLACK = 120.0_RFREAL, &
-                             FLOOR_UNTIMED = 600.0_RFREAL
+  REAL(RFREAL), PARAMETER :: SLACK = 60.0_RFREAL
 
-! Rank 0 only: the job end in MPI_Wtime units and the slowest step and dump
-  LOGICAL, SAVE :: haveJobEnd = .FALSE., dumpTimed = .FALSE.
+! Rank 0 only: the job end in MPI_Wtime units, the slowest step and dump, and
+! the time to read the start dump
+  LOGICAL, SAVE :: haveJobEnd = .FALSE.
   REAL(RFREAL), SAVE :: jobEnd = 0.0_RFREAL, slowestStep = 0.0_RFREAL, &
-                        slowestDump = 0.0_RFREAL
+                        slowestDump = 0.0_RFREAL, startRead = 0.0_RFREAL
 
   INTERFACE
     FUNCTION c_time(t) BIND(C,NAME='time')
@@ -63,10 +64,9 @@ CONTAINS
     INTEGER :: length,status,errorFlag
     INTEGER(8) :: endUnix,nowUnix
 
-    haveJobEnd = .FALSE.
-    dumpTimed  = .FALSE.
+    haveJobEnd  = .FALSE.
     slowestStep = 0.0_RFREAL
-    slowestDump = 0.0_RFREAL
+    slowestDump = startRead
 
     IF ( global%myProcid /= MASTERPROC ) RETURN
 
@@ -113,7 +113,6 @@ CONTAINS
       now = MPI_Wtime()
       slowestStep = MAX(slowestStep,now - stepStart)
       margin = 2.0_RFREAL*(slowestStep + slowestDump) + SLACK
-      IF ( dumpTimed .EQV. .FALSE. ) margin = MAX(margin,FLOOR_UNTIMED)
       left = jobEnd - now
 
       IF ( left <= margin ) THEN
@@ -150,10 +149,31 @@ CONTAINS
 
     IF ( global%myProcid == MASTERPROC ) THEN
       slowestDump = MAX(slowestDump,slowest)
-      dumpTimed = .TRUE.
     END IF ! global%myProcid
 
   END SUBROUTINE RFLU_JobEndDumpTime
+
+! ******************************************************************************
+!
+! Purpose: Add the time of reading part of the start dump, the slowest rank's
+!   (collective); it stands for the dump time until a dump is written.
+!
+! ******************************************************************************
+
+  SUBROUTINE RFLU_JobEndReadTime(global,seconds)
+
+    TYPE(t_global), POINTER :: global
+    REAL(RFREAL), INTENT(IN) :: seconds
+
+    INTEGER :: errorFlag
+    REAL(RFREAL) :: slowest
+
+    CALL MPI_Reduce(seconds,slowest,1,MPI_RFREAL,MPI_MAX,MASTERPROC, &
+                    global%mpiComm,errorFlag)
+
+    IF ( global%myProcid == MASTERPROC ) startRead = startRead + slowest
+
+  END SUBROUTINE RFLU_JobEndReadTime
 
 ! ******************************************************************************
 !

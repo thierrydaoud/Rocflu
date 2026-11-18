@@ -89,6 +89,7 @@ SUBROUTINE PICL_InitSolver( pRegion)
   USE ModRandom, ONLY: Rand1Uniform,Rand1Normal
   USE RFLU_ModInCellTest
   USE RFLU_ModRestartData, ONLY: RFLU_ParticleDumpName
+  USE RFLU_ModJobEnd, ONLY: RFLU_JobEndReadTime
   USE PICL_ModInterfaces, ONLY: PICL_SetPeriodicity
 
   IMPLICIT NONE
@@ -125,7 +126,7 @@ INTEGER :: errorFlag,icg
                    zpf_factor,xpf_factor,dp,neighborWidth,xp_min,xp_max, &
                    yp_min, yp_max, zp_min, zp_max, MinFluidCells, maxVF
    ! particle box from the restart dump (x,y,z min,max)
-   REAL(RFREAL) :: pbox(6)
+   REAL(RFREAL) :: pbox(6),readStart
    ! this rank's share of points.dat, handed to ppiclF
    REAL(RFREAL), ALLOCATABLE :: y(:,:), rprop(:,:)
    INTEGER(8) :: npartRead
@@ -464,8 +465,10 @@ ELSE
    rprop = 0.0_RFREAL
 
    iFileName = RFLU_ParticleDumpName(global,global%currentStep)
+   readStart = MPI_Wtime()
    CALL ppiclf_io_ReadRestart(TRIM(iFileName),ii,npartRead,dp_min,dp_max, &
                               pbox)
+   CALL RFLU_JobEndReadTime(global,MPI_Wtime() - readStart)
    xp_min = pbox(1)
    xp_max = pbox(2)
    yp_min = pbox(3)

@@ -206,8 +206,8 @@ suite's restart test).
 
 **Stopping before the job ends:** in a Slurm job `rflump` reads the job's end
 (`SLURM_JOB_END_TIME`) and stops in time for the end-of-run dump: when the time left is
-below twice the slowest step plus the slowest dump so far, plus 2 min (at least 10 min
-until a dump has been timed). `START_STEP -1` continues from that dump. Outside Slurm there
+below twice the slowest step plus the slowest dump so far, plus 1 min; until a dump is
+written, the dump time is that of reading the start dump. `START_STEP -1` continues from that dump. Outside Slurm there
 is no such stop. (`modflu/RFLU_ModJobEnd.F90`)
 
 The old-style output (`SOL_*`, `PARAVIEW_*`, `par*.vtu`, `bin*.vtu`, patch coefficients)

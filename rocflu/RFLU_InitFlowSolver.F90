@@ -84,6 +84,7 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
   USE ModParameters  
 
   USE RFLU_ModConvertCv
+  USE RFLU_ModJobEnd, ONLY: RFLU_JobEndReadTime
 
   USE RFLU_ModABC
   USE RFLU_ModAxisymmetry     
@@ -228,7 +229,7 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
   CHARACTER(CHRLEN) :: RCSIdentString,msg
   LOGICAL :: fileExists,moveGrid
   INTEGER :: errorFlag,flag,icg,iPatch,iReg,iVar
-  REAL(RFREAL) :: currentTime
+  REAL(RFREAL) :: currentTime,readStart
   TYPE(t_grid) :: grid
   TYPE(t_grid), POINTER :: pGrid
   TYPE(t_level), POINTER :: pLevel
@@ -1058,6 +1059,7 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
 ! ******************************************************************************
 ! Read solution data files
 ! ******************************************************************************
+  readStart = MPI_Wtime()
   DO iReg = 1,global%nRegionsLocal
     pRegion => pLevel%regions(iReg)     
     CALL RFLU_ReadRestartData(pRegion)
@@ -1076,6 +1078,7 @@ SUBROUTINE RFLU_InitFlowSolver(casename,verbLevel,global,levels)
     END IF ! plagUsed
 #endif          
   END DO ! iReg
+  CALL RFLU_JobEndReadTime(global,MPI_Wtime() - readStart)
 
   IF ( global%mvFrameFlag .EQV. .TRUE. ) THEN
     DO iReg = 1,global%nRegionsLocal
