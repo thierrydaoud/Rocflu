@@ -224,6 +224,41 @@ def simple_value(body, key):
     return None, None
 
 
+def coordinate_width(line, nvert):
+    """Field width of the first coordinate line of a CENTAUR ASCII grid (5
+    values per line): 16 (E16.9) or 24 (full precision, E24.16), else None.
+    The same rule as rflupart (RFLU_ReadGridCENTAURASCII)."""
+    length = len(line.rstrip())
+    per_line = min(5, nvert)
+    if length in (16 * per_line, 24 * per_line):
+        return length // per_line
+    return None
+
+
+def read_coordinates(f, nvert):
+    """[x, y, z] lists of a CENTAUR ASCII grid, f just after the vertex
+    count, read in fixed fields as rflupart does; None for an unknown field
+    width or a short file."""
+    line = f.readline()
+    width = coordinate_width(line, nvert)
+    if width is None:
+        return None
+    xyz = []
+    for axis in range(3):
+        values = []
+        while len(values) < nvert:
+            if line is None:
+                line = f.readline()
+            if not line:
+                return None
+            line = line.rstrip("\n")
+            values += [float(line[i:i + width]) for i in range(0, len(line), width)
+                       if line[i:i + width].strip()]
+            line = None
+        xyz.append(values)
+    return xyz
+
+
 class Validator:
     def __init__(self, inp):
         self.inp = inp
@@ -541,7 +576,8 @@ class Validator:
         """(min, max) of the grid's vertices in x, y, z, or None when the grid
         is not a CENTAUR ASCII file (GRIDSRC 0, <case>.hyb.asc) in the case
         directory. The file holds a title, the number of vertices, then all
-        x, all y and all z, five 16-character values per line."""
+        x, all y and all z, five values per line in fields of 16 or 24
+        characters (read_coordinates)."""
         number, source = simple_value(sections.get("FORMATS", []), "GRIDSRC")
         grid = os.path.splitext(self.inp)[0] + ".hyb.asc"
         if (source or 0) != 0 or not os.path.exists(grid):
@@ -549,15 +585,29 @@ class Validator:
         with open(grid) as f:
             f.readline()
             nvert = int(f.readline())
-            box = []
-            for axis in range(3):
-                values = []
-                while len(values) < nvert:
-                    line = f.readline().rstrip("\n")
-                    values += [float(line[i:i + 16]) for i in range(0, len(line), 16)
-                               if line[i:i + 16].strip()]
-                box.append((min(values), max(values)))
-        return box
+            xyz = read_coordinates(f, nvert)
+        if xyz is None:
+            return None
+        return [(min(values), max(values)) for values in xyz]
+
+    def check_grid_format(self, sections):
+        """Coordinates of a CENTAUR ASCII grid in fields of 16 or 24
+        characters, the two widths rflupart reads."""
+        number, source = simple_value(sections.get("FORMATS", []), "GRIDSRC")
+        grid = os.path.splitext(self.inp)[0] + ".hyb.asc"
+        if (source or 0) != 0 or not os.path.exists(grid):
+            return
+        try:
+            with open(grid) as f:
+                f.readline()
+                nvert = int(f.readline())
+                first = f.readline()
+        except (OSError, ValueError):
+            return
+        self.prohibit(coordinate_width(first, nvert) is None,
+                      "coordinates must be 5 values per line, 16 or 24 characters "
+                      "each; the first line has %d characters" % len(first.rstrip()),
+                      name=os.path.basename(grid))
 
     def check_points(self, sections):
         particles = self.read_points()
@@ -667,13 +717,10 @@ class Validator:
             with open(grid) as f:
                 f.readline()
                 nvert = int(f.readline())
-                z = []
-                for axis in range(3):
-                    z = []
-                    for _ in range(rows(nvert, 5)):
-                        line = f.readline().rstrip("\n")
-                        z += [float(line[i:i + 16]) for i in range(0, len(line), 16)
-                              if line[i:i + 16].strip()]
+                xyz = read_coordinates(f, nvert)
+                if xyz is None:
+                    return None
+                z = xyz[2]
                 ints(f, nvert)
                 for nodes in (4, 8, 6, 5):
                     ncells = int(f.readline())
@@ -961,6 +1008,7 @@ class Validator:
         self.check_timestep(sections)
         self.check_post(sections)
         self.check_bc(sections)
+        self.check_grid_format(sections)
         picl = self.check_picl(sections)
         if picl is not None and picl["USED"] == 1:
             self.check_with_particles(sections, picl)

@@ -795,8 +795,9 @@ MODULE RFLU_ModCENTAUR
 !   Local variables
 ! ==============================================================================
 
-    CHARACTER(CHRLEN) :: iFileName
-    INTEGER :: dummyInteger,errorFlag,i,iFile,j
+    CHARACTER(CHRLEN) :: iFileName,msg
+    CHARACTER(256) :: firstLine
+    INTEGER :: dummyInteger,errorFlag,fieldWidth,i,iFile,j,nPerLine
     TYPE(t_grid), POINTER :: pGrid
     TYPE(t_global), POINTER :: global
 
@@ -867,8 +868,24 @@ if (global%myProcid == MASTERPROC) then
 end if !myProcid
 
 if (global%myProcid == MASTERPROC) then
+! - Field width from the first line: 16 (E16.9) or 24 (full precision, E24.16)
+    READ(iFile,'(A)') firstLine
+    BACKSPACE(iFile)
+    nPerLine   = MIN(5,pGrid%nVertTot)
+    fieldWidth = LEN_TRIM(firstLine)/nPerLine
+    IF ( LEN_TRIM(firstLine) /= nPerLine*fieldWidth .OR. &
+         (fieldWidth /= 16 .AND. fieldWidth /= 24) ) THEN
+      WRITE(msg,'(A,I0,A)') 'coordinates must be 5 values per line, 16 or 24 '// &
+            'characters each; the first line has ',LEN_TRIM(firstLine),' characters'
+      CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__,TRIM(msg))
+    END IF ! fieldWidth
+
     DO i = 1,3 
-      READ(iFile,'(5E16.9)') (pGrid%xyz(i,j),j=1,pGrid%nVertTot)  
+      IF ( fieldWidth == 16 ) THEN
+        READ(iFile,'(5E16.9)') (pGrid%xyz(i,j),j=1,pGrid%nVertTot)  
+      ELSE
+        READ(iFile,'(5E24.16)') (pGrid%xyz(i,j),j=1,pGrid%nVertTot)  
+      END IF ! fieldWidth
     END DO ! i
 
     READ(iFile,'(10I16)') (dummyInteger,i=1,pGrid%nVertTot)

@@ -31,15 +31,16 @@ with open(os.path.join(TESTS_DIR, "templates", "rectshktb.bc")) as f:
 POINTS = "! test\n2\n0.001 0.002 0.003 0 0 0 1e-4\n0.004 0.005 0.006 1.0 0.0 0.0 1e-4\n"
 
 
-def write_box_grid(path, lo, hi):
-    """The vertex part of a CENTAUR ASCII grid: the 8 corners of a box."""
+def write_box_grid(path, lo, hi, fmt="%16.9E"):
+    """The vertex part of a CENTAUR ASCII grid: the 8 corners of a box,
+    coordinates written with fmt."""
     corners = [(x, y, z) for x in (lo, hi) for y in (lo, hi) for z in (lo, hi)]
     with open(path, "w") as f:
         f.write("box\n%16d\n" % len(corners))
         for axis in range(3):
             values = [c[axis] for c in corners]
             for i in range(0, len(values), 5):
-                f.write("".join("%16.9E" % v for v in values[i:i + 5]) + "\n")
+                f.write("".join(fmt % v for v in values[i:i + 5]) + "\n")
 
 
 def write_patch_grid(path, faces):
@@ -103,7 +104,7 @@ class CaseValidatorTest(unittest.TestCase):
         shutil.rmtree(self.dir)
 
     def errors(self, overrides=None, text=None, files=("points.dat",), points=POINTS,
-               grid=None, bc=TEMPLATE_BC, patches=None):
+               grid=None, grid_format="%16.9E", bc=TEMPLATE_BC, patches=None):
         """Errors for the template with {(SECTION, KEY): value} changes, or
         for the given input text, with the given files in the case directory
         (points.dat holds `points`; a grid file is written when grid is a
@@ -123,7 +124,7 @@ class CaseValidatorTest(unittest.TestCase):
             with open(os.path.join(self.dir, name), "w") as f:
                 f.write(points if name == "points.dat" else "")
         if grid:
-            write_box_grid(os.path.join(self.dir, "case.hyb.asc"), *grid)
+            write_box_grid(os.path.join(self.dir, "case.hyb.asc"), *grid, fmt=grid_format)
         return case_validator.validate(inp)
 
     def assertError(self, errors, *words):
@@ -261,6 +262,15 @@ class CaseValidatorTest(unittest.TestCase):
         self.assertEqual(self.errors(grid=(0.0, 0.01)), [])
         self.assertError(self.errors(grid=(0.0, 0.005)), "points.dat:4",
                          "outside the fluid domain")
+
+    def test_grid_field_width(self):
+        # E16.9 (negative values fill the field) and full-precision E24.16
+        for fmt in ("%16.9E", "%24.16E"):
+            self.assertEqual(self.errors(grid=(-0.01, 0.01), grid_format=fmt), [])
+            self.assertError(self.errors(grid=(-0.01, 0.005), grid_format=fmt),
+                             "points.dat:4", "outside the fluid domain")
+        self.assertError(self.errors(grid=(-0.01, 0.01), grid_format="%20.12E"),
+                         "case.hyb.asc", "16 or 24 characters", "has 100 characters")
 
     def test_species_and_mixtures_disabled(self):
         self.assertError(self.errors({("SPECIES", "USED"): 1}), "species transport is disabled")
