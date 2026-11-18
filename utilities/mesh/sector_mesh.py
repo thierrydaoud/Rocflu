@@ -271,7 +271,7 @@ def write_hyb(path, title, xyz, hexes, patches):
         def reals(vals):
             vals = list(vals)
             for s in range(0, len(vals), 5):
-                w("".join("%16.9E" % v for v in vals[s:s + 5]) + "\n")
+                w("".join("%24.16E" % v for v in vals[s:s + 5]) + "\n")
 
         w("%-80s\n" % title[:80])
         w("%16d\n" % len(xyz))

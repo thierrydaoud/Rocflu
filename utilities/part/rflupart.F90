@@ -359,6 +359,7 @@ SUBROUTINE rflupart(caseString,verbLevel)
     CALL RFLU_ComputePatchNormalsLocal(pRegionSerial)
     CALL RFLU_CheckPatchBcConsistency(pRegionSerial)
     CALL RFLU_SYPE_BuildTransforms(pRegionSerial)
+    CALL RFLU_SYPE_CheckRotationalPlanes(pRegionSerial)
     CALL RFLU_SYPE_WriteTransforms(pRegionSerial)    
 
     CALL RFLU_SYPE_CreateVertexMaps(pRegionSerial)

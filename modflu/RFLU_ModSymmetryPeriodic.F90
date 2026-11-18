@@ -101,6 +101,7 @@ MODULE RFLU_ModSymmetryPeriodic
             RFLU_SYPE_BuildP2VCList, &
             RFLU_SYPE_BuildP2VCListSerial, &     
             RFLU_SYPE_BuildTransforms, &  
+            RFLU_SYPE_CheckRotationalPlanes, &
             RFLU_SYPE_BuildVertexMaps, &
             RFLU_SYPE_CreateVertexMaps, &
             RFLU_SYPE_DestroyP2VCList, &                 
@@ -2263,6 +2264,165 @@ SUBROUTINE RFLU_SYPE_BuildTransforms(pRegion)
   CALL DeregisterFunction(global) 
  
 END SUBROUTINE RFLU_SYPE_BuildTransforms
+
+
+
+
+! ******************************************************************************
+!
+! Purpose: Check that the grid's rotational periodic planes match the .bc
+!   rotation.
+!
+! Description: Every vertex of a patch and of its related patch (the latter
+!   rotated by the patch's angle onto it) is measured as an angle about the
+!   axis from one vertex of the patch; vertices near the axis are skipped. The
+!   spread of these angles is the mismatch of the two planes with the .bc
+!   ANGLE, flatness included, and must stay below ANGLE_TOL radians.
+!
+! Input:
+!   pRegion     Pointer to region data (serial region, transforms built)
+!
+! Output: None.
+!
+! Notes: A grid written with 10-digit coordinates misses by about 1E-11 rad,
+!   one at full precision by about 1E-17 rad.
+!
+! ******************************************************************************
+
+SUBROUTINE RFLU_SYPE_CheckRotationalPlanes(pRegion)
+
+  IMPLICIT NONE
+
+! ******************************************************************************
+! Declarations and definitions
+! ******************************************************************************
+
+! ==============================================================================
+! Arguments
+! ==============================================================================
+
+  TYPE(t_region), POINTER :: pRegion
+
+! ==============================================================================
+! Locals
+! ==============================================================================
+
+  CHARACTER(2*CHRLEN) :: msg
+  INTEGER :: i1,i2,iPatch,ivg
+  LOGICAL :: haveRef
+  REAL(RFREAL), PARAMETER :: ANGLE_TOL = 1.0E-13_RFREAL
+  REAL(RFREAL) :: dMax,dMin,mismatch,ref1,ref2,rMax
+  TYPE(t_global), POINTER :: global
+  TYPE(t_grid), POINTER :: pGrid
+  TYPE(t_patch), POINTER :: pPatch,pPatchRelated
+
+! ******************************************************************************
+! Start
+! ******************************************************************************
+
+  global => pRegion%global
+
+  CALL RegisterFunction(global,'RFLU_SYPE_CheckRotationalPlanes',__FILE__)
+
+  pGrid => pRegion%grid
+
+  DO iPatch = 1,pGrid%nPatches
+    pPatch => pRegion%patches(iPatch)
+
+    IF ( pPatch%bcType /= BC_PERIODIC ) CYCLE
+    IF ( pPatch%angleRelated == 0.0_RFREAL ) CYCLE
+
+    pPatchRelated => pRegion%patches(pPatch%iPatchRelated)
+
+! - Coordinates in the plane normal to the axis (right-handed about it)
+    SELECT CASE ( pPatch%axisRelated )
+      CASE ( 1 )
+        i1 = YCOORD
+        i2 = ZCOORD
+      CASE ( 2 )
+        i1 = ZCOORD
+        i2 = XCOORD
+      CASE ( 3 )
+        i1 = XCOORD
+        i2 = YCOORD
+      CASE DEFAULT
+        CALL ErrorStop(global,ERR_REACHED_DEFAULT,__LINE__)
+    END SELECT ! pPatch%axisRelated
+
+    rMax = 0.0_RFREAL
+    DO ivg = 1,pGrid%nVertTot
+      rMax = MAX(rMax,SQRT(pGrid%xyz(i1,ivg)**2 + pGrid%xyz(i2,ivg)**2))
+    END DO ! ivg
+
+    haveRef = .FALSE.
+    dMin    =  HUGE(1.0_RFREAL)
+    dMax    = -HUGE(1.0_RFREAL)
+    CALL AddAngles(pPatch,0.0_RFREAL)
+    CALL AddAngles(pPatchRelated,pPatch%angleRelated)
+    IF ( .NOT. haveRef ) CYCLE
+
+    mismatch = dMax - dMin
+    IF ( mismatch > ANGLE_TOL ) THEN
+      WRITE(msg,'(A,I0,A,I0,A,ES8.2,A,ES7.1,A)') 'periodic patches ', &
+            pPatch%iPatchGlobal,' and ',pPatchRelated%iPatchGlobal, &
+            ': grid planes differ from .bc ANGLE by ',mismatch,' rad (max ', &
+            ANGLE_TOL,'); write coordinates at full precision'
+      CALL ErrorStop(global,ERR_ILLEGAL_VALUE,__LINE__,TRIM(msg))
+    END IF ! mismatch
+
+    IF ( global%myProcid == MASTERPROC .AND. &
+         global%verbLevel > VERBOSE_NONE .AND. &
+         pPatch%iPatchGlobal < pPatchRelated%iPatchGlobal ) THEN
+      WRITE(STDOUT,'(A,3X,A,I0,A,I0,A,ES9.2,A)') SOLVER_NAME, &
+            'Rotational periodic patches ',pPatch%iPatchGlobal,' and ', &
+            pPatchRelated%iPatchGlobal,': planes match the .bc ANGLE to ', &
+            mismatch,' rad'
+    END IF ! global%myProcid
+  END DO ! iPatch
+
+! ******************************************************************************
+! End
+! ******************************************************************************
+
+  CALL DeregisterFunction(global)
+
+  CONTAINS
+
+! Angle about the axis of each vertex of pPatchLoop rotated by angle, from the
+! reference direction (the first vertex away from the axis)
+    SUBROUTINE AddAngles(pPatchLoop,angle)
+
+      TYPE(t_patch), POINTER :: pPatchLoop
+      REAL(RFREAL), INTENT(IN) :: angle
+
+      INTEGER :: ivl
+      REAL(RFREAL) :: ca,d,sa,u1,u2,x1,x2
+
+      ca = COS(angle)
+      sa = SIN(angle)
+
+      DO ivl = 1,pPatchLoop%nBVert
+        x1 = pGrid%xyz(i1,pPatchLoop%bv(ivl))
+        x2 = pGrid%xyz(i2,pPatchLoop%bv(ivl))
+        IF ( SQRT(x1**2 + x2**2) <= 1.0E-9_RFREAL*rMax ) CYCLE
+
+        u1 = ca*x1 - sa*x2
+        u2 = sa*x1 + ca*x2
+
+        IF ( .NOT. haveRef ) THEN
+          ref1    = u1
+          ref2    = u2
+          haveRef = .TRUE.
+        END IF ! haveRef
+
+        d    = ATAN2(ref1*u2 - ref2*u1,ref1*u1 + ref2*u2)
+        dMin = MIN(dMin,d)
+        dMax = MAX(dMax,d)
+      END DO ! ivl
+
+    END SUBROUTINE AddAngles
+
+END SUBROUTINE RFLU_SYPE_CheckRotationalPlanes
  
 
 
