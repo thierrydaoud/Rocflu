@@ -308,6 +308,12 @@ class CaseValidatorTest(unittest.TestCase):
             text = re.sub(r"(?m)^%s .*\n" % key, "", TEMPLATE)
             self.assertError(self.errors(text=text), key, "must be given")
 
+    def test_venkatakrishnan_disabled(self):
+        text = re.sub(r"(?m)^RECONST .*$", "RECONST 11", TEMPLATE)
+        self.assertError(self.errors(text=text), "RECONST 11", "disabled")
+        text = re.sub(r"(?m)^RECONST .*$", "RECONST 10", TEMPLATE)
+        self.assertFalse(any("RECONST" in e for e in self.errors(text=text)))
+
     def test_forces_and_moving_frame_disabled(self):
         # the template has # FORCES with FLAG commented out, and no # MVFRAME
         for flag in (1, 0):

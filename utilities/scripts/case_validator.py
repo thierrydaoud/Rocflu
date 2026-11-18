@@ -466,6 +466,11 @@ class Validator:
         self.prohibit(model is not None and 3 <= round(model) <= 7,
                       "GASMODEL %d (mixture or JWL) needs species transport, which is "
                       "disabled for now" % round(model or 0), number)
+        number, reconst = simple_value(sections.get("NUMERICS", []), "RECONST")
+        self.prohibit(reconst is not None and round(reconst) == 11,
+                      "RECONST 11 (Venkatakrishnan limiter) is disabled for now: it "
+                      "gives NaNs and its fix is not worked out yet; use RECONST 10 "
+                      "(Barth-Jespersen)", number)
 
     def check_material(self, lines):
         """# MATERIAL is read only for species transport, which is disabled:
