@@ -130,7 +130,7 @@ MODULE RFLU_ModLimiters
 ! ******************************************************************************
     
 SUBROUTINE RFLU_ComputeLimiterBarthJesp(pRegion,iBegVar,iEndVar,iBegGrad, &
-                                        iEndGrad,var,grad,lim) 
+                                        iEndGrad,var,grad,lim,iVelVar)
 
   IMPLICIT NONE
 
@@ -143,6 +143,8 @@ SUBROUTINE RFLU_ComputeLimiterBarthJesp(pRegion,iBegVar,iEndVar,iBegGrad, &
 ! ==============================================================================
 
   INTEGER :: iBegGrad,iBegVar,iEndGrad,iEndVar
+! Index of u in var: u, v, w keep lim = 1 (limited by RFLU_LimitGradVelocityBarthJesp)
+  INTEGER, INTENT(IN), OPTIONAL :: iVelVar
   REAL(RFREAL), DIMENSION(:,:), POINTER :: lim,var
   REAL(RFREAL), DIMENSION(:,:,:), POINTER :: grad
   TYPE(t_region), POINTER :: pRegion
@@ -152,6 +154,7 @@ SUBROUTINE RFLU_ComputeLimiterBarthJesp(pRegion,iBegVar,iEndVar,iBegGrad, &
 ! ==============================================================================
 
   INTEGER :: c1,c2,errorFlag,icg,ifg,iGrad,iVar
+  LOGICAL :: limitVar(iBegVar:iEndVar)
   REAL(RFREAL) :: dx1,dx2,dy1,dy2,dz1,dz2,d1max1,d1max2,d1min1,d1min2,d21, &
                   d22,term,var1,var2,xc,yc,zc
   REAL(RFREAL), DIMENSION(:,:), POINTER :: varMax,varMin
@@ -176,7 +179,12 @@ SUBROUTINE RFLU_ComputeLimiterBarthJesp(pRegion,iBegVar,iEndVar,iBegGrad, &
 
   pGrid => pRegion%grid
 
-! ******************************************************************************    
+  limitVar(:) = .TRUE.
+  IF ( PRESENT(iVelVar) ) THEN
+    limitVar(iVelVar:iVelVar+2) = .FALSE.
+  END IF ! PRESENT
+
+! ******************************************************************************
 ! Allocate temporary memory
 ! ******************************************************************************    
 
@@ -216,6 +224,10 @@ SUBROUTINE RFLU_ComputeLimiterBarthJesp(pRegion,iBegVar,iEndVar,iBegGrad, &
     c2 = pGrid%f2c(2,ifg)                       
 
     DO iVar = iBegVar,iEndVar
+      IF ( .NOT. limitVar(iVar) ) THEN
+        CYCLE
+      END IF ! limitVar
+
       var1 = var(iVar,c1)
       var2 = var(iVar,c2)
 
@@ -246,9 +258,12 @@ SUBROUTINE RFLU_ComputeLimiterBarthJesp(pRegion,iBegVar,iEndVar,iBegGrad, &
     dy2 = pGrid%cofg(YCOORD,c2) - yc
     dz2 = pGrid%cofg(ZCOORD,c2) - zc
 
-    iGrad = iBegGrad
-
     DO iVar = iBegVar,iEndVar
+      IF ( .NOT. limitVar(iVar) ) THEN
+        CYCLE
+      END IF ! limitVar
+
+      iGrad = iBegGrad + iVar - iBegVar
       var1 = var(iVar,c1)
       var2 = var(iVar,c2)
 
@@ -278,9 +293,7 @@ SUBROUTINE RFLU_ComputeLimiterBarthJesp(pRegion,iBegVar,iEndVar,iBegGrad, &
       ELSEIF ( d22 < 0.0_RFREAL ) THEN
         term = MIN(1.0_RFREAL,d1min2/d22)
         lim(iGrad,c2) = MIN(term,lim(iGrad,c2))
-      END IF ! d22       
-
-      iGrad = iGrad + 1
+      END IF ! d22
     END DO ! iVar
   END DO ! ifg 
 
@@ -791,10 +804,12 @@ SUBROUTINE RFLU_SymmetricEigen3(matrix,vectors,values)
 ! ==============================================================================
 
   INTEGER, PARAMETER :: MAX_SWEEPS = 50
+! Squared off-diagonal part relative to the matrix at which axes are converged
+  REAL(RFREAL), PARAMETER :: EIG_TOL = 1.0E-24_RFREAL
 
-  INTEGER :: i,iMin,ip,iq,iSweep
-  REAL(RFREAL) :: cosine,held,offDiag,sine,tangent,theta,total
-  REAL(RFREAL) :: column(3),reduced(3,3),rotation(3,3)
+  INTEGER :: i,iMin,ip,iq,ir,iSweep
+  REAL(RFREAL) :: arp,arq,cosine,held,offDiag,sine,tangent,theta,total,vp,vq
+  REAL(RFREAL) :: column(3),reduced(3,3)
 
 ! ******************************************************************************
 ! Start
@@ -810,7 +825,7 @@ SUBROUTINE RFLU_SymmetricEigen3(matrix,vectors,values)
 
   DO iSweep = 1,MAX_SWEEPS
     offDiag = reduced(1,2)**2 + reduced(1,3)**2 + reduced(2,3)**2
-    IF ( offDiag <= 1.0E-30_RFREAL*total ) THEN
+    IF ( offDiag <= EIG_TOL*total ) THEN
       EXIT
     END IF ! offDiag
 
@@ -826,19 +841,26 @@ SUBROUTINE RFLU_SymmetricEigen3(matrix,vectors,values)
           cosine = 1.0_RFREAL/SQRT(tangent**2 + 1.0_RFREAL)
           sine   = tangent*cosine
 
-          rotation = 0.0_RFREAL
-          DO i = 1,3
-            rotation(i,i) = 1.0_RFREAL
-          END DO ! i
-          rotation(ip,ip) =  cosine
-          rotation(iq,iq) =  cosine
-          rotation(ip,iq) =  sine
-          rotation(iq,ip) = -sine
+! Rotation in the (ip,iq) plane: only rows and columns ip, iq change
+          ir  = 6 - ip - iq
+          arp = reduced(ir,ip)
+          arq = reduced(ir,iq)
 
-          reduced = MATMUL(TRANSPOSE(rotation),MATMUL(reduced,rotation))
+          reduced(ip,ip) = reduced(ip,ip) - tangent*reduced(ip,iq)
+          reduced(iq,iq) = reduced(iq,iq) + tangent*reduced(ip,iq)
           reduced(ip,iq) = 0.0_RFREAL
           reduced(iq,ip) = 0.0_RFREAL
-          vectors = MATMUL(vectors,rotation)
+          reduced(ir,ip) = cosine*arp - sine*arq
+          reduced(ip,ir) = reduced(ir,ip)
+          reduced(ir,iq) = sine*arp + cosine*arq
+          reduced(iq,ir) = reduced(ir,iq)
+
+          DO i = 1,3
+            vp = vectors(i,ip)
+            vq = vectors(i,iq)
+            vectors(i,ip) = cosine*vp - sine*vq
+            vectors(i,iq) = sine*vp + cosine*vq
+          END DO ! i
         END IF ! reduced
       END DO ! iq
     END DO ! ip
