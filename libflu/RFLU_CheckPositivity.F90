@@ -84,11 +84,8 @@ SUBROUTINE RFLU_CheckPositivity(pRegion)
   USE ModParameters
   USE ModMPI
   
-  USE ModInterfaces, ONLY: MixtPerf_G_CpR, &
-                           MixtPerf_P_DEoGVm2, &
-                           MixtPerf_R_M, &
-                           MixtPerf_T_DPR, &
-                           RFLU_PrintLocInfo
+  USE ModInterfaces, ONLY: RFLU_PrintLocInfo, &
+                           RFLU_SetDependentVars
   USE RFLU_ModJWL ! Subbu 
   IMPLICIT NONE
 
@@ -108,11 +105,11 @@ SUBROUTINE RFLU_CheckPositivity(pRegion)
 
   CHARACTER(CHRLEN) :: RCSIdentString
   INTEGER, PARAMETER :: MAX_NEGATIVE_LOCS = 10
-  INTEGER :: icg,indCp,indMol,indVFracE,nLocs
+  INTEGER :: icg,indVFracE,nLocs
   INTEGER :: loc(MAX_NEGATIVE_LOCS,MIN_VAL:MAX_VAL)
-  REAL(RFREAL) :: Eo,gamma,p,pBefore,rgas,rho,rrho,t,u,v,Vm2,w,VFracE
+  REAL(RFREAL) :: Eo,p,pBefore,rho,rrho,t,u,v,Vm2,w,VFracE
   REAL(RFREAL) :: x,y,z
-  REAL(RFREAL), DIMENSION(:,:), POINTER :: cv,dv,gv
+  REAL(RFREAL), DIMENSION(:,:), POINTER :: cv,dv
   TYPE(t_global), POINTER :: global
   TYPE(t_grid), POINTER :: pGrid
 
@@ -134,9 +131,6 @@ SUBROUTINE RFLU_CheckPositivity(pRegion)
 
   nLocs = 0
 
-  indCp  = pRegion%mixtInput%indCp
-  indMol = pRegion%mixtInput%indMol 
-
   indVFracE = 0
 #ifdef PLAG    
   indVFracE = pRegion%plagInput%indVFracE
@@ -149,7 +143,6 @@ SUBROUTINE RFLU_CheckPositivity(pRegion)
 
   cv => pRegion%mixt%cv
   dv => pRegion%mixt%dv
-  gv => pRegion%mixt%gv
 
   DO icg = 1,pGrid%nCells
     x = pGrid%cofg(XCOORD,icg)
@@ -166,8 +159,6 @@ SUBROUTINE RFLU_CheckPositivity(pRegion)
     VFracE = pRegion%plag%vFracE(1,icg)
 #endif    
     ! Subbu - Correction    
-    rgas  = MixtPerf_R_M(gv(GV_MIXT_MOL,icg*indMol))
-    gamma = MixtPerf_G_CpR(gv(GV_MIXT_CP,icg*indCp),rgas)
     Vm2   = u*u + v*v + w*w !Fred - for Channeling fix try...
    
     ! rho = rho/(1.0_RFREAL - pRegion%plag%vFracE(1,indVFracE*icg))
@@ -191,11 +182,10 @@ SUBROUTINE RFLU_CheckPositivity(pRegion)
        global%posFixBox = MIN(global%posFixBox,(/x,y,z,-x,-y,-z/))
        pBefore = p
        Eo = 1.0e4_RFREAL + 0.5_RFREAL*Vm2 !Energy floor
-       p = MixtPerf_P_DEoGVm2(rho,Eo,gamma,Vm2)
-       t = MixtPerf_T_DPR(rho,p,rgas) !Recompute P,T
-       dv(DV_MIXT_PRES,icg) = p
-       dv(DV_MIXT_TEMP,icg) = t  !Reset Dep Var Array
        cv(CV_MIXT_ENER,icg) = rho*Eo !Reset Total energy array
+       CALL RFLU_SetDependentVars(pRegion,icg,icg)
+       p = dv(DV_MIXT_PRES,icg)
+       t = dv(DV_MIXT_TEMP,icg)
        IF ( pBefore < global%posFixWorst(1) ) THEN
          global%posFixWorst = (/pBefore,p,rho,x,y,z/)
        END IF ! pBefore
