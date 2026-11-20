@@ -429,7 +429,6 @@ END IF
 
 ! ----- update dependent variables --------------------------------------------
 
-        CALL RFLU_MPI_ISendWrapper(pRegion)
         CALL RFLU_SetVarsContWrapper(pRegion,1,pRegion%grid%nCells)
 
 ! Subbu - Perform check after computing pressure & temperature
@@ -437,6 +436,10 @@ END IF
 
         CALL AfterUpdateMP( pRegion,istage )
 ! Subbu - End Perform check
+
+! ----- send the corrected state to ghost cells on other ranks ----------------
+
+        CALL RFLU_MPI_ISendWrapper(pRegion)
 
 ! ----- update dependent variables on boundary faces --------------------------
 
